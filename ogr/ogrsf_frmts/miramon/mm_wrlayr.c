@@ -3438,6 +3438,13 @@ int MMReadPHPolygonSection(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     pMMPolygonLayer = &hMiraMonLayer->MMPolygon;
 
+    if (MMCheckSize_t(hMiraMonLayer->TopHeader.nElemCount,
+                      pMMPolygonLayer->nPHElementSize) ||
+        MMCheckSize_t(hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount,
+                      hMiraMonLayer->MMPolygon.nPSElementSize))
+    {
+        return 1;
+    }
     nBlockSize =
         hMiraMonLayer->TopHeader.nElemCount * (pMMPolygonLayer->nPHElementSize);
 
