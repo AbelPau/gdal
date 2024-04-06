@@ -523,6 +523,8 @@ int MMReadZSection(struct MiraMonVectLayerInfo *hMiraMonLayer, FILE_TYPE *pF,
 
     if (hMiraMonLayer->bIsPoint)
     {
+        if (MMCheckSize_t(hMiraMonLayer->TopHeader.nElemCount, MM_SIZE_OF_TL))
+            return 1;
         pZSection->ZSectionOffset =
             hMiraMonLayer->nHeaderDiskSize +
             hMiraMonLayer->TopHeader.nElemCount * MM_SIZE_OF_TL;
@@ -530,30 +532,29 @@ int MMReadZSection(struct MiraMonVectLayerInfo *hMiraMonLayer, FILE_TYPE *pF,
     else if (hMiraMonLayer->bIsArc && !(hMiraMonLayer->bIsPolygon) &&
              hMiraMonLayer->TopHeader.nElemCount > 0)
     {
+        const struct MM_AH *pArcHeader =
+            &(hMiraMonLayer->MMArc
+                  .pArcHeader[hMiraMonLayer->TopHeader.nElemCount - 1]);
+        if (MMCheckSize_t(pArcHeader->nElemCount, MM_SIZE_OF_COORDINATE))
+            return 1;
         // Z section begins just after last coordinate of the last arc
         pZSection->ZSectionOffset =
-            hMiraMonLayer->MMArc
-                .pArcHeader[hMiraMonLayer->TopHeader.nElemCount - 1]
-                .nOffset +
-            hMiraMonLayer->MMArc
-                    .pArcHeader[hMiraMonLayer->TopHeader.nElemCount - 1]
-                    .nElemCount *
-                MM_SIZE_OF_COORDINATE;
+            pArcHeader->nOffset +
+            pArcHeader->nElemCount * MM_SIZE_OF_COORDINATE;
     }
     else if (hMiraMonLayer->bIsPolygon &&
              hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount > 0)
     {
+        const struct MM_AH *pArcHeader =
+            &(hMiraMonLayer->MMPolygon.MMArc
+                  .pArcHeader[hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount -
+                              1]);
+        if (MMCheckSize_t(pArcHeader->nElemCount, MM_SIZE_OF_COORDINATE))
+            return 1;
         // Z section begins just after last coordinate of the last arc
         pZSection->ZSectionOffset =
-            hMiraMonLayer->MMPolygon.MMArc
-                .pArcHeader[hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount -
-                            1]
-                .nOffset +
-            hMiraMonLayer->MMPolygon.MMArc
-                    .pArcHeader
-                        [hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount - 1]
-                    .nElemCount *
-                MM_SIZE_OF_COORDINATE;
+            pArcHeader->nOffset +
+            pArcHeader->nElemCount * MM_SIZE_OF_COORDINATE;
     }
     else
         return 1;
