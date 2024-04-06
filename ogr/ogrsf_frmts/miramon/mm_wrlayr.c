@@ -1177,9 +1177,8 @@ static int MMInitNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     {
         // Node Header
         pMMArcLayer->MMNode.nMaxNodeHeader = MM_FIRST_NUMBER_OF_NODES;
-        if (MMCheckSize_t(pMMArcLayer->MMNode.nMaxNodeHeader *
-                              sizeof(*pMMArcLayer->MMNode.pNodeHeader),
-                          1))
+        if (MMCheckSize_t(pMMArcLayer->MMNode.nMaxNodeHeader,
+                          sizeof(*pMMArcLayer->MMNode.pNodeHeader)))
             return 1;
 
         if (!pMMArcLayer->MMNode.nMaxNodeHeader)
@@ -1333,9 +1332,8 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     if (pMMArcLayer->nMaxArcHeader)
     {
-        if (MMCheckSize_t(pMMArcLayer->nMaxArcHeader *
-                              sizeof(*pMMArcLayer->pArcHeader),
-                          1))
+        if (MMCheckSize_t(pMMArcLayer->nMaxArcHeader,
+                          sizeof(*pMMArcLayer->pArcHeader)))
             return 1;
         if (nullptr == (pMMArcLayer->pArcHeader = (struct MM_AH *)
                             calloc_function((size_t)pMMArcLayer->nMaxArcHeader *
@@ -1640,9 +1638,8 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     if (pMMPolygonLayer->nMaxPolHeader)
     {
-        if (MMCheckSize_t(pMMPolygonLayer->nMaxPolHeader *
-                              sizeof(*pMMPolygonLayer->pPolHeader),
-                          1))
+        if (MMCheckSize_t(pMMPolygonLayer->nMaxPolHeader,
+                          sizeof(*pMMPolygonLayer->pPolHeader)))
             return 1;
         if (nullptr ==
             (pMMPolygonLayer->pPolHeader = (struct MM_PH *)calloc_function(
@@ -3738,8 +3735,8 @@ int MMInitFeature(struct MiraMonFeature *hMMFeature)
     memset(hMMFeature, 0, sizeof(*hMMFeature));
 
     hMMFeature->nMaxMRecords = MM_INIT_NUMBER_OF_RECORDS;
-    if (MMCheckSize_t(
-            hMMFeature->nMaxMRecords * sizeof(*(hMMFeature->pRecords)), 1))
+    if (MMCheckSize_t(hMMFeature->nMaxMRecords,
+                      sizeof(*(hMMFeature->pRecords))))
         return 1;
 
     if (!hMMFeature->nMaxMRecords)
@@ -3752,9 +3749,8 @@ int MMInitFeature(struct MiraMonFeature *hMMFeature)
 
     hMMFeature->pRecords[0].nMaxField = MM_INIT_NUMBER_OF_FIELDS;
     hMMFeature->pRecords[0].nNumField = 0;
-    if (MMCheckSize_t(hMMFeature->pRecords[0].nMaxField *
-                          sizeof(*(hMMFeature->pRecords[0].pField)),
-                      1))
+    if (MMCheckSize_t(hMMFeature->pRecords[0].nMaxField,
+                      sizeof(*(hMMFeature->pRecords[0].pField))))
         return 1;
     if (nullptr == (hMMFeature->pRecords[0].pField = calloc_function(
                         (size_t)hMMFeature->pRecords[0].nMaxField *
