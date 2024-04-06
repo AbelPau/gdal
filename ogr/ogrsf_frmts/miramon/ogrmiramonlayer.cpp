@@ -940,7 +940,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                         phMiraMonLayer->ReadFeature.nNumpCoord)
                     {
                         nIVrtAcum = 0;
-                        if (!(phMiraMonLayer->ReadFeature.flag_VFG[0] |
+                        if (!(phMiraMonLayer->ReadFeature.flag_VFG[0] &
                               MM_EXTERIOR_ARC_SIDE))
                         {
                             CPLError(CE_Failure, CPLE_AssertionFailed,
