@@ -590,6 +590,8 @@ int MMGetGeoFeatureFromVector(struct MiraMonVectLayerInfo *hMiraMonLayer,
         {
             pZDescription =
                 hMiraMonLayer->MMPoint.pZSection.pZDescription + i_elem;
+            if (pZDescription->nZCount == INT_MIN)
+                return 1;
             num = MM_ARC_TOTAL_N_HEIGHTS_DISK(pZDescription->nZCount, 1);
 
             if (MMResizeDoublePointer(&hMiraMonLayer->ReadFeature.pZCoord,
