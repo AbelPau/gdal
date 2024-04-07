@@ -896,11 +896,25 @@ static int MMInitZSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
     }
     else
     {
-        if (MMCheckSize_t(hMiraMonLayer->TopHeader.nElemCount, sizeof(double)))
-            return 1;
+        if (hMiraMonLayer->bIsPolygon)
+        {
+            if (MMCheckSize_t(hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount,
+                              sizeof(double)))
+                return 1;
 
-        pZSection->nMaxZDescription =
-            hMiraMonLayer->TopHeader.nElemCount * sizeof(double);
+            pZSection->nMaxZDescription =
+                hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount *
+                sizeof(double);
+        }
+        else
+        {
+            if (MMCheckSize_t(hMiraMonLayer->TopHeader.nElemCount,
+                              sizeof(double)))
+                return 1;
+
+            pZSection->nMaxZDescription =
+                hMiraMonLayer->TopHeader.nElemCount * sizeof(double);
+        }
         if (MMInitZSectionDescription(pZSection))
             return 1;
     }
