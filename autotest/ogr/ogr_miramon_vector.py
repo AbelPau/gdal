@@ -192,8 +192,7 @@ def test_ogr_miramon_write_simple_arc(tmp_vsimem):
         format="MiraMonVector",
     )
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
-    # FIXME: fails on assert f.GetField("LONG_ARC")
-    # check_simple_arc(ds)
+    check_simple_arc(ds)
     del ds
 
 

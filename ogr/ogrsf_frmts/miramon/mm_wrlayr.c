@@ -6336,7 +6336,7 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
 
         if (0 == (nIField = (MM_EXT_DBF_N_FIELDS)MM_DefineFirstArcFieldsDB_XP(
-                      pBD_XP, 0)))
+                      pBD_XP, 6)))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMArc.MMNode.MMAdmDB.pMMBDXP =
