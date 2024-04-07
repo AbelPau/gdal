@@ -525,6 +525,9 @@ int MMReadZSection(struct MiraMonVectLayerInfo *hMiraMonLayer, FILE_TYPE *pF,
     {
         if (MMCheckSize_t(hMiraMonLayer->TopHeader.nElemCount, MM_SIZE_OF_TL))
             return 1;
+        if (hMiraMonLayer->TopHeader.nElemCount * MM_SIZE_OF_TL >
+            UINT64_MAX - hMiraMonLayer->nHeaderDiskSize)
+            return 1;
         pZSection->ZSectionOffset =
             hMiraMonLayer->nHeaderDiskSize +
             hMiraMonLayer->TopHeader.nElemCount * MM_SIZE_OF_TL;
@@ -536,6 +539,9 @@ int MMReadZSection(struct MiraMonVectLayerInfo *hMiraMonLayer, FILE_TYPE *pF,
             &(hMiraMonLayer->MMArc
                   .pArcHeader[hMiraMonLayer->TopHeader.nElemCount - 1]);
         if (MMCheckSize_t(pArcHeader->nElemCount, MM_SIZE_OF_COORDINATE))
+            return 1;
+        if (pArcHeader->nElemCount * MM_SIZE_OF_COORDINATE >
+            UINT64_MAX - pArcHeader->nOffset)
             return 1;
         // Z section begins just after last coordinate of the last arc
         pZSection->ZSectionOffset =
@@ -550,6 +556,9 @@ int MMReadZSection(struct MiraMonVectLayerInfo *hMiraMonLayer, FILE_TYPE *pF,
                   .pArcHeader[hMiraMonLayer->MMPolygon.TopArcHeader.nElemCount -
                               1]);
         if (MMCheckSize_t(pArcHeader->nElemCount, MM_SIZE_OF_COORDINATE))
+            return 1;
+        if (pArcHeader->nElemCount * MM_SIZE_OF_COORDINATE >
+            UINT64_MAX - pArcHeader->nOffset)
             return 1;
         // Z section begins just after last coordinate of the last arc
         pZSection->ZSectionOffset =
