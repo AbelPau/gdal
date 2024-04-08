@@ -4390,13 +4390,13 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             }
             pZDesc[pArcTopHeader->nElemCount].nZCount = 1;
             if (pArcTopHeader->nElemCount == 0)
-                pZDesc[hMiraMonLayer->TopHeader.nElemCount].nOffsetZ = 0;
+                pZDesc[pArcTopHeader->nElemCount].nOffsetZ = 0;
             else
             {
                 pLastArcHeader =
                     pMMArc->pArcHeader + pArcTopHeader->nElemCount - 1;
-                pZDesc[hMiraMonLayer->TopHeader.nElemCount].nOffsetZ =
-                    pZDesc[hMiraMonLayer->TopHeader.nElemCount - 1].nOffsetZ +
+                pZDesc[pArcTopHeader->nElemCount].nOffsetZ =
+                    pZDesc[pArcTopHeader->nElemCount - 1].nOffsetZ +
                     sizeof(*pZ) * (pLastArcHeader->nElemCount);
             }
         }
