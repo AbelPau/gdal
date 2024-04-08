@@ -63,7 +63,7 @@ class OGRMiraMonLayer final
 
     struct MiraMonFeature hMMFeature;  // Feature reading/writing
 
-    bool bUpdate;
+    bool m_bUpdate;
 
     // Ratio used to enhance certain aspects of memory
     // In some memory settings, a block of 256 or 512 bytes is used.

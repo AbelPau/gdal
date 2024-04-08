@@ -43,7 +43,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
     : m_poDS(poDS), m_poSRS(nullptr), m_poFeatureDefn(nullptr), m_iNextFID(0),
       phMiraMonLayer(nullptr), hMiraMonLayerPNT(), hMiraMonLayerARC(),
       hMiraMonLayerPOL(), hMiraMonLayerReadOrNonGeom(), hMMFeature(),
-      bUpdate(CPL_TO_BOOL(bUpdateIn)), nMMMemoryRatio(1.0),
+      m_bUpdate(CPL_TO_BOOL(bUpdateIn)), nMMMemoryRatio(1.0),
       m_fp(fp ? fp : VSIFOpenL(pszFilename, (bUpdateIn ? "r+" : "r"))),
       padfValues(nullptr), bValidFile(false)
 {
@@ -56,7 +56,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
     SetDescription(m_poFeatureDefn->GetName());
     m_poFeatureDefn->Reference();
 
-    if (bUpdate)
+    if (m_bUpdate)
     {
         /* ---------------------------------------------------------------- */
         /*      Establish the version to use                                */
@@ -1415,9 +1415,7 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
     // the ID of the first feature has to be 0, the second, 1,...
     poFeature->SetFID(nFeatureId);
 
-    // Perhaps there are features without geometry.
     m_nFeaturesRead++;
-
     return poFeature.release();
 }
 
@@ -1615,7 +1613,7 @@ OGRErr OGRMiraMonLayer::ICreateFeature(OGRFeature *poFeature)
 {
     OGRErr eErr = OGRERR_NONE;
 
-    if (!bUpdate)
+    if (!m_bUpdate)
     {
         CPLError(CE_Failure, CPLE_NoWriteAccess,
                  "\nCannot create features on a read-only dataset.");
@@ -1635,10 +1633,6 @@ OGRErr OGRMiraMonLayer::ICreateFeature(OGRFeature *poFeature)
             poFeature->SetFID(phMiraMonLayer->TopHeader.nElemCount - 1);
         return eErr;
     }
-
-    // At this point MiraMon does not support unkwnon type geometry
-    if (poGeom->getGeometryType() == wkbUnknown)
-        return LOG_ACTION(OGRERR_UNSUPPORTED_GEOMETRY_TYPE);
 
     // Converting to simple geometries
     if (wkbFlatten(poGeom->getGeometryType()) == wkbGeometryCollection)
@@ -1823,9 +1817,7 @@ OGRErr OGRMiraMonLayer::MMLoadGeometry(OGRGeometryH hGeom)
 /****************************************************************************/
 /*                           WriteGeometry()                                */
 /*                                                                          */
-/*      Write a geometry to the file.  If bExternalRing is true it          */
-/*      means the ring is being processed is external.                      */
-/*                                                                          */
+/*                    Writes a geometry to the file.                        */
 /****************************************************************************/
 
 OGRErr OGRMiraMonLayer::MMWriteGeometry()
@@ -1837,7 +1829,7 @@ OGRErr OGRMiraMonLayer::MMWriteGeometry()
     {
         CPLDebugOnly("MiraMon", "Error in MMAddFeature() "
                                 "MM_FATAL_ERROR_WRITING_FEATURES");
-        CPLError(CE_Failure, CPLE_FileIO, "\nMiraMon write failure: %s",
+        CPLError(CE_Failure, CPLE_FileIO, "MiraMon write failure: %s",
                  VSIStrerror(errno));
         return OGRERR_FAILURE;
     }
@@ -1968,26 +1960,23 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
                 }
             }
 
-            if (m_poFeatureDefn->GetFieldDefn(iField)->GetNameRef())
+            // Recode from UTF-8 if necessary
+            if (phMiraMonLayer->nCharSet != MM_JOC_CARAC_UTF8_DBF)
             {
-                // Interlis 1 encoding is ISO 8859-1 (Latin1) -> Recode from UTF-8
-                if (phMiraMonLayer->nCharSet != MM_JOC_CARAC_UTF8_DBF)
-                {
-                    char *pszString = CPLRecode(
-                        m_poFeatureDefn->GetFieldDefn(iField)->GetNameRef(),
-                        CPL_ENC_UTF8, CPL_ENC_ISO8859_1);
-                    CPLStrlcpy(
-                        phMiraMonLayer->pLayerDB->pFields[iField].pszFieldName,
-                        pszString, MM_MAX_LON_FIELD_NAME_DBF);
-                    CPLFree(pszString);
-                }
-                else
-                {
-                    CPLStrlcpy(
-                        phMiraMonLayer->pLayerDB->pFields[iField].pszFieldName,
-                        m_poFeatureDefn->GetFieldDefn(iField)->GetNameRef(),
-                        MM_MAX_LON_FIELD_NAME_DBF);
-                }
+                char *pszString = CPLRecode(
+                    m_poFeatureDefn->GetFieldDefn(iField)->GetNameRef(),
+                    CPL_ENC_UTF8, CPL_ENC_ISO8859_1);
+                CPLStrlcpy(
+                    phMiraMonLayer->pLayerDB->pFields[iField].pszFieldName,
+                    pszString, MM_MAX_LON_FIELD_NAME_DBF);
+                CPLFree(pszString);
+            }
+            else
+            {
+                CPLStrlcpy(
+                    phMiraMonLayer->pLayerDB->pFields[iField].pszFieldName,
+                    m_poFeatureDefn->GetFieldDefn(iField)->GetNameRef(),
+                    MM_MAX_LON_FIELD_NAME_DBF);
             }
 
             if (m_poFeatureDefn->GetFieldDefn(iField)->GetAlternativeNameRef())
@@ -2023,7 +2012,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
 /****************************************************************************/
 /*                       TranslateFieldsValuesToMM()                        */
 /*                                                                          */
-/*      Translase ogr Fields to a structure that MiraMon can understand     */
+/*      Translate ogr Fields to a structure that MiraMon can understand     */
 /****************************************************************************/
 
 OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
@@ -2038,7 +2027,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
 
     MM_EXT_DBF_N_MULTIPLE_RECORDS nIRecord;
     int nNumFields = m_poFeatureDefn->GetFieldCount();
-    MM_EXT_DBF_N_MULTIPLE_RECORDS nNumRecords;
+    MM_EXT_DBF_N_MULTIPLE_RECORDS nNumRecords, nRealNumRecords;
     hMMFeature.nNumMRecords = 0;
 
     for (int iField = 0; iField < nNumFields; iField++)
@@ -2048,8 +2037,8 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
 
         if (eFType == OFTStringList)
         {
-            char **panValues = poFeature->GetFieldAsStringList(iField);
-            nNumRecords = CSLCount(panValues);
+            char **papszValues = poFeature->GetFieldAsStringList(iField);
+            nRealNumRecords = nNumRecords = CSLCount(papszValues);
             if (nNumRecords == 0)
                 nNumRecords++;
             hMMFeature.nNumMRecords =
@@ -2060,7 +2049,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                     hMMFeature.nNumMRecords))
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
-            for (nIRecord = 0; nIRecord < hMMFeature.nNumMRecords; nIRecord++)
+            for (nIRecord = 0; nIRecord < nRealNumRecords; nIRecord++)
             {
                 hMMFeature.pRecords[nIRecord].nNumField =
                     m_poFeatureDefn->GetFieldCount();
@@ -2077,7 +2066,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 {
                     // MiraMon encoding is ISO 8859-1 (Latin1) -> Recode from UTF-8
                     char *pszString = CPLRecode(
-                        panValues[nIRecord], CPL_ENC_UTF8, CPL_ENC_ISO8859_1);
+                        papszValues[nIRecord], CPL_ENC_UTF8, CPL_ENC_ISO8859_1);
                     if (MM_SecureCopyStringFieldValue(
                             &hMMFeature.pRecords[nIRecord]
                                  .pField[iField]
@@ -2098,7 +2087,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                             &hMMFeature.pRecords[nIRecord]
                                  .pField[iField]
                                  .pDinValue,
-                            panValues[nIRecord],
+                            papszValues[nIRecord],
                             &hMMFeature.pRecords[nIRecord]
                                  .pField[iField]
                                  .nNumDinValue))
@@ -2113,7 +2102,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
             const int *panValues =
                 poFeature->GetFieldAsIntegerList(iField, &nCount);
 
-            nNumRecords = nCount;
+            nRealNumRecords = nNumRecords = nCount;
             if (nNumRecords == 0)
                 nNumRecords++;
             hMMFeature.nNumMRecords =
@@ -2125,7 +2114,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
             // It will contains the i-th element of the list.
-            for (nIRecord = 0; nIRecord < hMMFeature.nNumMRecords; nIRecord++)
+            for (nIRecord = 0; nIRecord < nRealNumRecords; nIRecord++)
             {
                 hMMFeature.pRecords[nIRecord].nNumField = nNumFields;
 
@@ -2157,7 +2146,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
             const GIntBig *panValues =
                 poFeature->GetFieldAsInteger64List(iField, &nCount);
 
-            nNumRecords = nCount;
+            nRealNumRecords = nNumRecords = nCount;
             if (nNumRecords == 0)
                 nNumRecords++;
             hMMFeature.nNumMRecords =
@@ -2169,7 +2158,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
             // It will contains the i-th element of the list.
-            for (nIRecord = 0; nIRecord < hMMFeature.nNumMRecords; nIRecord++)
+            for (nIRecord = 0; nIRecord < nRealNumRecords; nIRecord++)
             {
                 hMMFeature.pRecords[nIRecord].nNumField = nNumFields;
 
@@ -2198,11 +2187,11 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
         else if (eFType == OFTRealList)
         {
             int nCount = 0;
-            const double *panValues =
+            const double *padfRLValues =
                 poFeature->GetFieldAsDoubleList(iField, &nCount);
             //char format[23];
 
-            nNumRecords = nCount;
+            nRealNumRecords = nNumRecords = nCount;
             if (nNumRecords == 0)
                 nNumRecords++;
             hMMFeature.nNumMRecords =
@@ -2214,7 +2203,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
             // It will contains the i-th element of the list.
-            for (nIRecord = 0; nIRecord < hMMFeature.nNumMRecords; nIRecord++)
+            for (nIRecord = 0; nIRecord < nRealNumRecords; nIRecord++)
             {
                 hMMFeature.pRecords[nIRecord].nNumField = iField;
 
@@ -2227,14 +2216,14 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                     return OGRERR_NOT_ENOUGH_MEMORY;
 
                 hMMFeature.pRecords[nIRecord].pField[iField].dValue =
-                    panValues[nIRecord];
+                    padfRLValues[nIRecord];
 
                 // TODO: decide how many decimals use. If possible.
-                //CPLStrlcpy(format, CPLSPrintf("%f", panValues[nIRecord]),23);
+                //CPLStrlcpy(format, CPLSPrintf("%f", padfRLValues[nIRecord]),23);
 
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
-                        CPLSPrintf("%f", panValues[nIRecord]),
+                        CPLSPrintf("%f", padfRLValues[nIRecord]),
                         &hMMFeature.pRecords[nIRecord]
                              .pField[iField]
                              .nNumDinValue))
@@ -2421,6 +2410,18 @@ OGRErr OGRMiraMonLayer::GetExtent(OGREnvelope *psExtent, int bForce)
 {
     if (phMiraMonLayer)
     {
+        if (phMiraMonLayer->bIsDBF)
+            return OGRERR_FAILURE;
+
+        // For polygons we need another polygon apart from the universal one
+        // to have a valid extension
+        if (phMiraMonLayer->bIsPolygon &&
+            phMiraMonLayer->TopHeader.nElemCount < 1)
+            return OGRERR_FAILURE;
+
+        if (phMiraMonLayer->TopHeader.nElemCount < 1)
+            return OGRERR_FAILURE;
+
         psExtent->MinX = phMiraMonLayer->TopHeader.hBB.dfMinX;
         psExtent->MaxX = phMiraMonLayer->TopHeader.hBB.dfMaxX;
         psExtent->MinY = phMiraMonLayer->TopHeader.hBB.dfMinY;
@@ -2446,19 +2447,16 @@ int OGRMiraMonLayer::TestCapability(const char *pszCap)
         return TRUE;
 
     if (EQUAL(pszCap, OLCSequentialWrite))
-        return TRUE;
+        return m_bUpdate;
 
     if (EQUAL(pszCap, OLCFastFeatureCount))
-        return TRUE;
+        return !m_poFilterGeom && !m_poAttrQuery;
 
     if (EQUAL(pszCap, OLCFastGetExtent))
         return TRUE;
 
     if (EQUAL(pszCap, OLCCreateField))
-        return TRUE;
-
-    if (EQUAL(pszCap, OLCFastFeatureCount))
-        return TRUE;
+        return m_bUpdate;
 
     if (EQUAL(pszCap, OLCZGeometries))
         return TRUE;
@@ -2476,10 +2474,10 @@ int OGRMiraMonLayer::TestCapability(const char *pszCap)
 OGRErr OGRMiraMonLayer::CreateField(const OGRFieldDefn *poField, int bApproxOK)
 
 {
-    if (!bUpdate)
+    if (!m_bUpdate)
     {
         CPLError(CE_Failure, CPLE_NoWriteAccess,
-                 "\nCannot create fields on a read-only dataset.");
+                 "Cannot create fields on a read-only dataset.");
         return OGRERR_FAILURE;
     }
 
