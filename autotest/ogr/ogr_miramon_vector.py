@@ -442,8 +442,7 @@ def test_ogr_miramon_write_3d_arc(tmp_vsimem):
         format="MiraMonVector",
     )
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
-    # FIXME: fails on  assert p[2] == 794.5372314453125
-    # check_3d_arc(ds)
+    check_3d_arc(ds)
     del ds
 
 
@@ -507,8 +506,7 @@ def test_ogr_miramon_write_3d_pol(tmp_vsimem):
         format="MiraMonVector",
     )
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
-    # FIXME: fails on assert p[2] == 18.207277297973633
-    # check_3d_pol(ds)
+    check_3d_pol(ds)
     del ds
 
 

@@ -749,13 +749,13 @@ MMWriteZDescriptionHeaders(struct MiraMonVectLayerInfo *hMiraMonLayer,
     pZDescription = pZSection->pZDescription;
 
     nOffsetDiff =
-        pZSection->ZSectionOffset +
-        nElements *
-            (sizeof(pZDescription->dfBBminz) + sizeof(pZDescription->dfBBmaxz) +
+        pZSection->ZSectionOffset + nElements * pZSection->nZDDiskSize;
+    /*(sizeof(pZDescription->dfBBminz) + sizeof(pZDescription->dfBBmaxz) +
              sizeof(pZDescription->nZCount) +
              ((hMiraMonLayer->LayerVersion == MM_32BITS_VERSION)
                   ? sizeof(nUL32)
                   : sizeof(pZDescription->nOffsetZ)));
+                  */
 
     if (MMInitFlush(&FlushTMP, pF,
                     (hMiraMonLayer->nMemoryRatio != 1)
@@ -2831,19 +2831,9 @@ int MMMoveFromFileToFile(FILE_TYPE *pSrcFile, FILE_TYPE *pDestFile,
     size_t bufferSize = 1024 * 1024;  // 1 MB buffer;
     unsigned char *buffer;
     size_t bytesRead, bytesWritten;
-    MM_FILE_OFFSET size_of_dst_file;
 
     if (!pSrcFile || !pDestFile || !nOffset)
         return 0;
-
-    fseek_function(pDestFile, 0, SEEK_END);
-    size_of_dst_file = ftell_function(pDestFile);
-
-    if (!size_of_dst_file)
-        return 0;
-
-    if (size_of_dst_file < bufferSize)
-        bufferSize = (size_t)size_of_dst_file;
 
     buffer = (unsigned char *)calloc_function(bufferSize);
 
@@ -2851,6 +2841,7 @@ int MMMoveFromFileToFile(FILE_TYPE *pSrcFile, FILE_TYPE *pDestFile,
         return 1;
 
     fseek_function(pSrcFile, 0, SEEK_SET);
+    fseek_function(pDestFile, *nOffset, SEEK_SET);
     while ((bytesRead = fread_function(buffer, sizeof(unsigned char),
                                        bufferSize, pSrcFile)) > 0)
     {
@@ -3914,6 +3905,8 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
     MM_POLYGON_RINGS_COUNT nExternalRingsCount;
     struct MM_PH *pCurrentPolHeader = nullptr;
     struct MM_AH *pCurrentArcHeader;
+    // To access how many points have been stored inthe last stringline
+    struct MM_AH *pLastArcHeader = nullptr;
     struct MM_NH *pCurrentNodeHeader, *pCurrentNodeHeaderPlus1 = nullptr;
     uint32_t UnsignedLongNumber;
     struct MiraMonArcLayer *pMMArc;
@@ -4220,7 +4213,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
         {
             // Writing the arc in the normal way
             pFlushAL->SizeOfBlockToBeSaved = sizeof(pCoordReal->dfX);
-            pFlushAL->pBlockToBeSaved = (void *)&(pCoord + nIVertice)->dfX;
+            pFlushAL->pBlockToBeSaved = (void *)&((pCoord + nIVertice)->dfX);
             if (MMAppendBlockToBuffer(pFlushAL))
             {
                 MMCPLDebug("MiraMon", "Error in MMAppendBlockToBuffer() (1)");
@@ -4396,12 +4389,16 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
                     pZDesc[pArcTopHeader->nElemCount].dfBBmaxz = *pZ;
             }
             pZDesc[pArcTopHeader->nElemCount].nZCount = 1;
-            if (hMiraMonLayer->TopHeader.nElemCount == 0)
+            if (pArcTopHeader->nElemCount == 0)
                 pZDesc[hMiraMonLayer->TopHeader.nElemCount].nOffsetZ = 0;
             else
+            {
+                pLastArcHeader =
+                    pMMArc->pArcHeader + pArcTopHeader->nElemCount - 1;
                 pZDesc[hMiraMonLayer->TopHeader.nElemCount].nOffsetZ =
                     pZDesc[hMiraMonLayer->TopHeader.nElemCount - 1].nOffsetZ +
-                    sizeof(*pZ);
+                    sizeof(*pZ) * (pLastArcHeader->nElemCount);
+            }
         }
 
         // Exclusive polygon stuff
