@@ -4128,6 +4128,9 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
     nExternalRingsCount = 0;
     pCoord = hMMFeature->pCoord;
 
+    if (!pCoord)
+        return MM_FATAL_ERROR_WRITING_FEATURES;
+
     // Doing real job
     for (nIPart = 0; nIPart < hMMFeature->nNRings; nIPart++,
         pArcTopHeader->nElemCount++,
@@ -4213,7 +4216,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
         {
             // Writing the arc in the normal way
             pFlushAL->SizeOfBlockToBeSaved = sizeof(pCoordReal->dfX);
-            pFlushAL->pBlockToBeSaved = (void *)&((pCoord + nIVertice)->dfX);
+            pFlushAL->pBlockToBeSaved = (void *)&(pCoord + nIVertice)->dfX;
             if (MMAppendBlockToBuffer(pFlushAL))
             {
                 MMCPLDebug("MiraMon", "Error in MMAppendBlockToBuffer() (1)");
@@ -4250,6 +4253,10 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             pCoord = pCoordReal + pCurrentArcHeader->nElemCount;
         else
             pCoord += pCurrentArcHeader->nElemCount;
+
+        // If the ring is finished a jump to the next ring must be done.
+        if (hMiraMonLayer->bIsPolygon && VFG & MM_END_ARC_IN_RING)
+            pCoord++;
 
         nPolVertices += pCurrentArcHeader->nElemCount;
 
@@ -4429,10 +4436,14 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             if (VFG & MM_EXTERIOR_ARC_SIDE)
                 nExternalRingsCount++;
 
-            pCurrentPolHeader->nArcsCount =
-                (MM_POLYGON_ARCS_COUNT)hMMFeature->nNRings;
-            pCurrentPolHeader->nExternalRingsCount = nExternalRingsCount;
-            pCurrentPolHeader->nRingsCount = hMMFeature->nNRings;
+            pCurrentPolHeader->nArcsCount++;
+            //(MM_POLYGON_ARCS_COUNT)hMMFeature->nNRings;
+            if (VFG & MM_EXTERIOR_ARC_SIDE)
+                pCurrentPolHeader
+                    ->nExternalRingsCount++;  //= nExternalRingsCount;
+
+            if (VFG & MM_END_ARC_IN_RING)
+                pCurrentPolHeader->nRingsCount++;  //= hMMFeature->nNRings;
             if (nIPart == 0)
             {
                 pCurrentPolHeader->nOffset =

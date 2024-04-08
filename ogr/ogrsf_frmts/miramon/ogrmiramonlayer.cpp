@@ -1454,10 +1454,7 @@ OGRErr OGRMiraMonLayer::MMProcessMultiGeometry(OGRGeometryH hGeom,
         return LOG_ACTION(OGRERR_FAILURE);
     }
 
-    if (poGeom->getGeometryType() == wkbUnknown)
-        return LOG_ACTION(OGRERR_UNSUPPORTED_GEOMETRY_TYPE);
-
-    // MUltigeometry field processing (just in case of a MG inside a MG)
+    // Multigeometry field processing (just in case of a MG inside a MG)
     if (wkbFlatten(poGeom->getGeometryType()) == wkbGeometryCollection)
     {
         int nGeom = OGR_G_GetGeometryCount(OGRGeometry::ToHandle(poGeom));
