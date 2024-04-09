@@ -43,7 +43,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
     : m_poDS(poDS), m_poSRS(nullptr), m_poFeatureDefn(nullptr), m_iNextFID(0),
       phMiraMonLayer(nullptr), hMiraMonLayerPNT(), hMiraMonLayerARC(),
       hMiraMonLayerPOL(), hMiraMonLayerReadOrNonGeom(), hMMFeature(),
-      m_bUpdate(CPL_TO_BOOL(bUpdateIn)), nMMMemoryRatio(1.0),
+      m_bUpdate(CPL_TO_BOOL(bUpdateIn)),
       m_fp(fp ? fp : VSIFOpenL(pszFilename, (bUpdateIn ? "r+" : "r"))),
       padfValues(nullptr), bValidFile(false)
 {
@@ -95,17 +95,6 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
             nMMRecode = MM_RECODE_ANSI;  // Default
 
         /* ----------------------------------------------------------------- */
-        /*      Establish the nMemoryRatio to use                            */
-        /* ----------------------------------------------------------------- */
-        const char *pszMemoryRatio =
-            CSLFetchNameValue(papszOpenOptions, "CreationMemoryRatio");
-
-        if (pszMemoryRatio)
-            nMMMemoryRatio = std::clamp(CPLAtof(pszMemoryRatio), 0.5, 100.0);
-        else
-            nMMMemoryRatio = 1;  // Default
-
-        /* ----------------------------------------------------------------- */
         /*   Establish the descriptors language when                         */
         /*   creating .rel files                                             */
         /* ----------------------------------------------------------------- */
@@ -139,8 +128,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
         // the first element is readed)
         CPLDebugOnly("MiraMon", "Initializing MiraMon points layer...");
         if (MMInitLayer(&hMiraMonLayerPNT, pszFilename, nMMVersion, nMMRecode,
-                        nMMLanguage, nMMMemoryRatio, nullptr, MM_WRITTING_MODE,
-                        MMMap))
+                        nMMLanguage, nullptr, MM_WRITTING_MODE, MMMap))
         {
             bValidFile = false;
             return;
@@ -149,8 +137,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
 
         CPLDebugOnly("MiraMon", "Initializing MiraMon arcs layer...");
         if (MMInitLayer(&hMiraMonLayerARC, pszFilename, nMMVersion, nMMRecode,
-                        nMMLanguage, nMMMemoryRatio, nullptr, MM_WRITTING_MODE,
-                        MMMap))
+                        nMMLanguage, nullptr, MM_WRITTING_MODE, MMMap))
         {
             bValidFile = false;
             return;
@@ -159,8 +146,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
 
         CPLDebugOnly("MiraMon", "Initializing MiraMon polygons layer...");
         if (MMInitLayer(&hMiraMonLayerPOL, pszFilename, nMMVersion, nMMRecode,
-                        nMMLanguage, nMMMemoryRatio, nullptr, MM_WRITTING_MODE,
-                        MMMap))
+                        nMMLanguage, nullptr, MM_WRITTING_MODE, MMMap))
         {
             bValidFile = false;
             return;
@@ -171,8 +157,8 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
         // information to get. A DBF will be generated
         CPLDebugOnly("MiraMon", "Initializing MiraMon only-ext-DBF layer...");
         if (MMInitLayer(&hMiraMonLayerReadOrNonGeom, pszFilename, nMMVersion,
-                        nMMRecode, nMMLanguage, nMMMemoryRatio, nullptr,
-                        MM_WRITTING_MODE, nullptr))
+                        nMMRecode, nMMLanguage, nullptr, MM_WRITTING_MODE,
+                        nullptr))
         {
             bValidFile = false;
             return;
@@ -285,18 +271,6 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
             else
                 phMiraMonLayer->nSelectCoordz = MM_SELECT_FIRST_COORDZ;
         }
-
-        /* ------------------------------------------------------------ */
-        /*      Establish the nMemoryRatio to use                       */
-        /* ------------------------------------------------------------ */
-        const char *pszMemoryRatio =
-            CSLFetchNameValue(papszOpenOptions, "OpenMemoryRatio");
-
-        if (pszMemoryRatio)
-            phMiraMonLayer->nMemoryRatio =
-                std::clamp(CPLAtof(pszMemoryRatio), 0.5, 100.0);
-        else
-            phMiraMonLayer->nMemoryRatio = 1;  // Default
 
         /* ------------------------------------------------------------ */
         /*   Establish the descriptors language when                    */

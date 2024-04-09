@@ -699,16 +699,6 @@ struct MiraMonVectLayerInfo
     // Final number of elements of the layer.
     MM_INTERNAL_FID nFinalElemCount;  // Real element count after conversion
 
-    // Ratio used to enhance certain aspects of memory
-    // In some memory settings, a block of 256 or 512 bytes is used.
-    // This parameter can be adjusted to achieve
-    // nMemoryRatio*256 or nMemoryRatio*512.
-    // For example, nMemoryRatio=2 in powerful computers and
-    // nMemoryRatio=0.5 in less powerful computers.
-    // By increasing this parameter, more memory will be required,
-    // but there will be fewer read/write operations to the disk.
-    double nMemoryRatio;
-
     // Header of the layer
     size_t nHeaderDiskSize;
     struct MM_TH TopHeader;

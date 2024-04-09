@@ -275,19 +275,6 @@ The following open options are available.
       *iMultiRecord=JSON* option converts the list in a single value in JSON format.
       If not specified, all elements of the list will be translated by default as a OGR list field type.
 
--  .. oo:: OpenMemoryRatio
-      :choices: 0.5, 1, 2, ...
-      :default: 1
-
-      It is a ratio used to enhance certain aspects of memory.
-      In some memory allocations a block of either 256 or 512 bytes is used.
-      This parameter can be adjusted to achieve
-      nMemoryRatio*256 or nMemoryRatio*512.
-      By way of example, please use nMemoryRatio=2 in powerful computers and
-      nMemoryRatio=0.5 in less powerful computers.
-      By increasing this parameter, more memory will be required,
-      but there will be fewer read/write operations to the (network and) disk.
-
 -  .. oo:: OpenLanguage
       :choices: ENG, CAT, SPA
       :default: ENG
@@ -326,18 +313,6 @@ Layer creation options
       As at the moment of this release, UTF-8 tables are not editable in the
       `MiraD application <https://www.miramon.cat/USA/Prod-MiraD.htm>`__, so it
       is recommended to use ANSI instead, if there are no coding problems.
-
--  .. oo:: CreationMemoryRatio
-      :choices: 0.5, 1, 2, ...
-      :default: 1
-
-      It is a ratio used to enhance certain aspects of memory.
-      In some memory allocations a block of 256 bytes is used.
-      This parameter can be adjusted to achieve nMemoryRatio*256.
-      By way of example, please use nMemoryRatio=2 in powerful computers and
-      nMemoryRatio=0.5 in less powerful computers.
-      By increasing this parameter, more memory will be required,
-      but there will be fewer read/write operations to the (network and) disk.
 
 -  .. oo:: CreationLanguage
       :choices: ENG, CAT, SPA

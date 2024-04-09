@@ -69,7 +69,6 @@ CPL_C_START  // Necessary for compiling in GDAL project
                    "Error reading header of file %s", pszFilename);
         return 1;
     }
-    hMiraMonLayer->nMemoryRatio = 1.0;
     hMiraMonLayer->ReadOrWrite = MM_READING_MODE;
     strcpy(hMiraMonLayer->pszFlags, "rb");
 

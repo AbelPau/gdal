@@ -750,18 +750,9 @@ MMWriteZDescriptionHeaders(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
     nOffsetDiff =
         pZSection->ZSectionOffset + nElements * pZSection->nZDDiskSize;
-    /*(sizeof(pZDescription->dfBBminz) + sizeof(pZDescription->dfBBmaxz) +
-             sizeof(pZDescription->nZCount) +
-             ((hMiraMonLayer->LayerVersion == MM_32BITS_VERSION)
-                  ? sizeof(nUL32)
-                  : sizeof(pZDescription->nOffsetZ)));
-                  */
 
-    if (MMInitFlush(&FlushTMP, pF,
-                    (hMiraMonLayer->nMemoryRatio != 1)
-                        ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                        : MM_1MB,
-                    &pBuffer, pZSection->ZSectionOffset, 0))
+    if (MMInitFlush(&FlushTMP, pF, MM_1MB, &pBuffer, pZSection->ZSectionOffset,
+                    0))
     {
         if (pBuffer)
             free_function(pBuffer);
@@ -938,11 +929,8 @@ static int MMInitZSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
     // ZL
     if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
     {
-        if (MMInitFlush(&pZSection->FlushZL, pF3d,
-                        (hMiraMonLayer->nMemoryRatio != 1)
-                            ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                            : MM_1MB,
-                        &pZSection->pZL, 0, sizeof(double)))
+        if (MMInitFlush(&pZSection->FlushZL, pF3d, MM_1MB, &pZSection->pZL, 0,
+                        sizeof(double)))
             return 1;
     }
     return 0;
@@ -1055,10 +1043,7 @@ static int MMInitPointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         fseek_function(hMiraMonLayer->MMPoint.pFTL, 0, SEEK_SET);
 
         if (MMInitFlush(&hMiraMonLayer->MMPoint.FlushTL,
-                        hMiraMonLayer->MMPoint.pFTL,
-                        (hMiraMonLayer->nMemoryRatio != 1)
-                            ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                            : MM_1MB,
+                        hMiraMonLayer->MMPoint.pFTL, MM_1MB,
                         &hMiraMonLayer->MMPoint.pTL, 0, MM_SIZE_OF_TL))
             return 1;
 
@@ -1251,10 +1236,7 @@ static int MMInitNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         fseek_function(pMMArcLayer->MMNode.pFNL, 0, SEEK_SET);
 
         if (MMInitFlush(&pMMArcLayer->MMNode.FlushNL, pMMArcLayer->MMNode.pFNL,
-                        (hMiraMonLayer->nMemoryRatio != 1)
-                            ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                            : MM_1MB,
-                        &pMMArcLayer->MMNode.pNL, 0, 0))
+                        MM_1MB, &pMMArcLayer->MMNode.pNL, 0, 0))
             return 1;
 
         // Creating the DBF file name
@@ -1411,10 +1393,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         }
         fseek_function(pMMArcLayer->pFAL, 0, SEEK_SET);
 
-        if (MMInitFlush(&pMMArcLayer->FlushAL, pMMArcLayer->pFAL,
-                        (hMiraMonLayer->nMemoryRatio != 1)
-                            ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                            : MM_1MB,
+        if (MMInitFlush(&pMMArcLayer->FlushAL, pMMArcLayer->pFAL, MM_1MB,
                         &pMMArcLayer->pAL, 0, 0))
             return 1;
     }
@@ -1644,10 +1623,7 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         fseek_function(pMMPolygonLayer->pFPS, 0, SEEK_SET);
 
         if (MMInitFlush(&pMMPolygonLayer->FlushPS, pMMPolygonLayer->pFPS,
-                        (hMiraMonLayer->nMemoryRatio != 1)
-                            ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                            : MM_1MB,
-                        &pMMPolygonLayer->pPS, 0,
+                        MM_1MB, &pMMPolygonLayer->pPS, 0,
                         pMMPolygonLayer->nPSElementSize))
             return 1;
     }
@@ -1712,10 +1688,7 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         fseek_function(pMMPolygonLayer->pFPAL, 0, SEEK_SET);
 
         if (MMInitFlush(&pMMPolygonLayer->FlushPAL, pMMPolygonLayer->pFPAL,
-                        (hMiraMonLayer->nMemoryRatio != 1)
-                            ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                            : MM_1MB,
-                        &pMMPolygonLayer->pPAL, 0, 0))
+                        MM_1MB, &pMMPolygonLayer->pPAL, 0, 0))
             return 1;
     }
 
@@ -1997,9 +1970,8 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
 int MMInitLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
                 const char *pzFileName, int LayerVersion, char nMMRecode,
-                char nMMLanguage, double nMMMemoryRatio,
-                struct MiraMonDataBase *pLayerDB, MM_BOOLEAN ReadOrWrite,
-                struct MiraMonVectMapInfo *MMMap)
+                char nMMLanguage, struct MiraMonDataBase *pLayerDB,
+                MM_BOOLEAN ReadOrWrite, struct MiraMonVectMapInfo *MMMap)
 {
     if (!hMiraMonLayer)
         return 1;
@@ -2010,7 +1982,6 @@ int MMInitLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
     memset(hMiraMonLayer, 0, sizeof(*hMiraMonLayer));
 
     //hMiraMonLayer->Version = MM_VECTOR_LAYER_LAST_VERSION;
-    hMiraMonLayer->nMemoryRatio = nMMMemoryRatio;
 
     hMiraMonLayer->ReadOrWrite = ReadOrWrite;
     hMiraMonLayer->MMMap = MMMap;
@@ -3146,11 +3117,8 @@ int MMWriteAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer,
         hMiraMonLayer->nHeaderDiskSize +
         hMiraMonLayer->nFinalElemCount * (pMMArcLayer->nSizeArcHeader);
 
-    if (MMInitFlush(&FlushTMP, pMMArcLayer->pF,
-                    (hMiraMonLayer->nMemoryRatio != 1)
-                        ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                        : MM_1MB,
-                    &pBuffer, DiskOffset, 0))
+    if (MMInitFlush(&FlushTMP, pMMArcLayer->pF, MM_1MB, &pBuffer, DiskOffset,
+                    0))
     {
         if (pBuffer)
             free_function(pBuffer);
@@ -3369,11 +3337,8 @@ int MMWriteNHNodeSection(struct MiraMonVectLayerInfo *hMiraMonLayer,
                   (pMMArcLayer->TopNodeHeader.nElemCount *
                    pMMArcLayer->MMNode.nSizeNodeHeader);
 
-    if (MMInitFlush(&FlushTMP, pMMArcLayer->MMNode.pF,
-                    (hMiraMonLayer->nMemoryRatio != 1)
-                        ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                        : MM_1MB,
-                    &pBuffer, DiskOffset, 0))
+    if (MMInitFlush(&FlushTMP, pMMArcLayer->MMNode.pF, MM_1MB, &pBuffer,
+                    DiskOffset, 0))
     {
         if (pBuffer)
             free_function(pBuffer);
@@ -3619,11 +3584,8 @@ int MMWritePHPolygonSection(struct MiraMonVectLayerInfo *hMiraMonLayer,
     nOffsetDiff = DiskOffset + hMiraMonLayer->TopHeader.nElemCount *
                                    (pMMPolygonLayer->nPHElementSize);
 
-    if (MMInitFlush(&FlushTMP, pMMPolygonLayer->pF,
-                    (hMiraMonLayer->nMemoryRatio != 1)
-                        ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                        : MM_1MB,
-                    &pBuffer, DiskOffset, 0))
+    if (MMInitFlush(&FlushTMP, pMMPolygonLayer->pF, MM_1MB, &pBuffer,
+                    DiskOffset, 0))
     {
         if (pBuffer)
             free_function(pBuffer);
@@ -6303,10 +6265,7 @@ static int MMInitMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     fseek_function(pMMAdmDB->pFExtDBF, pMMAdmDB->pMMBDXP->FirstRecordOffset,
                    SEEK_SET);
 
-    if (MMInitFlush(&pMMAdmDB->FlushRecList, pMMAdmDB->pFExtDBF,
-                    (hMiraMonLayer->nMemoryRatio != 1)
-                        ? (GUInt64)(hMiraMonLayer->nMemoryRatio * MM_1MB)
-                        : MM_1MB,
+    if (MMInitFlush(&pMMAdmDB->FlushRecList, pMMAdmDB->pFExtDBF, MM_1MB,
                     &pMMAdmDB->pRecList, pMMAdmDB->pMMBDXP->FirstRecordOffset,
                     0))
         return 1;
