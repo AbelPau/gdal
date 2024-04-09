@@ -1434,9 +1434,9 @@ OGRErr OGRMiraMonLayer::MMProcessMultiGeometry(OGRGeometryH hGeom,
         int nGeom = OGR_G_GetGeometryCount(OGRGeometry::ToHandle(poGeom));
         for (int iGeom = 0; iGeom < nGeom; iGeom++)
         {
-            OGRGeometryH poNewGeometry =
+            OGRGeometryH poSubGeometry =
                 OGR_G_GetGeometryRef(OGRGeometry::ToHandle(poGeom), iGeom);
-            eErr = MMProcessMultiGeometry(poNewGeometry, poFeature);
+            eErr = MMProcessMultiGeometry(poSubGeometry, poFeature);
             if (eErr != OGRERR_NONE)
                 return eErr;
         }
@@ -1449,9 +1449,9 @@ OGRErr OGRMiraMonLayer::MMProcessMultiGeometry(OGRGeometryH hGeom,
         int nGeom = OGR_G_GetGeometryCount(OGRGeometry::ToHandle(poGeom));
         for (int iGeom = 0; iGeom < nGeom; iGeom++)
         {
-            OGRGeometryH poNewGeometry =
+            OGRGeometryH poSubGeometry =
                 OGR_G_GetGeometryRef(OGRGeometry::ToHandle(poGeom), iGeom);
-            eErr = MMProcessGeometry(poNewGeometry, poFeature, (iGeom == 0));
+            eErr = MMProcessGeometry(poSubGeometry, poFeature, (iGeom == 0));
             if (eErr != OGRERR_NONE)
                 return eErr;
         }
@@ -1587,8 +1587,14 @@ OGRErr OGRMiraMonLayer::ICreateFeature(OGRFeature *poFeature)
     if (!m_bUpdate)
     {
         CPLError(CE_Failure, CPLE_NoWriteAccess,
-                 "\nCannot create features on a read-only dataset.");
+                 "Cannot create features on a read-only dataset.");
         return OGRERR_FAILURE;
+    }
+
+    // DEBUG ABEL
+    if (phMiraMonLayer && phMiraMonLayer->TopHeader.nElemCount >= 694954)
+    {
+        int a = 0;
     }
 
     /* -------------------------------------------------------------------- */
@@ -1612,9 +1618,9 @@ OGRErr OGRMiraMonLayer::ICreateFeature(OGRFeature *poFeature)
             LOG_ACTION(OGR_G_GetGeometryCount(OGRGeometry::ToHandle(poGeom)));
         for (int iGeom = 0; iGeom < nGeom; iGeom++)
         {
-            OGRGeometryH poNewGeometry = LOG_ACTION(
+            OGRGeometryH poSubGeometry = LOG_ACTION(
                 OGR_G_GetGeometryRef(OGRGeometry::ToHandle(poGeom), iGeom));
-            eErr = LOG_ACTION(MMProcessMultiGeometry(poNewGeometry, poFeature));
+            eErr = LOG_ACTION(MMProcessMultiGeometry(poSubGeometry, poFeature));
             if (eErr != OGRERR_NONE)
                 return eErr;
         }
@@ -1742,10 +1748,10 @@ OGRErr OGRMiraMonLayer::MMLoadGeometry(OGRGeometryH hGeom)
     {
         for (int iGeom = 0; iGeom < nGeom; iGeom++)
         {
-            OGRGeometryH poNewGeometry = OGR_G_GetGeometryRef(hGeom, iGeom);
+            OGRGeometryH poSubGeometry = OGR_G_GetGeometryRef(hGeom, iGeom);
 
             // Reads all coordinates
-            eErr = MMLoadGeometry(poNewGeometry);
+            eErr = MMLoadGeometry(poSubGeometry);
             if (eErr != OGRERR_NONE)
                 return eErr;
         }
@@ -1754,14 +1760,14 @@ OGRErr OGRMiraMonLayer::MMLoadGeometry(OGRGeometryH hGeom)
     {
         for (int iGeom = 0; iGeom < nGeom && eErr == OGRERR_NONE; iGeom++)
         {
-            OGRGeometryH poNewGeometry = OGR_G_GetGeometryRef(hGeom, iGeom);
+            OGRGeometryH poSubGeometry = OGR_G_GetGeometryRef(hGeom, iGeom);
 
             if (iGeom == 0)
                 bExternalRing = true;
             else
                 bExternalRing = false;
 
-            eErr = MMDumpVertices(poNewGeometry, bExternalRing, TRUE);
+            eErr = MMDumpVertices(poSubGeometry, bExternalRing, TRUE);
             if (eErr != OGRERR_NONE)
                 return eErr;
         }
@@ -1835,13 +1841,13 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
         return OGRERR_NONE;
 
     phMiraMonLayer->pLayerDB = static_cast<struct MiraMonDataBase *>(
-        CPLCalloc(sizeof(*phMiraMonLayer->pLayerDB), 1));
+        VSICalloc(sizeof(*phMiraMonLayer->pLayerDB), 1));
     if (!phMiraMonLayer->pLayerDB)
         return OGRERR_NOT_ENOUGH_MEMORY;
 
     phMiraMonLayer->pLayerDB->pFields =
         static_cast<struct MiraMonDataBaseField *>(
-            CPLCalloc(m_poFeatureDefn->GetFieldCount(),
+            VSICalloc(m_poFeatureDefn->GetFieldCount(),
                       sizeof(*(phMiraMonLayer->pLayerDB->pFields))));
     if (!phMiraMonLayer->pLayerDB->pFields)
         return OGRERR_NOT_ENOUGH_MEMORY;
