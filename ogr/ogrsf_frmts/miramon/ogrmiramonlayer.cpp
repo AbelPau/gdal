@@ -1591,12 +1591,6 @@ OGRErr OGRMiraMonLayer::ICreateFeature(OGRFeature *poFeature)
         return OGRERR_FAILURE;
     }
 
-    // DEBUG ABEL
-    if (phMiraMonLayer && phMiraMonLayer->TopHeader.nElemCount >= 694954)
-    {
-        int a = 0;
-    }
-
     /* -------------------------------------------------------------------- */
     /*      Write out the feature                                           */
     /* -------------------------------------------------------------------- */
