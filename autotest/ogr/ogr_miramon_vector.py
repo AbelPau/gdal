@@ -91,7 +91,7 @@ def test_ogr_miramon_read_simple_point():
     check_simple_point(ds)
 
 
-def test_ogr_miramon_write_simple_point(tmp_vsimem):
+def test_ogr_miramon_write_simple_pointV11(tmp_vsimem):
 
     out_filename = str(tmp_vsimem / "out.pnt")
     gdal.VectorTranslate(
@@ -99,6 +99,20 @@ def test_ogr_miramon_write_simple_point(tmp_vsimem):
         "data/miramon/Points/SimplePoints/SimplePointsFile.pnt",
         format="MiraMonVector",
     )
+    ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
+    check_simple_point(ds)
+
+
+def test_ogr_miramon_write_simple_pointV20(tmp_vsimem):
+
+    out_filename = str(tmp_vsimem / "out.pnt")
+    gdal.VectorTranslate(
+        out_filename,
+        "data/miramon/Points/SimplePoints/SimplePointsFile.pnt",
+        format="MiraMonVector",
+        options="-lco Version=2.0",
+    )
+
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
     check_simple_point(ds)
 
@@ -183,13 +197,27 @@ def test_ogr_miramon_read_simple_arc():
     check_simple_arc(ds)
 
 
-def test_ogr_miramon_write_simple_arc(tmp_vsimem):
+def test_ogr_miramon_write_simple_arcV11(tmp_vsimem):
 
     out_filename = str(tmp_vsimem / "out.arc")
     gdal.VectorTranslate(
         out_filename,
         "data/miramon/Arcs/SimpleArcs/SimpleArcFile.arc",
         format="MiraMonVector",
+    )
+    ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
+    check_simple_arc(ds)
+    del ds
+
+
+def test_ogr_miramon_write_simple_arcV20(tmp_vsimem):
+
+    out_filename = str(tmp_vsimem / "out.arc")
+    gdal.VectorTranslate(
+        out_filename,
+        "data/miramon/Arcs/SimpleArcs/SimpleArcFile.arc",
+        format="MiraMonVector",
+        options="-lco Version=2.0",
     )
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
     check_simple_arc(ds)
@@ -268,13 +296,26 @@ def test_ogr_miramon_read_simple_polygon():
     check_simple_polygon(ds)
 
 
-def test_ogr_miramon_write_simple_polygon(tmp_vsimem):
+def test_ogr_miramon_write_simple_polygonV11(tmp_vsimem):
 
     out_filename = str(tmp_vsimem / "out.pol")
     gdal.VectorTranslate(
         out_filename,
         "data/miramon/Polygons/SimplePolygons/SimplePolFile.pol",
         format="MiraMonVector",
+    )
+    ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
+    check_simple_polygon(ds)
+
+
+def test_ogr_miramon_write_simple_polygonV20(tmp_vsimem):
+
+    out_filename = str(tmp_vsimem / "out.pol")
+    gdal.VectorTranslate(
+        out_filename,
+        "data/miramon/Polygons/SimplePolygons/SimplePolFile.pol",
+        format="MiraMonVector",
+        options="-lco Version=2.0",
     )
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
     check_simple_polygon(ds)
