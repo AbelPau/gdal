@@ -117,46 +117,6 @@ def test_ogr_miramon_write_simple_pointV20(tmp_vsimem):
     check_simple_point(ds)
 
 
-@pytest.mark.parametrize(
-    "Language",
-    [
-        "CAT",
-        "SPA",
-        "ENG",
-    ],
-)
-def test_ogr_miramon_CreationLanguage(tmp_vsimem, Language):
-
-    out_filename = str(tmp_vsimem / "out.pnt")
-    gdal.VectorTranslate(
-        out_filename,
-        "data/miramon/Points/SimplePoints/SimplePointsFile.pnt",
-        format="MiraMonVector",
-        options="-lco CreationLanguage=" + Language,
-    )
-
-    ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
-    lyr = ds.GetLayer(0)
-    assert lyr is not None, "Failed to get layer"
-
-    layer_def = lyr.GetLayerDefn()
-    field_index = layer_def.GetFieldIndex("ID_GRAFIC")
-
-    if field_index >= 0:
-        field_def = layer_def.GetFieldDefn(field_index)
-        field_description = field_def.GetAlternativeNameRef()
-        if Language == "CAT":
-            assert field_description == "Identificador Gràfic intern"
-        else:
-            if Language == "SPA":
-                assert field_description == "Identificador Gráfico interno"
-            else:
-                if Language == "ENG":
-                    assert field_description == "Internal Graphic identifier"
-    else:
-        print("Field '{}' not found.".format("ID_GRAFIC"))
-
-
 ###############################################################################
 # basic linestring test
 
@@ -592,6 +552,7 @@ def test_ogr_miramon_write_3d_pol(tmp_vsimem):
 
 
 ###############################################################################
+# ogrsf test in some files
 
 
 @pytest.mark.parametrize(
@@ -621,3 +582,91 @@ def test_ogr_miramon_test_ogrsf(filename):
 
     assert "INFO" in ret
     assert "ERROR" not in ret
+
+
+###############################################################################
+# -lco tests: CreationLanguage
+
+
+@pytest.mark.parametrize(
+    "Language",
+    [
+        "CAT",
+        "SPA",
+        "ENG",
+    ],
+)
+def test_ogr_miramon_CreationLanguage(tmp_vsimem, Language):
+
+    out_filename = str(tmp_vsimem / "out.pnt")
+    gdal.VectorTranslate(
+        out_filename,
+        "data/miramon/Points/SimplePoints/SimplePointsFile.pnt",
+        format="MiraMonVector",
+        options="-lco CreationLanguage=" + Language,
+    )
+
+    ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
+    lyr = ds.GetLayer(0)
+    assert lyr is not None, "Failed to get layer"
+
+    layer_def = lyr.GetLayerDefn()
+    field_index = layer_def.GetFieldIndex("ID_GRAFIC")
+
+    if field_index >= 0:
+        field_def = layer_def.GetFieldDefn(field_index)
+        field_description = field_def.GetAlternativeNameRef()
+        if Language == "CAT":
+            assert field_description == "Identificador Gràfic intern"
+        else:
+            if Language == "SPA":
+                assert field_description == "Identificador Gráfico interno"
+            else:
+                if Language == "ENG":
+                    assert field_description == "Internal Graphic identifier"
+                else:
+                    print("Field description not found.")
+    else:
+        print("Field '{}' not found.".format("ID_GRAFIC"))
+
+
+###############################################################################
+# -lco tests: CreationLanguage
+
+
+@pytest.mark.parametrize(
+    "Language",
+    [
+        "CAT",
+        "SPA",
+        "ENG",
+    ],
+)
+def test_ogr_miramon_OpenLanguage(Language):
+
+    ds = gdal.OpenEx(
+        "data/miramon/Points/SimplePoints/SimplePointsFile.pnt",
+        gdal.OF_VECTOR,
+        open_options=["OpenLanguage=" + Language],
+    )
+    lyr = ds.GetLayer(0)
+    assert lyr is not None, "Failed to get layer"
+
+    layer_def = lyr.GetLayerDefn()
+    field_index = layer_def.GetFieldIndex("ID_GRAFIC")
+
+    if field_index >= 0:
+        field_def = layer_def.GetFieldDefn(field_index)
+        field_description = field_def.GetAlternativeNameRef()
+        if Language == "CAT":
+            assert field_description == "Identificador Gràfic intern"
+        else:
+            if Language == "SPA":
+                assert field_description == "Identificador Gráfico interno"
+            else:
+                if Language == "ENG":
+                    assert field_description == "Internal Graphic identifier"
+                else:
+                    print("Field description not found.")
+    else:
+        print("Field '{}' not found.".format("ID_GRAFIC"))
