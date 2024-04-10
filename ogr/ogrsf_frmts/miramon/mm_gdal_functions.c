@@ -1456,6 +1456,12 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
 
         if (pszRelFile)
         {
+            // Usually, in multilingual MiraMon metadata files, the main
+            // language is the default one and has no "_cat", "_spa", or
+            // "_eng" suffix after the keyword. So, to retrieve all
+            // languages in a multilingual file, first, we'll identify
+            // the one with no suffix "_cat", "_spa", or "_eng", and then the
+            // others. If one of them lacks a value, it gets the default value.
             snprintf(section, sizeof(section), "TAULA_PRINCIPAL:%s",
                      pMMBDXP->pField[nIField].FieldName);
 
@@ -1493,8 +1499,14 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                 free_function(pszDesc);
             }
             else
-                *pMMBDXP->pField[nIField].FieldDescription[MM_ENG_LANGUAGE] =
-                    '\0';
+            {
+                // If there is no value descriptor_eng it's because it's the
+                // default one. So, it's taken from there.
+                CPLStrlcpy(
+                    pMMBDXP->pField[nIField].FieldDescription[MM_ENG_LANGUAGE],
+                    pMMBDXP->pField[nIField].FieldDescription[MM_DEF_LANGUAGE],
+                    MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+            }
 
             // MM_CAT_LANGUAGE
             pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
@@ -1516,8 +1528,14 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                 free_function(pszDesc);
             }
             else
-                *pMMBDXP->pField[nIField].FieldDescription[MM_CAT_LANGUAGE] =
-                    '\0';
+            {
+                // If there is no value descriptor_cat it's because it's the
+                // default one. So, it's taken from there.
+                CPLStrlcpy(
+                    pMMBDXP->pField[nIField].FieldDescription[MM_CAT_LANGUAGE],
+                    pMMBDXP->pField[nIField].FieldDescription[MM_DEF_LANGUAGE],
+                    MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+            }
 
             // MM_SPA_LANGUAGE
             pszDesc = MMReturnValueFromSectionINIFile(pszRelFile, section,
@@ -1539,8 +1557,14 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                 free_function(pszDesc);
             }
             else
-                *pMMBDXP->pField[nIField].FieldDescription[MM_SPA_LANGUAGE] =
-                    '\0';
+            {
+                // If there is no value descriptor_spa it's because it's the
+                // default one. So, it's taken from there.
+                CPLStrlcpy(
+                    pMMBDXP->pField[nIField].FieldDescription[MM_SPA_LANGUAGE],
+                    pMMBDXP->pField[nIField].FieldDescription[MM_DEF_LANGUAGE],
+                    MM_MAX_LON_DESCRIPCIO_CAMP_DBF);
+            }
         }
     }
 

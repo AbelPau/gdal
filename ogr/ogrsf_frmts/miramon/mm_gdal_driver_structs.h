@@ -190,9 +190,9 @@ CPL_C_START  // Necessary for compiling in GDAL project
 // Metadata will not be translated but these descriptors are
 // generated from scratch and it is good to use a custom language.
 #define MM_DEF_LANGUAGE 0
-#define MM_ENG_LANGUAGE 1
-#define MM_CAT_LANGUAGE 2
-#define MM_SPA_LANGUAGE 3
+#define MM_ENG_LANGUAGE 1  // English language
+#define MM_CAT_LANGUAGE 2  // Catalan language
+#define MM_SPA_LANGUAGE 3  // Spanish language
 
 /* -------------------------------------------------------------------- */
 /*      Structures                                                      */

@@ -58,7 +58,7 @@ review the code of the driver.
     char
         *Separator[MM_NUM_IDIOMES_MD_MULTIDIOMA];  // In MiraMon code: separador
 
-    // Description of the field
+    // Description of the field (alternative name)
     char FieldDescription
         [MM_NUM_IDIOMES_MD_MULTIDIOMA]
         [MM_MAX_LON_DESCRIPCIO_CAMP_DBF];  // In MiraMon code: DescripcioCamp
