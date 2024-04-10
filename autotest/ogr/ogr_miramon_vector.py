@@ -676,6 +676,14 @@ def test_ogr_miramon_OpenLanguagePoint(Language):
         print("Field '{}' not found.".format("ID_GRAFIC"))
 
 
+@pytest.mark.parametrize(
+    "Language",
+    [
+        "CAT",
+        "SPA",
+        "ENG",
+    ],
+)
 def test_ogr_miramon_OpenLanguageArc(Language):
 
     ds = gdal.OpenEx(
