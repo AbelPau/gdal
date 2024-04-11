@@ -2349,10 +2349,10 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
         }
         else
         {
-            CPLError(CE_Failure, CPLE_NotSupported,
+            CPLError(CE_Warning, CPLE_NotSupported,
                      "MiraMon: Field type %d not processed by MiraMon\n",
                      eFType);
-            return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
+            hMMFeature.pRecords[0].pField[iField].bIsValid = 0;
         }
     }
 

@@ -7075,9 +7075,9 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (hMMFeature && hMMFeature->nNumMRecords &&
         hMMFeature->pRecords[0].nNumField)
     {
-        if (MMDetectAndFixDBFWidthChange(
-                hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMPolygon.MMAdmDB,
-                pFlushRecList, nNumPrivateMMField, 0, 0))
+        if (MMDetectAndFixDBFWidthChange(hMiraMonLayer, hMMFeature,
+                                         &hMiraMonLayer->MMPolygon.MMAdmDB,
+                                         pFlushRecList, 0, 0, 0))
             return MM_FATAL_ERROR_WRITING_FEATURES;
     }
 

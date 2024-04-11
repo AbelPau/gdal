@@ -70,6 +70,16 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define szMMNomCampNArcsDefecte "N_ARCS"
 #define szMMNomCampNPoligonsDefecte "N_POLIG"
 
+// Initial width of MiraMon fields
+#define MM_MIN_WIDTH_ID_GRAFIC 3
+#define MM_MIN_WIDTH_N_VERTEXS 5
+#define MM_MIN_WIDTH_INITIAL_NODE MM_MIN_WIDTH_ID_GRAFIC + 1
+#define MM_MIN_WIDTH_FINAL_NODE MM_MIN_WIDTH_ID_GRAFIC + 1
+#define MM_MIN_WIDTH_ARCS_TO_NODE 1
+
+#define MM_MIN_WIDTH_N_ARCS 2
+#define MM_MIN_WIDTH_N_POLIG 2
+
 // Types of layers in MiraMon
 #define MM_LayerType_Unknown 0  // Unknown type, or DBF alone
 #define MM_LayerType_Point 1    // Layer of Points
