@@ -1914,12 +1914,25 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
             {
                 if (m_poFeatureDefn->GetFieldDefn(iField)->GetPrecision() == 0)
                 {
-                    phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize =
-                        m_poFeatureDefn->GetFieldDefn(iField)->GetWidth();
-                    if (phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize ==
-                        0)
+                    if (m_poFeatureDefn->GetFieldDefn(iField)->GetType() ==
+                            OFTReal ||
+                        m_poFeatureDefn->GetFieldDefn(iField)->GetType() ==
+                            OFTReal)
+                    {
                         phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize =
-                            1;
+                            20;
+                        phMiraMonLayer->pLayerDB->pFields[iField]
+                            .nNumberOfDecimals = MAX_RELIABLE_SF_DOUBLE;
+                    }
+                    else
+                    {
+                        phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize =
+                            m_poFeatureDefn->GetFieldDefn(iField)->GetWidth();
+                        if (phMiraMonLayer->pLayerDB->pFields[iField]
+                                .nFieldSize == 0)
+                            phMiraMonLayer->pLayerDB->pFields[iField]
+                                .nFieldSize = 1;
+                    }
                 }
                 else
                 {

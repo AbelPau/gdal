@@ -70,12 +70,17 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define szMMNomCampNArcsDefecte "N_ARCS"
 #define szMMNomCampNPoligonsDefecte "N_POLIG"
 
+#define MAX_RELIABLE_SF_DOUBLE                                                 \
+    15  // Maximum nr. of reliable significant figures in any double.
+
 // Initial width of MiraMon fields
 #define MM_MIN_WIDTH_ID_GRAFIC 3
 #define MM_MIN_WIDTH_N_VERTEXS 5
 #define MM_MIN_WIDTH_INITIAL_NODE MM_MIN_WIDTH_ID_GRAFIC + 1
 #define MM_MIN_WIDTH_FINAL_NODE MM_MIN_WIDTH_ID_GRAFIC + 1
 #define MM_MIN_WIDTH_ARCS_TO_NODE 1
+#define MM_MIN_WIDTH_LONG 14  // For LONG_ARC and PERIMETRE
+#define MM_MIN_WIDTH_AREA 19  // For LONG_ARC and PERIMETRE
 
 #define MM_MIN_WIDTH_N_ARCS 2
 #define MM_MIN_WIDTH_N_POLIG 2
