@@ -118,10 +118,8 @@ int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
                           const struct MM_FIELD *camp_inicial);
 int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB);
 
-size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
-                                        MM_BYTE n_decimals);
-size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
-                                    MM_BYTE n_decimals);
+size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
+size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
 size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
 size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
 int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
