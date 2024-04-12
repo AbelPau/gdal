@@ -3961,7 +3961,8 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             MMCPLDebug("MiraMon", "Creating MiraMon database");
             if (MMCreateMMDB(hMiraMonLayer))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
-            MMCPLDebug("MiraMon", "MiraMon database created");
+            MMCPLDebug("MiraMon", "MiraMon database created. "
+                                  "Creating features...");
         }
     }
     else
@@ -3971,7 +3972,8 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             MMCPLDebug("MiraMon", "Creating MiraMon database");
             if (MMCreateMMDB(hMiraMonLayer))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
-            MMCPLDebug("MiraMon", "MiraMon database created");
+            MMCPLDebug("MiraMon", "MiraMon database created. "
+                                  "Creating features...");
 
             // Universal polygon have a record with ID_GRAFIC=0 and blancs
             if (MMAddPolygonRecordToMMDB(hMiraMonLayer, nullptr, 0, 0, nullptr))
@@ -6726,7 +6728,7 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
 static int MMDetectAndFixDBFWidthChange(
     struct MiraMonVectLayerInfo *hMiraMonLayer,
     struct MiraMonFeature *hMMFeature, struct MMAdmDatabase *pMMAdmDB,
-    struct MM_FLUSH_INFO *pFlushRecList, MM_EXT_DBF_N_FIELDS nNumPrivateMMField,
+    MM_EXT_DBF_N_FIELDS nNumPrivateMMField,
     MM_EXT_DBF_N_MULTIPLE_RECORDS nIRecord, MM_EXT_DBF_N_FIELDS nIField)
 {
     if (!hMiraMonLayer)
@@ -6751,9 +6753,9 @@ static int MMDetectAndFixDBFWidthChange(
     {
         if (nIRecord + 1 < hMMFeature->nNumMRecords)
         {
-            if (MMDetectAndFixDBFWidthChange(
-                    hMiraMonLayer, hMMFeature, pMMAdmDB, pFlushRecList,
-                    nNumPrivateMMField, nIRecord + 1, 0))
+            if (MMDetectAndFixDBFWidthChange(hMiraMonLayer, hMMFeature,
+                                             pMMAdmDB, nNumPrivateMMField,
+                                             nIRecord + 1, 0))
                 return 1;
         }
         else
@@ -6763,9 +6765,9 @@ static int MMDetectAndFixDBFWidthChange(
     {
         if (nIField + 1 < hMMFeature->pRecords[nIRecord].nNumField)
         {
-            if (MMDetectAndFixDBFWidthChange(
-                    hMiraMonLayer, hMMFeature, pMMAdmDB, pFlushRecList,
-                    nNumPrivateMMField, nIRecord, nIField + 1))
+            if (MMDetectAndFixDBFWidthChange(hMiraMonLayer, hMMFeature,
+                                             pMMAdmDB, nNumPrivateMMField,
+                                             nIRecord, nIField + 1))
                 return 1;
         }
         else
@@ -6788,6 +6790,18 @@ int MMAddDBFRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (!hMiraMonLayer)
         return MM_FATAL_ERROR_WRITING_FEATURES;
 
+    pBD_XP = hMiraMonLayer->MMAdmDBWriting.pMMBDXP;
+
+    // Test length
+    if (hMMFeature && hMMFeature->nNumMRecords &&
+        hMMFeature->pRecords[0].nNumField)
+    {
+        if (MMDetectAndFixDBFWidthChange(hMiraMonLayer, hMMFeature,
+                                         &hMiraMonLayer->MMAdmDBWriting,
+                                         nNumPrivateMMField, 0, 0))
+            return MM_FATAL_ERROR_WRITING_FEATURES;
+    }
+
     // Adding record to the MiraMon table (extended DBF)
     // Flush settings
     pFlushRecList = &hMiraMonLayer->MMAdmDBWriting.FlushRecList;
@@ -6796,22 +6810,8 @@ int MMAddDBFRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
     pFlushRecList->pBlockToBeSaved =
         (void *)hMiraMonLayer->MMAdmDBWriting.szRecordOnCourse;
-
-    pBD_XP = hMiraMonLayer->MMAdmDBWriting.pMMBDXP;
-
-    // Test length
-    if (hMMFeature && hMMFeature->nNumMRecords &&
-        hMMFeature->pRecords[0].nNumField)
-    {
-        if (MMDetectAndFixDBFWidthChange(
-                hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMAdmDBWriting,
-                pFlushRecList, nNumPrivateMMField, 0, 0))
-            return MM_FATAL_ERROR_WRITING_FEATURES;
-    }
-
-    pFlushRecList->pBlockToBeSaved =
-        (void *)hMiraMonLayer->MMAdmDBWriting.szRecordOnCourse;
     pFlushRecList->SizeOfBlockToBeSaved = pBD_XP->BytesPerRecord;
+
     if (MMAddFeatureRecordToMMDB(
             hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMAdmDBWriting,
             hMiraMonLayer->MMAdmDBWriting.szRecordOnCourse, pFlushRecList,
@@ -6851,12 +6851,6 @@ int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
         return MM_STOP_WRITING_FEATURES;
     }
 
-    // Adding record to the MiraMon table (extended DBF)
-    // Flush settings
-    pFlushRecList = &hMiraMonLayer->MMPoint.MMAdmDB.FlushRecList;
-    pFlushRecList->pBlockWhereToSaveOrRead =
-        (void *)hMiraMonLayer->MMPoint.MMAdmDB.pRecList;
-
     pBD_XP = hMiraMonLayer->MMPoint.MMAdmDB.pMMBDXP;
 
     // Test length
@@ -6873,9 +6867,9 @@ int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     // GDAL fields
     if (hMMFeature->nNumMRecords && hMMFeature->pRecords[0].nNumField)
     {
-        if (MMDetectAndFixDBFWidthChange(
-                hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMPoint.MMAdmDB,
-                pFlushRecList, nNumPrivateMMField, 0, 0))
+        if (MMDetectAndFixDBFWidthChange(hMiraMonLayer, hMMFeature,
+                                         &hMiraMonLayer->MMPoint.MMAdmDB,
+                                         nNumPrivateMMField, 0, 0))
             return MM_FATAL_ERROR_WRITING_FEATURES;
     }
 
@@ -6886,9 +6880,16 @@ int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              hMiraMonLayer->MMPoint.MMAdmDB.szRecordOnCourse,
                              pBD_XP->pField, &nElemCount, TRUE);
 
+    // Adding record to the MiraMon table (extended DBF)
+    // Flush settings
+    pFlushRecList = &hMiraMonLayer->MMPoint.MMAdmDB.FlushRecList;
+    pFlushRecList->pBlockWhereToSaveOrRead =
+        (void *)hMiraMonLayer->MMPoint.MMAdmDB.pRecList;
+
     pFlushRecList->pBlockToBeSaved =
         (void *)hMiraMonLayer->MMPoint.MMAdmDB.szRecordOnCourse;
     pFlushRecList->SizeOfBlockToBeSaved = pBD_XP->BytesPerRecord;
+
     if (MMAddFeatureRecordToMMDB(
             hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMPoint.MMAdmDB,
             hMiraMonLayer->MMPoint.MMAdmDB.szRecordOnCourse, pFlushRecList,
@@ -6939,17 +6940,7 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
         }
     }
 
-    // Adding record to the MiraMon table (extended DBF)
-    // Flush settings
-    pFlushRecList = &pMMArcLayer->MMAdmDB.FlushRecList;
-    pFlushRecList->pBlockWhereToSaveOrRead =
-        (void *)pMMArcLayer->MMAdmDB.pRecList;
-
     pBD_XP = pMMArcLayer->MMAdmDB.pMMBDXP;
-
-    pFlushRecList->SizeOfBlockToBeSaved = pBD_XP->BytesPerRecord;
-    pFlushRecList->pBlockToBeSaved =
-        (void *)pMMArcLayer->MMAdmDB.szRecordOnCourse;
 
     // Test length
     // Private fields
@@ -6998,15 +6989,11 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     {
         if (hMMFeature->nNumMRecords && hMMFeature->pRecords[0].nNumField)
         {
-            if (MMDetectAndFixDBFWidthChange(
-                    hMiraMonLayer, hMMFeature, &pMMArcLayer->MMAdmDB,
-                    pFlushRecList, nNumPrivateMMField, 0, 0))
+            if (MMDetectAndFixDBFWidthChange(hMiraMonLayer, hMMFeature,
+                                             &pMMArcLayer->MMAdmDB,
+                                             nNumPrivateMMField, 0, 0))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
         }
-
-        // Reassign the point because the function can realloc it.
-        pFlushRecList->pBlockToBeSaved =
-            (void *)pMMArcLayer->MMAdmDB.szRecordOnCourse;
     }
 
     // Now length is sure, write
@@ -7030,6 +7017,16 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     MMWriteValueToRecordDBXP(
         hMiraMonLayer, pMMArcLayer->MMAdmDB.szRecordOnCourse,
         pBD_XP->pField + 4, &pArcHeader->nLastIdNode, TRUE);
+
+    // Adding record to the MiraMon table (extended DBF)
+    // Flush settings
+    pFlushRecList = &pMMArcLayer->MMAdmDB.FlushRecList;
+    pFlushRecList->pBlockWhereToSaveOrRead =
+        (void *)pMMArcLayer->MMAdmDB.pRecList;
+
+    pFlushRecList->SizeOfBlockToBeSaved = pBD_XP->BytesPerRecord;
+    pFlushRecList->pBlockToBeSaved =
+        (void *)pMMArcLayer->MMAdmDB.szRecordOnCourse;
 
     if (hMiraMonLayer->bIsPolygon)
     {
@@ -7165,17 +7162,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                (hMMFeature ? hMMFeature->nNumMRecords : 0)))
         return MM_STOP_WRITING_FEATURES;
 
-    // Adding record to the MiraMon table (extended DBF)
-    // Flush settings
-    pFlushRecList = &hMiraMonLayer->MMPolygon.MMAdmDB.FlushRecList;
-    pFlushRecList->pBlockWhereToSaveOrRead =
-        (void *)hMiraMonLayer->MMPolygon.MMAdmDB.pRecList;
-
     pBD_XP = hMiraMonLayer->MMPolygon.MMAdmDB.pMMBDXP;
-
-    pFlushRecList->SizeOfBlockToBeSaved = pBD_XP->BytesPerRecord;
-    pFlushRecList->pBlockToBeSaved =
-        (void *)hMiraMonLayer->MMPolygon.MMAdmDB.szRecordOnCourse;
 
     // Test length
     // Private fields
@@ -7242,12 +7229,19 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (hMMFeature && hMMFeature->nNumMRecords &&
         hMMFeature->pRecords[0].nNumField)
     {
-        if (MMDetectAndFixDBFWidthChange(
-                hMiraMonLayer, hMMFeature, &hMiraMonLayer->MMPolygon.MMAdmDB,
-                pFlushRecList, nNumPrivateMMField, 0, 0))
+        if (MMDetectAndFixDBFWidthChange(hMiraMonLayer, hMMFeature,
+                                         &hMiraMonLayer->MMPolygon.MMAdmDB,
+                                         nNumPrivateMMField, 0, 0))
             return MM_FATAL_ERROR_WRITING_FEATURES;
     }
 
+    // Adding record to the MiraMon table (extended DBF)
+    // Flush settings
+    pFlushRecList = &hMiraMonLayer->MMPolygon.MMAdmDB.FlushRecList;
+    pFlushRecList->pBlockWhereToSaveOrRead =
+        (void *)hMiraMonLayer->MMPolygon.MMAdmDB.pRecList;
+
+    pFlushRecList->SizeOfBlockToBeSaved = pBD_XP->BytesPerRecord;
     pFlushRecList->pBlockToBeSaved =
         (void *)hMiraMonLayer->MMPolygon.MMAdmDB.szRecordOnCourse;
 
