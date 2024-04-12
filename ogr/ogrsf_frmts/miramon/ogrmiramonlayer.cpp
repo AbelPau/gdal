@@ -1887,7 +1887,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
 
                 case OFTBinary:
                     phMiraMonLayer->pLayerDB->pFields[iField].eFieldType =
-                        MM_Logic;
+                        MM_Character;
                     break;
 
                 case OFTDate:
