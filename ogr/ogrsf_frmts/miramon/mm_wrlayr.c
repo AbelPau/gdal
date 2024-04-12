@@ -6333,7 +6333,7 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
 
         if (0 == (nIField = (MM_EXT_DBF_N_FIELDS)MM_DefineFirstArcFieldsDB_XP(
-                      pBD_XP, 6)))
+                      pBD_XP)))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMArc.MMNode.MMAdmDB.pMMBDXP =
@@ -6359,8 +6359,9 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
         if (!pBD_XP)
             return 1;
 
-        if (0 == (nIField = (MM_EXT_DBF_N_FIELDS)
-                      MM_DefineFirstPolygonFieldsDB_XP(pBD_XP, 6)))
+        if (0 ==
+            (nIField =
+                 (MM_EXT_DBF_N_FIELDS)MM_DefineFirstPolygonFieldsDB_XP(pBD_XP)))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMPolygon.MMArc.MMAdmDB.pMMBDXP =
@@ -6369,7 +6370,7 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
         if (!pBD_XP_Aux)
             return 1;
 
-        if (0 == MM_DefineFirstArcFieldsDB_XP(pBD_XP_Aux, 6))
+        if (0 == MM_DefineFirstArcFieldsDB_XP(pBD_XP_Aux))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMPolygon.MMArc.MMNode.MMAdmDB.pMMBDXP =
