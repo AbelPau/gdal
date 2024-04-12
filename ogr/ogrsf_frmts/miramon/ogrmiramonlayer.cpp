@@ -1917,7 +1917,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
                     if (m_poFeatureDefn->GetFieldDefn(iField)->GetType() ==
                             OFTReal ||
                         m_poFeatureDefn->GetFieldDefn(iField)->GetType() ==
-                            OFTReal)
+                            OFTRealList)
                     {
                         phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize =
                             20;
