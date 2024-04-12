@@ -1912,6 +1912,12 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
                 phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize = 8;
             else
             {
+                // As https://gdal.org/api/ogrfeature_cpp.html indicates that
+                // precision (number of digits after decimal point) is optional,
+                // and a 0 is probably the default value, in that case we prefer
+                // to save all the guaranteed significant figures in a double
+                // (needed if a field contains, for instance, coordinates in
+                // geodetic degrees and a 1:1000 map precision applies).
                 if (m_poFeatureDefn->GetFieldDefn(iField)->GetPrecision() == 0)
                 {
                     if (m_poFeatureDefn->GetFieldDefn(iField)->GetType() ==
