@@ -6965,7 +6965,7 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (MMWriteValueToszStringToOperate(hMiraMonLayer, pBD_XP->pField + 1,
                                         &pArcHeader->nElemCount, TRUE))
         return MM_FATAL_ERROR_WRITING_FEATURES;
-    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMArcLayer->MMAdmDB, 0,
+    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMArcLayer->MMAdmDB, 1,
                                       hMiraMonLayer->szStringToOperate))
         return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -6973,7 +6973,7 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (MMWriteValueToszStringToOperate(hMiraMonLayer, pBD_XP->pField + 2,
                                         &pArcHeader->dfLength, FALSE))
         return MM_FATAL_ERROR_WRITING_FEATURES;
-    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMArcLayer->MMAdmDB, 0,
+    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMArcLayer->MMAdmDB, 2,
                                       hMiraMonLayer->szStringToOperate))
         return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -6981,7 +6981,7 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (MMWriteValueToszStringToOperate(hMiraMonLayer, pBD_XP->pField + 3,
                                         &pArcHeader->nFirstIdNode, TRUE))
         return MM_FATAL_ERROR_WRITING_FEATURES;
-    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMArcLayer->MMAdmDB, 0,
+    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMArcLayer->MMAdmDB, 3,
                                       hMiraMonLayer->szStringToOperate))
         return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -6989,7 +6989,7 @@ int MMAddArcRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (MMWriteValueToszStringToOperate(hMiraMonLayer, pBD_XP->pField + 4,
                                         &pArcHeader->nLastIdNode, TRUE))
         return MM_FATAL_ERROR_WRITING_FEATURES;
-    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMArcLayer->MMAdmDB, 0,
+    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMArcLayer->MMAdmDB, 4,
                                       hMiraMonLayer->szStringToOperate))
         return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -7097,7 +7097,7 @@ int MMAddNodeRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
             hMiraMonLayer, pMMNodeLayer->MMAdmDB.pMMBDXP->pField + 1,
             &nDoubleValue, FALSE))
         return MM_FATAL_ERROR_WRITING_FEATURES;
-    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMNodeLayer->MMAdmDB, 0,
+    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMNodeLayer->MMAdmDB, 1,
                                       hMiraMonLayer->szStringToOperate))
         return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -7107,7 +7107,7 @@ int MMAddNodeRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
             hMiraMonLayer, pMMNodeLayer->MMAdmDB.pMMBDXP->pField + 2,
             &nDoubleValue, FALSE))
         return MM_FATAL_ERROR_WRITING_FEATURES;
-    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMNodeLayer->MMAdmDB, 0,
+    if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer, &pMMNodeLayer->MMAdmDB, 2,
                                       hMiraMonLayer->szStringToOperate))
         return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -7197,7 +7197,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                             &nVerticesCount, TRUE))
             return MM_FATAL_ERROR_WRITING_FEATURES;
         if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer,
-                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 0,
+                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 1,
                                           hMiraMonLayer->szStringToOperate))
             return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -7206,7 +7206,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                             &pPolHeader->dfPerimeter, FALSE))
             return MM_FATAL_ERROR_WRITING_FEATURES;
         if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer,
-                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 0,
+                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 2,
                                           hMiraMonLayer->szStringToOperate))
             return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -7215,7 +7215,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                             &pPolHeader->dfArea, FALSE))
             return MM_FATAL_ERROR_WRITING_FEATURES;
         if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer,
-                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 0,
+                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 3,
                                           hMiraMonLayer->szStringToOperate))
             return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -7224,7 +7224,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                             &pPolHeader->nArcsCount, TRUE))
             return MM_FATAL_ERROR_WRITING_FEATURES;
         if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer,
-                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 0,
+                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 4,
                                           hMiraMonLayer->szStringToOperate))
             return MM_FATAL_ERROR_WRITING_FEATURES;
 
@@ -7233,7 +7233,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                             &pPolHeader->nRingsCount, TRUE))
             return MM_FATAL_ERROR_WRITING_FEATURES;
         if (MMTestAndFixValueToRecordDBXP(hMiraMonLayer,
-                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 0,
+                                          &hMiraMonLayer->MMPolygon.MMAdmDB, 5,
                                           hMiraMonLayer->szStringToOperate))
             return MM_FATAL_ERROR_WRITING_FEATURES;
     }
@@ -7252,7 +7252,7 @@ int MMAddPolygonRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
         (void *)hMiraMonLayer->MMPolygon.MMAdmDB.szRecordOnCourse;
 
     // Now length is sure, write
-    memset(hMiraMonLayer->MMPolygon.MMAdmDB.szRecordOnCourse, 0,
+    memset(hMiraMonLayer->MMPolygon.MMAdmDB.szRecordOnCourse, ' ',
            pBD_XP->BytesPerRecord);
     if (MMWriteValueToRecordDBXP(
             hMiraMonLayer, hMiraMonLayer->MMPolygon.MMAdmDB.szRecordOnCourse,
