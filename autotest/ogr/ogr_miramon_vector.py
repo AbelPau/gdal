@@ -138,7 +138,7 @@ def check_simple_arc(ds):
     )
     assert f.GetField("ID_GRAFIC") == 0
     assert f.GetField("N_VERTEXS") == 5
-    assert round(f.GetField("LONG_ARC"), 5) == round(1226.052754666, 5)
+    assert f.GetField("LONG_ARC") == pytest.approx(1226.052754666, abs=1e-5)
     assert f.GetField("NODE_INI") == 0
     assert f.GetField("NODE_FI") == 1
     assert f.GetFieldAsString("ATT1") == "A"
@@ -153,7 +153,7 @@ def check_simple_arc(ds):
     )
     assert f.GetField("ID_GRAFIC") == 1
     assert f.GetField("N_VERTEXS") == 7
-    assert round(f.GetField("LONG_ARC"), 5) == round(1986.750568, 5)
+    assert f.GetField("LONG_ARC") == pytest.approx(1986.750568, abs=1e-5)
     assert f.GetField("NODE_INI") == 2
     assert f.GetField("NODE_FI") == 3
     assert f.GetFieldAsString("ATT1") == "C"
@@ -168,7 +168,7 @@ def check_simple_arc(ds):
     )
     assert f.GetField("ID_GRAFIC") == 2
     assert f.GetField("N_VERTEXS") == 2
-    assert round(f.GetField("LONG_ARC"), 5) == round(136.823147, 5)
+    assert f.GetField("LONG_ARC") == pytest.approx(136.823147, abs=1e-5)
     assert f.GetField("NODE_INI") == 4
     assert f.GetField("NODE_FI") == 5
     assert f.GetFieldAsString("ATT1") == "C"
@@ -183,7 +183,7 @@ def check_simple_arc(ds):
     )
     assert f.GetField("ID_GRAFIC") == 3
     assert f.GetField("N_VERTEXS") == 6
-    assert round(f.GetField("LONG_ARC"), 5) == round(396.238966, 5)
+    assert f.GetField("LONG_ARC") == pytest.approx(396.238966, abs=1e-5)
     assert f.GetField("NODE_INI") == 6
     assert f.GetField("NODE_FI") == 7
     assert f.GetFieldAsString("ATT1") == "E"
@@ -247,8 +247,8 @@ def check_simple_polygon(ds):
     )
     assert f.GetField("ID_GRAFIC") == 1
     assert f.GetField("N_VERTEXS") == 6
-    assert round(f.GetField("PERIMETRE"), 5) == round(1289.866489495, 5)
-    assert round(f.GetField("AREA"), 5) == round(112471.221989, 5)
+    assert f.GetField("PERIMETRE") == pytest.approx(1289.866489495, abs=1e-5)
+    assert f.GetField("AREA") == pytest.approx(112471.221989, abs=1e-5)
     assert f.GetField("N_ARCS") == 1
     assert f.GetField("N_POLIG") == 1
     assert f.GetFieldAsString("ATT1") == "A"
@@ -263,8 +263,8 @@ def check_simple_polygon(ds):
     )
     assert f.GetField("ID_GRAFIC") == 2
     assert f.GetField("N_VERTEXS") == 8
-    assert round(f.GetField("PERIMETRE"), 5) == round(1123.514024, 5)
-    assert round(f.GetField("AREA"), 5) == round(88563.792204, 5)
+    assert f.GetField("PERIMETRE") == pytest.approx(1123.514024, abs=1e-5)
+    assert f.GetField("AREA") == pytest.approx(88563.792204, abs=1e-5)
     assert f.GetField("N_ARCS") == 1
     assert f.GetField("N_POLIG") == 1
     assert f.GetFieldAsString("ATT1") == "C"
@@ -279,8 +279,8 @@ def check_simple_polygon(ds):
     )
     assert f.GetField("ID_GRAFIC") == 3
     assert f.GetField("N_VERTEXS") == 6
-    assert round(f.GetField("PERIMETRE"), 5) == round(680.544697, 5)
-    assert round(f.GetField("AREA"), 5) == round(30550.052343, 5)
+    assert f.GetField("PERIMETRE") == pytest.approx(680.544697, abs=1e-5)
+    assert f.GetField("AREA") == pytest.approx(30550.052343, abs=1e-5)
     assert f.GetField("N_ARCS") == 1
     assert f.GetField("N_POLIG") == 1
     assert f.GetFieldAsString("ATT1") == "C"
