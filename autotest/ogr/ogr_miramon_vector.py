@@ -659,14 +659,10 @@ def test_ogr_miramon_OpenLanguagePoint(Language):
         field_def = layer_def.GetFieldDefn(field_index)
         field_description = field_def.GetAlternativeNameRef()
         if Language == "CAT":
-            # FIXME: Gràfic don't assert with the retrieved value
-            # assert field_description == "Identificador Gràfic intern"
-            assert 1 == 1
+            assert field_description == "Identificador Gràfic intern"
         else:
             if Language == "SPA":
-                # FIXME: Gráfico don't assert with the retrieved value
-                # assert field_description == "Identificador Gráfico interno"
-                assert 1 == 1
+                assert field_description == "Identificador Gráfico interno"
             else:
                 if Language == "ENG":
                     assert field_description == "Internal Graphic identifier"
