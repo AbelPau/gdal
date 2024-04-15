@@ -22,7 +22,7 @@
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE. 
+ * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
 #include "ogrmiramon.h"
@@ -148,20 +148,20 @@ void RegisterOGRMiraMon()
         "<OpenOptionList>"
         "  <Option name='Height' scope='vector' type='string-select' "
         "   description='Sets which of the possible heights is chosen: "
-        "   the first, the highest or the lowest one.'>"
+        "the first, the highest or the lowest one.'>"
         "    <Value>First</Value>"
         "    <Value>Lower</Value>"
         "    <Value>Highest</Value>"
         "  </Option>"
         "  <Option name='iMultiRecord' scope='vector' type='string' "
         "   description='Sets which of the possible records is chosen: "
-        "   0, 1, 2,... or the Last one. Use JSON when a serialized "
-        "   JSON is wanted'>"
+        "0, 1, 2,... or the Last one. Use JSON when a serialized "
+        "JSON is wanted'>"
         "  </Option>"
-        "  <Option name='OpenLanguage' scope='vector' type='string' "
+        "  <Option name='OpenLanguage' scope='vector' type='string-select' "
         "   description='If the layer to be opened is multilingual "
-        "   (in fact the *.rel* file), this parameter sets the language "
-        "   to be read.'>"
+        "(in fact the *.rel* file), this parameter sets the language "
+        "to be read.'>"
         "    <Value>ENG</Value>"
         "    <Value>CAT</Value>"
         "    <Value>SPA</Value>"
@@ -172,12 +172,10 @@ void RegisterOGRMiraMon()
         GDAL_DS_LAYER_CREATIONOPTIONLIST,
         "<LayerCreationOptionList>"
         "  <Option name='Version' type='string-select' description='Version of "
-        "the "
-        "file."
+        "the file. "
         "V1.1 is a limited 32 bits for FID and for internal offsets. "
         "V2.0 is the 64 bits version, with practically no limits for FID nor "
-        "for"
-        " internal offsets.' "
+        "for internal offsets.' "
         "default='last_version'>"
         "<Value>V1.1</Value>"
         "<Value>V2.0</Value>"
@@ -194,8 +192,8 @@ void RegisterOGRMiraMon()
         "</Option>"
         "  <Option name='CreationLanguage' scope='vector' type='string-select' "
         "   description='If the layer to be opened is multilingual "
-        "   (in fact the *.rel* file), this parameter sets the language "
-        "    to be read.'>"
+        "(in fact the *.rel* file), this parameter sets the language "
+        "to be read.'>"
         "    <Value>ENG</Value>"
         "    <Value>CAT</Value>"
         "    <Value>SPA</Value>"
