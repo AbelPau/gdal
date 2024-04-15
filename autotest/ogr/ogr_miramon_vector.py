@@ -110,7 +110,7 @@ def test_ogr_miramon_write_simple_pointV20(tmp_vsimem):
         out_filename,
         "data/miramon/Points/SimplePoints/SimplePointsFile.pnt",
         format="MiraMonVector",
-        options="-lco Version=2.0",
+        options="-lco Version=V2.0",
     )
 
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
@@ -217,7 +217,7 @@ def test_ogr_miramon_write_simple_arcV20(tmp_vsimem):
         out_filename,
         "data/miramon/Arcs/SimpleArcs/SimpleArcFile.arc",
         format="MiraMonVector",
-        options="-lco Version=2.0",
+        options="-lco Version=V2.0",
     )
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
     check_simple_arc(ds)
@@ -315,7 +315,7 @@ def test_ogr_miramon_write_simple_polygonV20(tmp_vsimem):
         out_filename,
         "data/miramon/Polygons/SimplePolygons/SimplePolFile.pol",
         format="MiraMonVector",
-        options="-lco Version=2.0",
+        options="-lco Version=V2.0",
     )
     ds = gdal.OpenEx(out_filename, gdal.OF_VECTOR)
     check_simple_polygon(ds)
@@ -589,14 +589,14 @@ def test_ogr_miramon_test_ogrsf(filename):
 
 
 @pytest.mark.parametrize(
-    "Language",
+    "Language, expected_description",
     [
-        "CAT",
-        "SPA",
-        "ENG",
+        ("CAT", "Identificador Gràfic intern"),
+        ("SPA", "Identificador Gráfico interno"),
+        ("ENG", "Internal Graphic identifier"),
     ],
 )
-def test_ogr_miramon_CreationLanguage(tmp_vsimem, Language):
+def test_ogr_miramon_CreationLanguage(tmp_vsimem, Language, expected_description):
 
     out_filename = str(tmp_vsimem / "out.pnt")
     gdal.VectorTranslate(
@@ -612,22 +612,11 @@ def test_ogr_miramon_CreationLanguage(tmp_vsimem, Language):
 
     layer_def = lyr.GetLayerDefn()
     field_index = layer_def.GetFieldIndex("ID_GRAFIC")
+    assert field_index >= 0
 
-    if field_index >= 0:
-        field_def = layer_def.GetFieldDefn(field_index)
-        field_description = field_def.GetAlternativeNameRef()
-        if Language == "CAT":
-            assert field_description == "Identificador Gràfic intern"
-        else:
-            if Language == "SPA":
-                assert field_description == "Identificador Gráfico interno"
-            else:
-                if Language == "ENG":
-                    assert field_description == "Internal Graphic identifier"
-                else:
-                    print("Field description not found.")
-    else:
-        print("Field '{}' not found.".format("ID_GRAFIC"))
+    field_def = layer_def.GetFieldDefn(field_index)
+    field_description = field_def.GetAlternativeNameRef()
+    assert field_description == expected_description
 
 
 ###############################################################################
@@ -635,14 +624,14 @@ def test_ogr_miramon_CreationLanguage(tmp_vsimem, Language):
 
 
 @pytest.mark.parametrize(
-    "Language",
+    "Language,expected_description",
     [
-        "CAT",
-        "SPA",
-        "ENG",
+        ("CAT", "Identificador Gràfic intern"),
+        ("SPA", "Identificador Gráfico interno"),
+        ("ENG", "Internal Graphic identifier"),
     ],
 )
-def test_ogr_miramon_OpenLanguagePoint(Language):
+def test_ogr_miramon_OpenLanguagePoint(Language, expected_description):
 
     ds = gdal.OpenEx(
         "data/miramon/Points/SimplePoints/SimplePointsFile.pnt",
@@ -654,33 +643,22 @@ def test_ogr_miramon_OpenLanguagePoint(Language):
 
     layer_def = lyr.GetLayerDefn()
     field_index = layer_def.GetFieldIndex("ID_GRAFIC")
+    assert field_index >= 0
 
-    if field_index >= 0:
-        field_def = layer_def.GetFieldDefn(field_index)
-        field_description = field_def.GetAlternativeNameRef()
-        if Language == "CAT":
-            assert field_description == "Identificador Gràfic intern"
-        else:
-            if Language == "SPA":
-                assert field_description == "Identificador Gráfico interno"
-            else:
-                if Language == "ENG":
-                    assert field_description == "Internal Graphic identifier"
-                else:
-                    print("Field description not found.")
-    else:
-        print("Field '{}' not found.".format("ID_GRAFIC"))
+    field_def = layer_def.GetFieldDefn(field_index)
+    field_description = field_def.GetAlternativeNameRef()
+    assert field_description == expected_description
 
 
 @pytest.mark.parametrize(
-    "Language",
+    "Language,expected_description",
     [
-        "CAT",
-        "SPA",
-        "ENG",
+        ("CAT", "Node inicial"),
+        ("SPA", "Nodo inicial"),
+        ("ENG", "Initial node"),
     ],
 )
-def test_ogr_miramon_OpenLanguageArc(Language):
+def test_ogr_miramon_OpenLanguageArc(Language, expected_description):
 
     ds = gdal.OpenEx(
         "data/miramon/Arcs/SimpleArcs/SimpleArcFile.arc",
@@ -692,19 +670,8 @@ def test_ogr_miramon_OpenLanguageArc(Language):
 
     layer_def = lyr.GetLayerDefn()
     field_index = layer_def.GetFieldIndex("NODE_INI")
+    assert field_index >= 0
 
-    if field_index >= 0:
-        field_def = layer_def.GetFieldDefn(field_index)
-        field_description = field_def.GetAlternativeNameRef()
-        if Language == "CAT":
-            assert field_description == "Node inicial"
-        else:
-            if Language == "SPA":
-                assert field_description == "Nodo inicial"
-            else:
-                if Language == "ENG":
-                    assert field_description == "Initial node"
-                else:
-                    print("Field description not found.")
-    else:
-        print("Field '{}' not found.".format("NOIDE_INI"))
+    field_def = layer_def.GetFieldDefn(field_index)
+    field_description = field_def.GetAlternativeNameRef()
+    assert field_description == expected_description
