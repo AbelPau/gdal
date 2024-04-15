@@ -5949,19 +5949,15 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         // For each field of the databes
         for (nIField = 0; nIField < hMMMD->pLayerDB->nNFields; nIField++)
         {
-            MM_BOOLEAN section_written = FALSE;
+            fprintf_function(pF, LineReturn "[%s:%s]" LineReturn,
+                             SECTION_TAULA_PRINCIPAL,
+                             hMMMD->pLayerDB->pFields[nIField].pszFieldName);
 
             if (!MMIsEmptyString(
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription) &&
                 !MMIsEmptyString(
                     hMMMD->pLayerDB->pFields[nIField].pszFieldName))
             {
-                fprintf_function(
-                    pF, LineReturn "[%s:%s]" LineReturn,
-                    SECTION_TAULA_PRINCIPAL,
-                    hMMMD->pLayerDB->pFields[nIField].pszFieldName);
-                section_written = TRUE;
-
                 MMWrite_ANSI_MetadataKeyDescriptor(
                     hMMMD, pF,
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription,
@@ -5969,15 +5965,13 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription);
             }
 
-            if (!section_written)
-            {
-                fprintf_function(
-                    pF, LineReturn "[%s:%s]" LineReturn,
-                    SECTION_TAULA_PRINCIPAL,
-                    hMMMD->pLayerDB->pFields[nIField].pszFieldName);
-                section_written = TRUE;
-            }
             fprintf_function(pF, "MostrarUnitats=0" LineReturn);
+
+            // Exception in a particular case.
+            if (EQUAL("altura", hMMMD->pLayerDB->pFields[nIField].pszFieldName))
+            {
+                fprintf_function(pF, "unitats=m" LineReturn);
+            }
         }
     }
     fclose_function(pF);
