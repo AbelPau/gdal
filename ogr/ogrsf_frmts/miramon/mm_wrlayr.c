@@ -5949,6 +5949,8 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         // For each field of the databes
         for (nIField = 0; nIField < hMMMD->pLayerDB->nNFields; nIField++)
         {
+            MM_BOOLEAN section_written = FALSE;
+
             if (!MMIsEmptyString(
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription) &&
                 !MMIsEmptyString(
@@ -5958,6 +5960,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
                     pF, LineReturn "[%s:%s]" LineReturn,
                     SECTION_TAULA_PRINCIPAL,
                     hMMMD->pLayerDB->pFields[nIField].pszFieldName);
+                section_written = TRUE;
 
                 MMWrite_ANSI_MetadataKeyDescriptor(
                     hMMMD, pF,
@@ -5965,6 +5968,16 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription,
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription);
             }
+
+            if (!section_written)
+            {
+                fprintf_function(
+                    pF, LineReturn "[%s:%s]" LineReturn,
+                    SECTION_TAULA_PRINCIPAL,
+                    hMMMD->pLayerDB->pFields[nIField].pszFieldName);
+                section_written = TRUE;
+            }
+            fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         }
     }
     fclose_function(pF);
