@@ -5965,7 +5965,8 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription);
             }
 
-            // Exception in a particular case.
+            // Exception in a particular case: "altura" is a catalan word that means
+            // "height". Its unit by default will be "m" instead of "unknown".
             if (EQUAL("altura", hMMMD->pLayerDB->pFields[nIField].pszFieldName))
             {
                 fprintf_function(pF, "unitats=m" LineReturn);
