@@ -27,7 +27,6 @@
 #include "ogrmiramon.h"
 
 #include "mm_gdal_functions.h"  // For MMCreateExtendedDBFIndex()
-#include "mm_gdal_constants.h"  // For strcasecmp()
 #include "mm_rdlayr.h"          // For MMInitLayerToRead()
 #include <algorithm>            // For std::clamp()
 #include <string>               // For std::string
@@ -261,9 +260,9 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                 CSLFetchNameValue(papszOpenOptions, "Height");
             if (szHeight)
             {
-                if (!strcasecmp(szHeight, "Highest"))
+                if (EQUAL(szHeight, "Highest"))
                     phMiraMonLayer->nSelectCoordz = MM_SELECT_HIGHEST_COORDZ;
-                else if (!strcasecmp(szHeight, "Lowest"))
+                else if (EQUAL(szHeight, "Lowest"))
                     phMiraMonLayer->nSelectCoordz = MM_SELECT_LOWEST_COORDZ;
                 else
                     phMiraMonLayer->nSelectCoordz = MM_SELECT_FIRST_COORDZ;
@@ -359,9 +358,9 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                     CSLFetchNameValue(papszOpenOptions, "iMultiRecord");
                 if (phMiraMonLayer->isListField && szMultiRecord)
                 {
-                    if (!strcasecmp(szMultiRecord, "Last"))
+                    if (EQUAL(szMultiRecord, "Last"))
                         phMiraMonLayer->iMultiRecord = MM_MULTIRECORD_LAST;
-                    else if (!strcasecmp(szMultiRecord, "JSON"))
+                    else if (EQUAL(szMultiRecord, "JSON"))
                         phMiraMonLayer->iMultiRecord = MM_MULTIRECORD_JSON;
                     else
                         phMiraMonLayer->iMultiRecord = atoi(szMultiRecord);
