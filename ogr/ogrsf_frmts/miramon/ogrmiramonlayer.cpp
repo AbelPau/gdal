@@ -2445,7 +2445,8 @@ int OGRMiraMonLayer::TestCapability(const char *pszCap)
         return TRUE;
 
     if (EQUAL(pszCap, OLCCreateField))
-        return m_bUpdate;
+        return m_bUpdate &&
+               !(phMiraMonLayer && phMiraMonLayer->TopHeader.nElemCount > 0);
 
     if (EQUAL(pszCap, OLCZGeometries))
         return TRUE;
