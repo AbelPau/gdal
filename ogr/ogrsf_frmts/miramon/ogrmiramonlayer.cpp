@@ -1956,6 +1956,41 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
                             phMiraMonLayer->pLayerDB->pFields[iField]
                                 .nFieldSize = 3;
                     }
+
+                    // Some exceptions for some fields:
+                    if (EQUAL(
+                            m_poFeatureDefn->GetFieldDefn(iField)->GetNameRef(),
+                            "fontsize"))
+                    {
+                        phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize =
+                            11;
+                        phMiraMonLayer->pLayerDB->pFields[iField]
+                            .nNumberOfDecimals = 3;
+                    }
+                    else if (EQUAL(m_poFeatureDefn->GetFieldDefn(iField)
+                                       ->GetNameRef(),
+                                   "leading") ||
+                             EQUAL(m_poFeatureDefn->GetFieldDefn(iField)
+                                       ->GetNameRef(),
+                                   "chrwidth") ||
+                             EQUAL(m_poFeatureDefn->GetFieldDefn(iField)
+                                       ->GetNameRef(),
+                                   "chrspacing"))
+                    {
+                        phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize =
+                            8;
+                        phMiraMonLayer->pLayerDB->pFields[iField]
+                            .nNumberOfDecimals = 3;
+                    }
+                    else if (EQUAL(m_poFeatureDefn->GetFieldDefn(iField)
+                                       ->GetNameRef(),
+                                   "orientacio"))
+                    {
+                        phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize =
+                            7;
+                        phMiraMonLayer->pLayerDB->pFields[iField]
+                            .nNumberOfDecimals = 2;
+                    }
                 }
                 else
                 {
