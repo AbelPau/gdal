@@ -5973,6 +5973,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
             }
             else
             {
+                // By default units of field values will not be shown.
                 fprintf_function(pF, "MostrarUnitats=0" LineReturn);
             }
         }
