@@ -5965,12 +5965,14 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
                     hMMMD->pLayerDB->pFields[nIField].pszFieldDescription);
             }
 
-            fprintf_function(pF, "MostrarUnitats=0" LineReturn);
-
             // Exception in a particular case.
             if (EQUAL("altura", hMMMD->pLayerDB->pFields[nIField].pszFieldName))
             {
                 fprintf_function(pF, "unitats=m" LineReturn);
+            }
+            else
+            {
+                fprintf_function(pF, "MostrarUnitats=0" LineReturn);
             }
         }
     }
