@@ -179,6 +179,29 @@ of the layer file.
       the relations of the database and the symbolization description. It is necessary in
       MiraMon but not read directly by the GDAL MiraMon vector driver.
 
+Reserved field names
+--------------------
+As mentioned a few lines above, all DBF files have a field named ID_GRAFIC. In addition to this field,
+there are other fields reserved for the case of stringlines and polygons.
+
+For stringlines:
+    - N_VERTEXS: a numeric field containing the number of vertices of the stringline.
+    - LONG_ARC: a numeric field containing the length of the stringline.
+    - NODE_INI: a numeric field containing the identifier of the node (from the .nod node file) where the stringline starts.
+    - NODE_FI: a numeric field containing the identifier of the node (from the .nod node file) where the stringline ends.
+
+For polygons:
+    - N_VERTEXS: a numeric field containing the number of vertices of the polygon.
+    - PERIMETRE: a numeric field containing the perimeter of the polygon, understanding that if it has multiple parts,
+      it is the sum of all parts.
+    - AREA: a numeric field containing the area of the polygon.
+    - N_ARCS: a numeric field containing the number of stringlines forming a polygon, understanding that in MiraMon, a polygon
+      can be formed by several stringlines.
+    - N_POLIG: a numeric field containing the number of rings forming a polygon.
+
+In the creation of a layer in MiraMon format, if any of the fields in the original layer have a name
+that matches the reserved ones, it will be slightly modified by adding a 2 at the end (or a 3 if that one is also occupied).
+
 Encoding
 --------
 
