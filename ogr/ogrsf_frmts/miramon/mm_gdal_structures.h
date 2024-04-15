@@ -49,10 +49,10 @@ review the code of the driver.
     MM_BYTES_PER_FIELD_TYPE_DBF
     BytesPerField;  // In MiraMon code: MM_TIPUS_BYTES_PER_CAMP_DBF BytesPerCamp
 
-    // Acumulated bytes before a field starts
-    MM_ACUMULATED_BYTES_TYPE_DBF
-    AcumulatedBytes;  // In MiraMon code:
-                      // MM_TIPUS_BYTES_ACUMULATS_DBF BytesAcumulats
+    // Accumulated bytes before a field starts
+    MM_ACCUMULATED_BYTES_TYPE_DBF
+    AccumulatedBytes;  // In MiraMon code:
+                       // MM_TIPUS_BYTES_ACUMULATS_DBF BytesAcumulats
 
     // Not used in GDAL
     char
@@ -87,7 +87,7 @@ struct MM_DATA_BASE_XP  // MiraMon table Structure
 
     char ReadingMode[4];            // In MiraMon code: ModeLectura
     MM_EXT_DBF_N_RECORDS nRecords;  // In MiraMon code: n_fitxes
-    MM_ACUMULATED_BYTES_TYPE_DBF
+    MM_ACCUMULATED_BYTES_TYPE_DBF
     BytesPerRecord;               // In MiraMon code: BytesPerFitxa
     MM_EXT_DBF_N_FIELDS nFields;  // In MiraMon code: ncamps
     struct MM_FIELD *pField;      // In MiraMon code: Camp

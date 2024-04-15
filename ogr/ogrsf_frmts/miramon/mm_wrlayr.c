@@ -876,7 +876,7 @@ static int MMInitZSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
         return 0;
     }
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         pZSection->ZHeader.dfBBminz = STATISTICAL_UNDEF_VALUE;
         pZSection->ZHeader.dfBBmaxz = -STATISTICAL_UNDEF_VALUE;
@@ -887,7 +887,7 @@ static int MMInitZSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
     pZSection->ZSectionOffset = 0;
 
     // ZD
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         pZSection->nMaxZDescription =
             MM_FIRST_NUMBER_OF_VERTICES * sizeof(double);
@@ -927,7 +927,7 @@ static int MMInitZSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
     pZSection->ZDOffset = 0;
 
     // ZL
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         if (MMInitFlush(&pZSection->FlushZL, pF3d, MM_1MB, &pZSection->pZL, 0,
                         sizeof(double)))
@@ -940,10 +940,10 @@ static int MMInitZSectionLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
 /*      Layer Functions: Extensions                                     */
 /* -------------------------------------------------------------------- */
 
-/* Find the last ocurrence of pszFinalPart in pszName
+/* Find the last occurrence of pszFinalPart in pszName
     and changes it by pszNewPart.
 
-    Examples of desired behaviour
+    Examples of desired behavior
     AA.pnt -> AAT.rel
     AA.nod -> N.~idx
     AA.nod -> N.dbf
@@ -967,7 +967,7 @@ static int MMChangeFinalPartOfTheName(char *pszName, size_t nMaxSizeOfName,
         nMaxSizeOfName)
         return 1;  // It's not possible to change the final part
 
-    // It's the inplementation on windows of the linux strrstr()
+    // It's the implementation on windows of the linux strrstr()
     // pszLastFound = strrstr(pszWhereToFind, pszFinalPart);
     pszWhereToFind = pszName;
     while (nullptr != (pAux = strstr(pszWhereToFind, pszFinalPart)))
@@ -994,7 +994,7 @@ static int MMInitPointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     hMiraMonLayer->bIsPoint = 1;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         // Geometrical part
         // Init header structure
@@ -1024,7 +1024,7 @@ static int MMInitPointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     }
     fseek_function(hMiraMonLayer->MMPoint.pF, 0, SEEK_SET);
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         // TL
         snprintf(hMiraMonLayer->MMPoint.pszTLName,
@@ -1088,7 +1088,7 @@ static int MMInitPointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     }
 
     // MiraMon metadata
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         snprintf(hMiraMonLayer->MMPoint.pszREL_LayerName,
                  sizeof(hMiraMonLayer->MMPoint.pszREL_LayerName), "%sT.rel",
@@ -1116,7 +1116,7 @@ static int MMInitPointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     // MIRAMON DATA BASE
     // Creating the DBF file name
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         snprintf(hMiraMonLayer->MMPoint.MMAdmDB.pszExtDBFLayerName,
                  sizeof(hMiraMonLayer->MMPoint.MMAdmDB.pszExtDBFLayerName),
@@ -1155,7 +1155,7 @@ static int MMInitNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     else
         pMMArcLayer = &hMiraMonLayer->MMArc;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         // Init header structure
         pMMArcLayer->TopNodeHeader.aFileType[0] = 'N';
@@ -1185,7 +1185,7 @@ static int MMInitNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     }
     fseek_function(pMMArcLayer->MMNode.pF, 0, SEEK_SET);
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         // Node Header
         pMMArcLayer->MMNode.nMaxNodeHeader = MM_FIRST_NUMBER_OF_NODES;
@@ -1279,7 +1279,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     // Init header structure
     hMiraMonLayer->bIsArc = 1;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         pArcTopHeader->bIs3d = 1;  // Read description of bRealIs3d
         MMInitBoundingBox(&pArcTopHeader->hBB);
@@ -1334,7 +1334,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     else
         pMMArcLayer->nSizeArcHeader = MM_SIZE_OF_AH_64BITS;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         pMMArcLayer->nMaxArcHeader = MM_FIRST_NUMBER_OF_ARCS;
     else
         pMMArcLayer->nMaxArcHeader = pArcTopHeader->nElemCount;
@@ -1368,7 +1368,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         pMMArcLayer->pArcHeader = nullptr;
 
     // AL
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         pMMArcLayer->nALElementSize = MM_SIZE_OF_AL;
 
@@ -1401,7 +1401,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     // 3D
     if (pArcTopHeader->bIs3d)
     {
-        if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         {
             if (hMiraMonLayer->bIsPolygon)
             {
@@ -1462,7 +1462,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     // MiraMon metadata
     if (hMiraMonLayer->bIsPolygon)
     {
-        if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         {
             snprintf(pMMArcLayer->pszREL_LayerName,
                      sizeof(pMMArcLayer->pszREL_LayerName), "%s_boundA.rel",
@@ -1479,7 +1479,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     }
     else
     {
-        if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         {
             snprintf(pMMArcLayer->pszREL_LayerName,
                      sizeof(pMMArcLayer->pszREL_LayerName), "%sA.rel",
@@ -1511,7 +1511,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     // Creating the DBF file name
     if (hMiraMonLayer->bIsPolygon)
     {
-        if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         {
             snprintf(pMMArcLayer->MMAdmDB.pszExtDBFLayerName,
                      sizeof(pMMArcLayer->MMAdmDB.pszExtDBFLayerName),
@@ -1529,7 +1529,7 @@ static int MMInitArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     }
     else
     {
-        if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         {
             snprintf(pMMArcLayer->MMAdmDB.pszExtDBFLayerName,
                      sizeof(pMMArcLayer->MMAdmDB.pszExtDBFLayerName), "%sA.dbf",
@@ -1576,7 +1576,7 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     // Init header structure
     hMiraMonLayer->bIsPolygon = 1;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         hMiraMonLayer->TopHeader.bIs3d = 1;  // Read description of bRealIs3d
         MMInitBoundingBox(&hMiraMonLayer->TopHeader.hBB);
@@ -1606,7 +1606,7 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     else
         pMMPolygonLayer->nPSElementSize = MM_SIZE_OF_PS_64BITS;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         snprintf(pMMPolygonLayer->pszPSName, sizeof(pMMPolygonLayer->pszPSName),
                  "%sP.~PS", hMiraMonLayer->pszSrcLayerName);
@@ -1634,7 +1634,7 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     else
         pMMPolygonLayer->nPHElementSize = MM_SIZE_OF_PH_64BITS;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         pMMPolygonLayer->nMaxPolHeader = MM_FIRST_NUMBER_OF_POLYGONS + 1;
     else
         pMMPolygonLayer->nMaxPolHeader = hMiraMonLayer->TopHeader.nElemCount;
@@ -1664,7 +1664,7 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     else
         pMMPolygonLayer->nPALElementSize = MM_SIZE_OF_PAL_64BITS;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         // Universal polygon.
         memset(pMMPolygonLayer->pPolHeader, 0,
@@ -1694,7 +1694,7 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     // MiraMon metadata
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         snprintf(hMiraMonLayer->MMPolygon.pszREL_LayerName,
                  sizeof(hMiraMonLayer->MMPolygon.pszREL_LayerName), "%sP.rel",
@@ -1723,7 +1723,7 @@ static int MMInitPolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         hMiraMonLayer->MMPolygon.pszREL_LayerName;
 
     // MIRAMON DATA BASE
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         snprintf(pMMPolygonLayer->MMAdmDB.pszExtDBFLayerName,
                  sizeof(pMMPolygonLayer->MMAdmDB.pszExtDBFLayerName), "%sP.dbf",
@@ -1757,7 +1757,7 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
     if (hMiraMonLayer->eLT == MM_LayerType_Point ||
         hMiraMonLayer->eLT == MM_LayerType_Point3d)
     {
-        if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         {
             snprintf(hMiraMonLayer->MMPoint.pszLayerName,
                      sizeof(hMiraMonLayer->MMPoint.pszLayerName), "%s.pnt",
@@ -1790,7 +1790,7 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
     {
         struct MiraMonArcLayer *pMMArcLayer = &hMiraMonLayer->MMArc;
 
-        if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         {
             snprintf(pMMArcLayer->pszLayerName,
                      sizeof(pMMArcLayer->pszLayerName), "%s.arc",
@@ -1824,7 +1824,7 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
     {
         struct MiraMonPolygonLayer *pMMPolygonLayer = &hMiraMonLayer->MMPolygon;
 
-        if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
         {
             snprintf(pMMPolygonLayer->pszLayerName,
                      sizeof(pMMPolygonLayer->pszLayerName), "%s.pol",
@@ -1957,7 +1957,7 @@ int MMInitLayerByType(struct MiraMonVectLayerInfo *hMiraMonLayer)
         else
             MMSet2_0Version(&pMMPolygonLayer->TopArcHeader);
     }
-    else if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    else if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         // Trying to get DBF information
         snprintf(hMiraMonLayer->MMAdmDBWriting.pszExtDBFLayerName,
@@ -2103,7 +2103,7 @@ static int MMClosePointLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     if (!hMiraMonLayer)
         return 1;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         hMiraMonLayer->nFinalElemCount = hMiraMonLayer->TopHeader.nElemCount;
         hMiraMonLayer->TopHeader.bIs3d = hMiraMonLayer->bIsReal3d;
@@ -2173,7 +2173,7 @@ static int MMCloseNodeLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     else
         pMMArcLayer = &hMiraMonLayer->MMArc;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         hMiraMonLayer->TopHeader.bIs3d = hMiraMonLayer->bIsReal3d;
 
@@ -2228,7 +2228,7 @@ static int MMCloseArcLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
         pArcTopHeader = &hMiraMonLayer->TopHeader;
     }
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         hMiraMonLayer->nFinalElemCount = pArcTopHeader->nElemCount;
         pArcTopHeader->bIs3d = hMiraMonLayer->bIsReal3d;
@@ -2305,7 +2305,7 @@ static int MMClosePolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     MMCloseArcLayer(hMiraMonLayer);
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         hMiraMonLayer->nFinalElemCount = hMiraMonLayer->TopHeader.nElemCount;
         hMiraMonLayer->TopHeader.bIs3d = hMiraMonLayer->bIsReal3d;
@@ -2413,7 +2413,7 @@ int MMCloseLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
     }
 
     // MiraMon metadata files
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         if (MMWriteVectorMetadata(hMiraMonLayer))
         {
@@ -2748,7 +2748,7 @@ int MMAppendBlockToBuffer(struct MM_FLUSH_INFO *FlushInfo)
 {
     if (FlushInfo->SizeOfBlockToBeSaved)
     {
-        // If all the bloc itselfs does not fit to the buffer,
+        // If all the bloc itself does not fit to the buffer,
         // then all the block is written directly to the disk
         if (FlushInfo->nNumBytes == 0 &&
             FlushInfo->SizeOfBlockToBeSaved >= FlushInfo->nBlockSize)
@@ -2769,7 +2769,7 @@ int MMAppendBlockToBuffer(struct MM_FLUSH_INFO *FlushInfo)
                        FlushInfo->pBlockToBeSaved,
                        FlushInfo->SizeOfBlockToBeSaved);
             }
-            else  // Add zero caracters
+            else  // Add zero characters
             {
                 char zero_caracters[8] = {0, 0, 0, 0, 0, 0, 0, 0};
                 memcpy((char *)FlushInfo->pBlockWhereToSaveOrRead +
@@ -3077,7 +3077,7 @@ int MMReadAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer)
                 free_function(pBuffer);
             return 1;
         }
-        // Lenght of the arc
+        // Length of the arc
         FlushTMP.pBlockToBeSaved =
             (void *)&pMMArcLayer->pArcHeader[iElem].dfLength;
         FlushTMP.SizeOfBlockToBeSaved =
@@ -3205,7 +3205,7 @@ int MMWriteAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer,
                 free_function(pBuffer);
             return 1;
         }
-        // Lenght of the arc
+        // Length of the arc
         FlushTMP.SizeOfBlockToBeSaved =
             sizeof(pMMArcLayer->pArcHeader[iElem].dfLength);
         hMiraMonLayer->OffsetCheck += FlushTMP.SizeOfBlockToBeSaved;
@@ -3867,7 +3867,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
     MM_POLYGON_RINGS_COUNT nExternalRingsCount;
     struct MM_PH *pCurrentPolHeader = nullptr;
     struct MM_AH *pCurrentArcHeader;
-    // To access how many points have been stored inthe last stringline
+    // To access how many points have been stored in the last stringline
     struct MM_AH *pLastArcHeader = nullptr;
     struct MM_NH *pCurrentNodeHeader, *pCurrentNodeHeaderPlus1 = nullptr;
     uint32_t UnsignedLongNumber;
@@ -4149,7 +4149,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if (!hMiraMonLayer->bIsPolygon)
             pCurrentNodeHeaderPlus1 = pCurrentNodeHeader + 1;
 
-        // Initialiting feature information (section AH/PH)
+        // Initializing feature information (section AH/PH)
         pCurrentArcHeader->nElemCount = hMMFeature->pNCoordRing[nIPart];
         pCurrentArcHeader->dfLength = 0.0;
         pCurrentArcHeader->nOffset =
@@ -4252,7 +4252,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
             return MM_FATAL_ERROR_WRITING_FEATURES;
         }
 
-        // Node Stuff: writting NL section
+        // Node Stuff: writing NL section
         pCurrentNodeHeader->nArcsCount = 1;
         if (hMiraMonLayer->bIsPolygon)
             pCurrentNodeHeader->cNodeType = MM_RING_NODE;
@@ -4742,7 +4742,7 @@ int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
                  struct MiraMonFeature *hMiraMonFeature)
 {
     int re;
-    MM_INTERNAL_FID previusFID = 0;
+    MM_INTERNAL_FID previousFID = 0;
 
     if (!hMiraMonLayer)
         return MM_FATAL_ERROR_WRITING_FEATURES;
@@ -4758,7 +4758,7 @@ int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
     }
 
     if (hMiraMonFeature)
-        previusFID = hMiraMonLayer->TopHeader.nElemCount;
+        previousFID = hMiraMonLayer->TopHeader.nElemCount;
 
     if (hMiraMonLayer->bIsPoint)
     {
@@ -4766,7 +4766,7 @@ int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if (hMiraMonFeature)
         {
             hMiraMonFeature->nReadFeatures =
-                hMiraMonLayer->TopHeader.nElemCount - previusFID;
+                hMiraMonLayer->TopHeader.nElemCount - previousFID;
         }
         return re;
     }
@@ -4777,7 +4777,7 @@ int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if (hMiraMonFeature)
         {
             hMiraMonFeature->nReadFeatures =
-                hMiraMonLayer->TopHeader.nElemCount - previusFID;
+                hMiraMonLayer->TopHeader.nElemCount - previousFID;
         }
         return re;
     }
@@ -4788,7 +4788,7 @@ int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if (hMiraMonFeature)
         {
             hMiraMonFeature->nReadFeatures =
-                hMiraMonLayer->TopHeader.nElemCount - previusFID;
+                hMiraMonLayer->TopHeader.nElemCount - previousFID;
         }
         return re;
     }
@@ -5631,7 +5631,7 @@ MMWrite_ANSI_MetadataKeyDescriptor(struct MiraMonVectorMetaData *hMMMD,
 */
 static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
 {
-    char aMessage[MM_MESSAGE_LENGHT],
+    char aMessage[MM_MESSAGE_LENGTH],
         aFileIdentifier[MM_MAX_LEN_LAYER_IDENTIFIER], aMMIDSRS[MM_MAX_ID_SNY];
     MM_EXT_DBF_N_FIELDS nIField;
     FILE_TYPE *pF;
@@ -5829,7 +5829,7 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, "simbolitzable=0" LineReturn);
         fprintf_function(pF, "MostrarUnitats=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(
-            hMMMD, pF, szLenghtOfAarcEng, szLenghtOfAarcCat, szLenghtOfAarcSpa);
+            hMMMD, pF, szLengthOfAarcEng, szLengthOfAarcCat, szLengthOfAarcSpa);
 
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
@@ -6625,7 +6625,7 @@ int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (MMWriteValueToszStringToOperate(hMiraMonLayer, camp, valor, is_64))
         return 1;
 
-    memcpy(registre + camp->AcumulatedBytes, hMiraMonLayer->szStringToOperate,
+    memcpy(registre + camp->AccumulatedBytes, hMiraMonLayer->szStringToOperate,
            camp->BytesPerField);
     return 0;
 }
@@ -6660,7 +6660,7 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                 memset(
                     pszRecordOnCourse +
                         pBD_XP->pField[nIField + nNumPrivateMMField]
-                            .AcumulatedBytes,
+                            .AccumulatedBytes,
                     ' ',
                     pBD_XP->pField[nIField + nNumPrivateMMField].BytesPerField);
 
@@ -7303,7 +7303,7 @@ static int MMCloseMMBD_XPFile(struct MiraMonVectLayerInfo *hMiraMonLayer,
     if (!hMiraMonLayer)
         return 1;
 
-    if (hMiraMonLayer->ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayer->ReadOrWrite == MM_WRITING_MODE)
     {
         if (!MMAdmDB->pFExtDBF)
         {

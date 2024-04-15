@@ -62,9 +62,9 @@ extern char szNumberOfVerticesEng[];
 extern char szNumberOfVerticesCat[];
 extern char szNumberOfVerticesSpa[];
 
-extern char szLenghtOfAarcEng[];
-extern char szLenghtOfAarcCat[];
-extern char szLenghtOfAarcSpa[];
+extern char szLengthOfAarcEng[];
+extern char szLengthOfAarcCat[];
+extern char szLengthOfAarcSpa[];
 
 extern char szInitialNodeEng[];
 extern char szInitialNodeCat[];
@@ -130,7 +130,7 @@ int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              char *registre, const struct MM_FIELD *camp,
                              const void *valor, MM_BOOLEAN is_64);
 int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
-                                  MM_EXT_DBF_N_FIELDS *nStringCurrentLenght);
+                                  MM_EXT_DBF_N_FIELDS *nStringCurrentLength);
 int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                            MM_EXT_DBF_N_FIELDS quincamp,
                            MM_BYTES_PER_FIELD_TYPE_DBF novaamplada,
@@ -146,13 +146,13 @@ char *MM_RemoveWhitespacesFromEndOfString(char *str);
 char *MM_RemoveLeadingWhitespaceOfString(char *cadena);
 
 // DBF
-struct MM_ID_GRAFIC_MULTIPLE_RECORD *
-MMCreateExtendedDBFIndex(FILE_TYPE *f, MM_EXT_DBF_N_RECORDS n_dbf,
-                         MM_FIRST_RECORD_OFFSET_TYPE offset_1era,
-                         MM_ACUMULATED_BYTES_TYPE_DBF bytes_per_fitxa,
-                         MM_ACUMULATED_BYTES_TYPE_DBF bytes_acumulats_id_grafic,
-                         MM_BYTES_PER_FIELD_TYPE_DBF bytes_id_grafic,
-                         MM_BOOLEAN *isListField, MM_EXT_DBF_N_RECORDS *nMaxN);
+struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(
+    FILE_TYPE *f, MM_EXT_DBF_N_RECORDS n_dbf,
+    MM_FIRST_RECORD_OFFSET_TYPE offset_1era,
+    MM_ACCUMULATED_BYTES_TYPE_DBF bytes_per_fitxa,
+    MM_ACCUMULATED_BYTES_TYPE_DBF bytes_acumulats_id_grafic,
+    MM_BYTES_PER_FIELD_TYPE_DBF bytes_id_grafic, MM_BOOLEAN *isListField,
+    MM_EXT_DBF_N_RECORDS *nMaxN);
 
 int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
                                      struct MM_DATA_BASE_XP *pMMBDXP,

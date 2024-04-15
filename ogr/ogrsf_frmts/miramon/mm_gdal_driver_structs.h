@@ -137,10 +137,10 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define MAXIMUM_OBJECT_INDEX_IN_2GB_VECTORS UINT32_MAX  //_UI32_MAX
 #define MAXIMUM_OFFSET_IN_2GB_VECTORS UINT32_MAX        //_UI32_MAX
 
-// Number of rings a polygon could have (it is just an initial aproximation)
+// Number of rings a polygon could have (it is just an initial approximation)
 #define MM_MEAN_NUMBER_OF_RINGS 10
 
-// Number of coordinates a feature could have (it is just an initial aproximation)
+// Number of coordinates a feature could have (it is just an initial approximation)
 #define MM_MEAN_NUMBER_OF_NCOORDS 100
 #define MM_MEAN_NUMBER_OF_COORDS 1000
 
@@ -356,7 +356,7 @@ struct MMAdmDatabase
     char pszExtDBFLayerName[MM_CPL_PATH_BUF_SIZE];
     // Pointer to the extended DBF file
     FILE_TYPE *pFExtDBF;
-    // Pointer to a MiraMon table (auxiliar)
+    // Pointer to a MiraMon table (auxiliary)
     struct MM_DATA_BASE_XP *pMMBDXP;
     // How to write all it to disk
     struct MM_FLUSH_INFO FlushRecList;
@@ -635,7 +635,7 @@ struct MiraMonFeature
     MM_N_VERTICES_TYPE nMaxpCoord;
     // Number of used elements in *pCoord (only for reading features)
     MM_N_VERTICES_TYPE nNumpCoord;
-    // Coordinate index thats is being processed
+    // Coordinate index that is being processed
     MM_N_VERTICES_TYPE nICoord;
     // List of the coordinates of the feature
     struct MM_POINT_2D *pCoord;
@@ -695,9 +695,9 @@ struct MiraMonVectLayerInfo
     // Pointer to the main REL name (do not free it)
     char *pszMainREL_LayerName;
 
-// To know if we are writting or reading
-#define MM_READING_MODE 0   // Reading MiraMon layer
-#define MM_WRITTING_MODE 1  // Writing MiraMon layer
+// To know if we are writing or reading
+#define MM_READING_MODE 0  // Reading MiraMon layer
+#define MM_WRITING_MODE 1  // Writing MiraMon layer
     MM_BOOLEAN ReadOrWrite;
 
     char pszFlags[10];  // To Open the file
@@ -778,7 +778,7 @@ struct MiraMonVectLayerInfo
 
     // This is used only to write temporary stuff
     char szNFieldAux[MM_MAX_AMPLADA_CAMP_N_DBF];
-    // Dinamic string that is used as temporary buffer
+    // Dynamic string that is used as temporary buffer
     // with variable size as needed. Its value is
     // highly temporary. Copy in a safe place to save its value.
     GUInt64 nNumStringToOperate;

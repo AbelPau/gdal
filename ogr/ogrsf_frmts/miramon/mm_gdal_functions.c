@@ -60,9 +60,9 @@ char szNumberOfVerticesEng[MM_MAX_IDENTIFIER_SIZE];
 char szNumberOfVerticesCat[MM_MAX_IDENTIFIER_SIZE];
 char szNumberOfVerticesSpa[MM_MAX_IDENTIFIER_SIZE];
 
-char szLenghtOfAarcEng[MM_MAX_IDENTIFIER_SIZE];
-char szLenghtOfAarcCat[MM_MAX_IDENTIFIER_SIZE];
-char szLenghtOfAarcSpa[MM_MAX_IDENTIFIER_SIZE];
+char szLengthOfAarcEng[MM_MAX_IDENTIFIER_SIZE];
+char szLengthOfAarcCat[MM_MAX_IDENTIFIER_SIZE];
+char szLengthOfAarcSpa[MM_MAX_IDENTIFIER_SIZE];
 
 char szInitialNodeEng[MM_MAX_IDENTIFIER_SIZE];
 char szInitialNodeCat[MM_MAX_IDENTIFIER_SIZE];
@@ -116,9 +116,9 @@ void MM_FillFieldDescriptorByLanguage(void)
     *(unsigned char *)&szNumberOfVerticesSpa[1] = MM_u_WITH_ACUTE;
     *(unsigned char *)&szNumberOfVerticesSpa[11] = MM_e_WITH_ACUTE;
 
-    CPLStrlcpy(szLenghtOfAarcEng, "Lenght of arc", MM_MAX_IDENTIFIER_SIZE);
-    CPLStrlcpy(szLenghtOfAarcCat, "Longitud de l'arc", MM_MAX_IDENTIFIER_SIZE);
-    CPLStrlcpy(szLenghtOfAarcSpa, "Longitud del arco", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szLengthOfAarcEng, "Length of arc", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szLengthOfAarcCat, "Longitud de l'arc", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szLengthOfAarcSpa, "Longitud del arco", MM_MAX_IDENTIFIER_SIZE);
 
     CPLStrlcpy(szInitialNodeEng, "Initial node", MM_MAX_IDENTIFIER_SIZE);
     CPLStrlcpy(szInitialNodeCat, "Node inicial", MM_MAX_IDENTIFIER_SIZE);
@@ -184,7 +184,7 @@ void MM_FillFieldDescriptorByLanguage(void)
 
 const char *MM_pszLogFilename = nullptr;
 
-// Loging
+// Logging
 const char *MMLog(const char *pszMsg, int nLineNumber)
 {
     FILE *f;
@@ -447,10 +447,10 @@ static MM_BYTE MM_CalculateBytesExtendedFieldName(struct MM_FIELD *camp)
     return MM_DonaBytesNomEstesCamp(camp);
 }
 
-static MM_ACUMULATED_BYTES_TYPE_DBF
+static MM_ACCUMULATED_BYTES_TYPE_DBF
 MM_CalculateBytesExtendedFieldNames(const struct MM_DATA_BASE_XP *bd_xp)
 {
-    MM_ACUMULATED_BYTES_TYPE_DBF bytes_acumulats = 0;
+    MM_ACCUMULATED_BYTES_TYPE_DBF bytes_acumulats = 0;
     MM_EXT_DBF_N_FIELDS i_camp;
 
     for (i_camp = 0; i_camp < bd_xp->nFields; i_camp++)
@@ -482,7 +482,7 @@ static void MM_CheckDBFHeader(struct MM_DATA_BASE_XP *bd_xp)
     bd_xp->BytesPerRecord = 1;
     for (i = 0, camp = bd_xp->pField; i < bd_xp->nFields; i++, camp++)
     {
-        camp->AcumulatedBytes = bd_xp->BytesPerRecord;
+        camp->AccumulatedBytes = bd_xp->BytesPerRecord;
         bd_xp->BytesPerRecord += camp->BytesPerField;
         if (camp->DesiredWidth == 0)
             camp->DesiredWidth = camp->OriginalDesiredWidth =
@@ -544,7 +544,7 @@ static short int MM_return_common_valid_DBF_field_name_string(char *cadena)
     if (cadena[0] == '_')
     {
         // To avoid having field names starting by '_' this case is
-        // substitued by a 0 (not a '\0').
+        // substituted by a 0 (not a '\0').
         cadena[0] = '0';
         error_retornat |= MM_FIELD_NAME_FIRST_CHARACTER_;
     }
@@ -585,7 +585,7 @@ MM_CheckClassicFieldNameEqual(const struct MM_DATA_BASE_XP *data_base_XP,
 }
 
 static char *MM_GiveNewStringWithCharacterInFront(const char *text,
-                                                  char caracter)
+                                                  char character)
 {
     char *ptr;
     size_t i;
@@ -597,7 +597,7 @@ static char *MM_GiveNewStringWithCharacterInFront(const char *text,
     if ((ptr = calloc_function(i + 2)) == nullptr)
         return nullptr;
 
-    *ptr = caracter;
+    *ptr = character;
     memcpy(ptr + 1, text, i + 1);
     return ptr;
 }
@@ -681,9 +681,9 @@ int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
     if (MMAdmDB->pMMBDXP->dbf_version == MM_MARCA_VERSIO_1_DBF_ESTESA)
     {
         /* from 16 to 19, position MM_SECOND_OFFSET_to_N_RECORDS */
-        GUInt32 nRecords32HightBits =
+        GUInt32 nRecords32HighBits =
             (GUInt32)(MMAdmDB->pMMBDXP->nRecords >> 32);
-        if (fwrite_function(&nRecords32HightBits, 4, 1, MMAdmDB->pFExtDBF) != 1)
+        if (fwrite_function(&nRecords32HighBits, 4, 1, MMAdmDB->pFExtDBF) != 1)
             return 1;
 
         /* from 20 to 27 */
@@ -756,7 +756,7 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
         }
     }
 
-    // Writting header
+    // Writing header
     fseek_function(data_base_XP->pfDataBase, 0, SEEK_SET);
 
     /* Byte 0 */
@@ -794,7 +794,7 @@ static MM_BOOLEAN MM_UpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
     if (MM_ES_DBF_ESTESA(data_base_XP->dbf_version))
     {
         if (fwrite_function(&(data_base_XP->BytesPerRecord),
-                            sizeof(MM_ACUMULATED_BYTES_TYPE_DBF), 1,
+                            sizeof(MM_ACCUMULATED_BYTES_TYPE_DBF), 1,
                             data_base_XP->pfDataBase) != 1)
             return FALSE;
     }
@@ -1434,7 +1434,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
         if (nIField)
         {
             // To avoid overflow
-            if (pMMBDXP->pField[nIField - 1].AcumulatedBytes >
+            if (pMMBDXP->pField[nIField - 1].AccumulatedBytes >
                 UINT32_MAX - pMMBDXP->pField[nIField - 1].BytesPerField)
             {
                 free_function(pMMBDXP->pField);
@@ -1445,13 +1445,13 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
                 return 1;
             }
 
-            pMMBDXP->pField[nIField].AcumulatedBytes =
-                (pMMBDXP->pField[nIField - 1].AcumulatedBytes +
+            pMMBDXP->pField[nIField].AccumulatedBytes =
+                (pMMBDXP->pField[nIField - 1].AccumulatedBytes +
                  pMMBDXP->pField[nIField - 1].BytesPerField);
         }
         else
         {
-            pMMBDXP->pField[nIField].AcumulatedBytes = 1;
+            pMMBDXP->pField[nIField].AccumulatedBytes = 1;
         }
 
         if (pszRelFile)
@@ -1576,7 +1576,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
     else
     {
         // To avoid overflow
-        if (pMMBDXP->pField[pMMBDXP->nFields - 1].AcumulatedBytes >
+        if (pMMBDXP->pField[pMMBDXP->nFields - 1].AccumulatedBytes >
             UINT32_MAX - pMMBDXP->pField[pMMBDXP->nFields - 1].BytesPerField)
         {
             free_function(pMMBDXP->pField);
@@ -1587,7 +1587,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
             return 1;
         }
         if (pMMBDXP->pField[pMMBDXP->nFields - 1].BytesPerField +
-                pMMBDXP->pField[pMMBDXP->nFields - 1].AcumulatedBytes >
+                pMMBDXP->pField[pMMBDXP->nFields - 1].AccumulatedBytes >
             pMMBDXP->BytesPerRecord)
             incoherent_record_size = TRUE;
     }
@@ -2072,7 +2072,7 @@ size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampLongitudArcDefecte,
-                      szLenghtOfAarcEng, szLenghtOfAarcCat, szLenghtOfAarcSpa,
+                      szLengthOfAarcEng, szLengthOfAarcCat, szLengthOfAarcSpa,
                       'N', MM_MIN_WIDTH_LONG, 9);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_LONG_ARC;
     i_camp++;
@@ -2142,7 +2142,7 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
 {
 #define VALOR_LIMIT_IMPRIMIR_EN_FORMAT_E 1E+17
 #define VALOR_MASSA_PETIT_PER_IMPRIMIR_f 1E-17
-    char cadena_treball[MM_CARACTERS_DOUBLE + 1];
+    char cadena_treball[MM_CHARACTERS_DOUBLE + 1];
     int retorn_printf;
 
     if (MM_IsNANDouble(valor_double))
@@ -2154,7 +2154,7 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
         }
         return snprintf(cadena, cadena_size, "NAN");
     }
-    if (MM_IsDoubleInfinit(valor_double))
+    if (MM_IsDoubleInfinite(valor_double))
     {
         if (amplada < 3)
         {
@@ -2273,31 +2273,31 @@ static MM_BOOLEAN MM_EmptyString_function(const char *cadena)
 }
 
 int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
-                                  MM_EXT_DBF_N_FIELDS *nStringCurrentLenght)
+                                  MM_EXT_DBF_N_FIELDS *nStringCurrentLength)
 {
 
     if (!pszStringSrc)
     {
-        if (1 >= *nStringCurrentLenght)
+        if (1 >= *nStringCurrentLength)
         {
             void *new_ptr = realloc_function(*pszStringDst, 2);
             if (!new_ptr)
                 return 1;
             *pszStringDst = new_ptr;
-            *nStringCurrentLenght = (MM_EXT_DBF_N_FIELDS)2;
+            *nStringCurrentLength = (MM_EXT_DBF_N_FIELDS)2;
         }
         strcpy(*pszStringDst, "\0");
         return 0;
     }
 
-    if (strlen(pszStringSrc) >= *nStringCurrentLenght)
+    if (strlen(pszStringSrc) >= *nStringCurrentLength)
     {
         void *new_ptr =
             realloc_function(*pszStringDst, strlen(pszStringSrc) + 1);
         if (!new_ptr)
             return 1;
         (*pszStringDst) = new_ptr;
-        *nStringCurrentLenght = (MM_EXT_DBF_N_FIELDS)(strlen(pszStringSrc) + 1);
+        *nStringCurrentLength = (MM_EXT_DBF_N_FIELDS)(strlen(pszStringSrc) + 1);
     }
     strcpy(*pszStringDst, pszStringSrc);
     return 0;
@@ -2325,13 +2325,13 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
 
     if (data_base_XP->nRecords != 0)
     {
-        l_glop1 = data_base_XP->pField[nIField].AcumulatedBytes;
+        l_glop1 = data_base_XP->pField[nIField].AccumulatedBytes;
         i_glop2 = l_glop1 + data_base_XP->pField[nIField].BytesPerField;
         if (nIField == data_base_XP->nFields - 1)
             l_glop2 = 0;
         else
             l_glop2 = data_base_XP->BytesPerRecord -
-                      data_base_XP->pField[nIField + 1].AcumulatedBytes;
+                      data_base_XP->pField[nIField + 1].AccumulatedBytes;
 
         if ((record = calloc_function((size_t)data_base_XP->BytesPerRecord)) ==
             nullptr)
@@ -2590,7 +2590,7 @@ int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
         data_base_XP->BytesPerRecord += canvi_amplada;
         for (i_camp = (MM_EXT_DBF_N_FIELDS)(nIField + 1);
              i_camp < data_base_XP->nFields; i_camp++)
-            data_base_XP->pField[i_camp].AcumulatedBytes += canvi_amplada;
+            data_base_XP->pField[i_camp].AccumulatedBytes += canvi_amplada;
     }
     data_base_XP->pField[nIField].DecimalsIfFloat = nNewPrecision;
 
@@ -2788,13 +2788,13 @@ char *MM_RemoveWhitespacesFromEndOfString(char *str)
     return MM_l_RemoveWhitespacesFromEndOfString(str, strlen(str));
 }
 
-struct MM_ID_GRAFIC_MULTIPLE_RECORD *
-MMCreateExtendedDBFIndex(FILE_TYPE *f, MM_EXT_DBF_N_RECORDS nNumberOfRecords,
-                         MM_FIRST_RECORD_OFFSET_TYPE offset_1era,
-                         MM_ACUMULATED_BYTES_TYPE_DBF bytes_per_fitxa,
-                         MM_ACUMULATED_BYTES_TYPE_DBF bytes_acumulats_id_grafic,
-                         MM_BYTES_PER_FIELD_TYPE_DBF bytes_id_grafic,
-                         MM_BOOLEAN *isListField, MM_EXT_DBF_N_RECORDS *nMaxN)
+struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(
+    FILE_TYPE *f, MM_EXT_DBF_N_RECORDS nNumberOfRecords,
+    MM_FIRST_RECORD_OFFSET_TYPE offset_1era,
+    MM_ACCUMULATED_BYTES_TYPE_DBF bytes_per_fitxa,
+    MM_ACCUMULATED_BYTES_TYPE_DBF bytes_acumulats_id_grafic,
+    MM_BYTES_PER_FIELD_TYPE_DBF bytes_id_grafic, MM_BOOLEAN *isListField,
+    MM_EXT_DBF_N_RECORDS *nMaxN)
 {
     struct MM_ID_GRAFIC_MULTIPLE_RECORD *id;
     MM_EXT_DBF_N_RECORDS i_dbf;

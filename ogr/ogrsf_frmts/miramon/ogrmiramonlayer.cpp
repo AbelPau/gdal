@@ -125,10 +125,10 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
         }
 
         // Init the Layers (not in disk, only in memory until
-        // the first element is readed)
+        // the first element is read)
         CPLDebugOnly("MiraMon", "Initializing MiraMon points layer...");
         if (MMInitLayer(&hMiraMonLayerPNT, pszFilename, nMMVersion, nMMRecode,
-                        nMMLanguage, nullptr, MM_WRITTING_MODE, MMMap))
+                        nMMLanguage, nullptr, MM_WRITING_MODE, MMMap))
         {
             bValidFile = false;
             return;
@@ -137,7 +137,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
 
         CPLDebugOnly("MiraMon", "Initializing MiraMon arcs layer...");
         if (MMInitLayer(&hMiraMonLayerARC, pszFilename, nMMVersion, nMMRecode,
-                        nMMLanguage, nullptr, MM_WRITTING_MODE, MMMap))
+                        nMMLanguage, nullptr, MM_WRITING_MODE, MMMap))
         {
             bValidFile = false;
             return;
@@ -146,7 +146,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
 
         CPLDebugOnly("MiraMon", "Initializing MiraMon polygons layer...");
         if (MMInitLayer(&hMiraMonLayerPOL, pszFilename, nMMVersion, nMMRecode,
-                        nMMLanguage, nullptr, MM_WRITTING_MODE, MMMap))
+                        nMMLanguage, nullptr, MM_WRITING_MODE, MMMap))
         {
             bValidFile = false;
             return;
@@ -157,7 +157,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
         // information to get. A DBF will be generated
         CPLDebugOnly("MiraMon", "Initializing MiraMon only-ext-DBF layer...");
         if (MMInitLayer(&hMiraMonLayerReadOrNonGeom, pszFilename, nMMVersion,
-                        nMMRecode, nMMLanguage, nullptr, MM_WRITTING_MODE,
+                        nMMRecode, nMMLanguage, nullptr, MM_WRITING_MODE,
                         nullptr))
         {
             bValidFile = false;
@@ -339,7 +339,7 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                     phMiraMonLayer->pMMBDXP->BytesPerRecord,
                     phMiraMonLayer->pMMBDXP
                         ->pField[phMiraMonLayer->pMMBDXP->IdGraficField]
-                        .AcumulatedBytes,
+                        .AccumulatedBytes,
                     phMiraMonLayer->pMMBDXP
                         ->pField[phMiraMonLayer->pMMBDXP->IdGraficField]
                         .BytesPerField,
@@ -491,7 +491,7 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
         }
         CPLDebugOnly("MiraMon", "MiraMon polygons layer closed");
     }
-    else if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)
+    else if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITING_MODE)
     {
         CPLDebugOnly("MiraMon", "No MiraMon polygons layer created.");
     }
@@ -513,7 +513,7 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
 
         CPLDebugOnly("MiraMon", "MiraMon arcs layer closed");
     }
-    else if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
+    else if (hMiraMonLayerARC.ReadOrWrite == MM_WRITING_MODE)
     {
         CPLDebugOnly("MiraMon", "No MiraMon arcs layer created.");
     }
@@ -534,74 +534,74 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
         }
         CPLDebugOnly("MiraMon", "MiraMon points layer closed");
     }
-    else if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
+    else if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITING_MODE)
     {
         CPLDebugOnly("MiraMon", "No MiraMon points layer created.");
     }
 
-    if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerARC.ReadOrWrite == MM_WRITING_MODE)
     {
         if (hMiraMonLayerReadOrNonGeom.bIsDBF)
         {
-            if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+            if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITING_MODE)
             {
                 CPLDebugOnly("MiraMon", "Closing MiraMon DBF table ...");
             }
             MMCloseLayer(&hMiraMonLayerReadOrNonGeom);
-            if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+            if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITING_MODE)
             {
                 CPLDebugOnly("MiraMon", "MiraMon DBF table closed");
             }
         }
-        else if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+        else if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITING_MODE)
         {
             CPLDebugOnly("MiraMon", "No MiraMon DBF table created.");
         }
     }
     else
     {
-        if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITING_MODE)
         {
             CPLDebugOnly("MiraMon", "Closing MiraMon layer ...");
         }
         MMCloseLayer(&hMiraMonLayerReadOrNonGeom);
-        if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+        if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITING_MODE)
         {
             CPLDebugOnly("MiraMon", "MiraMon layer closed");
         }
     }
 
-    if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITING_MODE)
     {
         MMCPLDebug("MiraMon", "Destroying MiraMon polygons layer memory");
     }
     MMDestroyLayer(&hMiraMonLayerPOL);
-    if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerPOL.ReadOrWrite == MM_WRITING_MODE)
     {
         MMCPLDebug("MiraMon", "MiraMon polygons layer memory destroyed");
     }
 
-    if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerARC.ReadOrWrite == MM_WRITING_MODE)
     {
         MMCPLDebug("MiraMon", "Destroying MiraMon arcs layer memory");
     }
     MMDestroyLayer(&hMiraMonLayerARC);
-    if (hMiraMonLayerARC.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerARC.ReadOrWrite == MM_WRITING_MODE)
     {
         MMCPLDebug("MiraMon", "MiraMon arcs layer memory destroyed");
     }
 
-    if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITING_MODE)
     {
         MMCPLDebug("MiraMon", "Destroying MiraMon points layer memory");
     }
     MMDestroyLayer(&hMiraMonLayerPNT);
-    if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerPNT.ReadOrWrite == MM_WRITING_MODE)
     {
         MMCPLDebug("MiraMon", "MiraMon points layer memory destroyed");
     }
 
-    if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITING_MODE)
     {
         MMCPLDebug("MiraMon", "Destroying MiraMon DBF table layer memory");
     }
@@ -611,7 +611,7 @@ OGRMiraMonLayer::~OGRMiraMonLayer()
     }
 
     MMDestroyLayer(&hMiraMonLayerReadOrNonGeom);
-    if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITTING_MODE)
+    if (hMiraMonLayerReadOrNonGeom.ReadOrWrite == MM_WRITING_MODE)
     {
         MMCPLDebug("MiraMon", "MiraMon DBF table layer memory destroyed");
     }
@@ -694,12 +694,12 @@ void OGRMiraMonLayer::GoToFieldOfMultipleRecord(MM_INTERNAL_FID iFID,
     if (!phMiraMonLayer->pMultRecordIndex)
         return;
 
-    fseek_function(phMiraMonLayer->pMMBDXP->pfDataBase,
-                   phMiraMonLayer->pMultRecordIndex[iFID].offset +
-                       (MM_FILE_OFFSET)nIRecord *
-                           phMiraMonLayer->pMMBDXP->BytesPerRecord +
-                       phMiraMonLayer->pMMBDXP->pField[nIField].AcumulatedBytes,
-                   SEEK_SET);
+    fseek_function(
+        phMiraMonLayer->pMMBDXP->pfDataBase,
+        phMiraMonLayer->pMultRecordIndex[iFID].offset +
+            (MM_FILE_OFFSET)nIRecord * phMiraMonLayer->pMMBDXP->BytesPerRecord +
+            phMiraMonLayer->pMMBDXP->pField[nIField].AccumulatedBytes,
+        SEEK_SET);
 }
 
 /****************************************************************************/
@@ -1527,7 +1527,7 @@ OGRErr OGRMiraMonLayer::MMProcessGeometry(OGRGeometryH hGeom,
     /* -------------------------------------------------------------------- */
     /*      Field translation from GDAL to MiraMon                          */
     /* -------------------------------------------------------------------- */
-    // Reset the object where readed coordinates are going to be stored
+    // Reset the object where read coordinates are going to be stored
     MMResetFeatureGeometry(&hMMFeature);
     if (bcalculateRecord)
     {

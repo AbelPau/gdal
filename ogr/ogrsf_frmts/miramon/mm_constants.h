@@ -42,7 +42,7 @@ CPL_C_START  // Necessary for compiling C in GDAL project
 #define MM_BOOLEAN char
 #define MM_HANDLE void *
 
-#define MM_MESSAGE_LENGHT 512
+#define MM_MESSAGE_LENGTH 512
 #define MM_MAX_BYTES_FIELD_DESC 360
 #define MM_MAX_BYTES_IN_A_FIELD_EXT (UINT32_MAX - 1)
 #define MM_MAX_LON_FIELD_NAME_DBF 129
@@ -165,7 +165,7 @@ typedef unsigned char MM_BYTE;
 #define MM_APLICAR_NOU_N_DECIMALS 1
 #define MM_NOMES_DOCUMENTAR_NOU_N_DECIMALS 2
 #define MM_PREGUNTA_SI_APLICAR_NOU_N_DECIM 3
-#define MM_CARACTERS_DOUBLE 40
+#define MM_CHARACTERS_DOUBLE 40
 
 #ifdef GDAL_COMPILATION
 CPL_C_END  // Necessary for compiling in GDAL project

@@ -61,7 +61,7 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define form_filename_function(a, b) MuntaPath((a), (b), TRUE)
 #define MM_CPLGetBasename(a) TreuAdreca((a))
 #define MM_IsNANDouble(x) EsNANDouble((x))
-#define MM_IsDoubleInfinit(x) EsDoubleInfinit((x))
+#define MM_IsDoubleInfinite(x) EsDoubleInfinit((x))
 #else
 #define calloc_function(a) VSICalloc(1, (a))
 #define realloc_function VSIRealloc
@@ -98,7 +98,7 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define form_filename_function(a, b) CPLFormFilename((a), (b), "")
 #define MM_CPLGetBasename(a) CPLGetBasename((a))
 #define MM_IsNANDouble(x) CPLIsNan((x))
-#define MM_IsDoubleInfinit(x) CPLIsInf((x))
+#define MM_IsDoubleInfinite(x) CPLIsInf((x))
 #endif
 
 /* -------------------------------------------------------------------- */

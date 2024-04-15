@@ -251,7 +251,7 @@ MMAddStringLineCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              pF, pArcHeader[i_elem].nElemCount,
                              pZDescription + i_elem, flag_z);
 
-            // If there is a value for Z-nodata in GDAL this lines can be uncomented
+            // If there is a value for Z-nodata in GDAL this lines can be uncommented
             // and MM_GDAL_NODATA_COORD_Z can be defined
             /*if(!DOUBLES_DIFERENTS_DJ(punts_z[k], MM_NODATA_COORD_Z))
             {
@@ -315,7 +315,7 @@ MMAddStringLineCoordinates(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              pF, pArcHeader[i_elem].nElemCount,
                              pZDescription + i_elem, flag_z);
 
-            // If there is a value for Z-nodata in GDAL this lines can be uncomented
+            // If there is a value for Z-nodata in GDAL this lines can be uncommented
             // and MM_GDAL_NODATA_COORD_Z can be defined
             /*if(!DOUBLES_DIFERENTS_DJ(punts_z[k], MM_NODATA_COORD_Z))
             {
@@ -618,7 +618,7 @@ int MMGetGeoFeatureFromVector(struct MiraMonVectLayerInfo *hMiraMonLayer,
                         return 1;
                     }
                 }
-                // If there is a value for Z-nodata in GDAL this lines can be uncomented
+                // If there is a value for Z-nodata in GDAL this lines can be uncommented
                 // and MM_GDAL_NODATA_COORD_Z can be defined
                 /*if(!DOUBLES_DIFERENTS_DJ(cz, MM_NODATA_COORD_Z))
                     hMiraMonLayer->ReadFeature.pZCoord[0]=MM_GDAL_NODATA_COORD_Z;
@@ -664,8 +664,8 @@ int MM_ReadExtendedDBFHeader(struct MiraMonVectLayerInfo *hMiraMonLayer)
     struct MM_DATA_BASE_XP *pMMBDXP;
     const char *szDBFFileName = nullptr;
 
-    // If readed don't read again. It happens when Polygon reads
-    // the database and then in initArc() it's readed again.
+    // If read don't read again. It happens when Polygon reads
+    // the database and then in initArc() it's read again.
     if (hMiraMonLayer->pMMBDXP)
         return 0;
 

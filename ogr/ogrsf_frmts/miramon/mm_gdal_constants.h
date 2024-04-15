@@ -52,7 +52,7 @@ typedef GUInt32
 typedef GUInt32 MM_BYTES_PER_FIELD_TYPE_DBF;
 
 // In MiraMon code: MM_TIPUS_BYTES_ACUMULATS_DBF
-typedef GUInt32 MM_ACUMULATED_BYTES_TYPE_DBF;
+typedef GUInt32 MM_ACCUMULATED_BYTES_TYPE_DBF;
 
 // Type of the number of records of an extended DBF
 typedef GUInt32 MM_EXT_DBF_N_MULTIPLE_RECORDS;

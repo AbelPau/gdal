@@ -50,7 +50,7 @@ class OGRMiraMonLayer final
 
     // Pointer to one of three possible MiraMon layers: points,
     // arcs or polygons. Every time a feature is read this pointer
-    // points to the appropiate layer
+    // points to the appropriate layer
     struct MiraMonVectLayerInfo *phMiraMonLayer;
 
     // When writing a layer
