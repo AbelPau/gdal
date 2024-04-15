@@ -2067,6 +2067,10 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
         return OGRERR_NONE;
     }
 
+    if (!phMiraMonLayer || !phMiraMonLayer->pLayerDB ||
+        !phMiraMonLayer->pLayerDB->pFields)
+        return OGRERR_INVALID_HANDLE;
+
     MM_EXT_DBF_N_MULTIPLE_RECORDS nIRecord;
     int nNumFields = m_poFeatureDefn->GetFieldCount();
     MM_EXT_DBF_N_MULTIPLE_RECORDS nNumRecords, nRealNumRecords;
@@ -2262,7 +2266,9 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
 
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
-                        CPLSPrintf("%.*f", MAX_RELIABLE_SF_DOUBLE,
+                        CPLSPrintf("%.*f",
+                                   phMiraMonLayer->pLayerDB->pFields[iField]
+                                       .nNumberOfDecimals,
                                    padfRLValues[nIRecord]),
                         &hMMFeature.pRecords[nIRecord]
                              .pField[iField]
@@ -2412,7 +2418,9 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
 
             if (MM_SecureCopyStringFieldValue(
                     &hMMFeature.pRecords[0].pField[iField].pDinValue,
-                    CPLSPrintf("%.*f", MAX_RELIABLE_SF_DOUBLE,
+                    CPLSPrintf("%.*f",
+                               phMiraMonLayer->pLayerDB->pFields[iField]
+                                   .nNumberOfDecimals,
                                poFeature->GetFieldAsDouble(iField)),
                     &hMMFeature.pRecords[0].pField[iField].nNumDinValue))
                 return OGRERR_NOT_ENOUGH_MEMORY;

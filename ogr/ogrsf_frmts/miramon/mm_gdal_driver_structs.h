@@ -318,12 +318,10 @@ struct MiraMonVectorMetaData
 struct MiraMonFieldValue
 {
     MM_BOOLEAN bIsValid;  // If 1 the value is filled. If 0, there is no value.
-#define MM_INIT_STRING_FIELD_VALUE 50000  // Never less than 10
-    MM_EXT_DBF_N_FIELDS nNumDinValue;     // Size of the reserved string value
-    char *pDinValue;  // Used if MM_MAX_STRING_FIELD_VALUE is not enough
-    double dValue;    // For double and 32 bit integer numeric values
-    GInt64 iValue;    // For 64 bit integer values.
-    //MM_BOOLEAN kbValue;    // For binary values.
+    MM_EXT_DBF_N_FIELDS nNumDinValue;  // Size of the reserved string value
+    char *pDinValue;                   // Used to store the value as string
+    double dValue;  // For double and 32 bit integer numeric values
+    GInt64 iValue;  // For 64 bit integer values.
 };
 
 struct MiraMonRecord
