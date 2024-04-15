@@ -2471,6 +2471,14 @@ OGRErr OGRMiraMonLayer::CreateField(const OGRFieldDefn *poField, int bApproxOK)
         return OGRERR_FAILURE;
     }
 
+    if (phMiraMonLayer && phMiraMonLayer->TopHeader.nElemCount == 0)
+    {
+        CPLError(CE_Failure, CPLE_NoWriteAccess,
+                 "Cannot create fields to a layer with "
+                 "already existing features in it.");
+        return OGRERR_FAILURE;
+    }
+
     switch (poField->GetType())
     {
         case OFTInteger:
