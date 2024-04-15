@@ -6344,7 +6344,10 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
 
         if (0 == (nIField = (MM_EXT_DBF_N_FIELDS)MM_DefineFirstArcFieldsDB_XP(
-                      pBD_XP)))
+                      pBD_XP,
+                      hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_PROJECTED_TYPE
+                          ? 3
+                          : 9)))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMArc.MMNode.MMAdmDB.pMMBDXP =
@@ -6371,8 +6374,13 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
             return 1;
 
         if (0 ==
-            (nIField =
-                 (MM_EXT_DBF_N_FIELDS)MM_DefineFirstPolygonFieldsDB_XP(pBD_XP)))
+            (nIField = (MM_EXT_DBF_N_FIELDS)MM_DefineFirstPolygonFieldsDB_XP(
+                 pBD_XP,
+                 hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_PROJECTED_TYPE ? 3
+                                                                           : 9,
+                 hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_PROJECTED_TYPE
+                     ? 3
+                     : 12)))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMPolygon.MMArc.MMAdmDB.pMMBDXP =
@@ -6381,7 +6389,11 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
         if (!pBD_XP_Aux)
             return 1;
 
-        if (0 == MM_DefineFirstArcFieldsDB_XP(pBD_XP_Aux))
+        if (0 == MM_DefineFirstArcFieldsDB_XP(
+                     pBD_XP_Aux,
+                     hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_PROJECTED_TYPE
+                         ? 3
+                         : 9))
             return 1;
 
         pBD_XP_Aux = hMiraMonLayer->MMPolygon.MMArc.MMNode.MMAdmDB.pMMBDXP =

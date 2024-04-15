@@ -2006,7 +2006,9 @@ static MM_BOOLEAN MM_FillFieldDB_XP(
     return TRUE;
 }
 
-size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
+size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
+                                        MM_BYTE n_perimeter_decimals,
+                                        MM_BYTE n_area_decimals_decimals)
 {
     MM_EXT_DBF_N_FIELDS i_camp = 0;
 
@@ -2026,13 +2028,15 @@ size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampPerimetreDefecte,
                       szPerimeterOfThePolygonEng, szPerimeterOfThePolygonCat,
-                      szPerimeterOfThePolygonSpa, 'N', MM_MIN_WIDTH_LONG, 9);
+                      szPerimeterOfThePolygonSpa, 'N', MM_MIN_WIDTH_LONG,
+                      n_perimeter_decimals);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_PERIMETRE;
     i_camp++;
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampAreaDefecte,
                       szAreaOfThePolygonEng, szAreaOfThePolygonCat,
-                      szAreaOfThePolygonSpa, 'N', MM_MIN_WIDTH_AREA, 12);
+                      szAreaOfThePolygonSpa, 'N', MM_MIN_WIDTH_AREA,
+                      n_area_decimals_decimals);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_AREA;
     i_camp++;
 
@@ -2052,7 +2056,8 @@ size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
     return i_camp;
 }
 
-size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
+size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
+                                    MM_BYTE n_decimals)
 {
     MM_EXT_DBF_N_FIELDS i_camp;
 
@@ -2073,7 +2078,7 @@ size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
 
     MM_FillFieldDB_XP(bd_xp->pField + i_camp, szMMNomCampLongitudArcDefecte,
                       szLengthOfAarcEng, szLengthOfAarcCat, szLengthOfAarcSpa,
-                      'N', MM_MIN_WIDTH_LONG, 9);
+                      'N', MM_MIN_WIDTH_LONG, n_decimals);
     (bd_xp->pField + i_camp)->GeoTopoTypeField = (MM_BYTE)MM_CAMP_ES_LONG_ARC;
     i_camp++;
 

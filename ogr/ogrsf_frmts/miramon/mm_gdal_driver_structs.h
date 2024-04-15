@@ -737,6 +737,12 @@ struct MiraMonVectLayerInfo
     char *pSRS;
     int nSRS_EPSG;  // Ref. system if has EPSG code.
 
+// Used to write the precision of the reserved fields in the DBF
+#define MM_SRS_LAYER_IS_UNKNOWN_TYPE 0
+#define MM_SRS_LAYER_IS_PROJECTED_TYPE 1
+#define MM_SRS_LAYER_IS_GEOGRAPHIC_TYPE 2
+    int nSRSType;
+
     // In GDAL->MiraMon sense:
     // Transformed table from input layer to a MiraMon table.
     // This table has to be merged with private MiraMon fields to obtain
