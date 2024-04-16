@@ -2270,8 +2270,8 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                     return OGRERR_NOT_ENOUGH_MEMORY;
 
                 char szChain[21];
-                SprintfDoubleSignifFigures(
-                    szChain, 21,
+                MM_SprintfDoubleSignifFigures(
+                    szChain, sizeof(szChain),
                     phMiraMonLayer->pLayerDB->pFields[iField].nNumberOfDecimals,
                     padfRLValues[nIRecord]);
 
@@ -2424,8 +2424,8 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
             char szChain[21];
-            SprintfDoubleSignifFigures(
-                szChain, 21,
+            MM_SprintfDoubleSignifFigures(
+                szChain, sizeof(szChain),
                 phMiraMonLayer->pLayerDB->pFields[iField].nNumberOfDecimals,
                 poFeature->GetFieldAsDouble(iField));
 

@@ -2353,8 +2353,8 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
 #undef MAX_SIGNIFICANT_FIGURES
 }  // End of FillWithZerosBeforeLoadingDoubleIntoMemory()
 
-int SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
-                               int nSignifFigures, double nRealValue)
+int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
+                                  int nSignifFigures, double dfRealValue)
 {
     double VALOR_LIMIT_PRINT_IN_FORMAT_E;
     double VALOR_TOO_SMALL_TO_PRINT_f;
@@ -2378,13 +2378,13 @@ int SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
 
     memset(szChain, '\0', size_szChain);
 
-    if (MM_IsNANDouble(nRealValue))
+    if (MM_IsNANDouble(dfRealValue))
         return snprintf(szChain, size_szChain, "NAN");
 
-    if (MM_IsDoubleInfinite(nRealValue))
+    if (MM_IsDoubleInfinite(dfRealValue))
         return snprintf(szChain, size_szChain, "INF");
 
-    if (!nRealValue)
+    if (!dfRealValue)
         return snprintf(szChain, size_szChain, "%.*f", nSignifFigures, 0.0);
 
     if (nSignifFigures < 1)
@@ -2393,17 +2393,17 @@ int SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
     if (nSignifFigures > N_POWERS)
         nSignifFigures = N_POWERS;
 
-    retorn =
-        snprintf(szChain, size_szChain, "%.*E", nSignifFigures - 1, nRealValue);
+    retorn = snprintf(szChain, size_szChain, "%.*E", nSignifFigures - 1,
+                      dfRealValue);
 
     VALOR_LIMIT_PRINT_IN_FORMAT_E = potencies_de_10[nSignifFigures - 1];
     VALOR_TOO_SMALL_TO_PRINT_f =
         fraccions_de_10[MM_MAX_XS_DOUBLE - nSignifFigures];
 
-    if (nRealValue > VALOR_LIMIT_PRINT_IN_FORMAT_E ||
-        nRealValue < -VALOR_LIMIT_PRINT_IN_FORMAT_E ||
-        (nRealValue < VALOR_TOO_SMALL_TO_PRINT_f &&
-         nRealValue > -VALOR_TOO_SMALL_TO_PRINT_f))
+    if (dfRealValue > VALOR_LIMIT_PRINT_IN_FORMAT_E ||
+        dfRealValue < -VALOR_LIMIT_PRINT_IN_FORMAT_E ||
+        (dfRealValue < VALOR_TOO_SMALL_TO_PRINT_f &&
+         dfRealValue > -VALOR_TOO_SMALL_TO_PRINT_f))
         return retorn;
 
     ptr = strchr(szChain, 'E');
@@ -2411,10 +2411,10 @@ int SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
         return 0;
     exponent = atoi(ptr + 1);
 
-    nRealValue = atof(FillWithZerosBeforeLoadingDoubleIntoMemory(
+    dfRealValue = CPLAtof(FillWithZerosBeforeLoadingDoubleIntoMemory(
         szChain_retorn, MM_CHARACTERS_DOUBLE + 1, szChain));
     return sprintf(szChain, "%.*f", max(0, nSignifFigures - exponent - 1),
-                   nRealValue);
+                   dfRealValue);
 #undef N_POWERS
 }  // End of SprintfDoubleXifSignif()
 
