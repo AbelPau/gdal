@@ -132,8 +132,8 @@ int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
 int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              char *registre, const struct MM_FIELD *camp,
                              const void *valor, MM_BOOLEAN is_64);
-int SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
-                               int nSignifFigures, double nRealValue);
+int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
+                                  int nSignifFigures, double dfRealValue);
 int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
                                   MM_EXT_DBF_N_FIELDS *nStringCurrentLength);
 int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
