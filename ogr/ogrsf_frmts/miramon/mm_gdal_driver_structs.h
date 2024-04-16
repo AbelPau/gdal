@@ -70,8 +70,11 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define szMMNomCampNArcsDefecte "N_ARCS"
 #define szMMNomCampNPoligonsDefecte "N_POLIG"
 
-#define MAX_RELIABLE_SF_DOUBLE                                                 \
-    15  // Maximum nr. of reliable significant figures in any double.
+// Used maximum nr. of reliable significant figures in any double.
+#define MAX_RELIABLE_SF_DOUBLE 15
+
+// Maximum nr. of reliable significant figures
+#define MM_MAX_XS_DOUBLE 17
 
 // Initial width of MiraMon fields
 #define MM_MIN_WIDTH_ID_GRAFIC 3

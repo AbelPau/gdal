@@ -346,11 +346,11 @@ static MM_BYTE MM_GetDefaultDesiredDBFFieldWidth(const struct MM_FIELD *camp)
     return (MM_BYTE)(e < 80 ? e : 80);
 }
 
-static MM_BOOLEAN MM_is_field_name_lowercase(const char *cadena)
+static MM_BOOLEAN MM_is_field_name_lowercase(const char *szChain)
 {
     const char *p;
 
-    for (p = cadena; *p; p++)
+    for (p = szChain; *p; p++)
     {
         if ((*p >= 'a' && *p <= 'z'))
             return TRUE;
@@ -359,11 +359,11 @@ static MM_BOOLEAN MM_is_field_name_lowercase(const char *cadena)
 }
 
 static MM_BOOLEAN
-MM_Is_classical_DBF_field_name_or_lowercase(const char *cadena)
+MM_Is_classical_DBF_field_name_or_lowercase(const char *szChain)
 {
     const char *p;
 
-    for (p = cadena; *p; p++)
+    for (p = szChain; *p; p++)
     {
         if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
             (*p >= '0' && *p <= '9') || *p == '_')
@@ -371,7 +371,7 @@ MM_Is_classical_DBF_field_name_or_lowercase(const char *cadena)
         else
             return FALSE;
     }
-    if (cadena[0] == '_')
+    if (szChain[0] == '_')
         return FALSE;
     return TRUE;
 }
@@ -522,15 +522,15 @@ MM_InitializeBytesExtendedFieldNameFields(struct MM_DATA_BASE_XP *bd_xp,
            0, 1);
 }
 
-static short int MM_return_common_valid_DBF_field_name_string(char *cadena)
+static short int MM_return_common_valid_DBF_field_name_string(char *szChain)
 {
     char *p;
     short int error_retornat = 0;
 
-    if (!cadena)
+    if (!szChain)
         return 0;
-    //strupr(cadena);
-    for (p = cadena; *p; p++)
+    //strupr(szChain);
+    for (p = szChain; *p; p++)
     {
         (*p) = (char)toupper((unsigned char)*p);
         if ((*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '_')
@@ -541,29 +541,29 @@ static short int MM_return_common_valid_DBF_field_name_string(char *cadena)
             error_retornat |= MM_FIELD_NAME_CHARACTER_INVALID;
         }
     }
-    if (cadena[0] == '_')
+    if (szChain[0] == '_')
     {
         // To avoid having field names starting by '_' this case is
         // substituted by a 0 (not a '\0').
-        cadena[0] = '0';
+        szChain[0] = '0';
         error_retornat |= MM_FIELD_NAME_FIRST_CHARACTER_;
     }
     return error_retornat;
 }
 
-static short int MM_ReturnValidClassicDBFFieldName(char *cadena)
+static short int MM_ReturnValidClassicDBFFieldName(char *szChain)
 {
     size_t long_nom_camp;
     short int error_retornat = 0;
 
-    long_nom_camp = strlen(cadena);
+    long_nom_camp = strlen(szChain);
     if ((long_nom_camp < 1) ||
         (long_nom_camp >= MM_MAX_LON_CLASSICAL_FIELD_NAME_DBF))
     {
-        cadena[MM_MAX_LON_FIELD_NAME_DBF - 1] = '\0';
+        szChain[MM_MAX_LON_FIELD_NAME_DBF - 1] = '\0';
         error_retornat |= MM_FIELD_NAME_TOO_LONG;
     }
-    error_retornat |= MM_return_common_valid_DBF_field_name_string(cadena);
+    error_retornat |= MM_return_common_valid_DBF_field_name_string(szChain);
     return error_retornat;
 }
 
@@ -1105,7 +1105,7 @@ void MM_ReleaseMainFields(struct MM_DATA_BASE_XP *data_base_XP)
 {
     MM_EXT_DBF_N_FIELDS i;
     size_t j;
-    char **cadena;
+    char **szChain;
 
     if (data_base_XP->pField)
     {
@@ -1113,11 +1113,11 @@ void MM_ReleaseMainFields(struct MM_DATA_BASE_XP *data_base_XP)
         {
             for (j = 0; j < MM_NUM_IDIOMES_MD_MULTIDIOMA; j++)
             {
-                cadena = data_base_XP->pField[i].Separator;
-                if (cadena[j])
+                szChain = data_base_XP->pField[i].Separator;
+                if (szChain[j])
                 {
-                    free_function(cadena[j]);
-                    cadena[j] = nullptr;
+                    free_function(szChain[j]);
+                    szChain[j] = nullptr;
                 }
             }
         }
@@ -1853,20 +1853,20 @@ int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
 }  // End of MM_ModifyFieldNameAndDescriptorIfPresentBD_XP()
 
 static int MM_DuplicateMultilingualString(
-    char *(cadena_final[MM_NUM_IDIOMES_MD_MULTIDIOMA]),
-    const char *const(cadena_inicial[MM_NUM_IDIOMES_MD_MULTIDIOMA]))
+    char *(szChain_final[MM_NUM_IDIOMES_MD_MULTIDIOMA]),
+    const char *const(szChain_inicial[MM_NUM_IDIOMES_MD_MULTIDIOMA]))
 {
     size_t i;
 
     for (i = 0; i < MM_NUM_IDIOMES_MD_MULTIDIOMA; i++)
     {
-        if (cadena_inicial[i])
+        if (szChain_inicial[i])
         {
-            if (nullptr == (cadena_final[i] = strdup(cadena_inicial[i])))
+            if (nullptr == (szChain_final[i] = strdup(szChain_inicial[i])))
                 return 1;
         }
         else
-            cadena_final[i] = nullptr;
+            szChain_final[i] = nullptr;
     }
     return 0;
 }
@@ -1907,8 +1907,8 @@ size_t CPLStrlcpy(char *pszDest, const char *pszSrc, size_t nDestSize)
 #endif
 
 // If n_bytes==SIZE_MAX, the parameter is ignored ant, then,
-// it's assumed that szcadena is NUL terminated
-char *MM_oemansi_n(char *szcadena, size_t n_bytes)
+// it's assumed that szszChain is NUL terminated
+char *MM_oemansi_n(char *szszChain, size_t n_bytes)
 {
     size_t u_i;
     unsigned char *punter_bait;
@@ -1925,7 +1925,7 @@ char *MM_oemansi_n(char *szcadena, size_t n_bytes)
         167, 247, 184, 176, 168, 183, 185, 179, 178, 164, 183};
     if (n_bytes == SIZE_MAX)
     {
-        for (punter_bait = (unsigned char *)szcadena; *punter_bait;
+        for (punter_bait = (unsigned char *)szszChain; *punter_bait;
              punter_bait++)
         {
             if (*punter_bait > 127)
@@ -1934,19 +1934,19 @@ char *MM_oemansi_n(char *szcadena, size_t n_bytes)
     }
     else
     {
-        for (u_i = 0, punter_bait = (unsigned char *)szcadena; u_i < n_bytes;
+        for (u_i = 0, punter_bait = (unsigned char *)szszChain; u_i < n_bytes;
              punter_bait++, u_i++)
         {
             if (*punter_bait > 127)
                 *punter_bait = t_oemansi[*punter_bait - 128];
         }
     }
-    return szcadena;
+    return szszChain;
 }
 
-char *MM_oemansi(char *szcadena)
+char *MM_oemansi(char *szszChain)
 {
-    return MM_oemansi_n(szcadena, SIZE_MAX);
+    return MM_oemansi_n(szszChain, SIZE_MAX);
 }
 
 static MM_BOOLEAN MM_FillFieldDB_XP(
@@ -2141,42 +2141,320 @@ size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
     return i_camp;
 }
 
-static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
-                                 int n_decimals, double valor_double,
+static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
+    char *szChain_retorn, size_t mida_szChain_retorn, const char *sz_double)
+{
+#define MAX_SIGNIFICANT_FIGURES MM_MAX_XS_DOUBLE
+    size_t i;
+    MM_BYTE n_significant_figures;
+    const char *ptr_sz_double;
+    char *ptr_szChain_retorn;
+    size_t l_szChain_retorn;
+    MM_BOOLEAN he_trobat_punt;
+    MM_BOOLEAN ja_he_escrit_el_primer_NOZERO = FALSE; /* Allows not to count
+			first zeros of 0.0034 as significant figures */
+
+    if (!sz_double)
+        return nullptr;
+
+    if (*sz_double == *MM_EmptyString)
+    {
+        if (mida_szChain_retorn)
+        {
+            *szChain_retorn = *MM_EmptyString;
+            return szChain_retorn;
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    ptr_szChain_retorn = szChain_retorn;
+    l_szChain_retorn = 0;
+
+    for (ptr_sz_double = sz_double;
+         *ptr_sz_double == ' ' || *ptr_sz_double == '\t'; ptr_sz_double++)
+        continue;
+
+    he_trobat_punt = FALSE;
+    for (n_significant_figures = 0, i = 0;
+         *ptr_sz_double && i < mida_szChain_retorn - 1; ptr_sz_double++, i++)
+    {
+        if (*ptr_sz_double == '+' || *ptr_sz_double == '-')
+        {
+            *ptr_szChain_retorn = *ptr_sz_double;
+            ptr_szChain_retorn++;
+            l_szChain_retorn++;
+            if (l_szChain_retorn + 1 == mida_szChain_retorn)
+            {
+                *ptr_szChain_retorn = '\0';
+                return szChain_retorn;
+            }
+        }
+        else if (isdigit(*ptr_sz_double))
+        {
+            *ptr_szChain_retorn = *ptr_sz_double;
+            ptr_szChain_retorn++;
+            l_szChain_retorn++;
+            if (l_szChain_retorn + 1 == mida_szChain_retorn)
+            {
+                *ptr_szChain_retorn = '\0';
+                return szChain_retorn;
+            }
+            if (ja_he_escrit_el_primer_NOZERO)
+            {
+                n_significant_figures++;
+            }
+            else
+            {
+                if (*ptr_sz_double != '0')
+                {
+                    n_significant_figures++;
+                    ja_he_escrit_el_primer_NOZERO = TRUE;
+                }
+            }
+        }
+        else if (*ptr_sz_double == '.')
+        {
+            *ptr_szChain_retorn = *ptr_sz_double;
+            ptr_szChain_retorn++;
+            l_szChain_retorn++;
+            if (l_szChain_retorn + 1 == mida_szChain_retorn)
+            {
+                *ptr_szChain_retorn = '\0';
+                return szChain_retorn;
+            }
+            he_trobat_punt = TRUE;
+        }
+        else if (*ptr_sz_double == 'E' || *ptr_sz_double == 'e')
+        {  // sz_double is like "34E03" or "34.56E-05".
+            // I fill the rest with zeros
+            if (!he_trobat_punt)
+            {
+                *ptr_szChain_retorn = '.';
+                ptr_szChain_retorn++;
+                l_szChain_retorn++;
+                if (l_szChain_retorn + 1 == mida_szChain_retorn)
+                {
+                    *ptr_szChain_retorn = '\0';
+                    return szChain_retorn;
+                }
+                i++;
+            }
+
+            for (; n_significant_figures < MAX_SIGNIFICANT_FIGURES &&
+                   i < mida_szChain_retorn - 1;
+                 n_significant_figures++, i++)
+            {
+                *ptr_szChain_retorn = '0';
+                ptr_szChain_retorn++;
+                l_szChain_retorn++;
+                if (l_szChain_retorn + 1 == mida_szChain_retorn)
+                {
+                    *ptr_szChain_retorn = '\0';
+                    return szChain_retorn;
+                }
+            }
+            if (i >= mida_szChain_retorn - 1)
+            {
+                CPLStrlcpy(szChain_retorn, sz_double, mida_szChain_retorn);
+                return szChain_retorn;
+            }
+
+            // Copy the 'E' or 'e'
+            *ptr_szChain_retorn = *ptr_sz_double;
+            ptr_szChain_retorn++;
+            l_szChain_retorn++;
+            if (l_szChain_retorn + 1 == mida_szChain_retorn)
+            {
+                *ptr_szChain_retorn = '\0';
+                return szChain_retorn;
+            }
+            ptr_sz_double++;
+
+            // Copying the rest (exponent, etc)
+            for (; i < mida_szChain_retorn - 1; ptr_sz_double++, i++)
+            {
+                if (*ptr_sz_double == '+' || *ptr_sz_double == '-' ||
+                    isdigit(*ptr_sz_double))
+                {
+                    *ptr_szChain_retorn = *ptr_sz_double;
+                    ptr_szChain_retorn++;
+                    l_szChain_retorn++;
+                    if (l_szChain_retorn + 1 == mida_szChain_retorn)
+                    {
+                        *ptr_szChain_retorn = '\0';
+                        return szChain_retorn;
+                    }
+                    continue;
+                }
+
+                // A \0 or a text has found at the end (ex "3.4E-07abc")
+                *ptr_szChain_retorn = 0;
+                return szChain_retorn;
+            }
+            CPLStrlcpy(szChain_retorn, sz_double,
+                       mida_szChain_retorn);  // Rare format.
+            return szChain_retorn;
+        }
+        else
+        {
+            if (n_significant_figures == 0 &&
+                !he_trobat_punt)  // Ex "a" o "abc", etc.
+            {
+                CPLStrlcpy(szChain_retorn, sz_double, mida_szChain_retorn);
+                return szChain_retorn;
+            }
+
+            // Not real character ("123a" or "123 a", etc.)
+            break;
+        }
+    }
+    if (n_significant_figures < MAX_SIGNIFICANT_FIGURES &&
+        i < mida_szChain_retorn - 1)
+    {  // sz_double is like "34" or "34.56". // I fill the rest with zeros
+        if (!he_trobat_punt)
+        {
+            *ptr_szChain_retorn = '.';
+            ptr_szChain_retorn++;
+            l_szChain_retorn++;
+            if (l_szChain_retorn + 1 == mida_szChain_retorn)
+            {
+                *ptr_szChain_retorn = '\0';
+                return szChain_retorn;
+            }
+            i++;
+        }
+        for (; n_significant_figures < MAX_SIGNIFICANT_FIGURES &&
+               i < mida_szChain_retorn - 1;
+             n_significant_figures++)
+        {
+            *ptr_szChain_retorn = '0';
+            ptr_szChain_retorn++;
+            l_szChain_retorn++;
+            if (l_szChain_retorn + 1 == mida_szChain_retorn)
+            {
+                *ptr_szChain_retorn = '\0';
+                return szChain_retorn;
+            }
+            i++;
+        }
+    }
+    if (i >= mida_szChain_retorn - 1)
+    {
+        CPLStrlcpy(szChain_retorn, sz_double,
+                   mida_szChain_retorn);  // Rare format.
+        return szChain_retorn;
+    }
+
+    *ptr_szChain_retorn = 0;
+    return szChain_retorn;
+#undef MAX_SIGNIFICANT_FIGURES
+}  // End of FillWithZerosBeforeLoadingDoubleIntoMemory()
+
+int SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
+                               int nSignifFigures, double nRealValue)
+{
+    double VALOR_LIMIT_PRINT_IN_FORMAT_E;
+    double VALOR_TOO_SMALL_TO_PRINT_f;
+    int retorn, exponent;
+    char *ptr;
+
+    char szChain_retorn[MM_CHARACTERS_DOUBLE + 1];
+#define N_POWERS MM_MAX_XS_DOUBLE
+    double potencies_de_10[N_POWERS] = {
+        1E+1,  1E+2,  1E+3,  1E+4,  1E+5,  1E+6,  1E+7,  1E+8, 1E+9,
+        1E+10, 1E+11, 1E+12, 1E+13, 1E+14, 1E+15, 1E+16, 1E+17};
+    double fraccions_de_10[N_POWERS + 1] = {
+        1E-1,  1E-2,  1E-3,  1E-4,  1E-5,  1E-6,  1E-7,  1E-8,  1E-9,
+        1E-10, 1E-11, 1E-12, 1E-13, 1E-14, 1E-15, 1E-16, 1E-17, 1E-18};
+
+    if (!szChain)
+        return 0;
+
+    if (size_szChain < 3)
+        return 0;
+
+    memset(szChain, '\0', size_szChain);
+
+    if (MM_IsNANDouble(nRealValue))
+        return snprintf(szChain, size_szChain, "NAN");
+
+    if (MM_IsDoubleInfinite(nRealValue))
+        return snprintf(szChain, size_szChain, "INF");
+
+    if (!nRealValue)
+        return snprintf(szChain, size_szChain, "%.*f", nSignifFigures, 0.0);
+
+    if (nSignifFigures < 1)
+        return snprintf(szChain, size_szChain, "0.0");
+
+    if (nSignifFigures > N_POWERS)
+        nSignifFigures = N_POWERS;
+
+    retorn =
+        snprintf(szChain, size_szChain, "%.*E", nSignifFigures - 1, nRealValue);
+
+    VALOR_LIMIT_PRINT_IN_FORMAT_E = potencies_de_10[nSignifFigures - 1];
+    VALOR_TOO_SMALL_TO_PRINT_f =
+        fraccions_de_10[MM_MAX_XS_DOUBLE - nSignifFigures];
+
+    if (nRealValue > VALOR_LIMIT_PRINT_IN_FORMAT_E ||
+        nRealValue < -VALOR_LIMIT_PRINT_IN_FORMAT_E ||
+        (nRealValue < VALOR_TOO_SMALL_TO_PRINT_f &&
+         nRealValue > -VALOR_TOO_SMALL_TO_PRINT_f))
+        return retorn;
+
+    ptr = strchr(szChain, 'E');
+    if (!ptr)
+        return 0;
+    exponent = atoi(ptr + 1);
+
+    nRealValue = atof(FillWithZerosBeforeLoadingDoubleIntoMemory(
+        szChain_retorn, MM_CHARACTERS_DOUBLE + 1, szChain));
+    return sprintf(szChain, "%.*f", max(0, nSignifFigures - exponent - 1),
+                   nRealValue);
+#undef N_POWERS
+}  // End of SprintfDoubleXifSignif()
+
+static int MM_SprintfDoubleWidth(char *szChain, size_t szChain_size,
+                                 int amplada, int n_decimals,
+                                 double valor_double,
                                  MM_BOOLEAN *Error_sprintf_n_decimals)
 {
-#define VALOR_LIMIT_IMPRIMIR_EN_FORMAT_E 1E+17
-#define VALOR_MASSA_PETIT_PER_IMPRIMIR_f 1E-17
-    char cadena_treball[MM_CHARACTERS_DOUBLE + 1];
+#define VALOR_LIMIT_PRINT_IN_FORMAT_E 1E+17
+#define VALOR_TOO_SMALL_TO_PRINT_f 1E-17
+    char szChain_treball[MM_CHARACTERS_DOUBLE + 1];
     int retorn_printf;
 
     if (MM_IsNANDouble(valor_double))
     {
         if (amplada < 3)
         {
-            *cadena = *MM_EmptyString;
+            *szChain = *MM_EmptyString;
             return EOF;
         }
-        return snprintf(cadena, cadena_size, "NAN");
+        return snprintf(szChain, szChain_size, "NAN");
     }
     if (MM_IsDoubleInfinite(valor_double))
     {
         if (amplada < 3)
         {
-            *cadena = *MM_EmptyString;
+            *szChain = *MM_EmptyString;
             return EOF;
         }
-        return snprintf(cadena, cadena_size, "INF");
+        return snprintf(szChain, szChain_size, "INF");
     }
 
     *Error_sprintf_n_decimals = FALSE;
     if (valor_double == 0)
     {
-        retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball),
+        retorn_printf = snprintf(szChain_treball, sizeof(szChain_treball),
                                  "%*.*f", amplada, n_decimals, valor_double);
-        if (retorn_printf >= (int)sizeof(cadena_treball))
+        if (retorn_printf >= (int)sizeof(szChain_treball))
         {
-            *cadena = *MM_EmptyString;
+            *szChain = *MM_EmptyString;
             return retorn_printf;
         }
 
@@ -2185,31 +2463,31 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
             int escurcament = retorn_printf - amplada;
             if (escurcament > n_decimals)
             {
-                *cadena = *MM_EmptyString;
+                *szChain = *MM_EmptyString;
                 return EOF;
             }
             *Error_sprintf_n_decimals = TRUE;
             n_decimals = n_decimals - escurcament;
-            retorn_printf = snprintf(cadena, cadena_size, "%*.*f", amplada,
+            retorn_printf = snprintf(szChain, szChain_size, "%*.*f", amplada,
                                      n_decimals, valor_double);
         }
         else
-            CPLStrlcpy(cadena, cadena_treball, cadena_size);
+            CPLStrlcpy(szChain, szChain_treball, szChain_size);
 
         return retorn_printf;
     }
 
-    if (valor_double > VALOR_LIMIT_IMPRIMIR_EN_FORMAT_E ||
-        valor_double < -VALOR_LIMIT_IMPRIMIR_EN_FORMAT_E ||
-        (valor_double < VALOR_MASSA_PETIT_PER_IMPRIMIR_f &&
-         valor_double > -VALOR_MASSA_PETIT_PER_IMPRIMIR_f))
+    if (valor_double > VALOR_LIMIT_PRINT_IN_FORMAT_E ||
+        valor_double < -VALOR_LIMIT_PRINT_IN_FORMAT_E ||
+        (valor_double < VALOR_TOO_SMALL_TO_PRINT_f &&
+         valor_double > -VALOR_TOO_SMALL_TO_PRINT_f))
     {
-        retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball),
+        retorn_printf = snprintf(szChain_treball, sizeof(szChain_treball),
                                  "%*.*E", amplada, n_decimals, valor_double);
 
-        if (retorn_printf >= (int)sizeof(cadena_treball))
+        if (retorn_printf >= (int)sizeof(szChain_treball))
         {
-            *cadena = *MM_EmptyString;
+            *szChain = *MM_EmptyString;
             return retorn_printf;
         }
         if (retorn_printf > amplada)
@@ -2217,26 +2495,26 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
             int escurcament = retorn_printf - amplada;
             if (escurcament > n_decimals)
             {
-                *cadena = *MM_EmptyString;
+                *szChain = *MM_EmptyString;
                 return EOF;
             }
             *Error_sprintf_n_decimals = TRUE;
             n_decimals = n_decimals - escurcament;
-            retorn_printf = snprintf(cadena, cadena_size, "%*.*E", amplada,
+            retorn_printf = snprintf(szChain, szChain_size, "%*.*E", amplada,
                                      n_decimals, valor_double);
         }
         else
-            CPLStrlcpy(cadena, cadena_treball, cadena_size);
+            CPLStrlcpy(szChain, szChain_treball, szChain_size);
 
         return retorn_printf;
     }
 
-    retorn_printf = snprintf(cadena_treball, sizeof(cadena_treball), "%*.*f",
+    retorn_printf = snprintf(szChain_treball, sizeof(szChain_treball), "%*.*f",
                              amplada, n_decimals, valor_double);
 
-    if (retorn_printf >= (int)sizeof(cadena_treball))
+    if (retorn_printf >= (int)sizeof(szChain_treball))
     {
-        *cadena = *MM_EmptyString;
+        *szChain = *MM_EmptyString;
         return retorn_printf;
     }
 
@@ -2245,26 +2523,26 @@ static int MM_SprintfDoubleWidth(char *cadena, size_t cadena_size, int amplada,
         int escurcament = retorn_printf - amplada;
         if (escurcament > n_decimals)
         {
-            *cadena = *MM_EmptyString;
+            *szChain = *MM_EmptyString;
             return EOF;
         }
         *Error_sprintf_n_decimals = TRUE;
         n_decimals = n_decimals - escurcament;
-        retorn_printf = snprintf(cadena, cadena_size, "%*.*f", amplada,
+        retorn_printf = snprintf(szChain, szChain_size, "%*.*f", amplada,
                                  n_decimals, valor_double);
     }
     else
-        CPLStrlcpy(cadena, cadena_treball, cadena_size);
+        CPLStrlcpy(szChain, szChain_treball, szChain_size);
 
     return retorn_printf;
 
-#undef VALOR_LIMIT_IMPRIMIR_EN_FORMAT_E
-#undef VALOR_MASSA_PETIT_PER_IMPRIMIR_f
+#undef VALOR_LIMIT_PRINT_IN_FORMAT_E
+#undef VALOR_TOO_SMALL_TO_PRINT_f
 }  // End of MM_SprintfDoubleWidth()
 
-static MM_BOOLEAN MM_EmptyString_function(const char *cadena)
+static MM_BOOLEAN MM_EmptyString_function(const char *szChain)
 {
-    const char *ptr = cadena;
+    const char *ptr = szChain;
 
     for (; *ptr; ptr++)
     {
@@ -2720,29 +2998,29 @@ int MM_GetArcHeights(double *coord_z, FILE_TYPE *pF, MM_N_VERTICES_TYPE n_vrt,
 }  // End of MM_GetArcHeights()
 
 static char *MM_l_RemoveWhitespacesFromEndOfString(char *punter,
-                                                   size_t l_cadena)
+                                                   size_t l_szChain)
 {
-    size_t longitud_cadena = l_cadena;
-    while (longitud_cadena > 0)
+    size_t longitud_szChain = l_szChain;
+    while (longitud_szChain > 0)
     {
-        longitud_cadena--;
-        if (punter[longitud_cadena] != ' ' && punter[longitud_cadena] != '\t')
+        longitud_szChain--;
+        if (punter[longitud_szChain] != ' ' && punter[longitud_szChain] != '\t')
         {
             break;
         }
-        punter[longitud_cadena] = '\0';
+        punter[longitud_szChain] = '\0';
     }
     return punter;
 }
 
-char *MM_RemoveInitial_and_FinalQuotationMarks(char *cadena)
+char *MM_RemoveInitial_and_FinalQuotationMarks(char *szChain)
 {
     char *ptr1, *ptr2;
     char cometa = '"';
 
-    if (*cadena == cometa)
+    if (*szChain == cometa)
     {
-        ptr1 = cadena;
+        ptr1 = szChain;
         ptr2 = ptr1 + 1;
         if (*ptr2)
         {
@@ -2758,23 +3036,23 @@ char *MM_RemoveInitial_and_FinalQuotationMarks(char *cadena)
                 *ptr1 = 0;
         }
     }
-    return cadena;
+    return szChain;
 } /* End of MM_RemoveInitial_and_FinalQuotationMarks() */
 
-char *MM_RemoveLeadingWhitespaceOfString(char *cadena)
+char *MM_RemoveLeadingWhitespaceOfString(char *szChain)
 {
     char *ptr;
     char *ptr2;
 
-    if (cadena == nullptr)
-        return cadena;
+    if (szChain == nullptr)
+        return szChain;
 
-    for (ptr = cadena; *ptr && (*ptr == ' ' || *ptr == '\t'); ptr++)
+    for (ptr = szChain; *ptr && (*ptr == ' ' || *ptr == '\t'); ptr++)
         continue;
 
-    if (ptr != cadena)
+    if (ptr != szChain)
     {
-        ptr2 = cadena;
+        ptr2 = szChain;
         while (*ptr)
         {
             *ptr2 = *ptr;
@@ -2783,7 +3061,7 @@ char *MM_RemoveLeadingWhitespaceOfString(char *cadena)
         }
         *ptr2 = 0;
     }
-    return cadena;
+    return szChain;
 }
 
 char *MM_RemoveWhitespacesFromEndOfString(char *str)

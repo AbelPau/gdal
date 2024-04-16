@@ -2275,12 +2275,19 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 hMMFeature.pRecords[nIRecord].pField[iField].dValue =
                     padfRLValues[nIRecord];
 
+                char szChain[21];
+                SprintfDoubleSignifFigures(
+                    szChain, 21,
+                    phMiraMonLayer->pLayerDB->pFields[iField].nNumberOfDecimals,
+                    hMMFeature.pRecords[nIRecord].pField[iField].dValue);
+
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
-                        CPLSPrintf("%.*f",
-                                   phMiraMonLayer->pLayerDB->pFields[iField]
-                                       .nNumberOfDecimals,
-                                   padfRLValues[nIRecord]),
+                        szChain,
+                        //CPLSPrintf("%.*f",
+                        //           phMiraMonLayer->pLayerDB->pFields[iField]
+                        //               .nNumberOfDecimals,
+                        //           padfRLValues[nIRecord]),
                         &hMMFeature.pRecords[nIRecord]
                              .pField[iField]
                              .nNumDinValue))
@@ -2427,12 +2434,18 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
             hMMFeature.pRecords[0].pField[iField].dValue =
                 poFeature->GetFieldAsDouble(iField);
 
+            char szChain[21];
+            SprintfDoubleSignifFigures(
+                szChain, 21,
+                phMiraMonLayer->pLayerDB->pFields[iField].nNumberOfDecimals,
+                poFeature->GetFieldAsDouble(iField));
+
             if (MM_SecureCopyStringFieldValue(
-                    &hMMFeature.pRecords[0].pField[iField].pDinValue,
-                    CPLSPrintf("%.*f",
-                               phMiraMonLayer->pLayerDB->pFields[iField]
-                                   .nNumberOfDecimals,
-                               poFeature->GetFieldAsDouble(iField)),
+                    &hMMFeature.pRecords[0].pField[iField].pDinValue, szChain,
+                    //CPLSPrintf("%.*f",
+                    //           phMiraMonLayer->pLayerDB->pFields[iField]
+                    //               .nNumberOfDecimals,
+                    //           poFeature->GetFieldAsDouble(iField)),
                     &hMMFeature.pRecords[0].pField[iField].nNumDinValue))
                 return OGRERR_NOT_ENOUGH_MEMORY;
             hMMFeature.pRecords[0].pField[iField].bIsValid = 1;
