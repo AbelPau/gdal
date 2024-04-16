@@ -2150,8 +2150,8 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
     const char *ptr_sz_double;
     char *ptr_szChain_retorn;
     size_t l_szChain_retorn;
-    MM_BOOLEAN he_trobat_punt;
-    MM_BOOLEAN ja_he_escrit_el_primer_NOZERO = FALSE; /* Allows not to count
+    MM_BOOLEAN dot_has_been_found;
+    MM_BOOLEAN first_NOZERO_written = FALSE; /* Allows not to count
 			first zeros of 0.0034 as significant figures */
     char DIGIT_ZERO = '0';
 
@@ -2178,7 +2178,7 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
          *ptr_sz_double == ' ' || *ptr_sz_double == '\t'; ptr_sz_double++)
         continue;
 
-    he_trobat_punt = FALSE;
+    dot_has_been_found = FALSE;
     for (n_significant_figures = 0, i = 0;
          *ptr_sz_double && i < mida_szChain_retorn - 1; ptr_sz_double++, i++)
     {
@@ -2203,7 +2203,7 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
                 *ptr_szChain_retorn = '\0';
                 return szChain_retorn;
             }
-            if (ja_he_escrit_el_primer_NOZERO)
+            if (first_NOZERO_written)
             {
                 n_significant_figures++;
             }
@@ -2212,7 +2212,7 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
                 if (*ptr_sz_double != DIGIT_ZERO)
                 {
                     n_significant_figures++;
-                    ja_he_escrit_el_primer_NOZERO = TRUE;
+                    first_NOZERO_written = TRUE;
                 }
             }
         }
@@ -2226,12 +2226,12 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
                 *ptr_szChain_retorn = '\0';
                 return szChain_retorn;
             }
-            he_trobat_punt = TRUE;
+            dot_has_been_found = TRUE;
         }
         else if (*ptr_sz_double == 'E' || *ptr_sz_double == 'e')
         {  // sz_double is like "34E03" or "34.56E-05".
             // I fill the rest with zeros
-            if (!he_trobat_punt)
+            if (!dot_has_been_found)
             {
                 *ptr_szChain_retorn = '.';
                 ptr_szChain_retorn++;
@@ -2302,7 +2302,7 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
         else
         {
             if (n_significant_figures == 0 &&
-                !he_trobat_punt)  // Ex "a" o "abc", etc.
+                !dot_has_been_found)  // Ex "a" o "abc", etc.
             {
                 CPLStrlcpy(szChain_retorn, sz_double, mida_szChain_retorn);
                 return szChain_retorn;
@@ -2315,7 +2315,7 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
     if (n_significant_figures < MAX_SIGNIFICANT_FIGURES &&
         i < mida_szChain_retorn - 1)
     {  // sz_double is like "34" or "34.56". // I fill the rest with zeros
-        if (!he_trobat_punt)
+        if (!dot_has_been_found)
         {
             *ptr_szChain_retorn = '.';
             ptr_szChain_retorn++;
