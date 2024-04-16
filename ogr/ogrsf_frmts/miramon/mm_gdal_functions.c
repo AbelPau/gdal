@@ -2153,6 +2153,7 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
     MM_BOOLEAN he_trobat_punt;
     MM_BOOLEAN ja_he_escrit_el_primer_NOZERO = FALSE; /* Allows not to count
 			first zeros of 0.0034 as significant figures */
+    char DIGIT_ZERO = '0';
 
     if (!sz_double)
         return nullptr;
@@ -2208,7 +2209,7 @@ static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
             }
             else
             {
-                if (*ptr_sz_double != '0')
+                if (*ptr_sz_double != DIGIT_ZERO)
                 {
                     n_significant_figures++;
                     ja_he_escrit_el_primer_NOZERO = TRUE;
