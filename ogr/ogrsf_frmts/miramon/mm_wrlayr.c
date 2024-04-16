@@ -97,7 +97,8 @@ int MMCheckVersionForFID(struct MiraMonVectLayerInfo *hMiraMonLayer,
                          MM_INTERNAL_FID FID);
 
 // Extended DBF functions
-int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer);
+int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
+                 struct MM_POINT_2D *pFirstCoord);
 int MMAddDBFRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                          struct MiraMonFeature *hMMFeature);
 int MMAddPointRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
@@ -3959,7 +3960,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if (hMiraMonLayer->TopHeader.nElemCount == 0)
         {
             MMCPLDebug("MiraMon", "Creating MiraMon database");
-            if (MMCreateMMDB(hMiraMonLayer))
+            if (MMCreateMMDB(hMiraMonLayer, hMMFeature->pCoord))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
             MMCPLDebug("MiraMon", "MiraMon database created. "
                                   "Creating features...");
@@ -3970,7 +3971,7 @@ static int MMCreateFeaturePolOrArc(struct MiraMonVectLayerInfo *hMiraMonLayer,
         if (hMiraMonLayer->TopHeader.nElemCount == 1)
         {
             MMCPLDebug("MiraMon", "Creating MiraMon database");
-            if (MMCreateMMDB(hMiraMonLayer))
+            if (MMCreateMMDB(hMiraMonLayer, hMMFeature->pCoord))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
             MMCPLDebug("MiraMon", "MiraMon database created. "
                                   "Creating features...");
@@ -4493,7 +4494,7 @@ static int MMCreateRecordDBF(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
     if (hMiraMonLayer->TopHeader.nElemCount == 0)
     {
-        if (MMCreateMMDB(hMiraMonLayer))
+        if (MMCreateMMDB(hMiraMonLayer, nullptr))
             return MM_FATAL_ERROR_WRITING_FEATURES;
     }
 
@@ -4659,7 +4660,7 @@ static int MMCreateFeaturePoint(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
         if (hMiraMonLayer->TopHeader.nElemCount == 0)
         {
-            if (MMCreateMMDB(hMiraMonLayer))
+            if (MMCreateMMDB(hMiraMonLayer, hMMFeature->pCoord))
                 return MM_FATAL_ERROR_WRITING_FEATURES;
         }
 
@@ -6301,7 +6302,8 @@ static int MMInitMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
 // accordingly. Depending on the layer type (point, arc, polygon, or generic),
 // it defines the fields and initializes the corresponding MiraMon database
 // structures.
-int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
+int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
+                 struct MM_POINT_2D *pFirstCoord)
 {
     struct MM_DATA_BASE_XP *pBD_XP = nullptr, *pBD_XP_Aux = nullptr;
     struct MM_FIELD MMField;
@@ -6311,6 +6313,18 @@ int MMCreateMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
     if (!hMiraMonLayer)
         return 1;
+
+    // If the SRS is unknown, we attempt to deduce the appropriate number
+    // of decimals to be used in the reserved fields as LONG_ARC, PERIMETRE,
+    // or AREA using the coordinate values. It's not 100% reliable, but it's a
+    // good approximation.
+    if (hMiraMonLayer->nSRSType == MM_SRS_LAYER_IS_UNKNOWN_TYPE && pFirstCoord)
+    {
+        if (pFirstCoord->dfX < -360 || pFirstCoord->dfX > 360)
+            hMiraMonLayer->nSRSType = MM_SRS_LAYER_IS_PROJECTED_TYPE;
+        else
+            hMiraMonLayer->nSRSType = MM_SRS_LAYER_IS_GEOGRAPHIC_TYPE;
+    }
 
     if (hMiraMonLayer->bIsPoint)
     {
@@ -7336,7 +7350,7 @@ static int MMCloseMMBD_XPFile(struct MiraMonVectLayerInfo *hMiraMonLayer,
             {
                 if (hMiraMonLayer->TopHeader.nElemCount <= 1)
                 {
-                    if (MMCreateMMDB(hMiraMonLayer))
+                    if (MMCreateMMDB(hMiraMonLayer, nullptr))
                     {
                         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                                    "Memory error in MiraMon "
@@ -7349,7 +7363,7 @@ static int MMCloseMMBD_XPFile(struct MiraMonVectLayerInfo *hMiraMonLayer,
             {
                 if (hMiraMonLayer->TopHeader.nElemCount == 0)
                 {
-                    if (MMCreateMMDB(hMiraMonLayer))
+                    if (MMCreateMMDB(hMiraMonLayer, nullptr))
                     {
                         MMCPLError(CE_Failure, CPLE_OutOfMemory,
                                    "Memory error in MiraMon "
