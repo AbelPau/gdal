@@ -1754,15 +1754,26 @@ OGRErr OGRMiraMonLayer::MMLoadGeometry(OGRGeometryH hGeom)
 
     int eLT = LOG_ACTION(wkbFlatten(OGR_G_GetGeometryType(hGeom)));
 
-    if (eLT == wkbMultiPolygon || eLT == wkbPolyhedralSurface ||
-        eLT == wkbTIN || eLT == wkbTriangle)
+    if (eLT == wkbMultiPolygon || eLT == wkbPolyhedralSurface || eLT == wkbTIN)
     {
-        for (int iGeom = 0; iGeom < nGeom; iGeom++)
+        for (int iGeom = 0; iGeom < nGeom && eErr == OGRERR_NONE; iGeom++)
         {
             OGRGeometryH poSubGeometry = OGR_G_GetGeometryRef(hGeom, iGeom);
 
             // Reads all coordinates
             eErr = MMLoadGeometry(poSubGeometry);
+            if (eErr != OGRERR_NONE)
+                return eErr;
+        }
+    }
+    if (eLT == wkbTriangle)
+    {
+        for (int iGeom = 0; iGeom < nGeom && eErr == OGRERR_NONE; iGeom++)
+        {
+            OGRGeometryH poSubGeometry = OGR_G_GetGeometryRef(hGeom, iGeom);
+
+            // Reads all coordinates
+            eErr = MMDumpVertices(poSubGeometry, TRUE, TRUE);
             if (eErr != OGRERR_NONE)
                 return eErr;
         }
