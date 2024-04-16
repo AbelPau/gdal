@@ -323,8 +323,7 @@ struct MiraMonFieldValue
     MM_BOOLEAN bIsValid;  // If 1 the value is filled. If 0, there is no value.
     MM_EXT_DBF_N_FIELDS nNumDinValue;  // Size of the reserved string value
     char *pDinValue;                   // Used to store the value as string
-    double dValue;  // For double and 32 bit integer numeric values
-    GInt64 iValue;  // For 64 bit integer values.
+    GInt64 iValue;                     // For 64 bit integer values.
 };
 
 struct MiraMonRecord

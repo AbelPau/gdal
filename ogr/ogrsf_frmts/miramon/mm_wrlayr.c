@@ -6735,7 +6735,7 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                             pBD_XP->pField + nIField + nNumPrivateMMField,
                             &hMMFeature->pRecords[nIRecord]
                                  .pField[nIField]
-                                 .dValue,
+                                 .pDinValue,
                             FALSE))
                         return 1;
                 }

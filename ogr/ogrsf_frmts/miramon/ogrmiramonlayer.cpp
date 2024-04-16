@@ -2183,9 +2183,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                         hMMFeature.pRecords[nIRecord].nNumField))
                     return OGRERR_NOT_ENOUGH_MEMORY;
 
-                hMMFeature.pRecords[nIRecord].pField[iField].dValue =
-                    panValues[nIRecord];
-
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
                         CPLSPrintf("%d", panValues[nIRecord]),
@@ -2272,14 +2269,11 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                         hMMFeature.pRecords[nIRecord].nNumField))
                     return OGRERR_NOT_ENOUGH_MEMORY;
 
-                hMMFeature.pRecords[nIRecord].pField[iField].dValue =
-                    padfRLValues[nIRecord];
-
                 char szChain[21];
                 SprintfDoubleSignifFigures(
                     szChain, 21,
                     phMiraMonLayer->pLayerDB->pFields[iField].nNumberOfDecimals,
-                    hMMFeature.pRecords[nIRecord].pField[iField].dValue);
+                    padfRLValues[nIRecord]);
 
                 if (MM_SecureCopyStringFieldValue(
                         &hMMFeature.pRecords[nIRecord].pField[iField].pDinValue,
@@ -2391,8 +2385,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                                           hMMFeature.pRecords[0].nNumField))
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
-            hMMFeature.pRecords[0].pField[iField].dValue =
-                poFeature->GetFieldAsInteger(iField);
             if (MM_SecureCopyStringFieldValue(
                     &hMMFeature.pRecords[0].pField[iField].pDinValue,
                     pszRawValue,
@@ -2430,9 +2422,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                                           MM_INC_NUMBER_OF_FIELDS,
                                           hMMFeature.pRecords[0].nNumField))
                 return OGRERR_NOT_ENOUGH_MEMORY;
-
-            hMMFeature.pRecords[0].pField[iField].dValue =
-                poFeature->GetFieldAsDouble(iField);
 
             char szChain[21];
             SprintfDoubleSignifFigures(
