@@ -2141,219 +2141,24 @@ size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
     return i_camp;
 }
 
-static char *FillWithZerosBeforeLoadingDoubleIntoMemory(
-    char *szChain_retorn, size_t mida_szChain_retorn, const char *sz_double)
-{
-#define MAX_SIGNIFICANT_FIGURES MM_MAX_XS_DOUBLE
-    size_t i;
-    MM_BYTE n_significant_figures;
-    const char *ptr_sz_double;
-    char *ptr_szChain_retorn;
-    size_t l_szChain_retorn;
-    MM_BOOLEAN dot_has_been_found;
-    MM_BOOLEAN first_NOZERO_written = FALSE; /* Allows not to count
-			first zeros of 0.0034 as significant figures */
-    char DIGIT_ZERO = '0';
-
-    if (!sz_double)
-        return nullptr;
-
-    if (*sz_double == *MM_EmptyString)
-    {
-        if (mida_szChain_retorn)
-        {
-            *szChain_retorn = *MM_EmptyString;
-            return szChain_retorn;
-        }
-        else
-        {
-            return nullptr;
-        }
-    }
-
-    ptr_szChain_retorn = szChain_retorn;
-    l_szChain_retorn = 0;
-
-    for (ptr_sz_double = sz_double;
-         *ptr_sz_double == ' ' || *ptr_sz_double == '\t'; ptr_sz_double++)
-        continue;
-
-    dot_has_been_found = FALSE;
-    for (n_significant_figures = 0, i = 0;
-         *ptr_sz_double && i < mida_szChain_retorn - 1; ptr_sz_double++, i++)
-    {
-        if (*ptr_sz_double == '+' || *ptr_sz_double == '-')
-        {
-            *ptr_szChain_retorn = *ptr_sz_double;
-            ptr_szChain_retorn++;
-            l_szChain_retorn++;
-            if (l_szChain_retorn + 1 == mida_szChain_retorn)
-            {
-                *ptr_szChain_retorn = '\0';
-                return szChain_retorn;
-            }
-        }
-        else if (isdigit(*ptr_sz_double))
-        {
-            *ptr_szChain_retorn = *ptr_sz_double;
-            ptr_szChain_retorn++;
-            l_szChain_retorn++;
-            if (l_szChain_retorn + 1 == mida_szChain_retorn)
-            {
-                *ptr_szChain_retorn = '\0';
-                return szChain_retorn;
-            }
-            if (first_NOZERO_written)
-            {
-                n_significant_figures++;
-            }
-            else
-            {
-                if (*ptr_sz_double != DIGIT_ZERO)
-                {
-                    n_significant_figures++;
-                    first_NOZERO_written = TRUE;
-                }
-            }
-        }
-        else if (*ptr_sz_double == '.')
-        {
-            *ptr_szChain_retorn = *ptr_sz_double;
-            ptr_szChain_retorn++;
-            l_szChain_retorn++;
-            if (l_szChain_retorn + 1 == mida_szChain_retorn)
-            {
-                *ptr_szChain_retorn = '\0';
-                return szChain_retorn;
-            }
-            dot_has_been_found = TRUE;
-        }
-        else if (*ptr_sz_double == 'E' || *ptr_sz_double == 'e')
-        {  // sz_double is like "34E03" or "34.56E-05".
-            // I fill the rest with zeros
-            if (!dot_has_been_found)
-            {
-                *ptr_szChain_retorn = '.';
-                ptr_szChain_retorn++;
-                l_szChain_retorn++;
-                if (l_szChain_retorn + 1 == mida_szChain_retorn)
-                {
-                    *ptr_szChain_retorn = '\0';
-                    return szChain_retorn;
-                }
-                i++;
-            }
-
-            for (; n_significant_figures < MAX_SIGNIFICANT_FIGURES &&
-                   i < mida_szChain_retorn - 1;
-                 n_significant_figures++, i++)
-            {
-                *ptr_szChain_retorn = '0';
-                ptr_szChain_retorn++;
-                l_szChain_retorn++;
-                if (l_szChain_retorn + 1 == mida_szChain_retorn)
-                {
-                    *ptr_szChain_retorn = '\0';
-                    return szChain_retorn;
-                }
-            }
-            if (i >= mida_szChain_retorn - 1)
-            {
-                CPLStrlcpy(szChain_retorn, sz_double, mida_szChain_retorn);
-                return szChain_retorn;
-            }
-
-            // Copy the 'E' or 'e'
-            *ptr_szChain_retorn = *ptr_sz_double;
-            ptr_szChain_retorn++;
-            l_szChain_retorn++;
-            if (l_szChain_retorn + 1 == mida_szChain_retorn)
-            {
-                *ptr_szChain_retorn = '\0';
-                return szChain_retorn;
-            }
-            ptr_sz_double++;
-
-            // Copying the rest (exponent, etc)
-            for (; i < mida_szChain_retorn - 1; ptr_sz_double++, i++)
-            {
-                if (*ptr_sz_double == '+' || *ptr_sz_double == '-' ||
-                    isdigit(*ptr_sz_double))
-                {
-                    *ptr_szChain_retorn = *ptr_sz_double;
-                    ptr_szChain_retorn++;
-                    l_szChain_retorn++;
-                    if (l_szChain_retorn + 1 == mida_szChain_retorn)
-                    {
-                        *ptr_szChain_retorn = '\0';
-                        return szChain_retorn;
-                    }
-                    continue;
-                }
-
-                // A \0 or a text has found at the end (ex "3.4E-07abc")
-                *ptr_szChain_retorn = 0;
-                return szChain_retorn;
-            }
-            CPLStrlcpy(szChain_retorn, sz_double,
-                       mida_szChain_retorn);  // Rare format.
-            return szChain_retorn;
-        }
-        else
-        {
-            if (n_significant_figures == 0 &&
-                !dot_has_been_found)  // Ex "a" o "abc", etc.
-            {
-                CPLStrlcpy(szChain_retorn, sz_double, mida_szChain_retorn);
-                return szChain_retorn;
-            }
-
-            // Not real character ("123a" or "123 a", etc.)
-            break;
-        }
-    }
-    if (n_significant_figures < MAX_SIGNIFICANT_FIGURES &&
-        i < mida_szChain_retorn - 1)
-    {  // sz_double is like "34" or "34.56". // I fill the rest with zeros
-        if (!dot_has_been_found)
-        {
-            *ptr_szChain_retorn = '.';
-            ptr_szChain_retorn++;
-            l_szChain_retorn++;
-            if (l_szChain_retorn + 1 == mida_szChain_retorn)
-            {
-                *ptr_szChain_retorn = '\0';
-                return szChain_retorn;
-            }
-            i++;
-        }
-        for (; n_significant_figures < MAX_SIGNIFICANT_FIGURES &&
-               i < mida_szChain_retorn - 1;
-             n_significant_figures++)
-        {
-            *ptr_szChain_retorn = '0';
-            ptr_szChain_retorn++;
-            l_szChain_retorn++;
-            if (l_szChain_retorn + 1 == mida_szChain_retorn)
-            {
-                *ptr_szChain_retorn = '\0';
-                return szChain_retorn;
-            }
-            i++;
-        }
-    }
-    if (i >= mida_szChain_retorn - 1)
-    {
-        CPLStrlcpy(szChain_retorn, sz_double,
-                   mida_szChain_retorn);  // Rare format.
-        return szChain_retorn;
-    }
-
-    *ptr_szChain_retorn = 0;
-    return szChain_retorn;
-#undef MAX_SIGNIFICANT_FIGURES
-}  // End of FillWithZerosBeforeLoadingDoubleIntoMemory()
-
+/*
+    Controlling the number of significant figures is often crucial in science
+    and technology, and the best option when nothing is known about the number
+    to be printed (if it is really small (near to 0), or very large), and
+    allows a good return (the same value) into memory when re-read from a text
+    file with scanf() functions.
+    If you need to print 0.00000000000000000000000000000000000000001 with %f
+    you will need an extremely large string. If you print 1980.45 with %E you
+    obtain 1.98045E+003, needing more space, and not being easy to interpret
+    for some people. Moreover, “normal” users do not want to see 1.0 as
+    1.0E+000 or 1.0E+00. The choice of the format specifier, and the integer
+    to be passed to the ‘*’ is not always easy,
+    and MM_SprintfDoubleSignifFigures() automatically uses a “fair” notation
+    whenever it is possible, resulting in shorter strings, being them under
+    control (the maximum length of the resulting string is always known).
+    Moreover, it avoids some failures in compilers not expecting
+    NAN or INF values.
+*/
 int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
                                   int nSignifFigures, double dfRealValue)
 {
@@ -2430,8 +2235,7 @@ int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
         return 0;
     exponent = atoi(ptr + 1);
 
-    dfRealValue = CPLAtof(FillWithZerosBeforeLoadingDoubleIntoMemory(
-        szChain_retorn, MM_CHARACTERS_DOUBLE + 1, szChain));
+    dfRealValue = CPLAtof(szChain);
     return sprintf(szChain, "%.*f",
                    (nSignifFigures - exponent - 1) > 0
                        ? (nSignifFigures - exponent - 1)
