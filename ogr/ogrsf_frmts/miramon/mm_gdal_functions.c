@@ -2403,7 +2403,7 @@ int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
     if (MM_IsDoubleInfinite(dfRealValue))
         return snprintf(szChain, size_szChain, "INF");
 
-    if (dfRealValue != 0.0)
+    if (dfRealValue == 0.0)
         return snprintf(szChain, size_szChain, "%.*f", nSignifFigures, 0.0);
 
     if (nSignifFigures < 1)

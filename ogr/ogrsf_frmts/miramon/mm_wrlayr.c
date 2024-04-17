@@ -5968,7 +5968,10 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
 
             // Exception in a particular case: "altura" is a catalan word that means
             // "height". Its unit by default will be "m" instead of "unknown".
-            if (EQUAL("altura", hMMMD->pLayerDB->pFields[nIField].pszFieldName))
+            // The same goes for "z", which easily means height.
+            if (EQUAL("altura",
+                      hMMMD->pLayerDB->pFields[nIField].pszFieldName) ||
+                EQUAL("z", hMMMD->pLayerDB->pFields[nIField].pszFieldName))
             {
                 fprintf_function(pF, "unitats=m" LineReturn);
             }
@@ -6703,16 +6706,18 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
                 continue;
             }
-            if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'C')
+            if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'C' ||
+                pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'D' ||
+                (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
+                     'N' &&
+                 !pBD_XP->pField[nIField + nNumPrivateMMField].Is64))
             {
-                if (MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse,
-                                             pBD_XP->pField + nIField +
-                                                 nNumPrivateMMField,
-                                             hMMFeature->pRecords[nIRecord]
-                                                 .pField[nIField]
-                                                 .pDinValue,
-                                             FALSE))
-                    return 1;
+                const struct MM_FIELD *camp;
+
+                camp = pBD_XP->pField + nIField + nNumPrivateMMField;
+                memcpy(pszRecordOnCourse + camp->AccumulatedBytes,
+                       hMMFeature->pRecords[nIRecord].pField[nIField].pDinValue,
+                       camp->BytesPerField);
             }
             else if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
                      'N')
@@ -6728,29 +6733,6 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                             TRUE))
                         return 1;
                 }
-                else
-                {
-                    if (MMWriteValueToRecordDBXP(
-                            hMiraMonLayer, pszRecordOnCourse,
-                            pBD_XP->pField + nIField + nNumPrivateMMField,
-                            &hMMFeature->pRecords[nIRecord]
-                                 .pField[nIField]
-                                 .pDinValue,
-                            FALSE))
-                        return 1;
-                }
-            }
-            else if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
-                     'D')
-            {
-                if (MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse,
-                                             pBD_XP->pField + nIField +
-                                                 nNumPrivateMMField,
-                                             hMMFeature->pRecords[nIRecord]
-                                                 .pField[nIField]
-                                                 .pDinValue,
-                                             FALSE))
-                    return 1;
             }
         }
 
