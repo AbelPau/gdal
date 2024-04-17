@@ -2365,7 +2365,6 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                                           hMMFeature.pRecords[0].nNumField))
                 return OGRERR_NOT_ENOUGH_MEMORY;
 
-            // MiraMon encoding is ISO 8859-1 (Latin1) -> Recode from UTF-8
             if (MM_SecureCopyStringFieldValue(
                     &hMMFeature.pRecords[0].pField[iField].pDinValue,
                     pszRawValue,

@@ -129,6 +129,9 @@ int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
     struct MM_FIELD *camp, struct MM_DATA_BASE_XP *bd_xp,
     MM_BOOLEAN no_modifica_descriptor, size_t mida_nom);
 
+int MMWritePreformatedValueToRecordDBXP(
+    struct MiraMonVectLayerInfo *hMiraMonLayer, char *registre,
+    const struct MM_FIELD *camp, const char *valor);
 int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              char *registre, const struct MM_FIELD *camp,
                              const void *valor, MM_BOOLEAN is_64);

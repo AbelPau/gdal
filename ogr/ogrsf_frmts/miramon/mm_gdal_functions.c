@@ -2167,7 +2167,6 @@ int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
     int retorn, exponent;
     char *ptr;
 
-    char szChain_retorn[MM_CHARACTERS_DOUBLE + 1];
 #define N_POWERS MM_MAX_XS_DOUBLE
 
     /* This expression ensures that no garbage is written in
@@ -2235,7 +2234,6 @@ int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
         return 0;
     exponent = atoi(ptr + 1);
 
-    dfRealValue = CPLAtof(szChain);
     return sprintf(szChain, "%.*f",
                    (nSignifFigures - exponent - 1) > 0
                        ? (nSignifFigures - exponent - 1)
@@ -2408,6 +2406,7 @@ int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
         (*pszStringDst) = new_ptr;
         *nStringCurrentLength = (MM_EXT_DBF_N_FIELDS)(strlen(pszStringSrc) + 1);
     }
+
     strcpy(*pszStringDst, pszStringSrc);
     return 0;
 }

@@ -2948,7 +2948,7 @@ int MMAppendIntegerDependingOnVersion(
 /* -------------------------------------------------------------------- */
 /*      Layer: Reading and writing layer sections                       */
 /*      This code follows the specifications of the following document: */
-/*             https://www.miramon.cat/new_note/usa/notes/   \          */
+/*             https://www.miramon.cat/new_note/eng/notes/   \          */
 /*              FormatFitxersTopologicsMiraMon.pdf                      */
 /* -------------------------------------------------------------------- */
 int MMReadAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer)
@@ -6652,6 +6652,34 @@ MMWriteValueToszStringToOperate(struct MiraMonVectLayerInfo *hMiraMonLayer,
     return 0;
 }
 
+int MMWritePreformatedValueToRecordDBXP(
+    struct MiraMonVectLayerInfo *hMiraMonLayer, char *registre,
+    const struct MM_FIELD *camp, const char *valor)
+{
+    if (!hMiraMonLayer)
+        return 1;
+
+    if (!camp)
+        return 0;
+
+    if (MMResizeStringToOperateIfNeeded(hMiraMonLayer,
+                                        camp->BytesPerField + 10))
+        return 1;
+
+    if (!valor)
+        *hMiraMonLayer->szStringToOperate = '\0';
+    else
+    {
+        snprintf(hMiraMonLayer->szStringToOperate,
+                 (size_t)hMiraMonLayer->nNumStringToOperate, "%*s",
+                 camp->BytesPerField, valor);
+    }
+
+    memcpy(registre + camp->AccumulatedBytes, hMiraMonLayer->szStringToOperate,
+           camp->BytesPerField);
+    return 0;
+}
+
 int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
                              char *registre, const struct MM_FIELD *camp,
                              const void *valor, MM_BOOLEAN is_64)
@@ -6712,12 +6740,13 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                      'N' &&
                  !pBD_XP->pField[nIField + nNumPrivateMMField].Is64))
             {
-                const struct MM_FIELD *camp;
-
-                camp = pBD_XP->pField + nIField + nNumPrivateMMField;
-                memcpy(pszRecordOnCourse + camp->AccumulatedBytes,
-                       hMMFeature->pRecords[nIRecord].pField[nIField].pDinValue,
-                       camp->BytesPerField);
+                if (MMWritePreformatedValueToRecordDBXP(
+                        hMiraMonLayer, pszRecordOnCourse,
+                        pBD_XP->pField + nIField + nNumPrivateMMField,
+                        hMMFeature->pRecords[nIRecord]
+                            .pField[nIField]
+                            .pDinValue))
+                    return 1;
             }
             else if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
                      'N')
