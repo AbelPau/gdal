@@ -6652,7 +6652,7 @@ MMWriteValueToszStringToOperate(struct MiraMonVectLayerInfo *hMiraMonLayer,
     return 0;
 }
 
-int MMWritePreformatedValueToRecordDBXP(
+int MMWritePreformatedNumberValueToRecordDBXP(
     struct MiraMonVectLayerInfo *hMiraMonLayer, char *registre,
     const struct MM_FIELD *camp, const char *valor)
 {
@@ -6735,12 +6735,22 @@ static int MMAddFeatureRecordToMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer,
                 continue;
             }
             if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'C' ||
-                pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'D' ||
-                (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
-                     'N' &&
-                 !pBD_XP->pField[nIField + nNumPrivateMMField].Is64))
+                pBD_XP->pField[nIField + nNumPrivateMMField].FieldType == 'D')
             {
-                if (MMWritePreformatedValueToRecordDBXP(
+                if (MMWriteValueToRecordDBXP(hMiraMonLayer, pszRecordOnCourse,
+                                             pBD_XP->pField + nIField +
+                                                 nNumPrivateMMField,
+                                             hMMFeature->pRecords[nIRecord]
+                                                 .pField[nIField]
+                                                 .pDinValue,
+                                             FALSE))
+                    return 1;
+            }
+            else if (pBD_XP->pField[nIField + nNumPrivateMMField].FieldType ==
+                         'N' &&
+                     !pBD_XP->pField[nIField + nNumPrivateMMField].Is64)
+            {
+                if (MMWritePreformatedNumberValueToRecordDBXP(
                         hMiraMonLayer, pszRecordOnCourse,
                         pBD_XP->pField + nIField + nNumPrivateMMField,
                         hMMFeature->pRecords[nIRecord]
