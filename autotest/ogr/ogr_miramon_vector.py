@@ -868,18 +868,11 @@ def test_ogr_miramon_OpenLanguageArc(Language, expected_description):
     ],
 )
 def test_ogr_miramon_corrupted_files(name, message):
-    try:
-        ds = gdal.OpenEx(
+    with pytest.raises(Exception, match=message):
+        gdal.OpenEx(
             name,
             gdal.OF_VECTOR,
         )
-    except RuntimeError:
-        ds = None
-
-    if ds is None:
-        pytest.skip(message)
-
-    assert ds is not None
 
 
 ###############################################################################
