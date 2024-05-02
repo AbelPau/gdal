@@ -5726,7 +5726,6 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
                          szMMNomCampArcsANodeDefecte);
-        fprintf_function(pF, "visible=0" LineReturn);
         fprintf_function(pF, "simbolitzable=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szNumberOfArcsToNodeEng,
                                            szNumberOfArcsToNodeCat,
@@ -5735,7 +5734,6 @@ static int MMWriteMetadataFile(struct MiraMonVectorMetaData *hMMMD)
         fprintf_function(pF, LineReturn);
         fprintf_function(pF, "[%s:%s]" LineReturn, SECTION_TAULA_PRINCIPAL,
                          szMMNomCampTipusNodeDefecte);
-        fprintf_function(pF, "visible=0" LineReturn);
         fprintf_function(pF, "simbolitzable=0" LineReturn);
         MMWrite_ANSI_MetadataKeyDescriptor(hMMMD, pF, szNodeTypeEng,
                                            szNodeTypeCat, szNodeTypeSpa);
