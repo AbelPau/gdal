@@ -13,7 +13,7 @@
 
 import pytest
 
-from osgeo import gdal
+from osgeo import gdal, osr
 
 
 def get_reproject_alg():
@@ -33,15 +33,13 @@ def test_gdalalg_raster_reproject(tmp_vsimem):
         return True
 
     alg = get_reproject_alg()
-    assert alg.ParseRunAndFinalize(
-        [
-            "--src-crs=EPSG:32611",
-            "--dst-crs=EPSG:4326",
-            "../gcore/data/byte.tif",
-            out_filename,
-        ],
-        my_progress,
-    )
+    alg["src-crs"] = "EPSG:32611"
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    alg["dst-crs"] = srs
+    alg["input"] = "../gcore/data/byte.tif"
+    alg["output"] = out_filename
+    assert alg.Run(my_progress) and alg.Finalize()
     assert last_pct[0] == 1.0
 
     with gdal.OpenEx(out_filename) as ds:
@@ -111,8 +109,8 @@ def test_gdalalg_raster_reproject_srcnodata_dst_nodata(tmp_vsimem):
     alg["input"] = src_ds
     alg["output"] = ""
     alg["output-format"] = "MEM"
-    alg["srcnodata"] = [1]
-    alg["dstnodata"] = [2]
+    alg["src-nodata"] = [1]
+    alg["dst-nodata"] = [2]
     assert alg.Run()
     out_ds = alg["output"].GetDataset()
     assert out_ds.GetRasterBand(1).GetNoDataValue() == 2
@@ -128,7 +126,7 @@ def test_gdalalg_raster_reproject_addalpha(tmp_vsimem):
     alg["input"] = src_ds
     alg["output"] = ""
     alg["output-format"] = "MEM"
-    alg["addalpha"] = True
+    alg["add-alpha"] = True
     assert alg.Run()
     out_ds = alg["output"].GetDataset()
     assert out_ds.RasterCount == 2
@@ -148,7 +146,7 @@ def test_gdalalg_raster_reproject_warp_option(tmp_vsimem):
     alg["output"] = ""
     alg["output-format"] = "MEM"
     alg["warp-option"] = ["UNIFIED_SRC_NODATA=YES"]
-    alg["dstnodata"] = [3, 4]
+    alg["dst-nodata"] = [3, 4]
     assert alg.Run()
     out_ds = alg["output"].GetDataset()
     assert out_ds.GetRasterBand(1).ReadRaster() == b"\x00"

@@ -18,11 +18,11 @@ Source Code
 Current Release
 ...............
 
-* **2025-04-07** `gdal-3.10.3.tar.gz`_ `3.10.3 "Gulf of Mexico" Release Notes`_ (`3.10.3 md5`_)
+* **2025-05-05** `gdal-3.11.0.tar.gz`_ `3.11.0 "Eganville" Release Notes`_ (`3.11.0 md5`_)
 
-.. _`3.10.3 "Gulf of Mexico" Release Notes`: https://github.com/OSGeo/gdal/blob/v3.10.3/NEWS.md
-.. _`gdal-3.10.3.tar.gz`: https://github.com/OSGeo/gdal/releases/download/v3.10.3/gdal-3.10.3.tar.gz
-.. _`3.10.3 md5`: https://github.com/OSGeo/gdal/releases/download/v3.10.3/gdal-3.10.3.tar.gz.md5
+.. _`3.11.0 "Eganville" Release Notes`: https://github.com/OSGeo/gdal/blob/v3.11.0/NEWS.md
+.. _`gdal-3.11.0.tar.gz`: https://github.com/OSGeo/gdal/releases/download/v3.11.0/gdal-3.11.0.tar.gz
+.. _`3.11.0 md5`: https://github.com/OSGeo/gdal/releases/download/v3.11.0/gdal-3.11.0.tar.gz.md5
 
 Past Releases
 .............
@@ -192,24 +192,15 @@ GDAL master Conda builds
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 GDAL master builds are available in the `gdal-master <https://anaconda.org/gdal-master/gdal>`__
-channel. They are based on dependencies from the ``conda-forge`` channel.
-
-First, install mamba into the ``base`` environment, create a dedicated ``gdal_master_env``
-environment, and then activate the dedicated ``gdal_master_env`` environment.
+channel. They are based on dependencies from the ``conda-forge`` channel. The latest master
+build can be installed with the following command:
 
 ::
 
-    conda update -n base -c conda-forge conda
-    conda install -n base --override-channels -c conda-forge mamba 'python_abi=*=*cp*'
-    conda create --name gdal_master_env
-    conda activate gdal_master_env
+    conda install -c gdal-master -c conda-forge gdal-master::gdal
 
-Then install GDAL from the ``gdal-master`` channel:
+As with released versions of GDAL, additional drivers can be installed using `gdal-master::libgdal-{driver_name}`.
 
-::
-
-    mamba install -c gdal-master gdal
-    mamba install -c gdal-master libgdal-arrow-parquet # if you need the Arrow and Parquet drivers
 
 .. _pixi:
 

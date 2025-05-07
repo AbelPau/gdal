@@ -152,6 +152,8 @@ bool CPL_DLL GDALAlgorithmArgGetRepeatedArgAllowed(GDALAlgorithmArgH);
 
 char CPL_DLL **GDALAlgorithmArgGetChoices(GDALAlgorithmArgH);
 
+char CPL_DLL **GDALAlgorithmArgGetMetadataItem(GDALAlgorithmArgH, const char *);
+
 bool CPL_DLL GDALAlgorithmArgIsExplicitlySet(GDALAlgorithmArgH);
 
 bool CPL_DLL GDALAlgorithmArgHasDefaultValue(GDALAlgorithmArgH);
@@ -212,6 +214,22 @@ bool CPL_DLL GDALAlgorithmArgSetAsIntegerList(GDALAlgorithmArgH, size_t nCount,
 bool CPL_DLL GDALAlgorithmArgSetAsDoubleList(GDALAlgorithmArgH, size_t nCount,
                                              const double *pnValues);
 
+/** Binary-or combination of GDAL_OF_RASTER, GDAL_OF_VECTOR,
+ * GDAL_OF_MULTIDIM_RASTER, possibly with GDAL_OF_UPDATE.
+ */
+typedef int GDALArgDatasetType;
+
+GDALArgDatasetType CPL_DLL GDALAlgorithmArgGetDatasetType(GDALAlgorithmArgH);
+
+/** Bit indicating that the name component of GDALArgDatasetValue is accepted. */
+#define GADV_NAME (1 << 0)
+/** Bit indicating that the dataset component of GDALArgDatasetValue is accepted. */
+#define GADV_OBJECT (1 << 1)
+
+int CPL_DLL GDALAlgorithmArgGetDatasetInputFlags(GDALAlgorithmArgH);
+
+int CPL_DLL GDALAlgorithmArgGetDatasetOutputFlags(GDALAlgorithmArgH);
+
 /************************************************************************/
 /*                    GDALArgDatasetValueH API                          */
 /************************************************************************/
@@ -226,23 +244,6 @@ GDALDatasetH CPL_DLL GDALArgDatasetValueGetDatasetRef(GDALArgDatasetValueH);
 
 GDALDatasetH
     CPL_DLL GDALArgDatasetValueGetDatasetIncreaseRefCount(GDALArgDatasetValueH);
-
-/** Bit indicating that the name component of GDALArgDatasetValue is accepted. */
-#define GADV_NAME (1 << 0)
-/** Bit indicating that the dataset component of GDALArgDatasetValue is accepted. */
-#define GADV_OBJECT (1 << 1)
-
-/** Binary-or combination of GDAL_OF_RASTER, GDAL_OF_VECTOR and
- * GDAL_OF_MULTIDIM_RASTER.
- */
-typedef int GDALArgDatasetValueType;
-
-GDALArgDatasetValueType
-    CPL_DLL GDALArgDatasetValueGetType(GDALArgDatasetValueH);
-
-int CPL_DLL GDALArgDatasetValueGetInputFlags(GDALArgDatasetValueH);
-
-int CPL_DLL GDALArgDatasetValueGetOutputFlags(GDALArgDatasetValueH);
 
 void CPL_DLL GDALArgDatasetValueSetName(GDALArgDatasetValueH, const char *);
 
@@ -274,6 +275,7 @@ CPL_C_END
 #include <vector>
 
 class GDALDataset;
+class OGRSpatialReference;
 
 /** Common argument category */
 constexpr const char *GAAC_COMMON = "Common";
@@ -309,10 +311,15 @@ constexpr const char *GDAL_ARG_NAME_UPDATE = "update";
 /** Name of the argument for overwrite. */
 constexpr const char *GDAL_ARG_NAME_OVERWRITE = "overwrite";
 
+/** Name of the argument for append. */
+constexpr const char *GDAL_ARG_NAME_APPEND = "append";
+
 /** Name of the argument for read-only. */
 constexpr const char *GDAL_ARG_NAME_READ_ONLY = "read-only";
 
-/** Driver rmust expose GDAL_DCAP_RASTER or GDAL_DCAP_MULTIDIM_RASTER */
+/** Driver must expose GDAL_DCAP_RASTER or GDAL_DCAP_MULTIDIM_RASTER.
+ * This is a potential value of GetMetadataItem(GAAMDI_REQUIRED_CAPABILITIES)
+ */
 constexpr const char *GDAL_ALG_DCAP_RASTER_OR_MULTIDIM_RASTER =
     "raster-or-multidim-raster";
 
@@ -320,8 +327,8 @@ constexpr const char *GDAL_ALG_DCAP_RASTER_OR_MULTIDIM_RASTER =
 /*                           GDALArgDatasetValue                        */
 /************************************************************************/
 
-/** Return the string representation of GDALArgDatasetValueType */
-std::string CPL_DLL GDALArgDatasetValueTypeName(GDALArgDatasetValueType);
+/** Return the string representation of GDALArgDatasetType */
+std::string CPL_DLL GDALAlgorithmArgDatasetTypeName(GDALArgDatasetType);
 
 class GDALAlgorithmArg;
 
@@ -336,7 +343,8 @@ class CPL_DLL GDALArgDatasetValue final
     GDALArgDatasetValue() = default;
 
     /** Constructor by dataset name. */
-    explicit GDALArgDatasetValue(const std::string &name) : m_name(name)
+    explicit GDALArgDatasetValue(const std::string &name)
+        : m_name(name), m_nameSet(true)
     {
     }
 
@@ -368,6 +376,15 @@ class CPL_DLL GDALArgDatasetValue final
      * guaranteed to exceed the one of this instance.
      */
     GDALDataset *GetDatasetRef()
+    {
+        return m_poDS;
+    }
+
+    /** Get a GDALDataset* instance (may be null). This does not modify the
+     * reference counter, hence the lifetime of the returned object is not
+     * guaranteed to exceed the one of this instance.
+     */
+    const GDALDataset *GetDatasetRef() const
     {
         return m_poDS;
     }
@@ -404,35 +421,6 @@ class CPL_DLL GDALArgDatasetValue final
         return m_nameSet;
     }
 
-    /** Indicates which components among name and dataset are accepted as
-     * input, when this argument serves as an input.
-     *
-     * If the GADV_NAME bit is set, it indicates a dataset name is accepted as
-     * input.
-     * If the GADV_OBJECT bit is set, it indicates a dataset object is
-     * accepted as input.
-     * If both bits are set, the algorithm can accept either a name or a dataset
-     * object.
-     */
-    int GetInputFlags() const
-    {
-        return m_inputFlags;
-    }
-
-    /** Indicates which components among name and dataset are modified,
-     * when this argument serves as an output.
-     *
-     * If the GADV_NAME bit is set, it indicates a dataset name is generated as
-     * output (that is the algorithm will generate the name. Rarely used).
-     * If the GADV_OBJECT bit is set, it indicates a dataset object is
-     * generated as output, and available for use after the algorithm has
-     * completed.
-     */
-    int GetOutputFlags() const
-    {
-        return m_outputFlags;
-    }
-
     /** Set dataset name */
     void Set(const std::string &name);
 
@@ -447,42 +435,6 @@ class CPL_DLL GDALArgDatasetValue final
      * GDALDataset object.
      */
     void SetFrom(const GDALArgDatasetValue &other);
-
-    /** Set which components among name and dataset are accepted as
-     * input, when this argument serves as an input.
-     * Should only be used by GDALAlgorithm sub-classes.
-     */
-    void SetInputFlags(int flags)
-    {
-        m_inputFlags = flags;
-    }
-
-    /** Set which components among name and dataset are modified when this
-     * argument serves as an output.
-     * Should only be used by GDALAlgorithm sub-classes.
-     */
-    void SetOutputFlags(int flags)
-    {
-        m_outputFlags = flags;
-    }
-
-    /** Get which type of dataset is allowed / generated.
-     * Binary-or combination of GDAL_OF_RASTER, GDAL_OF_VECTOR and
-     * GDAL_OF_MULTIDIM_RASTER, possibly combined with GDAL_OF_UPDATE.
-     */
-    GDALArgDatasetValueType GetType() const
-    {
-        return m_type;
-    }
-
-    /** Set which type of dataset is allowed / generated.
-     * Binary-or combination of GDAL_OF_RASTER, GDAL_OF_VECTOR and
-     * GDAL_OF_MULTIDIM_RASTER.
-     */
-    void SetType(GDALArgDatasetValueType type)
-    {
-        m_type = type;
-    }
 
   protected:
     friend class GDALAlgorithm;
@@ -506,20 +458,6 @@ class CPL_DLL GDALArgDatasetValue final
 
     /** Whether a dataset name (possibly empty for a MEM dataset...) has been set */
     bool m_nameSet = false;
-
-    /** Dataset type */
-    GDALArgDatasetValueType m_type =
-        GDAL_OF_RASTER | GDAL_OF_VECTOR | GDAL_OF_MULTIDIM_RASTER;
-
-    /** Which components among name and dataset are accepted as
-     * input, when this argument serves as an input.
-     */
-    int m_inputFlags = GADV_NAME | GADV_OBJECT;
-
-    /** Which components among name and dataset are generated as
-     * output, when this argument serves as an output.
-     */
-    int m_outputFlags = GADV_OBJECT;
 
     GDALArgDatasetValue(const GDALArgDatasetValue &) = delete;
     GDALArgDatasetValue &operator=(const GDALArgDatasetValue &) = delete;
@@ -556,6 +494,13 @@ class CPL_DLL GDALAlgorithmArgDecl final
     GDALAlgorithmArgDecl &AddAlias(const std::string &alias)
     {
         m_aliases.push_back(alias);
+        return *this;
+    }
+
+    /** Declare a shortname alias.*/
+    GDALAlgorithmArgDecl &AddShortNameAlias(char shortNameAlias)
+    {
+        m_shortNameAliases.push_back(shortNameAlias);
         return *this;
     }
 
@@ -607,16 +552,102 @@ class CPL_DLL GDALAlgorithmArgDecl final
     template <class T> GDALAlgorithmArgDecl &SetDefault(const T &value)
     {
         m_hasDefaultValue = true;
-        if constexpr (std::is_same_v<T, int>)
+        try
         {
-            if (m_type == GAAT_REAL)
+            switch (m_type)
             {
-                m_defaultValue = static_cast<double>(value);
-                return *this;
+                case GAAT_BOOLEAN:
+                {
+                    if constexpr (std::is_same_v<T, bool>)
+                    {
+                        m_defaultValue = value;
+                        return *this;
+                    }
+                    break;
+                }
+
+                case GAAT_STRING:
+                {
+                    if constexpr (std::is_same_v<T, std::string>)
+                    {
+                        m_defaultValue = value;
+                        return *this;
+                    }
+                    break;
+                }
+
+                case GAAT_INTEGER:
+                {
+                    if constexpr (std::is_same_v<T, int>)
+                    {
+                        m_defaultValue = value;
+                        return *this;
+                    }
+                    break;
+                }
+
+                case GAAT_REAL:
+                {
+                    if constexpr (std::is_assignable_v<double &, T>)
+                    {
+                        m_defaultValue = static_cast<double>(value);
+                        return *this;
+                    }
+                    break;
+                }
+
+                case GAAT_STRING_LIST:
+                {
+                    if constexpr (std::is_same_v<T, std::string>)
+                    {
+                        m_defaultValue = std::vector<std::string>{value};
+                        return *this;
+                    }
+                    break;
+                }
+
+                case GAAT_INTEGER_LIST:
+                {
+                    if constexpr (std::is_same_v<T, int>)
+                    {
+                        m_defaultValue = std::vector<int>{value};
+                        return *this;
+                    }
+                    break;
+                }
+
+                case GAAT_REAL_LIST:
+                {
+                    if constexpr (std::is_assignable_v<double &, T>)
+                    {
+                        m_defaultValue =
+                            std::vector<double>{static_cast<double>(value)};
+                        return *this;
+                    }
+                    break;
+                }
+
+                case GAAT_DATASET:
+                case GAAT_DATASET_LIST:
+                    break;
             }
         }
-        m_defaultValue = value;
+        catch (const std::bad_variant_access &)
+        {
+            // should not happen
+            // fallthrough
+        }
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Argument %s: SetDefault(): unexpected type for value",
+                 GetName().c_str());
         return *this;
+    }
+
+    /** Declare a default value for the argument.
+     */
+    GDALAlgorithmArgDecl &SetDefault(const char *value)
+    {
+        return SetDefault(std::string(value));
     }
 
     /** Declare the minimum number of values for the argument. Defaults to 0.
@@ -673,11 +704,23 @@ class CPL_DLL GDALAlgorithmArgDecl final
     /** Declares the allowed values (as strings) for the argument.
      * Only honored for GAAT_STRING and GAAT_STRING_LIST types.
      */
-    template <typename T, typename... U>
+    template <
+        typename T, typename... U,
+        typename std::enable_if<!std::is_same_v<T, std::vector<std::string> &>,
+                                bool>::type = true>
     GDALAlgorithmArgDecl &SetChoices(T &&first, U &&...rest)
     {
         m_choices.push_back(std::forward<T>(first));
         SetChoices(std::forward<U>(rest)...);
+        return *this;
+    }
+
+    /** Declares the allowed values (as strings) for the argument.
+     * Only honored for GAAT_STRING and GAAT_STRING_LIST types.
+     */
+    GDALAlgorithmArgDecl &SetChoices(const std::vector<std::string> &choices)
+    {
+        m_choices = choices;
         return *this;
     }
 
@@ -718,6 +761,15 @@ class CPL_DLL GDALAlgorithmArgDecl final
     {
         m_maxVal = max;
         m_maxValIsIncluded = false;
+        return *this;
+    }
+
+    /** Sets the minimum number of characters (for arguments of type
+     * GAAT_STRING and GAAT_STRING_LIST)
+     */
+    GDALAlgorithmArgDecl &SetMinCharCount(int count)
+    {
+        m_minCharCount = count;
         return *this;
     }
 
@@ -854,6 +906,12 @@ class CPL_DLL GDALAlgorithmArgDecl final
         return m_aliases;
     }
 
+    /** Return the shortname aliases (potentially none) */
+    inline const std::vector<char> &GetShortNameAliases() const
+    {
+        return m_shortNameAliases;
+    }
+
     /** Return the description */
     inline const std::string &GetDescription() const
     {
@@ -909,6 +967,14 @@ class CPL_DLL GDALAlgorithmArgDecl final
     inline std::pair<double, bool> GetMaxValue() const
     {
         return {m_maxVal, m_maxValIsIncluded};
+    }
+
+    /** Return the minimum number of characters (for arguments of type
+     * GAAT_STRING and GAAT_STRING_LIST)
+     */
+    inline int GetMinCharCount() const
+    {
+        return m_minCharCount;
     }
 
     /** Return whether the argument is required. Defaults to false.
@@ -1085,6 +1151,75 @@ class CPL_DLL GDALAlgorithmArgDecl final
         return std::get<T>(m_defaultValue);
     }
 
+    /** Get which type of dataset is allowed / generated.
+     * Binary-or combination of GDAL_OF_RASTER, GDAL_OF_VECTOR and
+     * GDAL_OF_MULTIDIM_RASTER, possibly combined with GDAL_OF_UPDATE.
+     * Only applies to arguments of type GAAT_DATASET or GAAT_DATASET_LIST.
+     */
+    GDALArgDatasetType GetDatasetType() const
+    {
+        return m_datasetType;
+    }
+
+    /** Set which type of dataset is allowed / generated.
+     * Binary-or combination of GDAL_OF_RASTER, GDAL_OF_VECTOR and
+     * GDAL_OF_MULTIDIM_RASTER.
+     * Only applies to arguments of type GAAT_DATASET or GAAT_DATASET_LIST.
+     */
+    void SetDatasetType(GDALArgDatasetType type)
+    {
+        m_datasetType = type;
+    }
+
+    /** Indicates which components among name and dataset are accepted as
+     * input, when this argument serves as an input.
+     *
+     * If the GADV_NAME bit is set, it indicates a dataset name is accepted as
+     * input.
+     * If the GADV_OBJECT bit is set, it indicates a dataset object is
+     * accepted as input.
+     * If both bits are set, the algorithm can accept either a name or a dataset
+     * object.
+     * Only applies to arguments of type GAAT_DATASET or GAAT_DATASET_LIST.
+     */
+    int GetDatasetInputFlags() const
+    {
+        return m_datasetInputFlags;
+    }
+
+    /** Indicates which components among name and dataset are modified,
+     * when this argument serves as an output.
+     *
+     * If the GADV_NAME bit is set, it indicates a dataset name is generated as
+     * output (that is the algorithm will generate the name. Rarely used).
+     * If the GADV_OBJECT bit is set, it indicates a dataset object is
+     * generated as output, and available for use after the algorithm has
+     * completed.
+     * Only applies to arguments of type GAAT_DATASET or GAAT_DATASET_LIST.
+     */
+    int GetDatasetOutputFlags() const
+    {
+        return m_datasetOutputFlags;
+    }
+
+    /** Set which components among name and dataset are accepted as
+     * input, when this argument serves as an input.
+     * Only applies to arguments of type GAAT_DATASET or GAAT_DATASET_LIST.
+     */
+    void SetDatasetInputFlags(int flags)
+    {
+        m_datasetInputFlags = flags;
+    }
+
+    /** Set which components among name and dataset are modified when this
+     * argument serves as an output.
+     * Only applies to arguments of type GAAT_DATASET or GAAT_DATASET_LIST.
+     */
+    void SetDatasetOutputFlags(int flags)
+    {
+        m_datasetOutputFlags = flags;
+    }
+
   private:
     const std::string m_longName;
     const std::string m_shortName;
@@ -1112,6 +1247,7 @@ class CPL_DLL GDALAlgorithmArgDecl final
     std::map<std::string, std::vector<std::string>> m_metadata{};
     std::vector<std::string> m_aliases{};
     std::vector<std::string> m_hiddenAliases{};
+    std::vector<char> m_shortNameAliases{};
     std::vector<std::string> m_choices{};
     std::vector<std::string> m_hiddenChoices{};
     std::variant<bool, std::string, int, double, std::vector<std::string>,
@@ -1121,6 +1257,19 @@ class CPL_DLL GDALAlgorithmArgDecl final
     double m_maxVal = std::numeric_limits<double>::quiet_NaN();
     bool m_minValIsIncluded = false;
     bool m_maxValIsIncluded = false;
+    int m_minCharCount = 0;
+    GDALArgDatasetType m_datasetType =
+        GDAL_OF_RASTER | GDAL_OF_VECTOR | GDAL_OF_MULTIDIM_RASTER;
+
+    /** Which components among name and dataset are accepted as
+     * input, when this argument serves as an input.
+     */
+    int m_datasetInputFlags = GADV_NAME | GADV_OBJECT;
+
+    /** Which components among name and dataset are generated as
+     * output, when this argument serves as an output.
+     */
+    int m_datasetOutputFlags = GADV_OBJECT;
 };
 
 /************************************************************************/
@@ -1161,6 +1310,9 @@ class CPL_DLL GDALAlgorithmArg /* non-final */
         }
     }
 
+    /** Destructor */
+    virtual ~GDALAlgorithmArg();
+
     /** Return the argument declaration. */
     const GDALAlgorithmArgDecl &GetDeclaration() const
     {
@@ -1183,6 +1335,12 @@ class CPL_DLL GDALAlgorithmArg /* non-final */
     inline const std::vector<std::string> &GetAliases() const
     {
         return m_decl.GetAliases();
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::GetShortNameAliases() */
+    inline const std::vector<char> &GetShortNameAliases() const
+    {
+        return m_decl.GetShortNameAliases();
     }
 
     /** Alias for GDALAlgorithmArgDecl::GetDescription() */
@@ -1286,6 +1444,12 @@ class CPL_DLL GDALAlgorithmArg /* non-final */
         return m_decl.GetMaxValue();
     }
 
+    /** Alias for GDALAlgorithmArgDecl::GetMinCharCount() */
+    inline int GetMinCharCount() const
+    {
+        return m_decl.GetMinCharCount();
+    }
+
     /** Return whether the argument value has been explicitly set with Set() */
     inline bool IsExplicitlySet() const
     {
@@ -1372,6 +1536,24 @@ class CPL_DLL GDALAlgorithmArg /* non-final */
         return m_decl.AutoOpenDataset();
     }
 
+    /** Alias for GDALAlgorithmArgDecl::GetDatasetType() */
+    inline GDALArgDatasetType GetDatasetType() const
+    {
+        return m_decl.GetDatasetType();
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::GetDatasetInputFlags() */
+    inline int GetDatasetInputFlags() const
+    {
+        return m_decl.GetDatasetInputFlags();
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::GetDatasetOutputFlags() */
+    inline int GetDatasetOutputFlags() const
+    {
+        return m_decl.GetDatasetOutputFlags();
+    }
+
     /** Return the value of the argument, which is by decreasing order of priority:
      * - the value set through Set().
      * - the default value set through SetDefault().
@@ -1437,6 +1619,24 @@ class CPL_DLL GDALAlgorithmArg /* non-final */
     {
         return Set(std::string(value ? value : ""));
     }
+
+    /** Set the value for a GAAT_STRING argument from a GDALDataType
+     * It cannot be called several times for a given argument.
+     * Validation checks and other actions are run.
+     * Return true if success.
+     */
+    bool Set(GDALDataType dt)
+    {
+        return Set(GDALGetDataTypeName(dt));
+    }
+
+    /** Set the value for a GAAT_STRING argument (representing a CRS)
+     * from a OGRSpatialReference
+     * It cannot be called several times for a given argument.
+     * Validation checks and other actions are run.
+     * Return true if success.
+     */
+    bool Set(const OGRSpatialReference &);
 
     /** Set the value for a GAAT_INTEGER (or GAAT_REAL) argument.
      * It cannot be called several times for a given argument.
@@ -1505,6 +1705,86 @@ class CPL_DLL GDALAlgorithmArg /* non-final */
      * Return true if success.
      */
     bool Set(std::vector<GDALArgDatasetValue> &&value);
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(bool value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(int value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(double value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(const std::string &value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(const char *value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(GDALDataType value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(const OGRSpatialReference &value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(const std::vector<int> &value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(const std::vector<double> &value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(const std::vector<std::string> &value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    inline GDALAlgorithmArg &operator=(GDALDataset *value)
+    {
+        Set(value);
+        return *this;
+    }
+
+    /** Set the value of the argument. */
+    GDALAlgorithmArg &operator=(std::unique_ptr<GDALDataset> value);
 
     /** Set the value for another argument.
      * For GAAT_DATASET, it will reference the dataset pointed by other.m_poDS.
@@ -1575,7 +1855,7 @@ class CPL_DLL GDALAlgorithmArg /* non-final */
     bool RunAllActions();
     void RunActions();
     bool RunValidationActions();
-    bool ValidateChoice(const std::string &value) const;
+    std::string ValidateChoice(const std::string &value) const;
     bool ValidateIntRange(int val) const;
     bool ValidateRealRange(double val) const;
 };
@@ -1614,6 +1894,9 @@ class CPL_DLL GDALInConstructionAlgorithmArg final : public GDALAlgorithmArg
     /** Add a non-documented alias for the argument */
     GDALInConstructionAlgorithmArg &AddHiddenAlias(const std::string &alias);
 
+    /** Add a shortname alias for the argument */
+    GDALInConstructionAlgorithmArg &AddShortNameAlias(char shortNameAlias);
+
     /** Alias for GDALAlgorithmArgDecl::SetPositional() */
     GDALInConstructionAlgorithmArg &SetPositional();
 
@@ -1643,11 +1926,52 @@ class CPL_DLL GDALInConstructionAlgorithmArg final : public GDALAlgorithmArg
     GDALInConstructionAlgorithmArg &SetDefault(const T &value)
     {
         m_decl.SetDefault(value);
+
         if constexpr (!std::is_same_v<T, GDALArgDatasetValue> &&
                       !std::is_same_v<T, std::vector<GDALArgDatasetValue>>)
         {
-            if (m_decl.HasDefaultValue())
-                *std::get<T *>(m_value) = value;
+            try
+            {
+                switch (m_decl.GetType())
+                {
+                    case GAAT_BOOLEAN:
+                        *std::get<bool *>(m_value) = m_decl.GetDefault<bool>();
+                        break;
+                    case GAAT_STRING:
+                        *std::get<std::string *>(m_value) =
+                            m_decl.GetDefault<std::string>();
+                        break;
+                    case GAAT_INTEGER:
+                        *std::get<int *>(m_value) = m_decl.GetDefault<int>();
+                        break;
+                    case GAAT_REAL:
+                        *std::get<double *>(m_value) =
+                            m_decl.GetDefault<double>();
+                        break;
+                    case GAAT_STRING_LIST:
+                        *std::get<std::vector<std::string> *>(m_value) =
+                            m_decl.GetDefault<std::vector<std::string>>();
+                        break;
+                    case GAAT_INTEGER_LIST:
+                        *std::get<std::vector<int> *>(m_value) =
+                            m_decl.GetDefault<std::vector<int>>();
+                        break;
+                    case GAAT_REAL_LIST:
+                        *std::get<std::vector<double> *>(m_value) =
+                            m_decl.GetDefault<std::vector<double>>();
+                        break;
+                    case GAAT_DATASET:
+                    case GAAT_DATASET_LIST:
+                        break;
+                }
+            }
+            catch (const std::bad_variant_access &)
+            {
+                // I don't think that can happen, but Coverity Scan thinks so
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Argument %s: SetDefault(): unexpected type for value",
+                         GetName().c_str());
+            }
         }
         return *this;
     }
@@ -1695,10 +2019,21 @@ class CPL_DLL GDALInConstructionAlgorithmArg final : public GDALAlgorithmArg
     }
 
     /** Alias for GDALAlgorithmArgDecl::SetChoices() */
-    template <typename T, typename... U>
+    template <
+        typename T, typename... U,
+        typename std::enable_if<!std::is_same_v<T, std::vector<std::string> &>,
+                                bool>::type = true>
     GDALInConstructionAlgorithmArg &SetChoices(T &&first, U &&...rest)
     {
         m_decl.SetChoices(std::forward<T>(first), std::forward<U>(rest)...);
+        return *this;
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::SetChoices() */
+    GDALInConstructionAlgorithmArg &
+    SetChoices(const std::vector<std::string> &choices)
+    {
+        m_decl.SetChoices(choices);
         return *this;
     }
 
@@ -1736,6 +2071,13 @@ class CPL_DLL GDALInConstructionAlgorithmArg final : public GDALAlgorithmArg
     GDALInConstructionAlgorithmArg &SetMaxValueExcluded(double max)
     {
         m_decl.SetMaxValueExcluded(max);
+        return *this;
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::SetMinCharCount() */
+    GDALInConstructionAlgorithmArg &SetMinCharCount(int count)
+    {
+        m_decl.SetMinCharCount(count);
         return *this;
     }
 
@@ -1812,6 +2154,28 @@ class CPL_DLL GDALInConstructionAlgorithmArg final : public GDALAlgorithmArg
         return *this;
     }
 
+    /** Alias for GDALAlgorithmArgDecl::SetDatasetType() */
+    GDALInConstructionAlgorithmArg &
+    SetDatasetType(GDALArgDatasetType datasetType)
+    {
+        m_decl.SetDatasetType(datasetType);
+        return *this;
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::SetDatasetInputFlags() */
+    GDALInConstructionAlgorithmArg &SetDatasetInputFlags(int flags)
+    {
+        m_decl.SetDatasetInputFlags(flags);
+        return *this;
+    }
+
+    /** Alias for GDALAlgorithmArgDecl::SetDatasetOutputFlags() */
+    GDALInConstructionAlgorithmArg &SetDatasetOutputFlags(int flags)
+    {
+        m_decl.SetDatasetOutputFlags(flags);
+        return *this;
+    }
+
     /** Register an action that is executed, once and exactly once, if the
      * argument is explicitly set, at the latest by the ValidateArguments()
      * method. */
@@ -1847,8 +2211,12 @@ class CPL_DLL GDALInConstructionAlgorithmArg final : public GDALAlgorithmArg
      * CRS definition.
      * @param noneAllowed Set to true to mean that "null" or "none" are allowed
      * to mean to unset CRS.
+     * @param specialValues List of other allowed special values.
      */
-    GDALInConstructionAlgorithmArg &SetIsCRSArg(bool noneAllowed = false);
+    GDALInConstructionAlgorithmArg &
+    SetIsCRSArg(bool noneAllowed = false,
+                const std::vector<std::string> &specialValues =
+                    std::vector<std::string>());
 
   private:
     GDALAlgorithm *const m_owner;
@@ -1992,34 +2360,19 @@ class CPL_DLL GDALAlgorithmRegistry
     }
 
     /** Returns whether this algorithm has sub-algorithms */
-    bool HasSubAlgorithms() const
-    {
-        return !m_subAlgRegistry.empty();
-    }
+    bool HasSubAlgorithms() const;
 
     /** Get the names of registered algorithms.
      *
      * This only returns the main name of each algorithm, not its potential
      * alternate names.
      */
-    std::vector<std::string> GetSubAlgorithmNames() const
-    {
-        return m_subAlgRegistry.GetNames();
-    }
+    std::vector<std::string> GetSubAlgorithmNames() const;
 
     /** Instantiate an algorithm by its name (or its alias). */
     std::unique_ptr<GDALAlgorithm>
-    InstantiateSubAlgorithm(const std::string &name) const
-    {
-        auto ret = m_subAlgRegistry.Instantiate(name);
-        if (ret)
-        {
-            auto childCallPath = m_callPath;
-            childCallPath.push_back(name);
-            ret->SetCallPath(childCallPath);
-        }
-        return ret;
-    }
+    InstantiateSubAlgorithm(const std::string &name,
+                            bool suggestionAllowed = true) const;
 
     /** Return the potential arguments of the algorithm. */
     const std::vector<std::unique_ptr<GDALAlgorithmArg>> &GetArgs() const
@@ -2033,15 +2386,47 @@ class CPL_DLL GDALAlgorithmRegistry
         return m_args;
     }
 
+    /** Return a likely matching argument using a Damerau-Levenshtein distance */
+    std::string GetSuggestionForArgumentName(const std::string &osName) const;
+
     /** Return an argument from its long name, short name or an alias */
-    GDALAlgorithmArg *GetArg(const std::string &osName)
+    GDALAlgorithmArg *GetArg(const std::string &osName,
+                             bool suggestionAllowed = true)
     {
         return const_cast<GDALAlgorithmArg *>(
-            const_cast<const GDALAlgorithm *>(this)->GetArg(osName));
+            const_cast<const GDALAlgorithm *>(this)->GetArg(osName,
+                                                            suggestionAllowed));
     }
 
     /** Return an argument from its long name, short name or an alias */
-    const GDALAlgorithmArg *GetArg(const std::string &osName) const;
+    GDALAlgorithmArg &operator[](const std::string &osName)
+    {
+        auto alg = GetArg(osName, false);
+        if (!alg)
+        {
+            ReportError(CE_Failure, CPLE_AppDefined,
+                        "Argument '%s' does not exist", osName.c_str());
+            return m_dummyArg;
+        }
+        return *alg;
+    }
+
+    /** Return an argument from its long name, short name or an alias */
+    const GDALAlgorithmArg *GetArg(const std::string &osName,
+                                   bool suggestionAllowed = true) const;
+
+    /** Return an argument from its long name, short name or an alias */
+    const GDALAlgorithmArg &operator[](const std::string &osName) const
+    {
+        const auto alg = GetArg(osName, false);
+        if (!alg)
+        {
+            ReportError(CE_Failure, CPLE_AppDefined,
+                        "Argument '%s' does not exist", osName.c_str());
+            return m_dummyArg;
+        }
+        return *alg;
+    }
 
     /** Set the calling path to this algorithm.
      *
@@ -2130,8 +2515,11 @@ class CPL_DLL GDALAlgorithmRegistry
         bool isPipelineStep;
         /** Maximum width of the names of the options */
         size_t maxOptLen;
+        /** Whether this is a pipeline main */
+        bool isPipelineMain;
 
-        UsageOptions() : isPipelineStep(false), maxOptLen(0)
+        UsageOptions()
+            : isPipelineStep(false), maxOptLen(0), isPipelineMain(false)
         {
         }
     };
@@ -2204,6 +2592,7 @@ class CPL_DLL GDALAlgorithmRegistry
      */
     bool PropagateSpecialActionTo(GDALAlgorithm *target)
     {
+        target->m_calledFromCommandLine = m_calledFromCommandLine;
         target->m_progressBarRequested = m_progressBarRequested;
         if (m_specialActionRequested)
         {
@@ -2220,6 +2609,22 @@ class CPL_DLL GDALAlgorithmRegistry
     virtual std::vector<std::string>
     GetAutoComplete(std::vector<std::string> &args, bool lastWordIsComplete,
                     bool showAllOptions);
+
+    /** Set whether the algorithm is called from the command line. */
+    void SetCalledFromCommandLine()
+    {
+        m_calledFromCommandLine = true;
+    }
+
+    /** Return whether the algorithm is called from the command line. */
+    bool IsCalledFromCommandLine() const
+    {
+        return m_calledFromCommandLine;
+    }
+
+    /** Save command line in a .gdalg.json file. */
+    static bool SaveGDALG(const std::string &filename,
+                          const std::string &commandLine);
 
   protected:
     friend class GDALInConstructionAlgorithmArg;
@@ -2298,12 +2703,17 @@ class CPL_DLL GDALAlgorithmRegistry
                                            const std::string &helpMessage,
                                            double *pValue);
 
+    /** Register an auto complete function for a filename argument */
+    static void
+    SetAutoCompleteFunctionForFilename(GDALInConstructionAlgorithmArg &arg,
+                                       GDALArgDatasetType type);
+
     /** Add dataset argument. */
     GDALInConstructionAlgorithmArg &
     AddArg(const std::string &longName, char chShortName,
            const std::string &helpMessage, GDALArgDatasetValue *pValue,
-           GDALArgDatasetValueType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
-                                          GDAL_OF_MULTIDIM_RASTER);
+           GDALArgDatasetType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
+                                     GDAL_OF_MULTIDIM_RASTER);
 
     /** Add list of string argument. */
     GDALInConstructionAlgorithmArg &AddArg(const std::string &longName,
@@ -2328,21 +2738,21 @@ class CPL_DLL GDALAlgorithmRegistry
     AddArg(const std::string &longName, char chShortName,
            const std::string &helpMessage,
            std::vector<GDALArgDatasetValue> *pValue,
-           GDALArgDatasetValueType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
-                                          GDAL_OF_MULTIDIM_RASTER);
+           GDALArgDatasetType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
+                                     GDAL_OF_MULTIDIM_RASTER);
 
     /** Add input dataset argument. */
     GDALInConstructionAlgorithmArg &AddInputDatasetArg(
         GDALArgDatasetValue *pValue,
-        GDALArgDatasetValueType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
-                                       GDAL_OF_MULTIDIM_RASTER,
+        GDALArgDatasetType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
+                                  GDAL_OF_MULTIDIM_RASTER,
         bool positionalAndRequired = true, const char *helpMessage = nullptr);
 
     /** Add input dataset argument. */
     GDALInConstructionAlgorithmArg &AddInputDatasetArg(
         std::vector<GDALArgDatasetValue> *pValue,
-        GDALArgDatasetValueType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
-                                       GDAL_OF_MULTIDIM_RASTER,
+        GDALArgDatasetType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
+                                  GDAL_OF_MULTIDIM_RASTER,
         bool positionalAndRequired = true, const char *helpMessage = nullptr);
 
     /** Add open option(s) argument. */
@@ -2358,8 +2768,8 @@ class CPL_DLL GDALAlgorithmRegistry
     /** Add output dataset argument. */
     GDALInConstructionAlgorithmArg &AddOutputDatasetArg(
         GDALArgDatasetValue *pValue,
-        GDALArgDatasetValueType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
-                                       GDAL_OF_MULTIDIM_RASTER,
+        GDALArgDatasetType type = GDAL_OF_RASTER | GDAL_OF_VECTOR |
+                                  GDAL_OF_MULTIDIM_RASTER,
         bool positionalAndRequired = true, const char *helpMessage = nullptr);
 
     /** Add \--overwrite argument. */
@@ -2369,6 +2779,10 @@ class CPL_DLL GDALAlgorithmRegistry
     /** Add \--update argument. */
     GDALInConstructionAlgorithmArg &
     AddUpdateArg(bool *pValue, const char *helpMessage = nullptr);
+
+    /** Add \--append argument. */
+    GDALInConstructionAlgorithmArg &
+    AddAppendUpdateArg(bool *pValue, const char *helpMessage = nullptr);
 
     /** Add (non-CLI) output-string argument. */
     GDALInConstructionAlgorithmArg &
@@ -2383,6 +2797,12 @@ class CPL_DLL GDALAlgorithmRegistry
     /** Add output data type argument. */
     GDALInConstructionAlgorithmArg &
     AddOutputDataTypeArg(std::string *pValue,
+                         const char *helpMessage = nullptr);
+
+    /** Add nodata argument. */
+    GDALInConstructionAlgorithmArg &
+    AddNodataDataTypeArg(std::string *pValue, bool noneAllowed,
+                         const std::string &optionName = "nodata",
                          const char *helpMessage = nullptr);
 
     /** Add creation option(s) argument. */
@@ -2420,6 +2840,14 @@ class CPL_DLL GDALAlgorithmRegistry
     GDALInConstructionAlgorithmArg &
     AddActiveLayerArg(std::string *pValue, const char *helpMessage = nullptr);
 
+    /** A number of thread argument. The final value is stored in *pValue.
+     * pStrValue must be provided as temporary storage, and its initial value
+     * (if not empty) is used as the SetDefault() value.
+     */
+    GDALInConstructionAlgorithmArg &
+    AddNumThreadsArg(int *pValue, std::string *pStrValue,
+                     const char *helpMessage = nullptr);
+
     /** Add \--progress argument. */
     GDALInConstructionAlgorithmArg &AddProgressArg();
 
@@ -2440,7 +2868,7 @@ class CPL_DLL GDALAlgorithmRegistry
                                       std::vector<std::string> &oRet);
 
     /** Validation function to use for key=value type of arguments. */
-    bool ValidateKeyValue(const GDALAlgorithmArg &arg) const;
+    bool ParseAndValidateKeyValue(GDALAlgorithmArg &arg);
 
     /** Return whether output-format or output arguments express GDALG output */
     bool IsGDALGOutput() const;
@@ -2467,6 +2895,10 @@ class CPL_DLL GDALAlgorithmRegistry
     //! @cond Doxygen_Suppress
     void AddAliasFor(GDALInConstructionAlgorithmArg *arg,
                      const std::string &alias);
+
+    void AddShortNameAliasFor(GDALInConstructionAlgorithmArg *arg,
+                              char shortNameAlias);
+
     void SetPositional(GDALInConstructionAlgorithmArg *arg);
 
     //! @endcond
@@ -2486,6 +2918,10 @@ class CPL_DLL GDALAlgorithmRegistry
     std::pair<std::vector<std::pair<GDALAlgorithmArg *, std::string>>, size_t>
     GetArgNamesForCLI() const;
 
+    //! @cond Doxygen_Suppress
+    std::string GetUsageForCLIEnd() const;
+    //! @endcond
+
   private:
     const std::string m_name{};
     const std::string m_description{};
@@ -2495,12 +2931,12 @@ class CPL_DLL GDALAlgorithmRegistry
     bool m_displayInJSONUsage = true;
     bool m_specialActionRequested = false;
     bool m_helpRequested = false;
+    bool m_calledFromCommandLine = false;
 
     // Used by program-output directives in .rst files
     bool m_helpDocRequested = false;
 
     bool m_JSONUsageRequested = false;
-    bool m_dummyBoolean = false;  // Used for --version
     bool m_parseForAutoCompletion = false;
     std::string m_referencePath{};
     std::vector<std::string> m_dummyConfigOptions{};
@@ -2513,6 +2949,10 @@ class CPL_DLL GDALAlgorithmRegistry
     std::function<std::vector<std::string>(const std::vector<std::string> &)>
         m_autoCompleteFunction{};
     std::vector<std::function<bool()>> m_validationActions{};
+
+    std::string m_dummyVal{};
+    GDALAlgorithmArg m_dummyArg{
+        GDALAlgorithmArgDecl("dummy", 0, "", GAAT_STRING), &m_dummyVal};
 
     GDALInConstructionAlgorithmArg &
     AddArg(std::unique_ptr<GDALInConstructionAlgorithmArg> arg);
@@ -2568,6 +3008,27 @@ struct GDALAlgorithmHS
     }
 };
 
+/************************************************************************/
+/*                       GDALContainerAlgorithm                         */
+/************************************************************************/
+
+class CPL_DLL GDALContainerAlgorithm : public GDALAlgorithm
+{
+  public:
+    explicit GDALContainerAlgorithm(
+        const std::string &name, const std::string &description = std::string(),
+        const std::string &helpURL = std::string())
+        : GDALAlgorithm(name, description, helpURL)
+    {
+    }
+
+  protected:
+    bool RunImpl(GDALProgressFunc, void *) override
+    {
+        return false;
+    }
+};
+
 //! @endcond
 
 /************************************************************************/
@@ -2588,6 +3049,44 @@ class CPL_DLL GDALGlobalAlgorithmRegistry final : public GDALAlgorithmRegistry
     /** Instantiate an algorithm by its name or one of its alias. */
     std::unique_ptr<GDALAlgorithm>
     Instantiate(const std::string &name) const override;
+
+    /** Instantiation function */
+    using InstantiateFunc = std::function<std::unique_ptr<GDALAlgorithm>()>;
+
+    /** Declare the algorithm designed by its path (omitting leading path)
+     * and provide its instantiation method.
+     * For example {"driver", "pdf", "list-layers"}
+     *
+     * This is typically used by plugins to register extra algorithms.
+     */
+    void DeclareAlgorithm(const std::vector<std::string> &path,
+                          InstantiateFunc instantiateFunc);
+
+    /** Return the direct declared (as per DeclareAlgorithm()) subalgorithms
+     * of the given path. */
+    std::vector<std::string>
+    GetDeclaredSubAlgorithmNames(const std::vector<std::string> &path) const;
+
+    /** Return whether a subalgorithm is declared at the given path. */
+    bool HasDeclaredSubAlgorithm(const std::vector<std::string> &path) const;
+
+    /** Instantiate a declared (as per DeclareAlgorithm()) subalgorithm. */
+    std::unique_ptr<GDALAlgorithm>
+    InstantiateDeclaredSubAlgorithm(const std::vector<std::string> &path) const;
+
+  private:
+    struct Node
+    {
+        InstantiateFunc instantiateFunc{};
+        std::map<std::string, Node> children{};
+    };
+
+    Node m_root{};
+
+    GDALGlobalAlgorithmRegistry();
+    ~GDALGlobalAlgorithmRegistry();
+
+    const Node *GetNodeFromPath(const std::vector<std::string> &path) const;
 };
 
 /************************************************************************/

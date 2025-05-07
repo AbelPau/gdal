@@ -36,7 +36,7 @@ def test_gdalalg_info_on_raster(args):
 
 def test_gdalalg_info_on_raster_invalid_arg():
     info = get_info_alg()
-    with pytest.raises(Exception, match="Long name option '--invalid' is unknown"):
+    with pytest.raises(Exception, match="Option '--invalid' is unknown"):
         assert info.ParseRunAndFinalize(
             ["--format=text", "--invalid", "data/utmsmall.tif"]
         )
@@ -62,13 +62,13 @@ def test_gdalalg_info_on_vector(args):
 
 def test_gdalalg_info_on_vector_invalid_arg():
     info = get_info_alg()
-    with pytest.raises(Exception, match="Long name option '--invalid' is unknown"):
+    with pytest.raises(Exception, match="Option '--invalid' is unknown"):
         assert info.ParseRunAndFinalize(["--format=text", "--invalid", "data/path.shp"])
 
 
 def test_gdalalg_info_invalid_arg():
     info = get_info_alg()
-    with pytest.raises(Exception, match="Long name option '--invalid' is unknown"):
+    with pytest.raises(Exception, match="Option '--invalid' is unknown"):
         assert info.ParseRunAndFinalize(["--invalid"])
 
 
@@ -109,3 +109,12 @@ def test_gdalalg_info_mixed_run_without_arg(tmp_vsimem):
     info["input"] = "data/utmsmall.tif"
     with pytest.raises(Exception, match="should not be called directly"):
         assert info.Run()
+
+
+@pytest.mark.require_driver("netCDF")
+def test_gdalalg_info_netcdf_raster():
+
+    info = get_info_alg()
+    assert info.ParseRunAndFinalize(["../gdrivers/data/netcdf/byte.nc"])
+    output_string = info["output-string"]
+    assert '"geoTransform"' in output_string

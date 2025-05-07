@@ -34,7 +34,7 @@
 #include "gdal_priv.h"
 #include "ogr_api.h"
 #include "ogr_core.h"
-#include "ogr_mem.h"
+#include "memdataset.h"
 #include "ogrsf_frmts.h"
 #include "ogr_spatialref.h"
 #include "gdalargumentparser.h"
@@ -607,25 +607,31 @@ GetOutputLayerAndUpdateDstDS(const char *pszDest, GDALDatasetH &hDstDS,
     /* -------------------------------------------------------------------- */
     auto poDstDS = GDALDataset::FromHandle(hDstDS);
     OGRLayer *poLayer = nullptr;
-    if (!psOptions->osDestLayerName.empty())
+
+    if (!bCreateOutput)
     {
-        poLayer = poDstDS->GetLayerByName(psOptions->osDestLayerName.c_str());
-        if (!poLayer)
+        if (poDstDS->GetLayerCount() == 1 && poDstDS->GetDriver() &&
+            EQUAL(poDstDS->GetDriver()->GetDescription(), "ESRI Shapefile"))
         {
-            CPLError(CE_Failure, CPLE_AppDefined, "Cannot find layer %s",
-                     psOptions->osDestLayerName.c_str());
-            return nullptr;
+            poLayer = poDstDS->GetLayer(0);
+        }
+        else if (!psOptions->osDestLayerName.empty())
+        {
+            poLayer =
+                poDstDS->GetLayerByName(psOptions->osDestLayerName.c_str());
+            if (!poLayer)
+            {
+                CPLError(CE_Failure, CPLE_AppDefined, "Cannot find layer %s",
+                         psOptions->osDestLayerName.c_str());
+                return nullptr;
+            }
+        }
+        else
+        {
+            poLayer = poDstDS->GetLayerByName(DEFAULT_LAYER_NAME);
         }
     }
-    else if (poDstDS->GetLayerCount() == 1 && poDstDS->GetDriver() &&
-             EQUAL(poDstDS->GetDriver()->GetDescription(), "ESRI Shapefile"))
-    {
-        poLayer = poDstDS->GetLayer(0);
-    }
-    else
-    {
-        poLayer = poDstDS->GetLayerByName(DEFAULT_LAYER_NAME);
-    }
+
     if (!poLayer)
     {
         std::string osDestLayerName = psOptions->osDestLayerName;

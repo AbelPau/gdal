@@ -186,6 +186,7 @@ struct GDALTranslateOptionsForBinary
     bool bQuiet = false;
     bool bCopySubDatasets = false;
     CPLStringList aosOpenOptions{};
+    CPLStringList aosCreateOptions{};
     std::string osFormat{};
 
     /* Allowed input drivers. */
@@ -254,6 +255,13 @@ std::string CPL_DLL GDALRasterizeAppGetParserUsage();
  */
 std::string CPL_DLL
 GDALDEMAppGetParserUsage(const std::string &osProcessingMode);
+
+GDALDatasetH GDALTileIndexInternal(const char *pszDest,
+                                   GDALDatasetH hTileIndexDS, OGRLayerH hLayer,
+                                   int nSrcCount,
+                                   const char *const *papszSrcDSNames,
+                                   const GDALTileIndexOptions *psOptionsIn,
+                                   int *pbUsageError);
 
 #endif /* #ifndef DOXYGEN_SKIP */
 

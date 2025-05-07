@@ -1,7 +1,7 @@
-.. _gdal_vector_geom_swap_xy_subsubcommand:
+.. _gdal_vector_geom_swap_xy:
 
 ================================================================================
-"gdal vector geom swap-xy" sub-sub-command
+``gdal vector geom swap-xy``
 ================================================================================
 
 .. versionadded:: 3.11
@@ -23,7 +23,7 @@ Description
 :program:`gdal vector geom swap-xy` swaps the X and Y coordinates of geometries,
 typically to work around axis order issues of coordinate reference systems.
 
-It can also be used as a step of :ref:`gdal_vector_pipeline_subcommand`.
+It can also be used as a step of :ref:`gdal_vector_pipeline`.
 
 Standard options
 ++++++++++++++++
@@ -31,6 +31,8 @@ Standard options
 .. include:: gdal_options/of_vector.rst
 
 .. include:: gdal_options/co_vector.rst
+
+.. include:: options/lco.rst
 
 .. include:: gdal_options/overwrite.rst
 

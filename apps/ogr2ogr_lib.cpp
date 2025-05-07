@@ -2632,6 +2632,7 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
     /* Various tests to avoid overwriting the source layer(s) */
     /* or to avoid appending a layer to itself */
     if (bUpdate && strcmp(osDestFilename, poDS->GetDescription()) == 0 &&
+        !EQUAL(poDS->GetDriverName(), "MEM") &&
         !EQUAL(poDS->GetDriverName(), "Memory") && (bOverwrite || bAppend))
     {
         bool bError = false;
@@ -2663,7 +2664,8 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
     }
     else if (!bUpdate && strcmp(osDestFilename, poDS->GetDescription()) == 0 &&
              (psOptions->osFormat.empty() ||
-              !EQUAL(psOptions->osFormat.c_str(), "Memory")))
+              (!EQUAL(psOptions->osFormat.c_str(), "MEM") &&
+               !EQUAL(psOptions->osFormat.c_str(), "Memory"))))
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Source and destination datasets must be different "
@@ -2748,21 +2750,13 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
 
         if (psOptions->bNoOverwrite && !EQUAL(pszDest, ""))
         {
-            VSIStatBufL sStat;
-            if (VSIStatL(pszDest, &sStat) == 0)
+            const char *pszType = "";
+            if (GDALDoesFileOrDatasetExist(pszDest, &pszType))
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
-                         "File '%s' already exists. Specify the --overwrite "
+                         "%s '%s' already exists. Specify the --overwrite "
                          "option to overwrite it.",
-                         pszDest);
-                return nullptr;
-            }
-            else if (std::unique_ptr<GDALDataset>(GDALDataset::Open(pszDest)))
-            {
-                CPLError(CE_Failure, CPLE_AppDefined,
-                         "Dataset '%s' already exists. Specify the --overwrite "
-                         "option to overwrite it.",
-                         pszDest);
+                         pszType, pszDest);
                 return nullptr;
             }
         }
@@ -8101,10 +8095,13 @@ static std::unique_ptr<GDALArgumentParser> GDALVectorTranslateOptionsGetParser(
         .store_into(psOptions->dfDateLineOffset)
         .help(_("Offset from dateline in degrees."));
 
-    argParser->add_argument("-clipsrc")
-        .nargs(nCountClipSrc)
-        .metavar("[<xmin> <ymin> <xmax> <ymax>]|<WKT>|<datasource>|spat_extent")
-        .help(_("Clip geometries (in source SRS)."));
+    auto &clipsrcArg =
+        argParser->add_argument("-clipsrc")
+            .metavar(
+                "[<xmin> <ymin> <xmax> <ymax>]|<WKT>|<datasource>|spat_extent")
+            .help(_("Clip geometries (in source SRS)."));
+    if (nCountClipSrc > 1)
+        clipsrcArg.nargs(nCountClipSrc);
 
     argParser->add_argument("-clipsrcsql")
         .metavar("<sql_statement>")
@@ -8123,10 +8120,12 @@ static std::unique_ptr<GDALArgumentParser> GDALVectorTranslateOptionsGetParser(
         .help(_("Restrict desired geometries from the source clip layer based "
                 "on an attribute query."));
 
-    argParser->add_argument("-clipdst")
-        .nargs(nCountClipDst)
-        .metavar("[<xmin> <ymin> <xmax> <ymax>]|<WKT>|<datasource>")
-        .help(_("Clip geometries (in target SRS)."));
+    auto &clipdstArg =
+        argParser->add_argument("-clipdst")
+            .metavar("[<xmin> <ymin> <xmax> <ymax>]|<WKT>|<datasource>")
+            .help(_("Clip geometries (in target SRS)."));
+    if (nCountClipDst > 1)
+        clipdstArg.nargs(nCountClipDst);
 
     argParser->add_argument("-clipdstsql")
         .metavar("<sql_statement>")

@@ -457,6 +457,7 @@ Clamping is performed for input pixel values outside of the range specified by t
 input pixel value is lower than the minimum source value, then the destination
 value corresponding to that minimum source value is used as the output pixel value.
 And similarly for an input pixel value that is greater than the maximum source value.
+To remap values without interpolation, the "reclassify" pixel function can be used. See :ref:`vrt_derived_bands`.
 
 The ComplexSource supports fetching a color component from a source raster
 band that has a color table. The ColorTableComponent value is the index of the
@@ -1051,6 +1052,13 @@ additional pixel functions can be defined in :ref:`C++ <cpp_pixel_functions>`
 or :ref:`Python <python_pixel_functions>` and registered with GDAL using
 a unique key.
 
+A VRTRasterBand can be made a VRTDerivedRasterBand by setting attribute subClass="VRTDerivedRasterBand".
+
+Some of the common subelements for VRTRasterBand (whose subClass="VRTDerivedRasterBand") are listed here. They can be used with built-in, C++, or Python pixel functions.
+
+- **PixelFunctionType**: (required): A pixel function with this name must be defined.
+- **SkipNonContributingSources**: (optional, added in GDAL 3.7, defaults to false) = true/false: Whether sources that do not intersect the VRTRasterBand RasterIO() requested region should be omitted. By default, data for all sources, including ones that do not intersect it, are passed to the pixel function. By setting this parameter to false, only sources that intersect the requested region will be passed.
+
 .. example::
    :title: Calculating a derived band
    :id: vrt-derived-1
@@ -1191,9 +1199,9 @@ GDAL provides a set of default pixel functions that can be used without writing 
      - -
      - extract module from a single raster band (real or complex)
    * - **mul**
-     - >= 2
+     - >= 1
      - ``k`` (optional)
-     - multiply 2 or more raster bands. If the optional ``k`` parameter is provided then the result is multiplied by the scalar ``k``.
+     - multiply 1 or more raster bands. If the optional ``k`` parameter is provided then the result is multiplied by the scalar ``k``.
    * - **norm_diff**
      - 2
      - -
@@ -1214,6 +1222,10 @@ GDAL provides a set of default pixel functions that can be used without writing 
      - 1
      - -
      - extract real part from a single raster band (just a copy if the input is non-complex)
+   * - **reclassify**
+     - = 1
+     - ``mapping``, ``default``
+     - reclassify values according to a mapping provided by ``mapping``. The format of the mapping is ``SOURCE=DEST;SOURCE=DEST;...`` where each ``SOURCE`` element is either a single value, an interval (e.g., ``(-inf,30]``), ``NO_DATA``, or ``DEFAULT``. ``DEST`` may be any constant, ``PASS_THROUGH`` (to skip reclassification for certain values), or ``NO_DATA``. An error will be raised if a pixel value is not covered by any interval. A similar functionality, but with interpolation, is offered by the ``ComplexSource``.
    * - **replace_nodata**
      - = 1
      - ``to`` (optional)
@@ -1227,9 +1239,9 @@ GDAL provides a set of default pixel functions that can be used without writing 
      - -
      - perform the square root of a single raster band (real only)
    * - **sum**
-     - >= 2
+     - >= 1
      - ``k`` (optional)
-     - sum 2 or more raster bands. If the optional ``k`` parameter is provided then it is added to each element of the result
+     - sum 1 or more raster bands. If the optional ``k`` parameter is provided then it is added to each element of the result
 
 .. example::
    :title: VRT expression with a simple condition
@@ -1445,8 +1457,6 @@ set to VRTDerivedRasterBand) are :
 - **PixelFunctionCode** (required if PixelFunctionType is of the form "function_name", ignored otherwise). The in-lined code of a Python module, that must be at least have a function whose name is given by PixelFunctionType.
 
 - **BufferRadius** (optional, defaults to 0): Amount of extra pixels, with respect to the original RasterIO() request to satisfy, that are fetched at the left, right, bottom and top of the input and output buffers passed to the pixel function. Note that the values of the output buffer in this buffer zone will be ignored.
-
-- **SkipNonContributingSources** (optional, added in GDAL 3.7, defaults to false) = true/false: Whether sources that do not intersect the VRTRasterBand RasterIO() requested region should be omitted. By default, data for all sources, including ones that do not intersect it, are passed to the pixel function. By setting this parameter to false, only sources that intersect the requested region will be passed.
 
 The signature of the Python pixel function must have the following arguments:
 

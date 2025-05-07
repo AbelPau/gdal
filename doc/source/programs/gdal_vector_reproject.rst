@@ -1,7 +1,7 @@
-.. _gdal_vector_reproject_subcommand:
+.. _gdal_vector_reproject:
 
 ================================================================================
-"gdal vector reproject" sub-command
+``gdal vector reproject``
 ================================================================================
 
 .. versionadded:: 3.11
@@ -23,12 +23,16 @@ Description
 :program:`gdal vector reproject` can be used to reproject a vector dataset.
 The program can reproject to any supported projection.
 
+This command can also be used as a step of :ref:`gdal_vector_pipeline`.
+
 Standard options
 ++++++++++++++++
 
 .. include:: gdal_options/of_vector.rst
 
 .. include:: gdal_options/co_vector.rst
+
+.. include:: options/lco.rst
 
 .. include:: gdal_options/overwrite.rst
 
@@ -63,13 +67,13 @@ Standard options
     Set source spatial reference. If not specified the SRS found in the input
     dataset will be used.
 
-    .. include:: options/srs_def_gdalwarp.rst
+    .. include:: gdal_options/srs_def_gdal_raster_reproject.rst
 
 .. option:: -d, --dst-crs <SRC-CRS>
 
     Set destination spatial reference.
 
-    .. include:: options/srs_def_gdalwarp.rst
+    .. include:: gdal_options/srs_def_gdal_raster_reproject.rst
 
 .. GDALG output (on-the-fly / streamed dataset)
 .. --------------------------------------------

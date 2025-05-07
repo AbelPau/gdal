@@ -38,13 +38,14 @@ GDALRasterContourAlgorithm::GDALRasterContourAlgorithm()
     AddProgressArg();
     AddOutputFormatArg(&m_outputFormat)
         .AddMetadataItem(GAAMDI_REQUIRED_CAPABILITIES,
-                         {GDAL_DCAP_VECTOR, GDAL_DCAP_CREATECOPY});
+                         {GDAL_DCAP_VECTOR, GDAL_DCAP_CREATE});
     AddOpenOptionsArg(&m_openOptions);
     AddInputFormatsArg(&m_inputFormats)
         .AddMetadataItem(GAAMDI_REQUIRED_CAPABILITIES, {GDAL_DCAP_RASTER});
     AddInputDatasetArg(&m_inputDataset, GDAL_OF_RASTER);
-    AddOutputDatasetArg(&m_outputDataset, GDAL_OF_RASTER);
+    AddOutputDatasetArg(&m_outputDataset, GDAL_OF_VECTOR);
     AddCreationOptionsArg(&m_creationOptions);
+    AddLayerCreationOptionsArg(&m_layerCreationOptions);
 
     // gdal_contour specific options
     AddBandArg(&m_band).SetDefault(1);
@@ -55,7 +56,7 @@ GDALRasterContourAlgorithm::GDALRasterContourAlgorithm()
     AddArg("max-name", 0, _("Name of the maximum elevation field"), &m_amax);
     AddArg("3d", 0, _("Force production of 3D vectors instead of 2D"), &m_3d);
 
-    AddArg("srcnodata", 0, _("Input pixel value to treat as 'nodata'"),
+    AddArg("src-nodata", 0, _("Input pixel value to treat as 'nodata'"),
            &m_sNodata);
     AddArg("interval", 0, _("Elevation interval between contours"), &m_interval)
         .SetMutualExclusionGroup("levels")
@@ -87,13 +88,7 @@ bool GDALRasterContourAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
     CPLErrorReset();
 
     CPLAssert(m_inputDataset.GetDatasetRef());
-    if (m_outputDataset.GetDatasetRef())
-    {
-        CPLError(CE_Failure, CPLE_NotSupported,
-                 "gdal raster contour does not support outputting to an "
-                 "already opened output dataset");
-        return false;
-    }
+    CPLAssert(!m_outputDataset.GetDatasetRef());
 
     CPLStringList aosOptions;
     if (!m_outputFormat.empty())
@@ -107,6 +102,13 @@ bool GDALRasterContourAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
         aosOptions.AddString("-co");
         aosOptions.AddString(co);
     }
+
+    for (const auto &co : m_layerCreationOptions)
+    {
+        aosOptions.AddString("-lco");
+        aosOptions.AddString(co);
+    }
+
     if (m_band > 0)
     {
         aosOptions.AddString("-b");
@@ -167,19 +169,6 @@ bool GDALRasterContourAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
     {
         aosOptions.AddString("-nln");
         aosOptions.AddString(m_outputLayerName);
-    }
-
-    VSIStatBufL sStat;
-    if (!m_overwrite && !m_outputDataset.GetName().empty() &&
-        (VSIStatL(m_outputDataset.GetName().c_str(), &sStat) == 0 ||
-         std::unique_ptr<GDALDataset>(
-             GDALDataset::Open(m_outputDataset.GetName().c_str()))))
-    {
-        ReportError(CE_Failure, CPLE_AppDefined,
-                    "File '%s' already exists. Specify the --overwrite "
-                    "option to overwrite it.",
-                    m_outputDataset.GetName().c_str());
-        return false;
     }
 
     // Check that one of --interval, --levels, --exp-base is specified

@@ -1,7 +1,7 @@
-.. _gdal_info_command:
+.. _gdal_info:
 
 ================================================================================
-"gdal info" command
+``gdal info``
 ================================================================================
 
 .. versionadded:: 3.11
@@ -12,8 +12,8 @@
 
 .. Index:: gdal info
 
-Acts as a shortcut for :ref:`gdal_raster_info_subcommand` or
-:ref:`gdal_vector_info_subcommand` depending on the nature of the specified dataset.
+Acts as a shortcut for :ref:`gdal_raster_info` or
+:ref:`gdal_vector_info` depending on the nature of the specified dataset.
 
 Synopsis
 --------
@@ -24,15 +24,20 @@ Examples
 --------
 
 .. example::
-   :title: Getting information on the file :file:`utm.tif` (with JSON output)
+   :title: Getting information on the file :file:`utmsmall.tif` (with JSON output)
 
-   .. code-block:: console
-
-       $ gdal info utm.tif
+   .. command-output:: gdal info utmsmall.tif
+      :cwd: ../../data
 
 .. example::
    :title: Getting information on the file :file:`poly.gpkg` (with text output), listing all features
 
+   .. command-output:: gdal vector info --format=text --features poly.gpkg
+      :cwd: ../../data
+
+.. example::
+   :title: Getting the list of all drivers (with JSON output)
+
    .. code-block:: console
 
-       $ gdal info --format=text --features poly.gpkg
+       $ gdal --drivers

@@ -2491,6 +2491,115 @@ uint64_t CPL_STDCALL GDALGetRasterNoDataValueAsUInt64(GDALRasterBandH hBand,
 }
 
 /************************************************************************/
+/*                        SetNoDataValueAsString()                      */
+/************************************************************************/
+
+/**
+ * \brief Set the no data value for this band.
+ *
+ * Depending on drivers, changing the no data value may or may not have an
+ * effect on the pixel values of a raster that has just been created. It is
+ * thus advised to explicitly called Fill() if the intent is to initialize
+ * the raster to the nodata value.
+ * In any case, changing an existing no data value, when one already exists and
+ * the dataset exists or has been initialized, has no effect on the pixel whose
+ * value matched the previous nodata value.
+ *
+ * To clear the nodata value, use DeleteNoDataValue().
+ *
+ * @param pszNoData the value to set.
+ * @param[out] pbCannotBeExactlyRepresented Pointer to a boolean, or nullptr.
+ *             If the value cannot be exactly represented on the output data
+ *             type, *pbCannotBeExactlyRepresented will be set to true.
+ *
+ * @return CE_None on success, or CE_Failure on failure.  If unsupported
+ * by the driver, CE_Failure is returned but no error message will have
+ * been emitted.
+ *
+ * @since 3.11
+ */
+
+CPLErr
+GDALRasterBand::SetNoDataValueAsString(const char *pszNoData,
+                                       bool *pbCannotBeExactlyRepresented)
+{
+    if (pbCannotBeExactlyRepresented)
+        *pbCannotBeExactlyRepresented = false;
+    if (eDataType == GDT_Int64)
+    {
+        if (strchr(pszNoData, '.') ||
+            CPLGetValueType(pszNoData) == CPL_VALUE_STRING)
+        {
+            char *endptr = nullptr;
+            const double dfVal = CPLStrtod(pszNoData, &endptr);
+            if (endptr == pszNoData + strlen(pszNoData) &&
+                GDALIsValueExactAs<int64_t>(dfVal))
+            {
+                return SetNoDataValueAsInt64(static_cast<int64_t>(dfVal));
+            }
+        }
+        else
+        {
+            try
+            {
+                const auto val = std::stoll(pszNoData);
+                return SetNoDataValueAsInt64(static_cast<int64_t>(val));
+            }
+            catch (const std::exception &)
+            {
+            }
+        }
+    }
+    else if (eDataType == GDT_UInt64)
+    {
+        if (strchr(pszNoData, '.') ||
+            CPLGetValueType(pszNoData) == CPL_VALUE_STRING)
+        {
+            char *endptr = nullptr;
+            const double dfVal = CPLStrtod(pszNoData, &endptr);
+            if (endptr == pszNoData + strlen(pszNoData) &&
+                GDALIsValueExactAs<uint64_t>(dfVal))
+            {
+                return SetNoDataValueAsUInt64(static_cast<uint64_t>(dfVal));
+            }
+        }
+        else
+        {
+            try
+            {
+                const auto val = std::stoull(pszNoData);
+                return SetNoDataValueAsUInt64(static_cast<uint64_t>(val));
+            }
+            catch (const std::exception &)
+            {
+            }
+        }
+    }
+    else if (eDataType == GDT_Float32)
+    {
+        char *endptr = nullptr;
+        const float fVal = CPLStrtof(pszNoData, &endptr);
+        if (endptr == pszNoData + strlen(pszNoData))
+        {
+            return SetNoDataValue(fVal);
+        }
+    }
+    else
+    {
+        char *endptr = nullptr;
+        const double dfVal = CPLStrtod(pszNoData, &endptr);
+        if (endptr == pszNoData + strlen(pszNoData) &&
+            GDALIsValueExactAs(dfVal, eDataType))
+        {
+            return SetNoDataValue(dfVal);
+        }
+    }
+    if (pbCannotBeExactlyRepresented)
+        *pbCannotBeExactlyRepresented = true;
+    return CE_Failure;
+}
+
+/************************************************************************/
 /*                           SetNoDataValue()                           */
 /************************************************************************/
 
@@ -2517,7 +2626,7 @@ uint64_t CPL_STDCALL GDALGetRasterNoDataValueAsUInt64(GDALRasterBandH hBand,
  * @param dfNoData the value to set.
  *
  * @return CE_None on success, or CE_Failure on failure.  If unsupported
- * by the driver, CE_Failure is returned by no error message will have
+ * by the driver, CE_Failure is returned but no error message will have
  * been emitted.
  */
 
@@ -2590,7 +2699,7 @@ CPLErr CPL_STDCALL GDALSetRasterNoDataValue(GDALRasterBandH hBand,
  * @param nNoDataValue the value to set.
  *
  * @return CE_None on success, or CE_Failure on failure.  If unsupported
- * by the driver, CE_Failure is returned by no error message will have
+ * by the driver, CE_Failure is returned but no error message will have
  * been emitted.
  *
  * @since GDAL 3.5
@@ -2662,7 +2771,7 @@ CPLErr CPL_STDCALL GDALSetRasterNoDataValueAsInt64(GDALRasterBandH hBand,
  * @param nNoDataValue the value to set.
  *
  * @return CE_None on success, or CE_Failure on failure.  If unsupported
- * by the driver, CE_Failure is returned by no error message will have
+ * by the driver, CE_Failure is returned but no error message will have
  * been emitted.
  *
  * @since GDAL 3.5
@@ -2720,7 +2829,7 @@ CPLErr CPL_STDCALL GDALSetRasterNoDataValueAsUInt64(GDALRasterBandH hBand,
  * This method is the same as the C function GDALDeleteRasterNoDataValue().
  *
  * @return CE_None on success, or CE_Failure on failure.  If unsupported
- * by the driver, CE_Failure is returned by no error message will have
+ * by the driver, CE_Failure is returned but no error message will have
  * been emitted.
  *
  * @since GDAL 2.1
@@ -3969,7 +4078,7 @@ struct GDALNoDataValues
           bGotFloat16NoDataValue(false), hfNoDataValue(GFloat16(0.0f))
     {
         dfNoDataValue = poRasterBand->GetNoDataValue(&bGotNoDataValue);
-        bGotNoDataValue = bGotNoDataValue && !CPLIsNan(dfNoDataValue);
+        bGotNoDataValue = bGotNoDataValue && !std::isnan(dfNoDataValue);
 
         ComputeFloatNoDataValue(eDataType, dfNoDataValue, bGotNoDataValue,
                                 fNoDataValue, bGotFloatNoDataValue);
@@ -4213,9 +4322,10 @@ CPLErr GDALRasterBand::GetHistogram(double dfMin, double dfMax, int nBuckets,
                         break;
                     case GDT_Float16:
                     {
+                        using namespace std;
                         const GFloat16 hfValue =
                             static_cast<GFloat16 *>(pData)[iOffset];
-                        if (CPLIsNan(hfValue) ||
+                        if (isnan(hfValue) ||
                             (sNoDataValues.bGotFloat16NoDataValue &&
                              ARE_REAL_EQUAL(hfValue,
                                             sNoDataValues.hfNoDataValue)))
@@ -4227,7 +4337,7 @@ CPLErr GDALRasterBand::GetHistogram(double dfMin, double dfMax, int nBuckets,
                     {
                         const float fValue =
                             static_cast<float *>(pData)[iOffset];
-                        if (CPLIsNan(fValue) ||
+                        if (std::isnan(fValue) ||
                             (sNoDataValues.bGotFloatNoDataValue &&
                              ARE_REAL_EQUAL(fValue,
                                             sNoDataValues.fNoDataValue)))
@@ -4268,7 +4378,7 @@ CPLErr GDALRasterBand::GetHistogram(double dfMin, double dfMax, int nBuckets,
                             static_cast<GFloat16 *>(pData)[iOffset * 2];
                         const double dfImag =
                             static_cast<GFloat16 *>(pData)[iOffset * 2 + 1];
-                        if (CPLIsNan(dfReal) || CPLIsNan(dfImag))
+                        if (std::isnan(dfReal) || std::isnan(dfImag))
                             continue;
                         dfValue = sqrt(dfReal * dfReal + dfImag * dfImag);
                         break;
@@ -4484,9 +4594,10 @@ CPLErr GDALRasterBand::GetHistogram(double dfMin, double dfMax, int nBuckets,
                             break;
                         case GDT_Float16:
                         {
+                            using namespace std;
                             const GFloat16 hfValue =
                                 static_cast<GFloat16 *>(pData)[iOffset];
-                            if (CPLIsNan(hfValue) ||
+                            if (isnan(hfValue) ||
                                 (sNoDataValues.bGotFloat16NoDataValue &&
                                  ARE_REAL_EQUAL(hfValue,
                                                 sNoDataValues.hfNoDataValue)))
@@ -4498,7 +4609,7 @@ CPLErr GDALRasterBand::GetHistogram(double dfMin, double dfMax, int nBuckets,
                         {
                             const float fValue =
                                 static_cast<float *>(pData)[iOffset];
-                            if (CPLIsNan(fValue) ||
+                            if (std::isnan(fValue) ||
                                 (sNoDataValues.bGotFloatNoDataValue &&
                                  ARE_REAL_EQUAL(fValue,
                                                 sNoDataValues.fNoDataValue)))
@@ -4535,7 +4646,7 @@ CPLErr GDALRasterBand::GetHistogram(double dfMin, double dfMax, int nBuckets,
                                 static_cast<GFloat16 *>(pData)[iOffset * 2];
                             double dfImag =
                                 static_cast<GFloat16 *>(pData)[iOffset * 2 + 1];
-                            if (CPLIsNan(dfReal) || CPLIsNan(dfImag))
+                            if (std::isnan(dfReal) || std::isnan(dfImag))
                                 continue;
                             dfValue = sqrt(dfReal * dfReal + dfImag * dfImag);
                             break;
@@ -6197,9 +6308,10 @@ static inline double GetPixelValue(GDALDataType eDataType, bool bSignedByte,
             break;
         case GDT_Float16:
         {
+            using namespace std;
             const GFloat16 hfValue =
                 static_cast<const GFloat16 *>(pData)[iOffset];
-            if (CPLIsNan(hfValue) ||
+            if (isnan(hfValue) ||
                 (sNoDataValues.bGotFloat16NoDataValue &&
                  ARE_REAL_EQUAL(hfValue, sNoDataValues.hfNoDataValue)))
             {
@@ -6212,7 +6324,7 @@ static inline double GetPixelValue(GDALDataType eDataType, bool bSignedByte,
         case GDT_Float32:
         {
             const float fValue = static_cast<const float *>(pData)[iOffset];
-            if (CPLIsNan(fValue) ||
+            if (std::isnan(fValue) ||
                 (sNoDataValues.bGotFloatNoDataValue &&
                  ARE_REAL_EQUAL(fValue, sNoDataValues.fNoDataValue)))
             {
@@ -6238,7 +6350,7 @@ static inline double GetPixelValue(GDALDataType eDataType, bool bSignedByte,
             break;
         case GDT_CFloat16:
             dfValue = static_cast<const GFloat16 *>(pData)[iOffset * 2];
-            if (isnan(dfValue))
+            if (std::isnan(dfValue))
             {
                 bValid = false;
                 return 0.0;
@@ -6424,8 +6536,8 @@ CPLErr GDALRasterBand::ComputeStatistics(int bApproxOK, double *pdfMin,
     // the difference of the sum of square values with the square of the sum.
     // dfMean and dfM2 are updated at each sample.
     // dfM2 is the sum of square of differences to the current mean.
-    double dfMin = std::numeric_limits<double>::max();
-    double dfMax = -std::numeric_limits<double>::max();
+    double dfMin = std::numeric_limits<double>::infinity();
+    double dfMax = -std::numeric_limits<double>::infinity();
     double dfMean = 0.0;
     double dfM2 = 0.0;
 
@@ -6535,9 +6647,17 @@ CPLErr GDALRasterBand::ComputeStatistics(int bApproxOK, double *pdfMin,
                 dfMax = std::max(dfMax, dfValue);
 
                 nValidCount++;
-                const double dfDelta = dfValue - dfMean;
-                dfMean += dfDelta / nValidCount;
-                dfM2 += dfDelta * (dfValue - dfMean);
+                if (dfMin == dfMax)
+                {
+                    if (nValidCount == 1)
+                        dfMean = dfMin;
+                }
+                else
+                {
+                    const double dfDelta = dfValue - dfMean;
+                    dfMean += dfDelta / nValidCount;
+                    dfM2 += dfDelta * (dfValue - dfMean);
+                }
             }
         }
 
@@ -6789,9 +6909,17 @@ CPLErr GDALRasterBand::ComputeStatistics(int bApproxOK, double *pdfMin,
                     dfMax = std::max(dfMax, dfValue);
 
                     nValidCount++;
-                    const double dfDelta = dfValue - dfMean;
-                    dfMean += dfDelta / nValidCount;
-                    dfM2 += dfDelta * (dfValue - dfMean);
+                    if (dfMin == dfMax)
+                    {
+                        if (nValidCount == 1)
+                            dfMean = dfMin;
+                    }
+                    else
+                    {
+                        const double dfDelta = dfValue - dfMean;
+                        dfMean += dfDelta / nValidCount;
+                        dfM2 += dfDelta * (dfValue - dfMean);
+                    }
                 }
             }
 
@@ -7296,9 +7424,9 @@ CPLErr GDALRasterBand::ComputeRasterMinMax(int bApproxOK, double *adfMinMax)
     GInt16 nMaxInt16 =
         std::numeric_limits<GInt16>::lowest();  // used for GInt16 case
     double dfMin =
-        std::numeric_limits<double>::max();  // used for generic code path
+        std::numeric_limits<double>::infinity();  // used for generic code path
     double dfMax =
-        std::numeric_limits<double>::lowest();  // used for generic code path
+        -std::numeric_limits<double>::infinity();  // used for generic code path
     const bool bUseOptimizedPath =
         !poMaskBand && ((eDataType == GDT_Byte && !bSignedByte) ||
                         eDataType == GDT_Int16 || eDataType == GDT_UInt16);

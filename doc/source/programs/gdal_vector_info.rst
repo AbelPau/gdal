@@ -1,7 +1,7 @@
-.. _gdal_vector_info_subcommand:
+.. _gdal_vector_info:
 
 ================================================================================
-"gdal vector info" sub-command
+``gdal vector info``
 ================================================================================
 
 .. versionadded:: 3.11
@@ -86,6 +86,11 @@ Examples
 .. example::
    :title: Getting information on the file :file:`poly.gpkg` (with text output), listing all features
 
-   .. code-block:: console
+   .. command-output:: gdal vector info --format=text --features poly.gpkg
+      :cwd: ../../data
 
-       $ gdal vector info --format=text --features poly.gpkg
+.. example::
+   :title: Getting information on the file :file:`poly.gpkg` (with JSON output)
+
+   .. command-output:: gdal vector info poly.gpkg
+      :cwd: ../../data

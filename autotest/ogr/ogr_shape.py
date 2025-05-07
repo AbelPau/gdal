@@ -3418,6 +3418,9 @@ def test_ogr_shape_78(tmp_vsimem):
     fd.SetPrecision(1)
     lyr.CreateField(fd)
 
+    fd = ogr.FieldDefn("dblfield3", ogr.OFTReal)
+    lyr.CreateField(fd)
+
     # Integer values up to 2^53 can be exactly converted into a double.
     gdal.ErrorReset()
     f = ogr.Feature(lyr.GetLayerDefn())
@@ -3441,6 +3444,13 @@ def test_ogr_shape_78(tmp_vsimem):
         lyr.CreateFeature(f)
     assert gdal.GetLastErrorMsg() != "", "did not get expected error/warning"
 
+    # Likely precision loss
+    gdal.ErrorReset()
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f.SetField("dblfield3", 1623819823.809)
+    lyr.CreateFeature(f)
+    assert gdal.GetLastErrorMsg() == ""
+
     gdal.ErrorReset()
     ds = None
 
@@ -3448,6 +3458,12 @@ def test_ogr_shape_78(tmp_vsimem):
     lyr = ds.GetLayer(0)
     f = lyr.GetNextFeature()
     assert f.GetField("dblfield") == 9007199254740992.0
+    f = lyr.GetNextFeature()
+    assert f.IsFieldNull("dblfield")
+    f = lyr.GetNextFeature()
+    assert f.GetField("dblfield") == 9007199254740994.0
+    f = lyr.GetNextFeature()
+    assert f.GetField("dblfield3") == 1623819823.809
     ds = None
 
 
@@ -5772,7 +5788,7 @@ def test_ogr_shape_prj_with_wrong_axis_order(tmp_vsimem):
 @gdaltest.enable_exceptions()
 def test_ogr_shape_write_arrow_fallback_types(tmp_vsimem):
 
-    src_ds = ogr.GetDriverByName("Memory").CreateDataSource("")
+    src_ds = ogr.GetDriverByName("MEM").CreateDataSource("")
     src_lyr = src_ds.CreateLayer("test")
     src_lyr.CreateField(ogr.FieldDefn("string", ogr.OFTString))
     src_lyr.CreateField(ogr.FieldDefn("int", ogr.OFTInteger))
@@ -5845,7 +5861,7 @@ def test_ogr_shape_write_arrow_fallback_types(tmp_vsimem):
 @gdaltest.enable_exceptions()
 def test_ogr_shape_write_arrow_IF_FID_NOT_PRESERVED_ERROR(tmp_vsimem):
 
-    src_ds = ogr.GetDriverByName("Memory").CreateDataSource("")
+    src_ds = ogr.GetDriverByName("MEM").CreateDataSource("")
     src_lyr = src_ds.CreateLayer("test")
     f = ogr.Feature(src_lyr.GetLayerDefn())
     f.SetFID(1)
@@ -6113,9 +6129,7 @@ def test_ogr_shape_arrow_stream_fid_optim(tmp_vsimem):
 def test_ogr_shape_logical_field(tmp_vsimem):
 
     filename = tmp_vsimem / "test_ogr_shape_logical_field.shp"
-    ds = gdal.GetDriverByName("ESRI Shapefile").Create(
-        filename, 0, 0, 0, gdal.GDT_Unknown
-    )
+    ds = gdal.GetDriverByName("ESRI Shapefile").CreateVector(filename)
     lyr = ds.CreateLayer("test")
     fld_defn = ogr.FieldDefn("bool_field", ogr.OFTInteger)
     fld_defn.SetSubType(ogr.OFSTBoolean)

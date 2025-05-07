@@ -1,7 +1,7 @@
-.. _gdal_vector_sql_subcommand:
+.. _gdal_vector_sql:
 
 ================================================================================
-"gdal vector sql" sub-command
+``gdal vector sql``
 ================================================================================
 
 .. versionadded:: 3.11
@@ -29,6 +29,8 @@ Standard options
 .. include:: gdal_options/of_vector.rst
 
 .. include:: gdal_options/co_vector.rst
+
+.. include:: options/lco.rst
 
 .. include:: gdal_options/overwrite.rst
 

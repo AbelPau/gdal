@@ -61,9 +61,10 @@ GDALVectorEditAlgorithm::GDALVectorEditAlgorithm(bool standaloneStep)
     {
         auto &arg = AddArg("metadata", 0, _("Add/update dataset metadata item"),
                            &m_metadata)
-                        .SetMetaVar("<KEY>=<VALUE>");
+                        .SetMetaVar("<KEY>=<VALUE>")
+                        .SetPackedValuesAllowed(false);
         arg.AddValidationAction([this, &arg]()
-                                { return ValidateKeyValue(arg); });
+                                { return ParseAndValidateKeyValue(arg); });
         arg.AddHiddenAlias("mo");
     }
 
@@ -75,9 +76,10 @@ GDALVectorEditAlgorithm::GDALVectorEditAlgorithm(bool standaloneStep)
         auto &arg =
             AddArg("layer-metadata", 0, _("Add/update layer metadata item"),
                    &m_layerMetadata)
-                .SetMetaVar("<KEY>=<VALUE>");
+                .SetMetaVar("<KEY>=<VALUE>")
+                .SetPackedValuesAllowed(false);
         arg.AddValidationAction([this, &arg]()
-                                { return ValidateKeyValue(arg); });
+                                { return ParseAndValidateKeyValue(arg); });
     }
 
     AddArg("unset-layer-metadata", 0, _("Remove layer metadata item"),
@@ -209,11 +211,12 @@ class GDALVectorEditAlgorithmLayer final : public GDALVectorPipelineOutputLayer
 
 bool GDALVectorEditAlgorithm::RunStep(GDALProgressFunc, void *)
 {
-    CPLAssert(m_inputDataset.GetDatasetRef());
+    auto poSrcDS = m_inputDataset[0].GetDatasetRef();
+    CPLAssert(poSrcDS);
+
     CPLAssert(m_outputDataset.GetName().empty());
     CPLAssert(!m_outputDataset.GetDatasetRef());
 
-    auto poSrcDS = m_inputDataset.GetDatasetRef();
     const int nLayerCount = poSrcDS->GetLayerCount();
 
     bool bChangeGeomType = false;

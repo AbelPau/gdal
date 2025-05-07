@@ -18,6 +18,7 @@
 #include "cpl_conv.h"
 #include "cpl_json.h"
 #include "gdalalgorithm.h"
+#include "gdal_priv.h"
 
 #include <algorithm>
 
@@ -172,8 +173,8 @@ bool GDALAbstractPipelineAlgorithm<StepAlgorithm>::RunStep(
             const auto &filename =
                 outputArg->GDALAlgorithmArg::template Get<GDALArgDatasetValue>()
                     .GetName();
-            VSIStatBufL sStat;
-            if (VSIStatL(filename.c_str(), &sStat) == 0)
+            const char *pszType = "";
+            if (GDALDoesFileOrDatasetExist(filename.c_str(), &pszType))
             {
                 const auto overwriteArg =
                     m_steps.back()->GetArg(GDAL_ARG_NAME_OVERWRITE);
@@ -182,9 +183,9 @@ bool GDALAbstractPipelineAlgorithm<StepAlgorithm>::RunStep(
                     if (!overwriteArg->GDALAlgorithmArg::template Get<bool>())
                     {
                         CPLError(CE_Failure, CPLE_AppDefined,
-                                 "File '%s' already exists. Specify the "
+                                 "%s '%s' already exists. Specify the "
                                  "--overwrite option to overwrite it.",
-                                 filename.c_str());
+                                 pszType, filename.c_str());
                         return false;
                     }
                 }
@@ -230,11 +231,7 @@ bool GDALAbstractPipelineAlgorithm<StepAlgorithm>::RunStep(
                 }
             }
 
-            CPLJSONDocument oDoc;
-            oDoc.GetRoot().Add("type", "gdal_streamed_alg");
-            oDoc.GetRoot().Add("command_line", osCommandLine);
-
-            return oDoc.Save(filename);
+            return GDALAlgorithm::SaveGDALG(filename, osCommandLine);
         }
 
         const auto outputFormatArg =
@@ -312,16 +309,37 @@ bool GDALAbstractPipelineAlgorithm<StepAlgorithm>::RunStep(
         auto &step = m_steps[i];
         if (i > 0)
         {
-            if (step->m_inputDataset.GetDatasetRef())
+            if constexpr (std::is_same_v<decltype(step->m_inputDataset),
+                                         GDALArgDatasetValue>)
             {
-                // Shouldn't happen
-                StepAlgorithm::ReportError(
-                    CE_Failure, CPLE_AppDefined,
-                    "Step nr %d (%s) has already an input dataset",
-                    static_cast<int>(i), step->GetName().c_str());
-                return false;
+                if (step->m_inputDataset.GetDatasetRef())
+                {
+                    // Shouldn't happen
+                    StepAlgorithm::ReportError(
+                        CE_Failure, CPLE_AppDefined,
+                        "Step nr %d (%s) has already an input dataset",
+                        static_cast<int>(i), step->GetName().c_str());
+                    return false;
+                }
+                step->m_inputDataset.Set(poCurDS);
             }
-            step->m_inputDataset.Set(poCurDS);
+            else if constexpr (std::is_same_v<decltype(step->m_inputDataset),
+                                              std::vector<GDALArgDatasetValue>>)
+            {
+                if (!step->m_inputDataset.empty() &&
+                    step->m_inputDataset[0].GetDatasetRef())
+                {
+                    // Shouldn't happen
+                    StepAlgorithm::ReportError(
+                        CE_Failure, CPLE_AppDefined,
+                        "Step nr %d (%s) has already an input dataset",
+                        static_cast<int>(i), step->GetName().c_str());
+                    return false;
+                }
+                step->m_inputDataset.clear();
+                step->m_inputDataset.resize(1);
+                step->m_inputDataset[0].Set(poCurDS);
+            }
         }
         if (i + 1 < m_steps.size() && step->m_outputDataset.GetDatasetRef())
         {

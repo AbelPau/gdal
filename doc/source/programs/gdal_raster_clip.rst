@@ -1,7 +1,7 @@
-.. _gdal_raster_clip_subcommand:
+.. _gdal_raster_clip:
 
 ================================================================================
-"gdal raster clip" sub-command
+``gdal raster clip``
 ================================================================================
 
 .. versionadded:: 3.11
@@ -15,38 +15,7 @@
 Synopsis
 --------
 
-.. code-block::
-
-    Usage: gdal raster clip [OPTIONS] <INPUT> <OUTPUT>
-
-    Clip a raster dataset.
-
-    Positional arguments:
-      -i, --input <INPUT>                                  Input raster dataset [required]
-      -o, --output <OUTPUT>                                Output raster dataset [required]
-
-    Common Options:
-      -h, --help                                           Display help message and exit
-      --version                                            Display GDAL version and exit
-      --json-usage                                         Display usage as JSON document and exit
-      --drivers                                            Display driver list as JSON document and exit
-      --config <KEY>=<VALUE>                               Configuration option [may be repeated]
-      --progress                                           Display progress bar
-
-    Options:
-      -f, --of, --format, --output-format <OUTPUT-FORMAT>  Output format
-      --co, --creation-option <KEY>=<VALUE>                Creation option [may be repeated]
-      --overwrite                                          Whether overwriting existing output is allowed
-      --bbox <BBOX>                                        Clipping bounding box as xmin,ymin,xmax,ymax
-                                                           Mutually exclusive with --like
-      --bbox-crs <BBOX-CRS>                                CRS of clipping bounding box
-      --like <DATASET>                                     Raster dataset to use as a template for bounds
-                                                           Mutually exclusive with --bbox
-
-    Advanced Options:
-      --if, --input-format <INPUT-FORMAT>                  Input formats [may be repeated]
-      --oo, --open-option <KEY=VALUE>                      Open options [may be repeated]
-
+.. program-output:: gdal raster clip --help-doc
 
 Description
 -----------
@@ -60,7 +29,7 @@ The output dataset is in the same SRS as the input one, and the original
 resolution is preserved. Bounds are rounded to match whole pixel locations
 (i.e. there is no resampling involved)
 
-``clip`` can also be used as a step of :ref:`gdal_raster_pipeline_subcommand`.
+``clip`` can also be used as a step of :ref:`gdal_raster_pipeline`.
 
 Standard options
 ++++++++++++++++
@@ -77,23 +46,88 @@ Standard options
     the input dataset, unless :option:`--bbox-crs` is specified.
     The X and Y axis are the "GIS friendly ones", that is X is longitude or easting,
     and Y is latitude or northing.
+    The bounds are expanded if necessary to match input pixel boundaries.
+    By default, :program:`gdal raster clip` will produce an error if the bounds indicated
+    by :option:`--bbox` are greater than the extents of input dataset. This check can be
+    bypassed using :option:`--allow-bbox-outside-source`.
 
 .. option:: --bbox-crs <CRS>
 
     CRS in which the <xmin>,<ymin>,<xmax>,<ymax> values of :option:`--bbox`
     are expressed. If not specified, it is assumed to be the CRS of the input
     dataset.
-    Not that specifying --bbox-crs does not involve doing raster reprojection.
+    Note that specifying :option:`--bbox-crs` does not cause the raster to be reprojected.
     Instead, the bounds are reprojected from the bbox-crs to the CRS of the
+    input dataset.
+
+.. option:: --geometry <WKT_or_GeoJSON>
+
+    Geometry as a WKT or GeoJSON string of a polygon (or multipolygon) to which
+    to clip the dataset.
+    Raster areas within the bounding box of the geometry but not inside the
+    geometry itself will be set to the nodata value of the raster, or 0 if there
+    is none. All pixels overlapping the geometry will be selected.
+    If the input geometry is GeoJSON, its CRS is assumed to be WGS84, unless there is
+    a CRS defined in the GeoJSON geometry or :option:`--geometry-crs` is specified.
+    If the input geometry is WKT, its CRS is assumed to be the one of the input dataset,
+    unless :option:`--geometry-crs` is specified.
+    The X and Y axis are the "GIS friendly ones", that is X is longitude or easting,
+    and Y is latitude or northing.
+    Mutually exclusive with :option:`--bbox` and :option:`--like`.
+
+.. option:: --geometry-crs <CRS>
+
+    CRS in which the coordinates values of :option:`--geometry`
+    are expressed. If not specified, it is assumed to be the CRS of the input
+    dataset.
+    The bounds are reprojected from the geometry-crs to the CRS of the
     input dataset.
 
 .. option:: --like <DATASET>
 
-    Raster dataset to use as a template for bounds, forming a rectangular shape
-    following the geotransformation matrix (and thus potentially including
-    nodata collar).
-    This option is mutually
-    exclusive with :option:`--bbox` and :option:`--bbox-crs`.
+    Vector or raster dataset to use as a template for bounds.
+    If the specified dataset is a raster, its rectangular bounds are used as
+    the clipping geometry.
+    If the specified dataset is a vector dataset, its polygonal geometries
+    are unioned together to form the clipping geometry. If several layers are present,
+    :option:`--like-sql` or :option:`--like-layer` must be specified.
+    Raster areas within the bounding box of the geometry but not inside the
+    geometry itself will be set to the nodata value of the raster, or 0 if there
+    is none.
+    Mutually exclusive with :option:`--bbox` and :option:`--geometry`.
+
+.. option:: --like-sql <SELECT-STATEMENT>
+
+    Select desired geometries from the vector clip dataset using an SQL query.
+    e.g ``SELECT geom FROM my_layer WHERE country = 'France'``.
+    The SQL dialect used will be the default one of the ``like`` dataset (OGR SQL
+    for Shapefile, SQLite for GeoPackage, PostgreSQL for PostGIS, etc.).
+    Mutually exclusive with :option:`--like-layer` and :option:`--like-where`
+
+.. option:: --like-layer <LAYER-NAME>
+
+    Select the named layer from the vector clip dataset.
+    Mutually exclusive with :option:`--like-sql`
+
+.. option:: --like-where <WHERE-EXPRESSION>
+
+    Restrict desired geometries from vector clip dataset layer based on an attribute query.
+    e.g ``country = 'France'``.
+
+.. option:: --only-bbox
+
+    For :option:`--geometry` and :option:`--like`, only consider the bounding box
+    of the geometry.
+
+.. option:: --allow-bbox-outside-source
+
+    If set, allows the bounds indicated by :option:`--bbox` to cover an extent that is greater
+    than the input dataset. Output pixels from areas beyond the input extent will be set to
+    zero or the NoData value of the input dataset.
+
+.. option:: --addalpha
+
+    Adds an alpha mask band to the destination when the source raster has none.
 
 Advanced options
 ++++++++++++++++

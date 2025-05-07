@@ -83,6 +83,7 @@ extensions = [
     "sphinxcontrib_programoutput_gdal",
     "sphinxcontrib.spelling",
     "myst_nb",
+    "sphinx_tabs.tabs",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -188,6 +189,7 @@ html_favicon = "../images/favicon.png"
 author_frankw = "Frank Warmerdam <warmerdam@pobox.com>"
 author_silker = "Silke Reimer <silke@intevation.de>"
 author_mikhailg = "Mikhail Gusev <gusevmihs@gmail.com>"
+author_dbaston = "Dan Baston <dbaston@gmail.com>"
 author_dmitryb = "Dmitry Baryshnikov <polimax@mail.ru>"
 author_evenr = "Even Rouault <even.rouault@spatialys.com>"
 author_elpaso = "Alessandro Pasotti <elpaso@itopen.it>"
@@ -252,9 +254,23 @@ man_pages = [
         1,
     ),
     (
-        "programs/gdal_raster_astype",
-        "gdal-raster-astype",
+        "programs/gdal_raster_set_type",
+        "gdal-raster-set-type",
         "Modify the data type of bands of a raster dataset",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_raster_calc",
+        "gdal-raster-calc",
+        "Perform pixel-wise calculations on a raster",
+        [author_dbaston],
+        1,
+    ),
+    (
+        "programs/gdal_raster_clean_collar",
+        "gdal-raster-clean-collar",
+        "Clean the collar of a raster dataset, removing noise",
         [author_evenr],
         1,
     ),
@@ -287,6 +303,13 @@ man_pages = [
         1,
     ),
     (
+        "programs/gdal_raster_create",
+        "gdal-raster-create",
+        "Create a new raster dataset",
+        [author_evenr],
+        1,
+    ),
+    (
         "programs/gdal_raster_edit",
         "gdal-raster-edit",
         "Edit in place a raster dataset",
@@ -294,9 +317,30 @@ man_pages = [
         1,
     ),
     (
+        "programs/gdal_raster_footprint",
+        "gdal-raster-footprint",
+        "Compute the footprint of a raster dataset",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_raster_fill_nodata",
+        "gdal-raster-fill-nodata",
+        "Fill nodata values in a raster dataset",
+        [author_elpaso],
+        1,
+    ),
+    (
         "programs/gdal_raster_hillshade",
         "gdal-raster-hillshade",
         "Generate a shaded relief map",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_raster_index",
+        "gdal-raster-index",
+        "Create a vector index of raster datasets",
         [author_evenr],
         1,
     ),
@@ -329,6 +373,27 @@ man_pages = [
         1,
     ),
     (
+        "programs/gdal_raster_polygonize",
+        "gdal-raster-polygonize",
+        "Create a polygon feature dataset from a raster band",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_raster_pixel_info",
+        "gdal-raster-pixel-info",
+        "Return information on a pixel of a raster dataset",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_raster_reclassify",
+        "gdal-raster-reclassify",
+        "Reclassify a raster dataset",
+        [author_dbaston],
+        1,
+    ),
+    (
         "programs/gdal_raster_reproject",
         "gdal-raster-reproject",
         "Reproject a raster dataset",
@@ -357,6 +422,13 @@ man_pages = [
         1,
     ),
     (
+        "programs/gdal_raster_sieve",
+        "gdal-raster-sieve",
+        "Remove small raster polygons",
+        [author_elpaso],
+        1,
+    ),
+    (
         "programs/gdal_raster_select",
         "gdal-raster-select",
         "Select a subset of bands from a raster dataset",
@@ -374,6 +446,13 @@ man_pages = [
         "programs/gdal_raster_stack",
         "gdal-raster-stack",
         "Combine together input bands into a multi-band output, either virtual (VRT) or materialized",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_raster_tile",
+        "gdal-raster-tile",
+        "Generate tiles in separate files from a raster dataset",
         [author_evenr],
         1,
     ),
@@ -399,6 +478,13 @@ man_pages = [
         1,
     ),
     (
+        "programs/gdal_raster_viewshed",
+        "gdal-raster-viewshed",
+        "Compute the viewshed of a raster dataset.",
+        [author_evenr],
+        1,
+    ),
+    (
         "programs/gdal_vector",
         "gdal-vector",
         "Entry point for vector commands",
@@ -416,6 +502,13 @@ man_pages = [
         "programs/gdal_vector_clip",
         "gdal-vector-clip",
         "Clip a vector dataset",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_vector_concat",
+        "gdal-vector_concat",
+        "Concatenate vector datasets",
         [author_evenr],
         1,
     ),
@@ -528,6 +621,55 @@ man_pages = [
         "programs/gdal_vector_sql",
         "gdal-vector-sql",
         "Apply SQL statement(s) to a dataset",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_vsi",
+        "gdal-vsi",
+        "Entry point for GDAL Virtual System Interface (VSI) commands",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_vsi_copy",
+        "gdal-vsi-copy",
+        "Copy files located on GDAL Virtual System Interface (VSI)",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_vsi_delete",
+        "gdal-vsi-delete",
+        "Delete files located on GDAL Virtual System Interface (VSI)",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_vsi_list",
+        "gdal-vsi-list",
+        "List files of one of the GDAL Virtual System Interface (VSI)",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_vsi_move",
+        "gdal-vsi-move",
+        "Move/rename a file/directory located on GDAL Virtual System Interface (VSI)",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_vsi_sync",
+        "gdal-vsi-sync",
+        "Synchronize source and target file/directory located on GDAL Virtual System Interface (VSI)",
+        [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_vsi_sozip",
+        "gdal-vsi-sozip",
+        "SOZIP (Seek-Optimized ZIP) related commands.",
         [author_evenr],
         1,
     ),

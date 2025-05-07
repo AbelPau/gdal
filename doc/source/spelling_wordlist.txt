@@ -46,6 +46,7 @@ Alamos
 Albers
 Alessandro
 alg
+AlgorithmArg
 Alibaba
 Alicante
 allCountries
@@ -329,6 +330,7 @@ cass
 Cassini
 casted
 cb
+CBMTILE
 CCache
 ceil
 celldepth
@@ -441,6 +443,7 @@ ComplexSource
 compoundcurves
 compressiblity
 compressions
+concat
 conceptualhelp
 cond
 conda
@@ -1298,8 +1301,6 @@ hibase
 hicover
 hidensity
 hiduff
-hiearchical
-Hiearchical
 hieast
 hielev
 hifuel
@@ -2369,6 +2370,7 @@ passthrough
 pathname
 PAux
 pauxdataset
+pbCannotBeExactlyRepresented
 pbf
 pbHasNoData
 pbHasNoDataValue
@@ -2431,6 +2433,7 @@ pgRouting
 pgsql
 pgw
 phGeometry
+phLockFileHandle
 Photogrammetric
 photometric
 photooverlay
@@ -3483,6 +3486,7 @@ vetoers
 vetos
 Vexcel
 vfk
+vfs
 Viersen
 viewshed
 Viewshed
@@ -3499,6 +3503,7 @@ vrf
 vrt
 VRT
 VRTDataset
+VRTDerivedRasterBand
 VRTPansharpenedDataset
 VRTWarpedDataset
 vsgis

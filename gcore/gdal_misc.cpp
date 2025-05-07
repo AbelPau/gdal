@@ -175,78 +175,13 @@ GDALDataType CPL_STDCALL GDALDataTypeUnionWithValue(GDALDataType eDT,
                                                     double dfValue,
                                                     int bComplex)
 {
-    if (!bComplex && !GDALDataTypeIsComplex(eDT))
+    if (!bComplex && !GDALDataTypeIsComplex(eDT) && eDT != GDT_Unknown)
     {
-        switch (eDT)
+        // Do not return `GDT_Float16` because that type is not supported everywhere
+        const auto eDTMod = eDT == GDT_Float16 ? GDT_Float32 : eDT;
+        if (GDALIsValueExactAs(dfValue, eDTMod))
         {
-            case GDT_Byte:
-            {
-                if (GDALIsValueExactAs<uint8_t>(dfValue))
-                    return eDT;
-                break;
-            }
-            case GDT_Int8:
-            {
-                if (GDALIsValueExactAs<int8_t>(dfValue))
-                    return eDT;
-                break;
-            }
-            case GDT_UInt16:
-            {
-                if (GDALIsValueExactAs<uint16_t>(dfValue))
-                    return eDT;
-                break;
-            }
-            case GDT_Int16:
-            {
-                if (GDALIsValueExactAs<int16_t>(dfValue))
-                    return eDT;
-                break;
-            }
-            case GDT_UInt32:
-            {
-                if (GDALIsValueExactAs<uint32_t>(dfValue))
-                    return eDT;
-                break;
-            }
-            case GDT_Int32:
-            {
-                if (GDALIsValueExactAs<int32_t>(dfValue))
-                    return eDT;
-                break;
-            }
-            case GDT_UInt64:
-            {
-                if (GDALIsValueExactAs<uint64_t>(dfValue))
-                    return eDT;
-                break;
-            }
-            case GDT_Int64:
-            {
-                if (GDALIsValueExactAs<int64_t>(dfValue))
-                    return eDT;
-                break;
-            }
-            // Do not return `GDT_Float16` because that type is not supported everywhere
-            case GDT_Float16:
-            case GDT_Float32:
-            {
-                if (GDALIsValueExactAs<float>(dfValue))
-                    return GDT_Float32;
-                break;
-            }
-            case GDT_Float64:
-            {
-                return eDT;
-            }
-            case GDT_Unknown:
-            case GDT_CInt16:
-            case GDT_CInt32:
-            case GDT_CFloat16:
-            case GDT_CFloat32:
-            case GDT_CFloat64:
-            case GDT_TypeCount:
-                break;
+            return eDTMod;
         }
     }
 
@@ -1074,7 +1009,62 @@ bool GDALIsValueExactAs(double dfValue, GDALDataType eDT)
 }
 
 /************************************************************************/
-/*                        GDALGetNonComplexDataType()                */
+/*                         GDALIsValueInRangeOf()                       */
+/************************************************************************/
+
+/**
+ * \brief Check whether the provided value can be represented in the range
+ * of the data type, possibly with rounding.
+ *
+ * Only implemented for non-complex data types
+ *
+ * @param dfValue value to check.
+ * @param eDT target data type.
+ *
+ * @return true if the provided value can be represented in the range
+ * of the data type, possibly with rounding.
+ * @since GDAL 3.11
+ */
+bool GDALIsValueInRangeOf(double dfValue, GDALDataType eDT)
+{
+    switch (eDT)
+    {
+        case GDT_Byte:
+            return GDALIsValueInRange<uint8_t>(dfValue);
+        case GDT_Int8:
+            return GDALIsValueInRange<int8_t>(dfValue);
+        case GDT_UInt16:
+            return GDALIsValueInRange<uint16_t>(dfValue);
+        case GDT_Int16:
+            return GDALIsValueInRange<int16_t>(dfValue);
+        case GDT_UInt32:
+            return GDALIsValueInRange<uint32_t>(dfValue);
+        case GDT_Int32:
+            return GDALIsValueInRange<int32_t>(dfValue);
+        case GDT_UInt64:
+            return GDALIsValueInRange<uint64_t>(dfValue);
+        case GDT_Int64:
+            return GDALIsValueInRange<int64_t>(dfValue);
+        case GDT_Float16:
+            return GDALIsValueInRange<GFloat16>(dfValue);
+        case GDT_Float32:
+            return GDALIsValueInRange<float>(dfValue);
+        case GDT_Float64:
+            return true;
+        case GDT_Unknown:
+        case GDT_CInt16:
+        case GDT_CInt32:
+        case GDT_CFloat16:
+        case GDT_CFloat32:
+        case GDT_CFloat64:
+        case GDT_TypeCount:
+            break;
+    }
+    return true;
+}
+
+/************************************************************************/
+/*                        GDALGetNonComplexDataType()                   */
 /************************************************************************/
 /**
  * \brief Return the base data type for the specified input.
@@ -3542,6 +3532,186 @@ static void StripIrrelevantOptions(CPLXMLNode *psCOL, int nOptions)
 }
 
 /************************************************************************/
+/*                         GDALPrintDriverList()                        */
+/************************************************************************/
+
+/** Print on stdout the driver list */
+std::string GDALPrintDriverList(int nOptions, bool bJSON)
+{
+    if (nOptions == 0)
+        nOptions = GDAL_OF_RASTER;
+
+    if (bJSON)
+    {
+        auto poDM = GetGDALDriverManager();
+        CPLJSONArray oArray;
+        const int nDriverCount = poDM->GetDriverCount();
+        for (int iDr = 0; iDr < nDriverCount; ++iDr)
+        {
+            auto poDriver = poDM->GetDriver(iDr);
+            CSLConstList papszMD = poDriver->GetMetadata();
+
+            if (nOptions == GDAL_OF_RASTER &&
+                !CPLFetchBool(papszMD, GDAL_DCAP_RASTER, false))
+                continue;
+            if (nOptions == GDAL_OF_VECTOR &&
+                !CPLFetchBool(papszMD, GDAL_DCAP_VECTOR, false))
+                continue;
+            if (nOptions == GDAL_OF_GNM &&
+                !CPLFetchBool(papszMD, GDAL_DCAP_GNM, false))
+                continue;
+            if (nOptions == GDAL_OF_MULTIDIM_RASTER &&
+                !CPLFetchBool(papszMD, GDAL_DCAP_MULTIDIM_RASTER, false))
+                continue;
+
+            CPLJSONObject oJDriver;
+            oJDriver.Set("short_name", poDriver->GetDescription());
+            if (const char *pszLongName =
+                    CSLFetchNameValue(papszMD, GDAL_DMD_LONGNAME))
+                oJDriver.Set("long_name", pszLongName);
+            CPLJSONArray oJScopes;
+            if (CPLFetchBool(papszMD, GDAL_DCAP_RASTER, false))
+                oJScopes.Add("raster");
+            if (CPLFetchBool(papszMD, GDAL_DCAP_MULTIDIM_RASTER, false))
+                oJScopes.Add("multidimensional_raster");
+            if (CPLFetchBool(papszMD, GDAL_DCAP_VECTOR, false))
+                oJScopes.Add("vector");
+            oJDriver.Add("scopes", oJScopes);
+            CPLJSONArray oJCaps;
+            if (CPLFetchBool(papszMD, GDAL_DCAP_OPEN, false))
+                oJCaps.Add("open");
+            if (CPLFetchBool(papszMD, GDAL_DCAP_CREATE, false))
+                oJCaps.Add("create");
+            if (CPLFetchBool(papszMD, GDAL_DCAP_CREATECOPY, false))
+                oJCaps.Add("create_copy");
+            if (CPLFetchBool(papszMD, GDAL_DCAP_UPDATE, false))
+                oJCaps.Add("update");
+            if (CPLFetchBool(papszMD, GDAL_DCAP_VIRTUALIO, false))
+                oJCaps.Add("virtual_io");
+            oJDriver.Add("capabilities", oJCaps);
+
+            if (const char *pszExtensions = CSLFetchNameValueDef(
+                    papszMD, GDAL_DMD_EXTENSIONS,
+                    CSLFetchNameValue(papszMD, GDAL_DMD_EXTENSION)))
+            {
+                const CPLStringList aosExt(
+                    CSLTokenizeString2(pszExtensions, " ", 0));
+                CPLJSONArray oJExts;
+                for (int i = 0; i < aosExt.size(); ++i)
+                {
+                    oJExts.Add(aosExt[i]);
+                }
+                oJDriver.Add("file_extensions", oJExts);
+            }
+
+            oArray.Add(oJDriver);
+        }
+
+        return oArray.Format(CPLJSONObject::PrettyFormat::Pretty);
+    }
+
+    std::string ret;
+    ret = "Supported Formats: (ro:read-only, rw:read-write, "
+          "+:write from scratch, u:update, "
+          "v:virtual-I/O s:subdatasets)\n";
+    for (int iDr = 0; iDr < GDALGetDriverCount(); iDr++)
+    {
+        GDALDriverH hDriver = GDALGetDriver(iDr);
+
+        const char *pszRFlag = "", *pszWFlag, *pszVirtualIO, *pszSubdatasets;
+        CSLConstList papszMD = GDALGetMetadata(hDriver, nullptr);
+
+        if (nOptions == GDAL_OF_RASTER &&
+            !CPLFetchBool(papszMD, GDAL_DCAP_RASTER, false))
+            continue;
+        if (nOptions == GDAL_OF_VECTOR &&
+            !CPLFetchBool(papszMD, GDAL_DCAP_VECTOR, false))
+            continue;
+        if (nOptions == GDAL_OF_GNM &&
+            !CPLFetchBool(papszMD, GDAL_DCAP_GNM, false))
+            continue;
+        if (nOptions == GDAL_OF_MULTIDIM_RASTER &&
+            !CPLFetchBool(papszMD, GDAL_DCAP_MULTIDIM_RASTER, false))
+            continue;
+
+        if (CPLFetchBool(papszMD, GDAL_DCAP_OPEN, false))
+            pszRFlag = "r";
+
+        if (CPLFetchBool(papszMD, GDAL_DCAP_CREATE, false))
+            pszWFlag = "w+";
+        else if (CPLFetchBool(papszMD, GDAL_DCAP_CREATECOPY, false))
+            pszWFlag = "w";
+        else
+            pszWFlag = "o";
+
+        const char *pszUpdate = "";
+        if (CPLFetchBool(papszMD, GDAL_DCAP_UPDATE, false))
+            pszUpdate = "u";
+
+        if (CPLFetchBool(papszMD, GDAL_DCAP_VIRTUALIO, false))
+            pszVirtualIO = "v";
+        else
+            pszVirtualIO = "";
+
+        if (CPLFetchBool(papszMD, GDAL_DMD_SUBDATASETS, false))
+            pszSubdatasets = "s";
+        else
+            pszSubdatasets = "";
+
+        CPLString osKind;
+        if (CPLFetchBool(papszMD, GDAL_DCAP_RASTER, false))
+            osKind = "raster";
+        if (CPLFetchBool(papszMD, GDAL_DCAP_MULTIDIM_RASTER, false))
+        {
+            if (!osKind.empty())
+                osKind += ',';
+            osKind += "multidimensional raster";
+        }
+        if (CPLFetchBool(papszMD, GDAL_DCAP_VECTOR, false))
+        {
+            if (!osKind.empty())
+                osKind += ',';
+            osKind += "vector";
+        }
+        if (CPLFetchBool(papszMD, GDAL_DCAP_GNM, false))
+        {
+            if (!osKind.empty())
+                osKind += ',';
+            osKind += "geography network";
+        }
+        if (osKind.empty())
+            osKind = "unknown kind";
+
+        std::string osExtensions;
+        if (const char *pszExtensions = CSLFetchNameValueDef(
+                papszMD, GDAL_DMD_EXTENSIONS,
+                CSLFetchNameValue(papszMD, GDAL_DMD_EXTENSION)))
+        {
+            const CPLStringList aosExt(
+                CSLTokenizeString2(pszExtensions, " ", 0));
+            for (int i = 0; i < aosExt.size(); ++i)
+            {
+                if (i == 0)
+                    osExtensions = " (*.";
+                else
+                    osExtensions += ", *.";
+                osExtensions += aosExt[i];
+            }
+            if (!osExtensions.empty())
+                osExtensions += ')';
+        }
+
+        ret += CPLSPrintf("  %s -%s- (%s%s%s%s%s): %s%s\n", /*ok*/
+                          GDALGetDriverShortName(hDriver), osKind.c_str(),
+                          pszRFlag, pszWFlag, pszUpdate, pszVirtualIO,
+                          pszSubdatasets, GDALGetDriverLongName(hDriver),
+                          osExtensions.c_str());
+    }
+
+    return ret;
+}
+
+/************************************************************************/
 /*                    GDALGeneralCmdLineProcessor()                     */
 /************************************************************************/
 
@@ -3635,6 +3805,7 @@ int CPL_STDCALL GDALGeneralCmdLineProcessor(int nArgc, char ***ppapszArgv,
             }
             else
             {
+                // cppcheck-suppress knownConditionTrueFalse
                 if (iArg + 2 >= nArgc)
                 {
                     CPLError(CE_Failure, CPLE_AppDefined,
@@ -3901,13 +4072,9 @@ int CPL_STDCALL GDALGeneralCmdLineProcessor(int nArgc, char ***ppapszArgv,
         /*      --formats */
         /* --------------------------------------------------------------------
          */
-        else if (EQUAL(papszArgv[iArg], "--formats") ||
-                 EQUAL(papszArgv[iArg], "--drivers"))
+        else if (EQUAL(papszArgv[iArg], "--formats"))
         {
-            if (nOptions == 0)
-                nOptions = GDAL_OF_RASTER;
-
-            bool bJSON = EQUAL(papszArgv[iArg], "--drivers");
+            bool bJSON = false;
             for (int i = 1; i < nArgc; i++)
             {
                 if (strcmp(papszArgv[i], "-json") == 0 ||
@@ -3918,178 +4085,7 @@ int CPL_STDCALL GDALGeneralCmdLineProcessor(int nArgc, char ***ppapszArgv,
                 }
             }
 
-            if (bJSON)
-            {
-                auto poDM = GetGDALDriverManager();
-                CPLJSONArray oArray;
-                const int nDriverCount = poDM->GetDriverCount();
-                for (int iDr = 0; iDr < nDriverCount; ++iDr)
-                {
-                    auto poDriver = poDM->GetDriver(iDr);
-                    CSLConstList papszMD = poDriver->GetMetadata();
-
-                    if (nOptions == GDAL_OF_RASTER &&
-                        !CPLFetchBool(papszMD, GDAL_DCAP_RASTER, false))
-                        continue;
-                    if (nOptions == GDAL_OF_VECTOR &&
-                        !CPLFetchBool(papszMD, GDAL_DCAP_VECTOR, false))
-                        continue;
-                    if (nOptions == GDAL_OF_GNM &&
-                        !CPLFetchBool(papszMD, GDAL_DCAP_GNM, false))
-                        continue;
-                    if (nOptions == GDAL_OF_MULTIDIM_RASTER &&
-                        !CPLFetchBool(papszMD, GDAL_DCAP_MULTIDIM_RASTER,
-                                      false))
-                        continue;
-
-                    CPLJSONObject oJDriver;
-                    oJDriver.Set("short_name", poDriver->GetDescription());
-                    if (const char *pszLongName =
-                            CSLFetchNameValue(papszMD, GDAL_DMD_LONGNAME))
-                        oJDriver.Set("long_name", pszLongName);
-                    CPLJSONArray oJScopes;
-                    if (CPLFetchBool(papszMD, GDAL_DCAP_RASTER, false))
-                        oJScopes.Add("raster");
-                    if (CPLFetchBool(papszMD, GDAL_DCAP_MULTIDIM_RASTER, false))
-                        oJScopes.Add("multidimensional_raster");
-                    if (CPLFetchBool(papszMD, GDAL_DCAP_VECTOR, false))
-                        oJScopes.Add("vector");
-                    oJDriver.Add("scopes", oJScopes);
-                    CPLJSONArray oJCaps;
-                    if (CPLFetchBool(papszMD, GDAL_DCAP_OPEN, false))
-                        oJCaps.Add("open");
-                    if (CPLFetchBool(papszMD, GDAL_DCAP_CREATE, false))
-                        oJCaps.Add("create");
-                    if (CPLFetchBool(papszMD, GDAL_DCAP_CREATECOPY, false))
-                        oJCaps.Add("create_copy");
-                    if (CPLFetchBool(papszMD, GDAL_DCAP_UPDATE, false))
-                        oJCaps.Add("update");
-                    if (CPLFetchBool(papszMD, GDAL_DCAP_VIRTUALIO, false))
-                        oJCaps.Add("virtual_io");
-                    oJDriver.Add("capabilities", oJCaps);
-
-                    if (const char *pszExtensions = CSLFetchNameValueDef(
-                            papszMD, GDAL_DMD_EXTENSIONS,
-                            CSLFetchNameValue(papszMD, GDAL_DMD_EXTENSION)))
-                    {
-                        const CPLStringList aosExt(
-                            CSLTokenizeString2(pszExtensions, " ", 0));
-                        CPLJSONArray oJExts;
-                        for (int i = 0; i < aosExt.size(); ++i)
-                        {
-                            oJExts.Add(aosExt[i]);
-                        }
-                        oJDriver.Add("file_extensions", oJExts);
-                    }
-
-                    oArray.Add(oJDriver);
-                }
-                printf(/*ok*/
-                       "%s\n",
-                       oArray.Format(CPLJSONObject::PrettyFormat::Pretty)
-                           .c_str());
-
-                return 0;
-            }
-
-            printf(/*ok*/
-                   "Supported Formats: (ro:read-only, rw:read-write, "
-                   "+:write from scratch, u:update, "
-                   "v:virtual-I/O s:subdatasets)\n");
-            for (int iDr = 0; iDr < GDALGetDriverCount(); iDr++)
-            {
-                GDALDriverH hDriver = GDALGetDriver(iDr);
-
-                const char *pszRFlag = "", *pszWFlag, *pszVirtualIO,
-                           *pszSubdatasets;
-                CSLConstList papszMD = GDALGetMetadata(hDriver, nullptr);
-
-                if (nOptions == GDAL_OF_RASTER &&
-                    !CPLFetchBool(papszMD, GDAL_DCAP_RASTER, false))
-                    continue;
-                if (nOptions == GDAL_OF_VECTOR &&
-                    !CPLFetchBool(papszMD, GDAL_DCAP_VECTOR, false))
-                    continue;
-                if (nOptions == GDAL_OF_GNM &&
-                    !CPLFetchBool(papszMD, GDAL_DCAP_GNM, false))
-                    continue;
-                if (nOptions == GDAL_OF_MULTIDIM_RASTER &&
-                    !CPLFetchBool(papszMD, GDAL_DCAP_MULTIDIM_RASTER, false))
-                    continue;
-
-                if (CPLFetchBool(papszMD, GDAL_DCAP_OPEN, false))
-                    pszRFlag = "r";
-
-                if (CPLFetchBool(papszMD, GDAL_DCAP_CREATE, false))
-                    pszWFlag = "w+";
-                else if (CPLFetchBool(papszMD, GDAL_DCAP_CREATECOPY, false))
-                    pszWFlag = "w";
-                else
-                    pszWFlag = "o";
-
-                const char *pszUpdate = "";
-                if (CPLFetchBool(papszMD, GDAL_DCAP_UPDATE, false))
-                    pszUpdate = "u";
-
-                if (CPLFetchBool(papszMD, GDAL_DCAP_VIRTUALIO, false))
-                    pszVirtualIO = "v";
-                else
-                    pszVirtualIO = "";
-
-                if (CPLFetchBool(papszMD, GDAL_DMD_SUBDATASETS, false))
-                    pszSubdatasets = "s";
-                else
-                    pszSubdatasets = "";
-
-                CPLString osKind;
-                if (CPLFetchBool(papszMD, GDAL_DCAP_RASTER, false))
-                    osKind = "raster";
-                if (CPLFetchBool(papszMD, GDAL_DCAP_MULTIDIM_RASTER, false))
-                {
-                    if (!osKind.empty())
-                        osKind += ',';
-                    osKind += "multidimensional raster";
-                }
-                if (CPLFetchBool(papszMD, GDAL_DCAP_VECTOR, false))
-                {
-                    if (!osKind.empty())
-                        osKind += ',';
-                    osKind += "vector";
-                }
-                if (CPLFetchBool(papszMD, GDAL_DCAP_GNM, false))
-                {
-                    if (!osKind.empty())
-                        osKind += ',';
-                    osKind += "geography network";
-                }
-                if (osKind.empty())
-                    osKind = "unknown kind";
-
-                std::string osExtensions;
-                if (const char *pszExtensions = CSLFetchNameValueDef(
-                        papszMD, GDAL_DMD_EXTENSIONS,
-                        CSLFetchNameValue(papszMD, GDAL_DMD_EXTENSION)))
-                {
-                    const CPLStringList aosExt(
-                        CSLTokenizeString2(pszExtensions, " ", 0));
-                    for (int i = 0; i < aosExt.size(); ++i)
-                    {
-                        if (i == 0)
-                            osExtensions = " (*.";
-                        else
-                            osExtensions += ", *.";
-                        osExtensions += aosExt[i];
-                    }
-                    if (!osExtensions.empty())
-                        osExtensions += ')';
-                }
-
-                printf("  %s -%s- (%s%s%s%s%s): %s%s\n", /*ok*/
-                       GDALGetDriverShortName(hDriver), osKind.c_str(),
-                       pszRFlag, pszWFlag, pszUpdate, pszVirtualIO,
-                       pszSubdatasets, GDALGetDriverLongName(hDriver),
-                       osExtensions.c_str());
-            }
+            printf("%s", GDALPrintDriverList(nOptions, bJSON).c_str()); /*ok*/
 
             return 0;
         }
@@ -5178,9 +5174,22 @@ double GDALAdjustNoDataCloseToFloatMax(double dfVal)
 /*                        GDALCopyNoDataValue()                         */
 /************************************************************************/
 
-void GDALCopyNoDataValue(GDALRasterBand *poDstBand, GDALRasterBand *poSrcBand)
+/** Copy the nodata value from the source band to the target band if
+ * it can be exactly represented in the output data type.
+ *
+ * @param poDstBand Destination band.
+ * @param poSrcBand Source band band.
+ * @param[out] pbCannotBeExactlyRepresented Pointer to a boolean, or nullptr.
+ *             If the value cannot be exactly represented on the output data
+ *             type, *pbCannotBeExactlyRepresented will be set to true.
+ *
+ * @return true if the nodata value was successfully set.
+ */
+bool GDALCopyNoDataValue(GDALRasterBand *poDstBand, GDALRasterBand *poSrcBand,
+                         bool *pbCannotBeExactlyRepresented)
 {
-
+    if (pbCannotBeExactlyRepresented)
+        *pbCannotBeExactlyRepresented = false;
     int bSuccess;
     const auto eSrcDataType = poSrcBand->GetRasterDataType();
     const auto eDstDataType = poDstBand->GetRasterDataType();
@@ -5191,18 +5200,22 @@ void GDALCopyNoDataValue(GDALRasterBand *poDstBand, GDALRasterBand *poSrcBand)
         {
             if (eDstDataType == GDT_Int64)
             {
-                poDstBand->SetNoDataValueAsInt64(nNoData);
+                return poDstBand->SetNoDataValueAsInt64(nNoData) == CE_None;
             }
             else if (eDstDataType == GDT_UInt64)
             {
                 if (nNoData >= 0)
-                    poDstBand->SetNoDataValueAsUInt64(
-                        static_cast<uint64_t>(nNoData));
+                {
+                    return poDstBand->SetNoDataValueAsUInt64(
+                               static_cast<uint64_t>(nNoData)) == CE_None;
+                }
             }
             else if (nNoData ==
                      static_cast<int64_t>(static_cast<double>(nNoData)))
             {
-                poDstBand->SetNoDataValue(static_cast<double>(nNoData));
+                const double dfValue = static_cast<double>(nNoData);
+                if (GDALIsValueExactAs(dfValue, eDstDataType))
+                    return poDstBand->SetNoDataValue(dfValue) == CE_None;
             }
         }
     }
@@ -5213,21 +5226,23 @@ void GDALCopyNoDataValue(GDALRasterBand *poDstBand, GDALRasterBand *poSrcBand)
         {
             if (eDstDataType == GDT_UInt64)
             {
-                poDstBand->SetNoDataValueAsUInt64(nNoData);
+                return poDstBand->SetNoDataValueAsUInt64(nNoData) == CE_None;
             }
             else if (eDstDataType == GDT_Int64)
             {
                 if (nNoData <
                     static_cast<uint64_t>(cpl::NumericLimits<int64_t>::max()))
                 {
-                    poDstBand->SetNoDataValueAsInt64(
-                        static_cast<int64_t>(nNoData));
+                    return poDstBand->SetNoDataValueAsInt64(
+                               static_cast<int64_t>(nNoData)) == CE_None;
                 }
             }
             else if (nNoData ==
                      static_cast<uint64_t>(static_cast<double>(nNoData)))
             {
-                poDstBand->SetNoDataValue(static_cast<double>(nNoData));
+                const double dfValue = static_cast<double>(nNoData);
+                if (GDALIsValueExactAs(dfValue, eDstDataType))
+                    return poDstBand->SetNoDataValue(dfValue) == CE_None;
             }
         }
     }
@@ -5245,8 +5260,8 @@ void GDALCopyNoDataValue(GDALRasterBand *poDstBand, GDALRasterBand *poSrcBand)
                     dfNoData ==
                         static_cast<double>(static_cast<int64_t>(dfNoData)))
                 {
-                    poDstBand->SetNoDataValueAsInt64(
-                        static_cast<int64_t>(dfNoData));
+                    return poDstBand->SetNoDataValueAsInt64(
+                               static_cast<int64_t>(dfNoData)) == CE_None;
                 }
             }
             else if (eDstDataType == GDT_UInt64)
@@ -5258,16 +5273,19 @@ void GDALCopyNoDataValue(GDALRasterBand *poDstBand, GDALRasterBand *poSrcBand)
                     dfNoData ==
                         static_cast<double>(static_cast<uint64_t>(dfNoData)))
                 {
-                    poDstBand->SetNoDataValueAsInt64(
-                        static_cast<uint64_t>(dfNoData));
+                    return poDstBand->SetNoDataValueAsInt64(
+                               static_cast<uint64_t>(dfNoData)) == CE_None;
                 }
             }
             else
             {
-                poDstBand->SetNoDataValue(dfNoData);
+                return poDstBand->SetNoDataValue(dfNoData) == CE_None;
             }
         }
     }
+    if (pbCannotBeExactlyRepresented)
+        *pbCannotBeExactlyRepresented = true;
+    return false;
 }
 
 /************************************************************************/
@@ -5723,4 +5741,100 @@ double GDALGetNoDataReplacementValue(GDALDataType dt, double dfNoDataValue)
     }
 
     return dfReplacementVal;
+}
+
+/************************************************************************/
+/*                        GDALGetCacheDirectory()                       */
+/************************************************************************/
+
+/** Return the root path of the GDAL cache.
+ *
+ * If the GDAL_CACHE_DIRECTORY configuration option is set, its value will
+ * be returned.
+ * Otherwise if the XDG_CACHE_HOME environment variable is set,
+ * ${XDG_CACHE_HOME}/.gdal will be returned.
+ * Otherwise ${HOME}/.gdal on Unix or$ ${USERPROFILE}/.gdal on Windows will
+ * be returned.
+ * Otherwise ${CPL_TMPDIR|TMPDIR|TEMP}/.gdal_${USERNAME|USER} will be returned.
+ * Otherwise empty string will be returned.
+ *
+ * @since GDAL 3.11
+ */
+std::string GDALGetCacheDirectory()
+{
+    if (const char *pszGDAL_CACHE_DIRECTORY =
+            CPLGetConfigOption("GDAL_CACHE_DIRECTORY", nullptr))
+    {
+        return pszGDAL_CACHE_DIRECTORY;
+    }
+
+    if (const char *pszXDG_CACHE_HOME =
+            CPLGetConfigOption("XDG_CACHE_HOME", nullptr))
+    {
+        return CPLFormFilenameSafe(pszXDG_CACHE_HOME, "gdal", nullptr);
+    }
+
+#ifdef _WIN32
+    const char *pszHome = CPLGetConfigOption("USERPROFILE", nullptr);
+#else
+    const char *pszHome = CPLGetConfigOption("HOME", nullptr);
+#endif
+    if (pszHome != nullptr)
+    {
+        return CPLFormFilenameSafe(pszHome, ".gdal", nullptr);
+    }
+    else
+    {
+        const char *pszDir = CPLGetConfigOption("CPL_TMPDIR", nullptr);
+
+        if (pszDir == nullptr)
+            pszDir = CPLGetConfigOption("TMPDIR", nullptr);
+
+        if (pszDir == nullptr)
+            pszDir = CPLGetConfigOption("TEMP", nullptr);
+
+        const char *pszUsername = CPLGetConfigOption("USERNAME", nullptr);
+        if (pszUsername == nullptr)
+            pszUsername = CPLGetConfigOption("USER", nullptr);
+
+        if (pszDir != nullptr && pszUsername != nullptr)
+        {
+            return CPLFormFilenameSafe(
+                pszDir, CPLSPrintf(".gdal_%s", pszUsername), nullptr);
+        }
+    }
+    return std::string();
+}
+
+/************************************************************************/
+/*                      GDALDoesFileOrDatasetExist()                    */
+/************************************************************************/
+
+/** Return whether a file already exists.
+ */
+bool GDALDoesFileOrDatasetExist(const char *pszName, const char **ppszType,
+                                GDALDriver **ppDriver)
+{
+    {
+        CPLErrorStateBackuper oBackuper(CPLQuietErrorHandler);
+        GDALDriverH hDriver = GDALIdentifyDriver(pszName, nullptr);
+        if (hDriver)
+        {
+            if (ppszType)
+                *ppszType = "Dataset";
+            if (ppDriver)
+                *ppDriver = GDALDriver::FromHandle(hDriver);
+            return true;
+        }
+    }
+
+    VSIStatBufL sStat;
+    if (VSIStatL(pszName, &sStat) == 0)
+    {
+        if (ppszType)
+            *ppszType = VSI_ISDIR(sStat.st_mode) ? "Directory" : "File";
+        return true;
+    }
+
+    return false;
 }

@@ -10048,7 +10048,7 @@ def test_ogr_gpkg_write_flushcache(tmp_vsimem):
 @gdaltest.enable_exceptions()
 def test_ogr_gpkg_write_arrow_fallback_types(tmp_vsimem):
 
-    src_ds = ogr.GetDriverByName("Memory").CreateDataSource("")
+    src_ds = ogr.GetDriverByName("MEM").CreateDataSource("")
     src_lyr = src_ds.CreateLayer("test")
     src_lyr.CreateField(ogr.FieldDefn("string", ogr.OFTString))
     src_lyr.CreateField(ogr.FieldDefn("int", ogr.OFTInteger))
@@ -10502,7 +10502,7 @@ def test_ogr_gpkg_geom_coord_precision(
 
     # Test Arrow interface
     lyr.ResetReading()
-    mem_ds = ogr.GetDriverByName("Memory").CreateDataSource("")
+    mem_ds = ogr.GetDriverByName("MEM").CreateDataSource("")
     mem_lyr = mem_ds.CreateLayer("test", geom_type=ogr.wkbNone)
     mem_lyr.CreateGeomField(ogr.GeomFieldDefn("my_geom"))
     mem_lyr.WriteArrow(lyr)
@@ -11079,3 +11079,37 @@ def test_ogr_gpkg_set_next_by_index(tmp_vsimem):
         lyr.SetNextByIndex(0)
         f = lyr.GetNextFeature()
         assert f["foo"] == "bar"
+
+
+###############################################################################
+# Test 'gdal driver gpkg repack'
+
+
+@gdaltest.enable_exceptions()
+def test_ogr_gpkg_gdal_driver_gpkg_repack(tmp_path):
+
+    alg = gdal.GetGlobalAlgorithmRegistry()["driver"]
+    assert alg.GetName() == "driver"
+
+    alg = gdal.GetGlobalAlgorithmRegistry()["driver"]["gpkg"]
+    assert alg.GetName() == "gpkg"
+
+    alg = gdal.GetGlobalAlgorithmRegistry()["driver"]["gpkg"]["repack"]
+    assert alg.GetName() == "repack"
+    alg["dataset"] = "data/poly.shp"
+    with pytest.raises(Exception, match="is not a GeoPackage"):
+        alg.Run()
+
+    ds = gdal.VectorTranslate(tmp_path / "test.gpkg", "data/poly.shp")
+    ds.ExecuteSQL("DELETE FROM poly")
+    ds.Close()
+
+    size_before = os.stat(tmp_path / "test.gpkg").st_size
+
+    alg = gdal.GetGlobalAlgorithmRegistry()["driver"]["gpkg"]["repack"]
+    assert alg.GetName() == "repack"
+    alg["dataset"] = tmp_path / "test.gpkg"
+    assert alg.Run()
+
+    size_after = os.stat(tmp_path / "test.gpkg").st_size
+    assert size_after < size_before

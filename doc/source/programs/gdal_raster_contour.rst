@@ -1,7 +1,7 @@
-.. _gdal_raster_contour_subcommand:
+.. _gdal_raster_contour:
 
 ================================================================================
-"gdal raster contour" sub-command
+``gdal raster contour``
 ================================================================================
 
 .. versionadded:: 3.11
@@ -32,6 +32,8 @@ Standard options
 
 .. include:: gdal_options/co.rst
 
+.. include:: options/lco.rst
+
 .. include:: gdal_options/overwrite.rst
 
 .. option:: -b, --band <BAND>
@@ -42,7 +44,7 @@ Standard options
 
     Provides a name for the output vector layer. Defaults to "contour".
 
-.. option:: -elevation-name <ELEVATION-NAME>
+.. option:: --elevation-name <ELEVATION-NAME>
 
     Provides a name for the attribute in which to put the elevation. If not provided no elevation attribute is attached. Ignored in polygonal contouring (-p) mode.
 
@@ -58,7 +60,7 @@ Standard options
 
     Forces the production of 3D vectors instead of 2D. Includes elevation at every vertex.
 
-.. option:: --srcnodata <SRCNODATA>
+.. option:: --src-nodata <SRCNODATA>
 
     Input pixel value to treat as 'nodata'.
 

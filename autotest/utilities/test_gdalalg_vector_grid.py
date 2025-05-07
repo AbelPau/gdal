@@ -33,7 +33,7 @@ def test_gdalalg_vector_grid_error():
 
 
 def get_src_ds(geom3D):
-    src_ds = gdal.GetDriverByName("Memory").Create("", 0, 0, 0, gdal.GDT_Unknown)
+    src_ds = gdal.GetDriverByName("MEM").Create("", 0, 0, 0, gdal.GDT_Unknown)
     src_lyr = src_ds.CreateLayer("test")
     src_lyr.CreateField(ogr.FieldDefn("z", ogr.OFTReal))
     for x, y, z in [
@@ -433,20 +433,6 @@ def test_gdalalg_vector_grid_progress(tmp_vsimem):
     assert last_pct[0] == 1.0
 
 
-def test_gdalalg_vector_grid_failed_update_existing_file(tmp_vsimem):
-
-    out_ds = gdal.GetDriverByName("GTiff").Create(tmp_vsimem / "out.tif", 1, 1)
-
-    alg = get_alg("invdist")
-    alg["input"] = get_src_ds(True)
-    alg["output"] = out_ds
-    with pytest.raises(
-        Exception,
-        match="gdal vector grid does not support outputting to an already opened output dataset",
-    ):
-        alg.Run()
-
-
 def test_gdalalg_vector_grid_creation_option(tmp_vsimem):
 
     alg = get_alg("invdist")
@@ -557,7 +543,7 @@ def test_gdalalg_vector_grid_overwrite_failed_unlink(tmp_path):
         alg["input"] = get_src_ds(True)
         alg["output"] = out_filename
         alg["overwrite"] = True
-        with pytest.raises(Exception, match="Failed to delete"):
+        with pytest.raises(Exception):
             alg.Run()
     except Exception:
         os.chmod(tmp_path, 0o755)

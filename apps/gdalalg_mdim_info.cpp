@@ -35,7 +35,7 @@ GDALMdimInfoAlgorithm::GDALMdimInfoAlgorithm()
     AddInputFormatsArg(&m_inputFormats)
         .AddMetadataItem(GAAMDI_REQUIRED_CAPABILITIES,
                          {GDAL_DCAP_MULTIDIM_RASTER});
-    AddInputDatasetArg(&m_dataset, GDAL_OF_MULTIDIM_RASTER);
+    AddInputDatasetArg(&m_dataset, GDAL_OF_MULTIDIM_RASTER).AddAlias("dataset");
     AddOutputStringArg(&m_output);
     AddArg(
         "detailed", 0,
@@ -75,9 +75,10 @@ GDALMdimInfoAlgorithm::GDALMdimInfoAlgorithm()
                            _("Option passed to GDALGroup::GetMDArrayNames() to "
                              "filter reported arrays."),
                            &m_arrayOptions)
-                        .SetMetaVar("<KEY>=<VALUE>");
+                        .SetMetaVar("<KEY>=<VALUE>")
+                        .SetPackedValuesAllowed(false);
         arg.AddValidationAction([this, &arg]()
-                                { return ValidateKeyValue(arg); });
+                                { return ParseAndValidateKeyValue(arg); });
 
         arg.SetAutoCompleteFunction(
             [this](const std::string &currentValue)
@@ -102,6 +103,12 @@ GDALMdimInfoAlgorithm::GDALMdimInfoAlgorithm()
             });
     }
     AddArg("stats", 0, _("Read and display image statistics."), &m_stats);
+
+    AddArg("stdout", 0,
+           _("Directly output on stdout. If enabled, "
+             "output-string will be empty"),
+           &m_stdout)
+        .SetHiddenForCLI();
 }
 
 /************************************************************************/
@@ -114,6 +121,8 @@ bool GDALMdimInfoAlgorithm::RunImpl(GDALProgressFunc, void *)
 
     CPLStringList aosOptions;
 
+    if (m_stdout)
+        aosOptions.AddString("-stdout");
     if (m_detailed)
         aosOptions.AddString("-detailed");
     if (m_stats)

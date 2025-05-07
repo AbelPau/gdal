@@ -10,6 +10,7 @@
 %include "gdal_band_docs.i"
 %include "gdal_dataset_docs.i"
 %include "gdal_driver_docs.i"
+%include "gdal_mdm_docs.i"
 %include "gdal_operations_docs.i"
 
 %init %{
@@ -599,6 +600,7 @@ void wrapper_VSIGetMemFileBuffer(const char *utf8_path, GByte **out, vsi_l_offse
   def ReadAsMaskedArray(self, xoff=0, yoff=0, win_xsize=None, win_ysize=None,
                   buf_xsize=None, buf_ysize=None, buf_type=None,
                   resample_alg=gdalconst.GRIORA_NearestNeighbour,
+                  mask_resample_alg=gdalconst.GRIORA_NearestNeighbour,
                   callback=None,
                   callback_data=None):
       """
@@ -606,8 +608,10 @@ void wrapper_VSIGetMemFileBuffer(const char *utf8_path, GByte **out, vsi_l_offse
 
       Values of the mask will be ``True`` where pixels are invalid.
 
-      See :py:meth:`ReadAsArray` for a description of arguments.
+      Starting in GDAL 3.11, if resampling (``buf_xsize`` != ``xsize``, or ``buf_ysize`` != ``ysize``) the mask
+      band will be resampled using the algorithm specified by ``mask_resample_alg``.
 
+      See :py:meth:`ReadAsArray` for a description of additional arguments.
       """
       import numpy
       array = self.ReadAsArray(xoff=xoff, yoff=yoff,
@@ -625,7 +629,7 @@ void wrapper_VSIGetMemFileBuffer(const char *utf8_path, GByte **out, vsi_l_offse
                                          win_ysize=win_ysize,
                                          buf_xsize=buf_xsize,
                                          buf_ysize=buf_ysize,
-                                         resample_alg=resample_alg).astype(bool)
+                                         resample_alg=mask_resample_alg).astype(bool)
       else:
           mask_array = None
       return numpy.ma.array(array, mask=mask_array)
@@ -982,7 +986,13 @@ def ComputeRasterMinMax(self, *args, **kwargs):
         kwargs["can_return_none"] = kwargs["can_return_null"];
         del kwargs["can_return_null"]
 
-    return $action(self, *args, **kwargs)
+    if "can_return_none" in kwargs and kwargs["can_return_none"]:
+        try:
+            return $action(self, *args, **kwargs)
+        except Exception:
+            return None
+    else:
+        return $action(self, *args, **kwargs)
 %}
 
 }
@@ -1103,6 +1113,48 @@ CPLErr ReadRaster1( double xoff, double yoff, double xsize, double ysize,
 %clear (GIntBig*);
 
 %pythoncode %{
+
+    def ReadAsMaskedArray(self, xoff=0, yoff=0, xsize=None, ysize=None,
+                    buf_xsize=None, buf_ysize=None, buf_type=None,
+                    resample_alg=gdalconst.GRIORA_NearestNeighbour,
+                    mask_resample_alg=gdalconst.GRIORA_NearestNeighbour,
+                    callback=None,
+                    callback_data=None,
+                    band_list=None):
+        """
+        Read a window from raster bands into a NumPy masked array.
+
+        Values of the mask will be ``True`` where pixels are invalid.
+
+        If resampling (``buf_xsize`` != ``xsize``, or ``buf_ysize`` != ``ysize``) the mask band will be resampled
+        using the algorithm specified by ``mask_resample_alg``.
+
+        See :py:meth:`ReadAsArray` for a description of additional arguments.
+        """
+
+        import numpy as np
+
+        arr = self.ReadAsArray(xoff=xoff, yoff=yoff, xsize=xsize, ysize=ysize,
+                               buf_xsize=buf_xsize, buf_ysize=buf_ysize, buf_type=buf_type,
+                               resample_alg=resample_alg, band_list=band_list)
+
+        if band_list is None:
+            band_list = [i+1 for i in range(self.RasterCount)]
+
+        all_valid = all(self.GetRasterBand(band).GetMaskFlags() == GMF_ALL_VALID for band in band_list)
+
+        if all_valid:
+            return np.ma.masked_array(arr, False)
+
+        masks = [self.GetRasterBand(band).GetMaskBand().ReadAsArray(
+                xoff=xoff, yoff=yoff,
+                win_xsize=xsize, win_ysize=ysize,
+                buf_xsize=buf_xsize, buf_ysize=buf_ysize,
+                resample_alg=mask_resample_alg) != 255
+                 for band in band_list]
+
+        return np.ma.masked_array(arr, np.vstack(masks))
+
 
     def ReadAsArray(self, xoff=0, yoff=0, xsize=None, ysize=None, buf_obj=None,
                     buf_xsize=None, buf_ysize=None, buf_type=None,
@@ -2532,7 +2584,8 @@ def TranslateOptions(options=None, format=None,
               overviewLevel = 'AUTO',
               colorInterpretation=None,
               callback=None, callback_data=None,
-              domainMetadataOptions = None):
+              domainMetadataOptions = None,
+              errorIfWindowOutsideSource = False):
     """Create a TranslateOptions() object that can be passed to gdal.Translate()
 
     Parameters
@@ -2609,6 +2662,8 @@ def TranslateOptions(options=None, format=None,
         user data for callback
     domainMetadataOptions:
         list or dict of domain-specific metadata options
+    errorIfWindowOutsideSource : {True, False, "partially", "completely"}, default=True
+         raise an error if the requested window is partially or completely outside the source dataset. ("True" is a synonym for "partially"). This corresponds to the ``-epo`` and ``-eco`` options of ``gdal_translate``.
     """
 
     # Only used for tests
@@ -2731,6 +2786,15 @@ def TranslateOptions(options=None, format=None,
         if overviewLevel is not None and overviewLevel != 'AUTO':
             new_options += ['-ovr', overviewLevel]
 
+        if errorIfWindowOutsideSource is not False:
+            if errorIfWindowOutsideSource in ("partially", True):
+                new_options.append('-epo')
+            elif errorIfWindowOutsideSource == "completely":
+                new_options.append('-eco')
+            else:
+                raise RuntimeError("errorIfWindowOutsideSource must be one of True / 'partially', False, or 'completely'")
+
+
     if return_option_list:
         return new_options
 
@@ -2753,13 +2817,19 @@ def Translate(destName, srcDS, **kwargs):
 
     _WarnIfUserHasNotSpecifiedIfUsingExceptions()
 
+    filenamePrefix = ""
     if 'options' not in kwargs or isinstance(kwargs['options'], (list, str)):
         (opts, callback, callback_data) = TranslateOptions(**kwargs)
+        if "format" in kwargs and kwargs["format"].upper() == "ZARR" and "creationOptions" in kwargs:
+            for opt in kwargs["creationOptions"]:
+                if opt.upper() in ("CONVERT_TO_KERCHUNK_PARQUET_REFERENCE=YES", "CONVERT_TO_KERCHUNK_PARQUET_REFERENCE=ON", "CONVERT_TO_KERCHUNK_PARQUET_REFERENCE=TRUE"):
+                    filenamePrefix = "ZARR_DUMMY:"
+
     else:
         (opts, callback, callback_data) = kwargs['options']
 
     if isinstance(srcDS, (str, os.PathLike)):
-        srcDS = Open(srcDS)
+        srcDS = Open(filenamePrefix + str(srcDS))
 
     return TranslateInternal(destName, srcDS, opts, callback, callback_data)
 
@@ -5159,6 +5229,74 @@ def quiet_warnings():
     finally:
         PopErrorHandler()
 
+
+def Run(*alg, arguments={}, progress=None, **kwargs):
+    """Run a GDAL algorithm and return it.
+
+       .. versionadded: 3.11
+
+       This method can also be used within a context manager, in which case
+       :py:meth:`osgeo.gdal.Algorithm.Finalize` will be called at the exit of the
+       context manager.  An exception will be raised if the algorithm fails,
+       even if `gdal.UseExceptions()` has not been called.
+
+       Parameters
+       ----------
+       alg: str, list[str], tuple[str] or Algorithm
+            Path to the algorithm or algorithm instance itself. For example "raster info", ["raster", "info"] or "raster", "info".
+       arguments: dict
+            Input arguments of the algorithm. For example {"format": "json", "input": "byte.tif"}
+       progress: callable
+            Progress function whose arguments are a progress ratio, a string and a user data
+       kwargs:
+            Instead of using the ``arguments`` parameter, it is possible to pass
+            algorithm arguments directly as named parameters of gdal.Run().
+            If the named argument has dash characters in it, the corresponding
+            parameter must replace them with an underscore character.
+            For example ``dst_crs`` as a a parameter of gdal.Run(), instead of
+            ``dst-crs`` which is the name to use on the command line.
+
+       Returns
+       -------
+            An algorithm
+
+       Example
+       -------
+
+       >>> alg = gdal.Run(["raster", "info"], {"input": "byte.tif"})
+       >>> print(alg.output()["bands"])
+
+       >>> with gdal.Run("raster", "reproject", input="byte.tif", output_format="MEM", dst_crs="EPSG:4326") as alg
+       ...     print(alg.output().ReadAsArray())
+    """
+
+    new_alg = []
+    for v in alg:
+        if isinstance(v, dict):
+            arguments = v
+            break
+        new_alg.append(v)
+    alg = new_alg
+
+    if len(alg) == 1 and isinstance(alg[0], Algorithm):
+        alg = alg[0]
+    elif len(alg) >= 1 and (isinstance(alg[0], list) or isinstance(alg[0], str)):
+        alg = Algorithm(*alg)
+    else:
+        raise RuntimeError("Wrong type for alg. Expected string, list of strings or Algorithm")
+
+    for k in arguments:
+        alg[k.replace('_', '-')] = arguments[k]
+
+    for k in kwargs:
+        alg[k.replace('_', '-')] = kwargs[k]
+
+    if not alg.Run(progress):
+        # We go here only if gdal.UseExceptions() has not been called
+        raise RuntimeError("Algorithm.Run() failed: %s" % GetLastErrorMsg())
+
+    return alg
+
 %}
 
 
@@ -5453,7 +5591,10 @@ class VSIFile(BytesIO):
            >>> gdal.GetGlobalAlgorithmRegistry()["raster"]
         """
 
-        return self.InstantiateAlg(key)
+        alg = self.InstantiateAlg(key)
+        if not alg:
+            raise RuntimeError(f"'{key}' is not a valid algorithm")
+        return alg
 %}
 }
 
@@ -5463,6 +5604,163 @@ class VSIFile(BytesIO):
 
 %extend GDALAlgorithmHS {
 %pythoncode %{
+
+    def __init__(self, *path):
+
+        """Instantiate an existing GDAL algorithm from its path.
+
+           .. versionadded: 3.11
+
+           Parameters
+           ----------
+           path: str, list[str] or tuple[str]
+                Path to the algorithm. For example "raster info", ["raster", "info"] or "raster", "info"
+
+           Returns
+           -------
+                An algorithm
+
+           Example
+           -------
+
+           >>> alg = gdal.Algorithm("raster", "info")
+           >>> # or alg = gdal.Algorithm(["raster", "info"])
+           >>> # or alg = gdal.Algorithm("raster info")
+           >>> alg.Run()
+           >>> print(alg.Output()["bands"])
+        """
+
+        alg = None
+        if len(path) == 1:
+            if isinstance(path[0], list):
+                alg = GetGlobalAlgorithmRegistry()
+                alg_is_registry = True
+                for i, v in enumerate(path[0]):
+                    if i == 0 and v == "gdal":
+                        continue
+                    alg_is_registry = False
+                    alg = alg[v]
+                if alg_is_registry:
+                    alg = alg["gdal"]
+            elif isinstance(path[0], str):
+                alg = GetGlobalAlgorithmRegistry()
+                alg_is_registry = True
+                for v in path[0].lstrip("gdal ").split(' '):
+                    alg_is_registry = False
+                    alg = alg[v]
+                if alg_is_registry:
+                    alg = alg["gdal"]
+        elif len(path) > 1:
+            alg = GetGlobalAlgorithmRegistry()
+            for i, v in enumerate(path):
+                if i == 0 and v == "gdal":
+                    continue
+                alg = alg[v]
+        if not alg:
+            raise RuntimeError("Wrong type for algorithm path. Expected string or list of strings")
+
+        self.this = alg.this
+        self.thisown = True
+
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        if hasattr(self, "has_run") and not self.Finalize():
+            # We go here only if gdal.UseExceptions() has not been called
+            raise RuntimeError("Algorithm.Finalize() failed: %s" % GetLastErrorMsg())
+
+    def _get_arg_value(self, arg, parse_json):
+        val = arg.Get()
+        if parse_json and arg.GetType() == GAAT_STRING and \
+           ((val.startswith('{') and (val.endswith('}') or val.endswith('}\n'))) or \
+           (val.startswith('[') and (val.endswith(']') or val.endswith(']\n')))):
+            import json
+            try:
+                return json.loads(val)
+            except Exception:
+                return val
+        elif arg.GetType() == GAAT_DATASET:
+            return val.GetDataset()
+        else:
+            return val
+
+
+    def Output(self, parse_json=True):
+        """Return the single output value of this algorithm, after it has been run.
+
+           If there are multiple output values, this method will raise an exception,
+           and the :py:meth:`Outputs` (plural) method should be called instead.
+
+           Arguments of type GAAT_DATASET are returned as a
+           :py:class:`osgeo.gdal.Dataset` instance.
+
+           Parameters
+           -----------
+           parse_json: bool, default=True
+               Whether a JSON string should be returned as a dict or list (instead of a string).
+
+           Returns
+           -------
+           The single output argument value
+
+           Example
+           -------
+           >>> with gdal.Run("raster", "info", input="byte.tif") as alg:
+           ...    print(alg.Output()["bands"])
+        """
+
+        if not hasattr(self, "has_run"):
+            raise RuntimeError("Algorithm.Run() must be called before")
+
+        count_output = 0
+        val = None
+        for name in self.GetArgNames():
+            arg = self.GetArg(name)
+            if arg.IsOutput():
+                count_output += 1
+                if count_output == 2:
+                    raise RuntimeError("Cannot use 'output' method on this algorithm as it supports multiple output arguments. Use 'Outputs' (plural) insead")
+                val = self._get_arg_value(arg, parse_json)
+        return val
+
+
+    def Outputs(self, parse_json=True):
+        """Return the output value(s) of this algorithm as a dict, after it has been run.
+
+           Most algorithms only return a single output, in which case the :py:meth:`Output`
+           method (singular) is preferable for easier use.
+
+           Arguments of type GAAT_DATASET are returned as a
+           :py:class:`osgeo.gdal.Dataset` instance.
+
+           Parameters
+           -----------
+           parse_json: bool, default=True
+               Whether a JSON string should be returned as a dict or list (instead of a string).
+
+           Returns
+           -------
+           A dict whose keys are arguments that have outputs and whose values
+           are the argument values.
+
+           Example
+           -------
+           >>> with gdal.Run("raster", "reproject", input="byte.tif", output_format="MEM", dst_crs="EPSG:4326") as alg:
+           ...    print(alg.Outputs()["output"].ReadAsArray())
+        """
+
+        if not hasattr(self, "has_run"):
+            raise RuntimeError("Algorithm.Run() must be called before")
+
+        res = {}
+        for name in self.GetArgNames():
+            arg = self.GetArg(name)
+            if arg.IsOutput():
+                res[name] = self._get_arg_value(arg, parse_json)
+        return res
+
 
     def __getitem__(self, key):
         """Get the value of an argument.
@@ -5486,9 +5784,17 @@ class VSIFile(BytesIO):
         """
 
         if self.HasSubAlgorithms():
-            return self.InstantiateSubAlgorithm(key)
+            subalg = self.InstantiateSubAlgorithm(key.replace('_', '-'))
+            if not subalg:
+                raise RuntimeError(f"'{key}' is not a valid sub-algorithm of '{self.GetName()}'")
+            return subalg
         else:
-            return self.GetActualAlgorithm().GetArg(key).Get()
+            actual_alg = self.GetActualAlgorithm()
+            arg = actual_alg.GetArg(key.replace('_', '-'))
+            if not arg:
+                raise RuntimeError(f"'{key}' is not a valid argument of '{actual_alg.GetName()}'")
+            return arg.Get()
+
 
     def __setitem__(self, key, value):
         """Set the value of an argument.
@@ -5515,87 +5821,17 @@ class VSIFile(BytesIO):
            >>> alg["input"] = [one_ds, two_ds]
         """
 
-        if not self.GetArg(key).Set(value):
-            raise Exception(f"Cannot set argument {key} to {value}")
+        arg = self.GetArg(key.replace('_', '-'))
+        if not arg:
+            raise RuntimeError(f"'{key}' is not a valid argument of '{self.GetName()}'")
+        if not arg.Set(value):
+            raise RuntimeError(f"Cannot set argument '{key}' to '{value}'")
 %}
 }
 
-
-/* -------------------------------------------------------------------- */
-/* GDALAlgorithmArgHS                                                   */
-/* -------------------------------------------------------------------- */
-
-%extend GDALAlgorithmArgHS {
-%pythoncode %{
-
-    def Get(self):
-        type = self.GetType()
-        if type == GAAT_BOOLEAN:
-            return self.GetAsBoolean()
-        if type == GAAT_STRING:
-            return self.GetAsString()
-        if type == GAAT_INTEGER:
-            return self.GetAsInteger()
-        if type == GAAT_REAL:
-            return self.GetAsDouble()
-        if type == GAAT_DATASET:
-            return self.GetAsDatasetValue()
-        if type == GAAT_STRING_LIST:
-            return self.GetAsStringList()
-        if type == GAAT_INTEGER_LIST:
-            return self.GetAsIntegerList()
-        if type == GAAT_REAL_LIST:
-            return self.GetAsDoubleList()
-        raise Exception("Unhandled algorithm argument data type")
-
-    def Set(self, value):
-
-        if isinstance(value, os.PathLike):
-            value = str(value)
-
-        type = self.GetType()
-        if type == GAAT_BOOLEAN:
-            return self.SetAsBoolean(value)
-        if type == GAAT_STRING:
-            if isinstance(value, str) or isinstance(value, int) or isinstance(value, float):
-                return self.SetAsString(str(value))
-            else:
-                raise "Unexpected value type %s for an argument of type String" % str(type(value))
-        if type == GAAT_INTEGER:
-            return self.SetAsInteger(value)
-        if type == GAAT_REAL:
-            return self.SetAsDouble(value)
-        if type == GAAT_DATASET:
-            if isinstance(value, str) or isinstance(value, os.PathLike):
-                self.GetAsDatasetValue().SetName(str(value))
-                return True
-            elif isinstance(value, Dataset):
-                self.GetAsDatasetValue().SetDataset(value)
-                return True
-            else:
-                return self.SetAsDatasetValue(value)
-        if type == GAAT_STRING_LIST:
-            if isinstance(value, list):
-                return self.SetAsStringList([str(v) for v in value])
-            elif isinstance(value, dict):
-                return self.SetAsStringList([f"{k}={str(value[k])}" for k in value])
-            else:
-                return self.SetAsStringList([str(value)])
-        if type == GAAT_INTEGER_LIST:
-            return self.SetAsIntegerList(value)
-        if type == GAAT_REAL_LIST:
-            return self.SetAsDoubleList(value)
-        if type == GAAT_DATASET_LIST:
-            if isinstance(value[0], str) or isinstance(value[0], os.PathLike):
-                return self.SetDatasetNames([str(v) for v in value])
-            elif isinstance(value[0], Dataset):
-                return self.SetDatasets(value)
-            else:
-                raise "Unexpected value type %s for an argument of type DatasetList" % str(type(value))
-        raise Exception("Unhandled algorithm argument data type")
-
+%pythonprepend GDALAlgorithmHS::Run %{
+    self.has_run = True
 %}
-}
 
 %pythonprepend GDALAlgorithmHS::ParseCommandLineArguments %{
     # Convert PathLike to str
@@ -5616,3 +5852,174 @@ class VSIFile(BytesIO):
             args[0][i] = str(args[0][i])
 
 %}
+
+/* -------------------------------------------------------------------- */
+/* GDALAlgorithmArgHS                                                   */
+/* -------------------------------------------------------------------- */
+
+%extend GDALAlgorithmArgHS {
+%pythoncode %{
+
+    def Get(self):
+        """Return the argument value in its native type.
+
+           Note: using the ``[]`` operator of Algorithm is also a convenient
+           way of getting the value of an argument.
+
+           Examples
+           --------
+           >>> arg = alg.GetArg("output")
+           >>> arg.Get()
+        """
+
+        type = self.GetType()
+        if type == GAAT_BOOLEAN:
+            return self.GetAsBoolean()
+        if type == GAAT_STRING:
+            return self.GetAsString()
+        if type == GAAT_INTEGER:
+            return self.GetAsInteger()
+        if type == GAAT_REAL:
+            return self.GetAsDouble()
+        if type == GAAT_DATASET:
+            return self.GetAsDatasetValue()
+        if type == GAAT_STRING_LIST:
+            return self.GetAsStringList()
+        if type == GAAT_INTEGER_LIST:
+            return self.GetAsIntegerList()
+        if type == GAAT_REAL_LIST:
+            return self.GetAsDoubleList()
+
+        # should not happen
+        raise RuntimeError("Unhandled algorithm argument data type")
+
+    def Set(self, value):
+        """Sets the value of an argument.
+
+           Note: using the ``[]`` operator of Algorithm is also a convenient
+           way of setting the value of an argument.
+
+           Examples
+           --------
+           >>> arg = alg.GetArg("input")
+           >>> arg.Set("in.tif")
+        """
+
+        arg_type = self.GetType()
+
+        def ToInt(v):
+            if int(v) == v:
+                return int(v)
+            raise TypeError(f"{v} is not an integer")
+
+        if arg_type == GAAT_BOOLEAN:
+            if value in (1, "1", "yes", "YES", "true", "True", "TRUE", "on", "ON"):
+                return self.SetAsBoolean(True)
+            elif value in (0, "0", "no", "NO", "false", "False", "FALSE", "off", "OFF"):
+                return self.SetAsBoolean(False)
+            else:
+                return self.SetAsBoolean(value)
+
+        if arg_type == GAAT_STRING:
+            if isinstance(value, int):
+                metadata_item = self.GetMetadataItem("type")
+                if metadata_item and ("GDALDataType" in metadata_item) and value >= GDT_Byte and value < GDT_TypeCount:
+                    return self.SetAsString(GetDataTypeName(value))
+                else:
+                    return self.SetAsString(str(value))
+            elif isinstance(value, str) or isinstance(value, float) or isinstance(value, os.PathLike):
+                return self.SetAsString(str(value))
+            elif isinstance(value, osr.SpatialReference):
+                return self.SetAsString(value.ExportToWkt(["FORMAT=WKT2_2019"]))
+            elif isinstance(value, list) and len(value) >= 1 and (isinstance(value[0], str) or isinstance(value[0], int) or isinstance(value[0], float) or isinstance(value[0], os.PathLike)):
+                if len(value) > 1:
+                    raise RuntimeError("Only one value supported for an argument of type String")
+                return self.Set(value[0])
+            raise TypeError("Unexpected value type %s for an argument of type String" % str(type(value)))
+
+        if arg_type == GAAT_INTEGER:
+            if isinstance(value, int):
+                return self.SetAsInteger(value)
+            elif isinstance(value, str):
+                return self.SetAsInteger(int(value))
+            elif isinstance(value, float):
+                return self.SetAsInteger(ToInt(value))
+            elif isinstance(value, list) and len(value) >= 1 and (isinstance(value[0], str) or isinstance(value[0], int) or isinstance(value[0], float)):
+                if len(value) > 1:
+                    raise RuntimeError("Only one value supported for an argument of type Integer")
+                return self.Set(value[0])
+            raise TypeError("Unexpected value type %s for an argument of type Integer" % str(type(value)))
+
+        if arg_type == GAAT_REAL:
+            if isinstance(value, str):
+                return self.SetAsDouble(float(value))
+            elif isinstance(value, int) or isinstance(value, float):
+                return self.SetAsDouble(value)
+            elif isinstance(value, list) and len(value) >= 1 and (isinstance(value[0], str) or isinstance(value[0], int) or isinstance(value[0], float)):
+                if len(value) > 1:
+                        raise RuntimeError("Only one value supported for an argument of type Real")
+                return self.Set(value[0])
+            raise TypeError("Unexpected value type %s for an argument of type Real" % str(type(value)))
+
+        if arg_type == GAAT_DATASET:
+            if isinstance(value, str) or isinstance(value, os.PathLike):
+                self.GetAsDatasetValue().SetName(str(value))
+                return True
+            elif isinstance(value, Dataset):
+                self.GetAsDatasetValue().SetDataset(value)
+                return True
+            elif isinstance(value, list) and len(value) >= 1 and (isinstance(value[0], str) or isinstance(value[0], os.PathLike) or isinstance(value[0], Dataset) or isinstance(value[0], ArgDatasetValue)):
+                if len(value) > 1:
+                    raise RuntimeError("Only one value supported for an argument of type Dataset")
+                return self.Set(value[0])
+            elif isinstance(value, ArgDatasetValue):
+                return self.SetAsDatasetValue(value)
+            raise TypeError("Unexpected value type %s for an argument of type Dataset" % str(type(value)))
+
+        if arg_type == GAAT_STRING_LIST:
+            if isinstance(value, list):
+                return self.SetAsStringList([str(v) for v in value])
+            elif isinstance(value, dict):
+                return self.SetAsStringList([f"{k}={str(value[k])}" for k in value])
+            else:
+                return self.SetAsStringList([str(value)])
+
+        if arg_type == GAAT_INTEGER_LIST:
+            if isinstance(value, int):
+                return self.SetAsIntegerList([value])
+            elif isinstance(value, float):
+                return self.SetAsIntegerList([ToInt(value)])
+            elif isinstance(value, str):
+                return self.SetAsIntegerList([int(value)])
+            elif isinstance(value, list) and len(value) >= 1 and isinstance(value[0], str):
+                return self.SetAsIntegerList([int(v) for v in value])
+            elif isinstance(value, list) and len(value) >= 1 and isinstance(value[0], float):
+                return self.SetAsIntegerList([ToInt(v) for v in value])
+            else:
+                return self.SetAsIntegerList(value)
+
+        if arg_type == GAAT_REAL_LIST:
+            if isinstance(value, int) or isinstance(value, float) or isinstance(value, str):
+                return self.SetAsDoubleList([float(value)])
+            elif isinstance(value, list) and len(value) >= 1 and isinstance(value[0], str):
+                return self.SetAsDoubleList([float(v) for v in value])
+            else:
+                return self.SetAsDoubleList(value)
+
+        if arg_type == GAAT_DATASET_LIST:
+            if isinstance(value, list) and len(value) > 0 and (isinstance(value[0], str) or isinstance(value[0], os.PathLike)):
+                return self.SetDatasetNames([str(v) for v in value])
+            elif isinstance(value, list) and (len(value) == 0 or isinstance(value[0], Dataset)):
+                return self.SetDatasets(value)
+            elif isinstance(value, str) or isinstance(value, os.PathLike):
+                return self.SetDatasetNames([str(value)])
+            elif isinstance(value, Dataset):
+                return self.SetDatasets([value])
+            else:
+                raise TypeError("Unexpected value type %s for an argument of type DatasetList" % str(type(value)))
+
+        # should not happen
+        raise RuntimeError("Unhandled algorithm argument data type")
+
+%}
+}

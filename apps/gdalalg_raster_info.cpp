@@ -57,11 +57,13 @@ GDALRasterInfoAlgorithm::GDALRasterInfoAlgorithm(bool openForMixedRasterVector)
         .SetCategory(GAAC_ADVANCED);
     AddArg("list-mdd", 0,
            _("List all metadata domains available for the dataset"), &m_listMDD)
+        .AddAlias("list-metadata-domains")
         .SetCategory(GAAC_ADVANCED);
-    AddArg("mdd", 0,
+    AddArg("metadata-domain", 0,
            _("Report metadata for the specified domain. 'all' can be used to "
              "report metadata in all domains"),
            &m_mdd)
+        .AddAlias("mdd")
         .SetCategory(GAAC_ADVANCED);
 
     AddArg("no-nodata", 0, _("Suppress retrieving nodata value"), &m_noNodata)
@@ -76,9 +78,9 @@ GDALRasterInfoAlgorithm::GDALRasterInfoAlgorithm(bool openForMixedRasterVector)
         .SetMinValueIncluded(1);
 
     AddInputDatasetArg(&m_dataset, openForMixedRasterVector
-                                       ? GDAL_OF_RASTER | GDAL_OF_VECTOR |
-                                             GDAL_OF_MULTIDIM_RASTER
-                                       : GDAL_OF_RASTER);
+                                       ? GDAL_OF_RASTER | GDAL_OF_VECTOR
+                                       : GDAL_OF_RASTER)
+        .AddAlias("dataset");
 
     AddOutputStringArg(&m_output);
     AddArg("stdout", 0,

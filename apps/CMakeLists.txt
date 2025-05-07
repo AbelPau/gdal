@@ -6,6 +6,7 @@ add_library(
   commonutils.h
   gdal_utils.h
   gdalargumentparser.cpp
+  gdalalg_clip_common.cpp
   gdalalg_convert.cpp
   gdalalg_info.cpp
   gdalalg_main.cpp
@@ -16,33 +17,45 @@ add_library(
   gdalalg_raster.cpp
   gdalalg_raster_info.cpp
   gdalalg_raster_aspect.cpp
-  gdalalg_raster_astype.cpp
   gdalalg_raster_calc.cpp
+  gdalalg_raster_clean_collar.cpp
   gdalalg_raster_clip.cpp
   gdalalg_raster_color_map.cpp
   gdalalg_raster_convert.cpp
+  gdalalg_raster_create.cpp
   gdalalg_raster_edit.cpp
   gdalalg_raster_contour.cpp
+  gdalalg_raster_footprint.cpp
+  gdalalg_raster_fill_nodata.cpp
   gdalalg_raster_hillshade.cpp
+  gdalalg_raster_index.cpp
   gdalalg_raster_mosaic.cpp
   gdalalg_raster_pipeline.cpp
+  gdalalg_raster_pixel_info.cpp
+  gdalalg_raster_polygonize.cpp
   gdalalg_raster_overview_add.cpp
   gdalalg_raster_overview_delete.cpp
   gdalalg_raster_read.cpp
+  gdalalg_raster_reclassify.cpp
   gdalalg_raster_reproject.cpp
   gdalalg_raster_resize.cpp
   gdalalg_raster_roughness.cpp
   gdalalg_raster_scale.cpp
   gdalalg_raster_select.cpp
+  gdalalg_raster_set_type.cpp
+  gdalalg_raster_sieve.cpp
   gdalalg_raster_slope.cpp
   gdalalg_raster_stack.cpp
+  gdalalg_raster_tile.cpp
   gdalalg_raster_tpi.cpp
   gdalalg_raster_tri.cpp
   gdalalg_raster_unscale.cpp
+  gdalalg_raster_viewshed.cpp
   gdalalg_raster_write.cpp
   gdalalg_vector.cpp
   gdalalg_vector_info.cpp
   gdalalg_vector_clip.cpp
+  gdalalg_vector_concat.cpp
   gdalalg_vector_convert.cpp
   gdalalg_vector_edit.cpp
   gdalalg_vector_pipeline.cpp
@@ -64,10 +77,18 @@ add_library(
   gdalalg_vector_grid_invdistnn.cpp
   gdalalg_vector_grid_linear.cpp
   gdalalg_vector_grid_nearest.cpp
+  gdalalg_vector_output_abstract.cpp
   gdalalg_vector_reproject.cpp
   gdalalg_vector_select.cpp
   gdalalg_vector_sql.cpp
   gdalalg_vector_write.cpp
+  gdalalg_vsi.cpp
+  gdalalg_vsi_copy.cpp
+  gdalalg_vsi_delete.cpp
+  gdalalg_vsi_list.cpp
+  gdalalg_vsi_move.cpp
+  gdalalg_vsi_sozip.cpp
+  gdalalg_vsi_sync.cpp
   gdalinfo_lib.cpp
   gdalbuildvrt_lib.cpp
   gdal_grid_lib.cpp
@@ -90,9 +111,10 @@ target_sources(${GDAL_LIB_TARGET_NAME} PRIVATE $<TARGET_OBJECTS:appslib>)
 gdal_standard_includes(appslib)
 target_compile_options(appslib PRIVATE ${GDAL_CXX_WARNING_FLAGS} ${WFLAG_OLD_STYLE_CAST} ${WFLAG_EFFCXX})
 target_include_directories(
-  appslib PRIVATE $<TARGET_PROPERTY:gdal_vrt,SOURCE_DIR> $<TARGET_PROPERTY:ogrsf_generic,SOURCE_DIR>
-                  $<TARGET_PROPERTY:ogr_MEM,SOURCE_DIR>)
-
+  appslib PRIVATE $<TARGET_PROPERTY:gdal_vrt,SOURCE_DIR> $<TARGET_PROPERTY:ogrsf_generic,SOURCE_DIR>)
+if (HAVE_ATOMIC_UINT64_T_WITH_ATOMIC)
+    gdal_target_link_libraries(appslib PRIVATE atomic)
+endif()
 gdal_target_link_libraries(appslib PRIVATE PROJ::proj)
 
 set_property(TARGET appslib PROPERTY POSITION_INDEPENDENT_CODE ${GDAL_OBJECT_LIBRARIES_POSITION_INDEPENDENT_CODE})
@@ -212,8 +234,7 @@ if (BUILD_APPS)
     target_compile_options(${UTILCMD} PRIVATE ${GDAL_CXX_WARNING_FLAGS} ${WFLAG_OLD_STYLE_CAST})
     add_dependencies(${UTILCMD} generate_gdal_version_h)
     target_include_directories(
-      ${UTILCMD} PRIVATE $<TARGET_PROPERTY:gdal_vrt,SOURCE_DIR> $<TARGET_PROPERTY:ogrsf_generic,SOURCE_DIR>
-                         $<TARGET_PROPERTY:ogr_MEM,SOURCE_DIR>)
+      ${UTILCMD} PRIVATE $<TARGET_PROPERTY:gdal_vrt,SOURCE_DIR> $<TARGET_PROPERTY:ogrsf_generic,SOURCE_DIR>)
     if (MSVC)
       set_target_properties(${UTILCMD} PROPERTIES LINK_FLAGS "wsetargv.obj")
     endif ()
@@ -283,8 +304,7 @@ if (BUILD_APPS)
       target_link_libraries(${UTILCMD} PRIVATE wsock32 ws2_32 psapi)
     endif ()
     target_include_directories(
-      ${UTILCMD} PRIVATE $<TARGET_PROPERTY:gdal_vrt,SOURCE_DIR> $<TARGET_PROPERTY:ogrsf_generic,SOURCE_DIR>
-                         $<TARGET_PROPERTY:ogr_MEM,SOURCE_DIR>)
+      ${UTILCMD} PRIVATE $<TARGET_PROPERTY:gdal_vrt,SOURCE_DIR> $<TARGET_PROPERTY:ogrsf_generic,SOURCE_DIR>)
     target_link_libraries(${UTILCMD} PRIVATE $<TARGET_NAME:${GDAL_LIB_TARGET_NAME}>)
   endforeach ()
 endif ()
@@ -294,6 +314,7 @@ set(GDAL_DATA_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/data/gdalinfo_output.schema.json
     ${CMAKE_CURRENT_SOURCE_DIR}/data/gdalmdiminfo_output.schema.json
     ${CMAKE_CURRENT_SOURCE_DIR}/data/ogrinfo_output.schema.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/leaflet_template.html
 )
 set_property(
   TARGET ${GDAL_LIB_TARGET_NAME}

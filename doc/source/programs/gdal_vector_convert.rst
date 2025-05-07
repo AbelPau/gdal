@@ -1,7 +1,7 @@
-.. _gdal_vector_convert_subcommand:
+.. _gdal_vector_convert:
 
 ================================================================================
-"gdal vector convert" sub-command
+``gdal vector convert``
 ================================================================================
 
 .. versionadded:: 3.11
@@ -31,6 +31,8 @@ Standard options
 .. include:: gdal_options/of_vector.rst
 
 .. include:: gdal_options/co_vector.rst
+
+.. include:: gdal_options/lco.rst
 
 .. include:: gdal_options/overwrite.rst
 

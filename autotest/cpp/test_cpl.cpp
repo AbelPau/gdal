@@ -23,6 +23,7 @@
 #include "cpl_error.h"
 #include "cpl_float.h"
 #include "cpl_hash_set.h"
+#include "cpl_levenshtein.h"
 #include "cpl_list.h"
 #include "cpl_mask.h"
 #include "cpl_sha256.h"
@@ -5331,6 +5332,43 @@ TEST_F(test_cpl, CPLStrtod)
     }
 }
 
+TEST_F(test_cpl, CPLStringToComplex)
+{
+    const auto EXPECT_PARSED = [](const char *str, double real, double imag)
+    {
+        double r = -999;
+        double i = -999;
+        EXPECT_EQ(CPLStringToComplex(str, &r, &i), CE_None)
+            << "Unexpected error parsing " << str;
+        EXPECT_EQ(r, real);
+        EXPECT_EQ(i, imag);
+    };
+    const auto EXPECT_ERROR = [](const char *str)
+    {
+        CPLErrorStateBackuper state(CPLQuietErrorHandler);
+        double r, i;
+        EXPECT_EQ(CPLStringToComplex(str, &r, &i), CE_Failure)
+            << "Did not receive expected error parsing " << str;
+    };
+
+    EXPECT_PARSED("05401", 5401, 0);
+    EXPECT_PARSED("-5401", -5401, 0);
+    EXPECT_PARSED(" 611.2-38.4i", 611.2, -38.4);
+    EXPECT_PARSED("611.2+38.4i ", 611.2, 38.4);
+    EXPECT_PARSED("-611.2+38.4i", -611.2, 38.4);
+
+    EXPECT_ERROR("-611.2+38.4ii");
+    EXPECT_ERROR("-611.2+38.4ji");
+    EXPECT_ERROR("-611.2+38.4ij");
+    EXPECT_ERROR("f-611.2+38.4i");
+    EXPECT_ERROR("-611.2+f38.4i");
+    EXPECT_ERROR("-611.2+-38.4i");
+    EXPECT_ERROR("611.2+38.4");
+    EXPECT_ERROR("38.4i");
+    EXPECT_ERROR("38.4x");
+    EXPECT_ERROR("invalid");
+}
+
 TEST_F(test_cpl, CPLForceToASCII)
 {
     {
@@ -5773,6 +5811,35 @@ TEST_F(test_cpl, CPLGreatestCommonDivisor)
     // hardcoded epsilons and it may be appropriate to change
     // the expected results.
 
+    EXPECT_EQ(CPLGreatestCommonDivisor(0.0, 1.0), 0.0);
+    EXPECT_EQ(
+        CPLGreatestCommonDivisor(std::numeric_limits<double>::quiet_NaN(), 1.0),
+        0.0);
+    EXPECT_EQ(
+        CPLGreatestCommonDivisor(std::numeric_limits<double>::infinity(), 1.0),
+        0.0);
+    EXPECT_EQ(
+        CPLGreatestCommonDivisor(-std::numeric_limits<double>::infinity(), 1.0),
+        0.0);
+    EXPECT_EQ(CPLGreatestCommonDivisor(1.0, 0.0), 0.0);
+    EXPECT_EQ(
+        CPLGreatestCommonDivisor(1.0, std::numeric_limits<double>::quiet_NaN()),
+        0.0);
+    EXPECT_EQ(
+        CPLGreatestCommonDivisor(1.0, std::numeric_limits<double>::infinity()),
+        0.0);
+    EXPECT_EQ(
+        CPLGreatestCommonDivisor(1.0, -std::numeric_limits<double>::infinity()),
+        0.0);
+
+    EXPECT_EQ(CPLGreatestCommonDivisor(std::numeric_limits<double>::min(),
+                                       std::numeric_limits<double>::max()),
+              0.0);
+
+    EXPECT_EQ(CPLGreatestCommonDivisor(-2.0, 4.0), -2.0);
+    EXPECT_EQ(CPLGreatestCommonDivisor(-2.0, -4.0), -2.0);
+    EXPECT_EQ(CPLGreatestCommonDivisor(2.0, -4.0), 2.0);
+
     EXPECT_EQ(CPLGreatestCommonDivisor(3.0, 5.0), 1.0);
     EXPECT_EQ(CPLGreatestCommonDivisor(3.0 / 3600, 5.0 / 3600), 1.0 / 3600);
     EXPECT_EQ(CPLGreatestCommonDivisor(5.0 / 3600, 2.5 / 3600), 2.5 / 3600);
@@ -5794,6 +5861,62 @@ TEST_F(test_cpl, CPLGreatestCommonDivisor)
     EXPECT_EQ(CPLGreatestCommonDivisor(2.999999, 3.0), 0);
     EXPECT_EQ(CPLGreatestCommonDivisor(2.9999999, 3.0), 0);
     EXPECT_EQ(CPLGreatestCommonDivisor(2.99999999, 3.0), 2.99999999);
+}
+
+TEST_F(test_cpl, CPLLevenshteinDistance)
+{
+    EXPECT_EQ(CPLLevenshteinDistance("", "", false), 0);
+    EXPECT_EQ(CPLLevenshteinDistance("a", "a", false), 0);
+    EXPECT_EQ(CPLLevenshteinDistance("a", "b", false), 1);
+    EXPECT_EQ(CPLLevenshteinDistance("a", "", false), 1);
+    EXPECT_EQ(CPLLevenshteinDistance("abc", "ac", false), 1);
+    EXPECT_EQ(CPLLevenshteinDistance("ac", "abc", false), 1);
+    EXPECT_EQ(CPLLevenshteinDistance("0ab1", "0xy1", false), 2);
+    EXPECT_EQ(CPLLevenshteinDistance("0ab1", "0xy1", true), 2);
+    EXPECT_EQ(CPLLevenshteinDistance("0ab1", "0ba1", false), 2);
+    EXPECT_EQ(CPLLevenshteinDistance("0ab1", "0ba1", true), 1);
+
+    std::string longStr(32768, 'x');
+    EXPECT_EQ(CPLLevenshteinDistance(longStr.c_str(), longStr.c_str(), true),
+              0);
+    EXPECT_EQ(CPLLevenshteinDistance(longStr.c_str(), "another_one", true),
+              std::numeric_limits<size_t>::max());
+}
+
+TEST_F(test_cpl, CPLLockFileEx)
+{
+    const std::string osLockFilename = CPLGenerateTempFilename(".lock");
+
+    ASSERT_EQ(CPLLockFileEx(nullptr, nullptr, nullptr), CLFS_API_MISUSE);
+
+    ASSERT_EQ(CPLLockFileEx(osLockFilename.c_str(), nullptr, nullptr),
+              CLFS_API_MISUSE);
+
+    CPLLockFileHandle hLockFileHandle = nullptr;
+
+    ASSERT_EQ(CPLLockFileEx(osLockFilename.c_str(), &hLockFileHandle, nullptr),
+              CLFS_OK);
+    ASSERT_NE(hLockFileHandle, nullptr);
+
+    // Check the lock file has been created
+    VSIStatBufL sStat;
+    ASSERT_EQ(VSIStatL(osLockFilename.c_str(), &sStat), 0);
+
+    {
+        CPLStringList aosOptions;
+        aosOptions.SetNameValue("WAIT_TIME", "0.1");
+        CPLLockFileHandle hLockFileHandle2 = nullptr;
+        ASSERT_EQ(CPLLockFileEx(osLockFilename.c_str(), &hLockFileHandle2,
+                                aosOptions.List()),
+                  CLFS_LOCK_BUSY);
+    }
+
+    CPLUnlockFileEx(hLockFileHandle);
+
+    // Check the lock file has been deleted
+    ASSERT_EQ(VSIStatL(osLockFilename.c_str(), &sStat), -1);
+
+    CPLUnlockFileEx(nullptr);
 }
 
 }  // namespace

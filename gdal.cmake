@@ -6,8 +6,8 @@
 # a new member or virtual function in a public C++ class, etc.
 # This will typically happen for each GDAL feature release (change of X or Y in
 # a X.Y.Z numbering scheme), but should not happen for a bugfix release (change of Z)
-# Previous value: 36 for GDAL 3.10
-set(GDAL_SOVERSION 36)
+# Previous value: 37 for GDAL 3.11
+set(GDAL_SOVERSION 37)
 
 # Switches to control build targets(cached)
 option(ENABLE_GNM "Build GNM (Geography Network Model) component" ON)
@@ -266,7 +266,8 @@ set(INSTALL_PLUGIN_FULL_DIR "${CMAKE_INSTALL_PREFIX}/${INSTALL_PLUGIN_DIR}")
 
 function (is_sharp_embed_available res)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.21 AND
-        ((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID STREQUAL "Clang")))
+        ((CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 15.0) OR
+         (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 19.0)))
         # CMAKE_C_STANDARD=23 only supported since CMake 3.21
         set(TEST_SHARP_EMBED
           "static const unsigned char embedded[] = {\n#embed __FILE__\n};\nint main() { (void)embedded; return 0;}"
@@ -551,6 +552,11 @@ install(
   RESOURCE DESTINATION ${GDAL_RESOURCE_PATH}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   FRAMEWORK DESTINATION "${FRAMEWORK_DESTINATION}")
+
+# Generate targets file for importing directly from GDAL build tree
+export(TARGETS ${GDAL_LIB_TARGET_NAME}
+        NAMESPACE GDAL::
+        FILE "GDAL-targets.cmake")
 
 if (NOT GDAL_ENABLE_MACOSX_FRAMEWORK)
   # Generate GdalConfig.cmake and GdalConfigVersion.cmake
