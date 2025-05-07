@@ -71,32 +71,79 @@ CPLString MMRGetNameFromMetadata(const char *pszRELFile)
     return pszFile;
 }
 
-/*
-Example: this function finds G1,
-    [ATTRIBUTE_DATA]
-    IndexsNomsCamps=1
-    NomCamp_1=G1
+enum class MMRNomFitxerState
+{
+    NOMFITXER_NOT_FOUND,        // There is no NomFitxer key
+    NOMFITXER_VALUE_EXPECTED,   // The NomFitxer value is the expected
+    NOMFITXER_VALUE_EMPTY,      // The NomFitxer value is empty
+    NOMFITXER_VALUE_UNEXPECTED  // The NomFitxer value is unexpected
+};
 
-then in section [ATTRIBUTE_DATA:G1] finds G1_1_BYTE_2X3_6_CATEGS_DBF
-    [ATTRIBUTE_DATA:G1]
-    descriptor=Al·leluia 1
-    min=0
-    max=5
-    IndexsJoinTaula=G1_1_BYTE_2X3_6_CATEGS_DBF
-    JoinTaula_G1_1_BYTE_2X3_6_CATEGS_DBF=G1_1_BYTE_2X3_6_CATEGS_DBF
+MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
+                                               const char *pszSection,
+                                               const char *pszRELFile)
+{
+    // Gets the state of NomFitxer in specified section
+    // [pszSection]
+    // NomFitxer=Value
+    char *pszDocumentedLayerName =
+        MMReturnValueFromSectionINIFile(pszRELFile, pszSection, KEY_NomFitxer);
 
-then in section [TAULA_G1_1_BYTE_2X3_6_CATEGS_DBF] finds byte_2x3_6_categs.rel
-    [TAULA_G1_1_BYTE_2X3_6_CATEGS_DBF]
-    NomFitxer=byte_2x3_6_categs.rel
-*/
-CPLString GetGenericFieldFilesFromREL(const char *pszLayerName,
-                                      const char *pszRELFile, bool *bMultiBand)
+    if (!pszDocumentedLayerName)
+    {
+        return MMRNomFitxerState::NOMFITXER_NOT_FOUND;
+    }
+
+    if (*pszDocumentedLayerName == '\0')
+    {
+        return MMRNomFitxerState::NOMFITXER_VALUE_EMPTY;
+    }
+    CPLString pszFileAux = CPLFormFilenameSafe(
+        CPLGetPathSafe(pszRELFile).c_str(), pszDocumentedLayerName, "");
+
+    MM_RemoveWhitespacesFromEndOfString(pszDocumentedLayerName);
+    if (*pszDocumentedLayerName == '*' || *pszDocumentedLayerName == '?')
+    {
+        return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
+    }
+
+    CPLFree(pszDocumentedLayerName);
+
+    // Is the found Value the same than the pszLayerName file?
+    if (pszFileAux == pszLayerName)
+    {
+        return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
+    }
+
+    return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
+}
+
+CPLString MMRGetGenericFieldFilesFromREL(const char *pszLayerName,
+                                         const char *pszRELFile,
+                                         bool *bMultiBand)
 {
     if (bMultiBand)
         *bMultiBand = false;
 
     if (!pszRELFile)
         return "";
+
+    // [ATTRIBUTE_DATA]
+    // NomFitxer=
+    // It should be empty but if it's not, at least,
+    // the value has to be pszLayerName
+    MMRNomFitxerState iState = MMRStateOfNomFitxerInSection(
+        pszLayerName, SECCIO_ATTRIBUTE_DATA, pszRELFile);
+
+    if (iState == MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED ||
+        iState == MMRNomFitxerState::NOMFITXER_VALUE_EMPTY)
+    {
+        return pszRELFile;
+    }
+    else if (iState == MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED)
+    {
+        return "";
+    }
 
     // Discarting not supported via SDE (some files
     // could have this otpion)
@@ -114,27 +161,25 @@ CPLString GetGenericFieldFilesFromREL(const char *pszLayerName,
 
     // Getting the internal names of the bands
     char **papszTokens = CSLTokenizeString2(pszFieldNames, ",", 0);
-    const int nTokenCount = CSLCount(papszTokens);
+    const int nBands = CSLCount(papszTokens);
     VSIFree(pszFieldNames);
 
-    if (bMultiBand && nTokenCount > 1)
+    if (bMultiBand && nBands > 1)
         *bMultiBand = true;
 
     CPLString szFieldName;
     CPLString szAtributeDataName;
-    CPLString pszFileAux;
-    char *pszFieldNameValue;
-    for (size_t i = 0; i < nTokenCount; i++)
+    for (size_t nIBand = 0; nIBand < nBands; nIBand++)
     {
         szFieldName = KEY_NomCamp;
         szFieldName.append("_");
-        szFieldName.append(papszTokens[i]);
+        szFieldName.append(papszTokens[nIBand]);
 
-        pszFieldNameValue = MMReturnValueFromSectionINIFile(
+        char *pszFieldNameValue = MMReturnValueFromSectionINIFile(
             pszRELFile, SECCIO_ATTRIBUTE_DATA, szFieldName);
 
         if (!pszFieldNameValue)
-            continue;
+            continue;  // A band without name (·$· unexpected)
 
         MM_RemoveWhitespacesFromEndOfString(pszFieldNameValue);
 
@@ -145,33 +190,22 @@ CPLString GetGenericFieldFilesFromREL(const char *pszLayerName,
 
         VSIFree(pszFieldNameValue);
 
-        pszFieldNameValue = MMReturnValueFromSectionINIFile(
-            pszRELFile, szAtributeDataName.c_str(), KEY_NomFitxer);
-
-        if (!pszFieldNameValue)
+        // Let's see if this band contains the expected name
+        // or none (in monoband case)
+        iState = MMRStateOfNomFitxerInSection(
+            pszLayerName, szAtributeDataName.c_str(), pszRELFile);
+        if (iState == MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED)
         {
-            // Singular case where there are no suitable keys
-            if (nTokenCount == 1)
-            {
-                return pszRELFile;
-            }
-
+            CSLDestroy(papszTokens);
+            return pszRELFile;
+        }
+        else if (iState == MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED)
+        {
             continue;
         }
 
-        MM_RemoveWhitespacesFromEndOfString(pszFieldNameValue);
-        if (!pszFieldNameValue)
-            continue;
-
-        if (*pszFieldNameValue == '*' || *pszFieldNameValue == '?')
-            continue;
-
-        // If some NomFitxer=pszLayerName exists,
-        // just check this is the one we are trying to open
-        pszFileAux = CPLFormFilenameSafe(CPLGetPathSafe(pszRELFile).c_str(),
-                                         pszFieldNameValue, "");
-
-        if (pszFileAux == pszLayerName)
+        // If there is only one band is accepted NOMFITXER_NOT_FOUND/EMPTY iState result
+        if (nBands == 1)
         {
             CSLDestroy(papszTokens);
             return pszRELFile;
@@ -179,7 +213,6 @@ CPLString GetGenericFieldFilesFromREL(const char *pszLayerName,
     }
 
     CSLDestroy(papszTokens);
-
     return "";
 }
 
@@ -221,8 +254,8 @@ CPLString MMRGetAssociatedMetadataName(const char *pszLayerName,
                     a key `NomFitxer=pszLayerName` (but there may be other
                     `NomFitxer=...` keys -> NO_DIRECT_REL_INVALID)
         */
-        return GetGenericFieldFilesFromREL(pszLayerName, pszRELFile.c_str(),
-                                           bMultiBand);
+        return MMRGetGenericFieldFilesFromREL(pszLayerName, pszRELFile.c_str(),
+                                              bMultiBand);
     }
 
     const CPLString osPath = CPLGetPathSafe(pszLayerName);
@@ -244,8 +277,8 @@ CPLString MMRGetAssociatedMetadataName(const char *pszLayerName,
         const std::string filepath =
             CPLFormFilenameSafe(osPath, folder[i], nullptr);
 
-        pszRELFile = GetGenericFieldFilesFromREL(pszLayerName, filepath.c_str(),
-                                                 bMultiBand);
+        pszRELFile = MMRGetGenericFieldFilesFromREL(
+            pszLayerName, filepath.c_str(), bMultiBand);
         if (!EQUAL(pszRELFile, ""))
         {
             CSLDestroy(folder);
