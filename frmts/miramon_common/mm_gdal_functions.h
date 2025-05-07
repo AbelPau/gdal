@@ -14,7 +14,7 @@ CPL_C_START                          // Necessary for compiling in GDAL project
     // Log. It should be temporal
     extern const char *MM_pszLogFilename;
 
-void fclose_and_nullify(VSILFILE **pFunc);
+CPL_DLL void fclose_and_nullify(VSILFILE **pFunc);
 
 // MiraMon feature table descriptors
 #define MM_MAX_IDENTIFIER_SIZE 50
@@ -41,7 +41,7 @@ void fclose_and_nullify(VSILFILE **pFunc);
 // In case of tilde use "_WITH_TILDE"
 // In case of middle dot use "_MIDDLE_DOT"
 
-void MM_FillFieldDescriptorByLanguage(void);
+CPL_DLL void MM_FillFieldDescriptorByLanguage(void);
 
 extern char szInternalGraphicIdentifierEng[];
 extern char szInternalGraphicIdentifierCat[];
@@ -87,59 +87,63 @@ extern char szNumberOfElementaryPolygonsEng[];
 extern char szNumberOfElementaryPolygonsCat[];
 extern char szNumberOfElementaryPolygonsSpa[];
 
-char *MM_oemansi(char *szcadena);
-char *MM_oemansi_n(char *szcadena, size_t n_bytes);
-char *MM_stristr(const char *haystack, const char *needle);
-void MM_InitializeField(struct MM_FIELD *camp);
-struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS ncamps);
-MM_FIRST_RECORD_OFFSET_TYPE
+CPL_DLL char *MM_oemansi(char *szcadena);
+CPL_DLL char *MM_oemansi_n(char *szcadena, size_t n_bytes);
+CPL_DLL char *MM_stristr(const char *haystack, const char *needle);
+CPL_DLL void MM_InitializeField(struct MM_FIELD *camp);
+CPL_DLL struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS ncamps);
+CPL_DLL MM_FIRST_RECORD_OFFSET_TYPE
 MM_GiveOffsetExtendedFieldName(const struct MM_FIELD *camp);
-struct MM_DATA_BASE_XP *MM_CreateDBFHeader(MM_EXT_DBF_N_FIELDS n_camps,
-                                           MM_BYTE nCharSet);
-void MM_ReleaseMainFields(struct MM_DATA_BASE_XP *data_base_XP);
-void MM_ReleaseDBFHeader(struct MM_DATA_BASE_XP **data_base_XP);
-MM_BOOLEAN MM_CreateAndOpenDBFFile(struct MM_DATA_BASE_XP *bd_xp,
-                                   const char *NomFitxer);
-int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
-                          const struct MM_FIELD *camp_inicial);
-int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB);
+CPL_DLL struct MM_DATA_BASE_XP *MM_CreateDBFHeader(MM_EXT_DBF_N_FIELDS n_camps,
+                                                   MM_BYTE nCharSet);
+CPL_DLL void MM_ReleaseMainFields(struct MM_DATA_BASE_XP *data_base_XP);
+CPL_DLL void MM_ReleaseDBFHeader(struct MM_DATA_BASE_XP **data_base_XP);
+CPL_DLL MM_BOOLEAN MM_CreateAndOpenDBFFile(struct MM_DATA_BASE_XP *bd_xp,
+                                           const char *NomFitxer);
+CPL_DLL int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
+                                  const struct MM_FIELD *camp_inicial);
+CPL_DLL int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB);
 
-size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
-                                        MM_BYTE n_perimeter_decimals,
-                                        MM_BYTE n_area_decimals_decimals);
-size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
-                                    MM_BYTE n_decimals);
-size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
-size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
-int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
-                                  int nSignifFigures, double nRealValue);
-int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
+CPL_DLL size_t MM_DefineFirstPolygonFieldsDB_XP(
+    struct MM_DATA_BASE_XP *bd_xp, MM_BYTE n_perimeter_decimals,
+    MM_BYTE n_area_decimals_decimals);
+CPL_DLL size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
+                                            MM_BYTE n_decimals);
+CPL_DLL size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
+CPL_DLL size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
+CPL_DLL int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
+                                          int nSignifFigures,
+                                          double nRealValue);
+CPL_DLL int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
     struct MM_FIELD *camp, struct MM_DATA_BASE_XP *bd_xp,
     MM_BOOLEAN no_modifica_descriptor, size_t mida_nom);
 
-int MMWritePreformatedNumberValueToRecordDBXP(
+CPL_DLL int MMWritePreformatedNumberValueToRecordDBXP(
     struct MiraMonVectLayerInfo *hMiraMonLayer, char *registre,
     const struct MM_FIELD *camp, const char *valor);
-int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
-                             char *registre, const struct MM_FIELD *camp,
-                             const void *valor, MM_BOOLEAN is_64);
-int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
-                                  MM_EXT_DBF_N_FIELDS *nStringCurrentLength);
-int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
-                           MM_EXT_DBF_N_FIELDS quincamp,
-                           MM_BYTES_PER_FIELD_TYPE_DBF novaamplada,
-                           MM_BYTE nou_decimals);
+CPL_DLL int MMWriteValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
+                                     char *registre,
+                                     const struct MM_FIELD *camp,
+                                     const void *valor, MM_BOOLEAN is_64);
+CPL_DLL int
+MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
+                              MM_EXT_DBF_N_FIELDS *nStringCurrentLength);
+CPL_DLL int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
+                                   MM_EXT_DBF_N_FIELDS quincamp,
+                                   MM_BYTES_PER_FIELD_TYPE_DBF novaamplada,
+                                   MM_BYTE nou_decimals);
 
-int MM_GetArcHeights(double *coord_z, VSILFILE *pF, MM_N_VERTICES_TYPE n_vrt,
-                     struct MM_ZD *pZDescription, uint32_t flag);
+CPL_DLL int MM_GetArcHeights(double *coord_z, VSILFILE *pF,
+                             MM_N_VERTICES_TYPE n_vrt,
+                             struct MM_ZD *pZDescription, uint32_t flag);
 
 // Strings
-char *MM_RemoveInitial_and_FinalQuotationMarks(char *cadena);
-char *MM_RemoveWhitespacesFromEndOfString(char *str);
-char *MM_RemoveLeadingWhitespaceOfString(char *cadena);
+CPL_DLL char *MM_RemoveInitial_and_FinalQuotationMarks(char *cadena);
+CPL_DLL char *MM_RemoveWhitespacesFromEndOfString(char *str);
+CPL_DLL char *MM_RemoveLeadingWhitespaceOfString(char *cadena);
 
 // DBF
-struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(
+CPL_DLL struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(
     VSILFILE *f, MM_EXT_DBF_N_RECORDS n_dbf,
     MM_FIRST_RECORD_OFFSET_TYPE offset_1era,
     MM_ACCUMULATED_BYTES_TYPE_DBF bytes_per_fitxa,
@@ -147,16 +151,17 @@ struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(
     MM_BYTES_PER_FIELD_TYPE_DBF bytes_id_grafic, MM_BOOLEAN *isListField,
     MM_EXT_DBF_N_RECORDS *nMaxN);
 
-int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
-                                     struct MM_DATA_BASE_XP *pMMBDXP,
-                                     const char *pszRelFile);
+CPL_DLL int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
+                                             struct MM_DATA_BASE_XP *pMMBDXP,
+                                             const char *pszRelFile);
 
 // READING/CREATING MIRAMON METADATA
-char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
-                                      const char *key);
+CPL_DLL char *MMReturnValueFromSectionINIFile(const char *filename,
+                                              const char *section,
+                                              const char *key);
 
-int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *result,
-                                MM_BYTE direction);
+CPL_DLL int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *result,
+                                        MM_BYTE direction);
 
 #define EPSG_FROM_MMSRS 0
 #define MMSRS_FROM_EPSG 1
@@ -165,7 +170,7 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *result,
 #define ReturnMMIDSRSFromEPSGCodeSRS(pSRS, szResult)                           \
     MMReturnCodeFromMM_m_idofic((pSRS), (szResult), MMSRS_FROM_EPSG)
 
-int MMCheck_REL_FILE(const char *szREL_file);
+CPL_DLL int MMCheck_REL_FILE(const char *szREL_file);
 
 CPL_C_END  // Necessary for compiling in GDAL project
 #endif     //__MM_GDAL_FUNCTIONS_H

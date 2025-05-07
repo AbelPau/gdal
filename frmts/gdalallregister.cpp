@@ -793,6 +793,10 @@ void CPL_STDCALL GDALAllRegister()
     GDALRegister_RCM();
 #endif
 
+#ifdef FRMT_miramon
+    GDALRegister_MiraMonRaster();
+#endif
+
 /* -------------------------------------------------------------------- */
 /*      Register GDAL HTTP last, to let a chance to other drivers       */
 /*      accepting URL to handle them before.                            */

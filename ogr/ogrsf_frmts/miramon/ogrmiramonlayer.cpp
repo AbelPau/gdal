@@ -10,11 +10,18 @@
  ****************************************************************************/
 #include "ogrmiramon.h"
 
-#include "mm_gdal_functions.h"  // For MMCreateExtendedDBFIndex()
-#include "mm_rdlayr.h"          // For MMInitLayerToRead()
-#include <algorithm>            // For std::clamp()
-#include <string>               // For std::string
-#include <algorithm>            // For std::max
+// For MMCreateExtendedDBFIndex()
+#ifdef MSVC
+#include "..\..\..\frmts\miramon_common\mm_gdal_functions.h"
+#include "..\..\..\frmts\miramon_common\mm_gdal_constants.h"
+#else
+#include "../../../frmts/miramon_common/mm_gdal_functions.h"
+#include "../../../frmts/miramon_common/mm_gdal_constants.h"
+#endif
+#include "mm_rdlayr.h"  // For MMInitLayerToRead()
+#include <algorithm>    // For std::clamp()
+#include <string>       // For std::string
+#include <algorithm>    // For std::max
 
 /****************************************************************************/
 /*                            OGRMiraMonLayer()                             */

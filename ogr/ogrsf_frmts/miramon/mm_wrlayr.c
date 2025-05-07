@@ -16,8 +16,13 @@
  ****************************************************************************/
 
 #include "mm_wrlayr.h"
-#include "mm_gdal_functions.h"
-#include "mm_gdal_constants.h"
+#ifdef MSVC
+#include "..\..\..\frmts\miramon_common\mm_gdal_functions.h"
+#include "..\..\..\frmts\miramon_common\mm_gdal_constants.h"
+#else
+#include "../../../frmts/miramon_common/mm_gdal_functions.h"
+#include "../../../frmts/miramon_common/mm_gdal_constants.h"
+#endif
 #include "mm_rdlayr.h"    // For MM_ReadExtendedDBFHeader()
 #include "gdal.h"         // For GDALDatasetH
 #include "ogr_srs_api.h"  // For OSRGetAuthorityCode

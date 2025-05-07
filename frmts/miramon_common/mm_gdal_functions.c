@@ -17,7 +17,6 @@
 
 #include "ogr_api.h"            // For CPL_C_START
 #include "mm_gdal_functions.h"  // For CPLStrlcpy()
-#include "mm_wrlayr.h"          // For VSIFCloseL()...
 #ifdef EMBED_RESOURCE_FILES
 #include "embedded_resources.h"
 #endif
@@ -69,7 +68,7 @@ char szNumberOfElementaryPolygonsEng[MM_MAX_IDENTIFIER_SIZE];
 char szNumberOfElementaryPolygonsCat[MM_MAX_IDENTIFIER_SIZE];
 char szNumberOfElementaryPolygonsSpa[MM_MAX_IDENTIFIER_SIZE];
 
-void MM_FillFieldDescriptorByLanguage(void)
+CPL_DLL void MM_FillFieldDescriptorByLanguage(void)
 {
     CPLStrlcpy(szInternalGraphicIdentifierEng, "Internal Graphic identifier",
                MM_MAX_IDENTIFIER_SIZE);
@@ -161,7 +160,7 @@ const char *MM_pszLogFilename = nullptr;
 static const char MM_EmptyString[] = {""};
 #define MM_SetEndOfString (*MM_EmptyString)
 
-void fclose_and_nullify(VSILFILE **pFunc)
+CPL_DLL void fclose_and_nullify(VSILFILE **pFunc)
 {
     if (!pFunc || !(*pFunc))
         return;
@@ -170,7 +169,7 @@ void fclose_and_nullify(VSILFILE **pFunc)
 }
 
 // CREATING AN EXTENDED MIRAMON DBF
-void MM_InitializeField(struct MM_FIELD *pField)
+CPL_DLL void MM_InitializeField(struct MM_FIELD *pField)
 {
     memset(pField, '\0', sizeof(*pField));
     pField->FieldType = 'C';
@@ -179,7 +178,7 @@ void MM_InitializeField(struct MM_FIELD *pField)
 
 #define MM_ACCEPTABLE_NUMBER_OF_FIELDS 20000
 
-struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS nFields)
+CPL_DLL struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS nFields)
 {
     struct MM_FIELD *camp;
     MM_EXT_DBF_N_FIELDS i;
@@ -235,8 +234,8 @@ static struct MM_DATA_BASE_XP *MM_CreateEmptyHeader(MM_EXT_DBF_N_FIELDS nFields)
     return data_base_XP;
 }
 
-struct MM_DATA_BASE_XP *MM_CreateDBFHeader(MM_EXT_DBF_N_FIELDS n_camps,
-                                           MM_BYTE charset)
+CPL_DLL struct MM_DATA_BASE_XP *MM_CreateDBFHeader(MM_EXT_DBF_N_FIELDS n_camps,
+                                                   MM_BYTE charset)
 {
     struct MM_DATA_BASE_XP *bd_xp;
     struct MM_FIELD *camp;
@@ -586,7 +585,7 @@ static char *MM_SetSubIndexFieldNam(const char *nom_camp,
     return NomCamp_SubIndex;
 }
 
-MM_FIRST_RECORD_OFFSET_TYPE
+CPL_DLL MM_FIRST_RECORD_OFFSET_TYPE
 MM_GiveOffsetExtendedFieldName(const struct MM_FIELD *camp)
 {
     MM_FIRST_RECORD_OFFSET_TYPE offset_nom_camp;
@@ -597,7 +596,7 @@ MM_GiveOffsetExtendedFieldName(const struct MM_FIELD *camp)
     return offset_nom_camp;
 }
 
-int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
+CPL_DLL int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
 {
     if (!MMAdmDB->pMMBDXP || !MMAdmDB->pMMBDXP->pfDataBase)
         return 0;
@@ -1148,8 +1147,8 @@ MM_OpenIfNeededAndUpdateEntireHeader(struct MM_DATA_BASE_XP *data_base_XP)
     return TRUE;
 } /* End of MM_OpenIfNeededAndUpdateEntireHeader() */
 
-MM_BOOLEAN MM_CreateAndOpenDBFFile(struct MM_DATA_BASE_XP *bd_xp,
-                                   const char *NomFitxer)
+CPL_DLL MM_BOOLEAN MM_CreateAndOpenDBFFile(struct MM_DATA_BASE_XP *bd_xp,
+                                           const char *NomFitxer)
 {
     time_t currentTime;
 
@@ -1172,7 +1171,7 @@ MM_BOOLEAN MM_CreateAndOpenDBFFile(struct MM_DATA_BASE_XP *bd_xp,
     return MM_OpenIfNeededAndUpdateEntireHeader(bd_xp);
 }
 
-void MM_ReleaseMainFields(struct MM_DATA_BASE_XP *data_base_XP)
+CPL_DLL void MM_ReleaseMainFields(struct MM_DATA_BASE_XP *data_base_XP)
 {
     MM_EXT_DBF_N_FIELDS i;
     size_t j;
@@ -1201,9 +1200,9 @@ void MM_ReleaseMainFields(struct MM_DATA_BASE_XP *data_base_XP)
 
 // READING THE HEADER OF AN EXTENDED DBF
 // Free with MM_ReleaseDBFHeader()
-int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
-                                     struct MM_DATA_BASE_XP *pMMBDXP,
-                                     const char *pszRelFile)
+CPL_DLL int MM_ReadExtendedDBFHeaderFromFile(const char *szFileName,
+                                             struct MM_DATA_BASE_XP *pMMBDXP,
+                                             const char *pszRelFile)
 {
     MM_BYTE variable_byte;
     VSILFILE *pf;
@@ -1760,7 +1759,7 @@ reintenta_lectura_per_si_error_CreaCampBD_XP:
     return 0;
 }  // End of MM_ReadExtendedDBFHeaderFromFile()
 
-void MM_ReleaseDBFHeader(struct MM_DATA_BASE_XP **data_base_XP)
+CPL_DLL void MM_ReleaseDBFHeader(struct MM_DATA_BASE_XP **data_base_XP)
 {
     if (!data_base_XP)
         return;
@@ -1774,7 +1773,7 @@ void MM_ReleaseDBFHeader(struct MM_DATA_BASE_XP **data_base_XP)
     return;
 }
 
-int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
+CPL_DLL int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
     struct MM_FIELD *camp, struct MM_DATA_BASE_XP *bd_xp,
     MM_BOOLEAN no_modifica_descriptor, size_t mida_nom)
 {
@@ -1961,8 +1960,8 @@ static int MM_DuplicateMultilingualString(
     return 0;
 }
 
-int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
-                          const struct MM_FIELD *camp_inicial)
+CPL_DLL int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
+                                  const struct MM_FIELD *camp_inicial)
 {
     *camp_final = *camp_inicial;
 
@@ -1976,7 +1975,7 @@ int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
 
 // If n_bytes==SIZE_MAX, the parameter is ignored ant, then,
 // it's assumed that szszChain is NUL terminated
-char *MM_oemansi_n(char *szszChain, size_t n_bytes)
+CPL_DLL char *MM_oemansi_n(char *szszChain, size_t n_bytes)
 {
     size_t u_i;
     unsigned char *punter_bait;
@@ -2013,7 +2012,7 @@ char *MM_oemansi_n(char *szszChain, size_t n_bytes)
 }
 
 // An implementation of non-sensitive strstr()
-char *MM_stristr(const char *haystack, const char *needle)
+CPL_DLL char *MM_stristr(const char *haystack, const char *needle)
 {
     if (!haystack)
         return nullptr;
@@ -2034,7 +2033,7 @@ char *MM_stristr(const char *haystack, const char *needle)
     return p1;
 }
 
-char *MM_oemansi(char *szszChain)
+CPL_DLL char *MM_oemansi(char *szszChain)
 {
     return MM_oemansi_n(szszChain, SIZE_MAX);
 }
@@ -2096,9 +2095,9 @@ static MM_BOOLEAN MM_FillFieldDB_XP(
     return TRUE;
 }
 
-size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
-                                        MM_BYTE n_perimeter_decimals,
-                                        MM_BYTE n_area_decimals_decimals)
+CPL_DLL size_t MM_DefineFirstPolygonFieldsDB_XP(
+    struct MM_DATA_BASE_XP *bd_xp, MM_BYTE n_perimeter_decimals,
+    MM_BYTE n_area_decimals_decimals)
 {
     MM_EXT_DBF_N_FIELDS i_camp = 0;
 
@@ -2146,8 +2145,8 @@ size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
     return i_camp;
 }
 
-size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
-                                    MM_BYTE n_decimals)
+CPL_DLL size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
+                                            MM_BYTE n_decimals)
 {
     MM_EXT_DBF_N_FIELDS i_camp;
 
@@ -2187,7 +2186,7 @@ size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
     return i_camp;
 }
 
-size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
+CPL_DLL size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
 {
     MM_EXT_DBF_N_FIELDS i_camp;
 
@@ -2216,7 +2215,7 @@ size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
     return i_camp;
 }
 
-size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
+CPL_DLL size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
 {
     size_t i_camp = 0;
 
@@ -2249,8 +2248,9 @@ size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp)
     Moreover, it avoids some failures in compilers not expecting
     NAN or INF values.
 */
-int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
-                                  int nSignifFigures, double dfRealValue)
+CPL_DLL int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
+                                          int nSignifFigures,
+                                          double dfRealValue)
 {
     double VALOR_LIMIT_PRINT_IN_FORMAT_E;
     double VALOR_TOO_SMALL_TO_PRINT_f;
@@ -2332,8 +2332,9 @@ int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
 #undef N_POWERS
 }  // End of SprintfDoubleXifSignif()
 
-int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
-                                  MM_EXT_DBF_N_FIELDS *nStringCurrentLength)
+CPL_DLL int
+MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
+                              MM_EXT_DBF_N_FIELDS *nStringCurrentLength)
 {
 
     if (!pszStringSrc)
@@ -2363,10 +2364,10 @@ int MM_SecureCopyStringFieldValue(char **pszStringDst, const char *pszStringSrc,
 }
 
 // This function assumes that all the file is saved in disk and closed.
-int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
-                           MM_EXT_DBF_N_FIELDS nIField,
-                           MM_BYTES_PER_FIELD_TYPE_DBF nNewWidth,
-                           MM_BYTE nNewPrecision)
+CPL_DLL int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
+                                   MM_EXT_DBF_N_FIELDS nIField,
+                                   MM_BYTES_PER_FIELD_TYPE_DBF nNewWidth,
+                                   MM_BYTE nNewPrecision)
 {
     char *record, *whites = nullptr;
     MM_BYTES_PER_FIELD_TYPE_DBF l_glop1, l_glop2, i_glop2;
@@ -2600,8 +2601,9 @@ static void MM_AdoptHeight(double *desti, const double *proposta, uint32_t flag)
     }
 }
 
-int MM_GetArcHeights(double *coord_z, VSILFILE *pF, MM_N_VERTICES_TYPE n_vrt,
-                     struct MM_ZD *pZDescription, uint32_t flag)
+CPL_DLL int MM_GetArcHeights(double *coord_z, VSILFILE *pF,
+                             MM_N_VERTICES_TYPE n_vrt,
+                             struct MM_ZD *pZDescription, uint32_t flag)
 {
     MM_N_HEIGHT_TYPE i;
     MM_N_VERTICES_TYPE i_vrt;
@@ -2705,7 +2707,7 @@ static char *MM_l_RemoveWhitespacesFromEndOfString(char *punter,
     return punter;
 }
 
-char *MM_RemoveInitial_and_FinalQuotationMarks(char *szChain)
+CPL_DLL char *MM_RemoveInitial_and_FinalQuotationMarks(char *szChain)
 {
     char *ptr1, *ptr2;
     char cometa = '"';
@@ -2731,7 +2733,7 @@ char *MM_RemoveInitial_and_FinalQuotationMarks(char *szChain)
     return szChain;
 } /* End of MM_RemoveInitial_and_FinalQuotationMarks() */
 
-char *MM_RemoveLeadingWhitespaceOfString(char *szChain)
+CPL_DLL char *MM_RemoveLeadingWhitespaceOfString(char *szChain)
 {
     char *ptr;
     char *ptr2;
@@ -2756,14 +2758,14 @@ char *MM_RemoveLeadingWhitespaceOfString(char *szChain)
     return szChain;
 }
 
-char *MM_RemoveWhitespacesFromEndOfString(char *str)
+CPL_DLL char *MM_RemoveWhitespacesFromEndOfString(char *str)
 {
     if (str == nullptr)
         return str;
     return MM_l_RemoveWhitespacesFromEndOfString(str, strlen(str));
 }
 
-struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(
+CPL_DLL struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(
     VSILFILE *f, MM_EXT_DBF_N_RECORDS nNumberOfRecords,
     MM_FIRST_RECORD_OFFSET_TYPE offset_1era,
     MM_ACCUMULATED_BYTES_TYPE_DBF bytes_per_fitxa,
@@ -2875,8 +2877,9 @@ struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(
 
 // READING/CREATING MIRAMON METADATA
 // Returns the value of an INI file. Used to read MiraMon metadata
-char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
-                                      const char *key)
+CPL_DLL char *MMReturnValueFromSectionINIFile(const char *filename,
+                                              const char *section,
+                                              const char *key)
 {
     char *value = nullptr;
     char *pszString;
@@ -2994,8 +2997,8 @@ char *MMReturnValueFromSectionINIFile(const char *filename, const char *section,
 }
 
 // Retrieves EPSG codes from a CSV file based on provided geodetic identifiers.
-int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
-                                MM_BYTE direction)
+CPL_DLL int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
+                                        MM_BYTE direction)
 {
     char *aMMIDDBFFile = nullptr;  //m_idofic.dbf
     VSILFILE *pfMMSRS = nullptr;
@@ -3182,7 +3185,7 @@ int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
 }
 
 // Verifies the version of a MiraMon REL 4 file.
-int MMCheck_REL_FILE(const char *szREL_file)
+CPL_DLL int MMCheck_REL_FILE(const char *szREL_file)
 {
     char *pszLine;
     VSILFILE *pF;
