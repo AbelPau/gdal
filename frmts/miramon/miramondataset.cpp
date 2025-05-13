@@ -3996,7 +3996,7 @@ int MMRDataset::Identify(GDALOpenInfo *poOpenInfo)
     // Verify that this is a MiraMonRaster file.
     // A sidecar file I.rel with reference to poOpenInfo->pszFilename
     // must exist
-    CPLString pszRELFile = MMRGetAssociatedMetadataName(
+    CPLString pszRELFile = MMRGetAssociatedMetadataFileName(
         (const char *)poOpenInfo->pszFilename, NULL);
     if (EQUAL(pszRELFile, ""))
     {
@@ -4043,7 +4043,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 
     // Establish raster info.
     MMRGetRasterInfo(hMMR, &poDS->nRasterXSize, &poDS->nRasterYSize,
-                     &poDS->nBands);
+                     &poDS->nBands);  // Afegir les bandes que es vulguin
 
     if (poDS->nBands == 0)
     {
@@ -4086,14 +4086,39 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     //·$·TODO de moment m'ho salto
     //poDS->ReadProjection();
 
-    //char **papszCM = MMRReadCameraModel(hMMR);
+    // DIVERSOS SUBDATASETS
+    // /* Create subdatsets per granules and resolution (10, 20, 60m) */
+    /*
+    int iSubDSNum = 1;
+    for (size_t i = 0; i < aosGranuleList.size(); i++)
+    {
+        for (std::set<int>::const_iterator oIterRes = oSetResolutions.begin();
+             oIterRes != oSetResolutions.end(); ++oIterRes)
+        {
+            const int nResolution = *oIterRes;
 
-    //if (papszCM != nullptr)
-    //{
-    //    poDS->SetMetadata(papszCM, "CAMERA_MODEL");
-    //    CSLDestroy(papszCM);
-    //}
+            poDS->GDALDataset::SetMetadataItem(
+                CPLSPrintf("SUBDATASET_%d_NAME", iSubDSNum),
+                CPLSPrintf("SENTINEL2_L1B:%s:%dm", aosGranuleList[i].c_str(),
+                           nResolution),
+                "SUBDATASETS");
 
+            CPLString osBandNames = SENTINEL2GetBandListForResolution(
+                oMapResolutionsToBands[nResolution]);
+
+            CPLString osDesc(
+                CPLSPrintf("Bands %s of granule %s with %dm resolution",
+                           osBandNames.c_str(),
+                           CPLGetFilename(aosGranuleList[i]), nResolution));
+            poDS->GDALDataset::SetMetadataItem(
+                CPLSPrintf("SUBDATASET_%d_DESC", iSubDSNum), osDesc.c_str(),
+                "SUBDATASETS");
+
+            iSubDSNum++;
+        }
+    }*/
+
+    // Es posen totes les bandes
     for (int i = 0; i < poDS->nBands; i++)
     {
         poDS->SetBand(i + 1, new MMRRasterBand(poDS, i + 1));
@@ -4147,24 +4172,9 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     }
     */
 
-    // Check for dependent dataset value. // ·$·TODO valorar si es posa aqui algo del rel dependent.
-    /*
-    MMRInfo_t *psInfo = hMMR;
-    MMREntry *poEntry = psInfo->poRoot->GetNamedChild("DependentFile");
-    if (poEntry != nullptr)
-    {
-        poDS->SetMetadataItem("MMR_DEPENDENT_FILE",
-                              poEntry->GetStringField("dependent.string"),
-                              "MiraMonRaster");
-    }
-    */
-
     // Initialize any PAM information.
     poDS->SetDescription(poOpenInfo->pszFilename);
     poDS->TryLoadXML();
-
-    // Check for external overviews.
-    poDS->oOvManager.Initialize(poDS, poOpenInfo->pszFilename);
 
     // Clear dirty metadata flags.
     for (int i = 0; i < poDS->nBands; i++)

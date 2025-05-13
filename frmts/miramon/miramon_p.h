@@ -138,7 +138,10 @@ const char *const *MMRGetUnitMap();
 
 class MMRBand
 {
-    CPLString pszBandFileName;  // File name with banda data.
+    // File name with banda data.
+    CPLString pszBandFileName;
+    // Name of the band documented in REL metadata file.
+    CPLString pszBandName;
 
     int nBlocks;
 
@@ -177,6 +180,7 @@ class MMRBand
     VSILFILE *fpExternal;
 
     EPTType eDataType;
+    MMType eMMDataType;
     MMREntry *poNode;
 
     int nBlockXSize;

@@ -22,7 +22,8 @@
 
 CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
 CPLString MMRGetNameFromMetadata(const char *pszRELFile);
-CPLString MMRGetAssociatedMetadataName(const char *nom_capa, bool *bMultiBand);
+CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename,
+                                           bool *bMultiBand);
 
 int MMGetDataTypeAndBytesPerPixel(const char *pszCompType,
                                   int *nCompressionType, int *nBytesPerPixel);

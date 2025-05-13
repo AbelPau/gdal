@@ -216,20 +216,32 @@ CPLString MMRGetGenericFieldFilesFromREL(const char *pszLayerName,
     return "";
 }
 
-CPLString MMRGetAssociatedMetadataName(const char *pszLayerName,
-                                       bool *bMultiBand)
+CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename,
+                                           bool *bMultiBand)
 {
-    if (!pszLayerName)
+    if (!pszFilename)
         return "";
 
+    // If the string finishes in "I.rel" we consider it can be
+    // the associated file to all bands that are documented in this file.
+    if (strlen(pszFilename) >= strlen(pszExtRasterREL) &&
+        EQUAL(pszFilename + strlen(pszFilename) - strlen(pszExtRasterREL),
+              pszExtRasterREL))
+    {
+        return CPLString(pszFilename);
+    }
+
+    // If the file is not a REL file, let's try to find the associated REL
+    // It must be a IMG file.
     CPLString pszExtension =
-        CPLString(CPLGetExtensionSafe(pszLayerName).c_str());
-
+        CPLString(CPLGetExtensionSafe(pszFilename).c_str());
     if (!EQUAL(pszExtension, pszExtRaster + 1))
+    {
         return "";
+    }
 
     // Converting FileName.img to FileNameI.rel
-    CPLString pszRELFile = MMRGetSimpleMetadataName(pszLayerName);
+    CPLString pszRELFile = MMRGetSimpleMetadataName(pszFilename);
     if (EQUAL(pszRELFile, ""))
     {
         if (bMultiBand)
@@ -241,35 +253,17 @@ CPLString MMRGetAssociatedMetadataName(const char *pszLayerName,
     VSIStatBufL sStat;
     if (VSIStatExL(pszRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
     {
-        /*
-            The file pszRELFile exists. This file can be:
-            - the REL file for this layer (FileName.img to FileNameI.rel).
-                    In none of the ATTRIBUTE_DATA (or ATTRIBUTE_DATA_X) sections
-                    will there be any key `NomFitxer=...`
-            - a multi-band REL for this band and others (in one of the
-                    ATTRIBUTE_DATA_X sections, there will be
-                    a key `NomFitxer=pszLayerName`)
-            - a multi-band REL for other layers but not for this one!
-                    In NONE of the ATTRIBUTE_DATA_X sections will there be
-                    a key `NomFitxer=pszLayerName` (but there may be other
-                    `NomFitxer=...` keys -> NO_DIRECT_REL_INVALID)
-        */
-        return MMRGetGenericFieldFilesFromREL(pszLayerName, pszRELFile.c_str(),
+        return MMRGetGenericFieldFilesFromREL(pszFilename, pszRELFile.c_str(),
                                               bMultiBand);
     }
 
-    const CPLString osPath = CPLGetPathSafe(pszLayerName);
+    const CPLString osPath = CPLGetPathSafe(pszFilename);
     char **folder = VSIReadDir(osPath.c_str());
     int size = folder ? CSLCount(folder) : 0;
 
     for (int i = 0; i < size; i++)
     {
-        if (folder[i][0] == '.')
-        {
-            continue;
-        }
-
-        if (!strstr(folder[i], "I.rel"))
+        if (folder[i][0] == '.' || !strstr(folder[i], "I.rel"))
         {
             continue;
         }
@@ -278,7 +272,7 @@ CPLString MMRGetAssociatedMetadataName(const char *pszLayerName,
             CPLFormFilenameSafe(osPath, folder[i], nullptr);
 
         pszRELFile = MMRGetGenericFieldFilesFromREL(
-            pszLayerName, filepath.c_str(), bMultiBand);
+            pszFilename, filepath.c_str(), bMultiBand);
         if (!EQUAL(pszRELFile, ""))
         {
             CSLDestroy(folder);

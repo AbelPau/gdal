@@ -171,22 +171,10 @@ static char *MMRGetDictionary(MMRHandle hMMR)
 MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
 
 {
-    VSILFILE *fp = VSIFOpenL(
-        pszFilename,
-        (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb")) ? "rb" : "r+b");
-
-    if (fp == nullptr)
-    {
-        CPLError(CE_Failure, CPLE_OpenFailed, "File open of %s failed.",
-                 pszFilename);
-
-        return nullptr;
-    }
-
     // Read metadata when needed.
     bool bMultiBand;
     CPLString pszRELFilename =
-        MMRGetAssociatedMetadataName(pszFilename, &bMultiBand);
+        MMRGetAssociatedMetadataFileName(pszFilename, &bMultiBand);
     if (EQUAL(pszRELFilename, ""))
     {
         CPLError(CE_Failure, CPLE_OpenFailed, "Metadata file for %s \
@@ -200,10 +188,10 @@ MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
     MMRInfo_t *psInfo =
         static_cast<MMRInfo_t *>(CPLCalloc(sizeof(MMRInfo_t), 1));
 
-    psInfo->pszFilename = CPLStrdup(CPLGetFilename(pszFilename));
+    psInfo->pszFilename = CPLStrdup(pszFilename);
     psInfo->pszRELFilename = CPLStrdup(pszRELFilename);
     psInfo->pszPath = CPLStrdup(CPLGetPathSafe(pszFilename).c_str());
-    psInfo->fp = fp;
+    //psInfo->fp = fp;
     psInfo->bMultiBand = &bMultiBand;
 
     if (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb"))
@@ -212,36 +200,6 @@ MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
         psInfo->eAccess = MMR_Update;
 
     psInfo->bTreeDirty = false;
-
-    // Collect file size.
-    bool bRet = VSIFSeekL(fp, 0, SEEK_END) >= 0;
-    if (!bRet)
-    {
-        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
-        CPLFree(psInfo->pszFilename);
-        CPLFree(psInfo->pszPath);
-        CPLFree(psInfo);
-        return nullptr;
-    }
-    psInfo->nEndOfFile = static_cast<GUInt32>(VSIFTellL(fp));
-
-    // Collect common metadata: nRows/nColumns
-    char *pszColumns = MMReturnValueFromSectionINIFile(
-        pszRELFilename, SECTION_OVVW_ASPECTES_TECNICS, "columns");
-    if (!pszColumns)
-        psInfo->nXSize = 0;
-    else
-        psInfo->nXSize = atoi(pszColumns);
-
-    VSIFree(pszColumns);
-
-    char *pszRows = MMReturnValueFromSectionINIFile(
-        pszRELFilename, SECTION_OVVW_ASPECTES_TECNICS, "rows");
-    if (!pszRows)
-        psInfo->nYSize = 0;
-    else
-        psInfo->nYSize = atoi(pszRows);
-    VSIFree(pszRows);
 
     // Collect common metadata: dataType
     psInfo->nCompressionType = DATATYPE_AND_COMPR_UNDEFINED;
@@ -264,10 +222,6 @@ MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
         }
         VSIFree(pszCompType);
     }
-
-    // Read the dictionary.
-    //psInfo->pszDictionary = MMRGetDictionary(psInfo);
-    //psInfo->poDictionary = new MMRDictionary(psInfo->pszDictionary);
 
     // Collect band definitions.
     MMRParseBandInfo(psInfo);

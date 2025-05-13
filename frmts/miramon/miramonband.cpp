@@ -49,9 +49,11 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
       psInfo(psInfoIn), fpExternal(nullptr),
-      eDataType(static_cast<EPTType>(EPT_MIN)), poNode(nullptr), nBlockXSize(1),
-      nBlockYSize(1), nWidth(psInfoIn->nXSize), nHeight(psInfo->nYSize),
-      nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false), dfNoData(0.0)
+      eDataType(static_cast<EPTType>(EPT_MIN)),
+      eMMDataType(static_cast<MMType>(DATATYPE_AND_COMPR_UNDEFINED)),
+      poNode(nullptr), nBlockXSize(1), nBlockYSize(1), nWidth(psInfoIn->nXSize),
+      nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
+      bNoDataSet(false), dfNoData(0.0)
 {
     char *pszRELFilename = psInfo->pszRELFilename;
 
@@ -89,15 +91,37 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
         MMReturnValueFromSectionINIFile(pszRELFilename, pszSection, "columns");
     if (pszColumns)
         psInfo->nXSize = atoi(pszColumns);
+    else
+    {
+        // If there is no columns value in ths section, perhaps it's in the main one
+        VSIFree(pszColumns);
+        pszColumns = MMReturnValueFromSectionINIFile(
+            pszRELFilename, SECTION_OVVW_ASPECTES_TECNICS, "columns");
+        if (pszColumns)
+            psInfo->nXSize = atoi(pszColumns);
+        else  // Not possible: invalid band.
+            psInfo->nXSize = 0;
+    }
     VSIFree(pszColumns);
 
     char *pszRows =
         MMReturnValueFromSectionINIFile(pszRELFilename, pszSection, "rows");
     if (pszRows)
         psInfo->nYSize = atoi(pszRows);
+    else
+    {
+        // If there is no rows value in ths section, perhaps it's in the main one
+        VSIFree(pszRows);
+        pszRows = MMReturnValueFromSectionINIFile(
+            pszRELFilename, SECTION_OVVW_ASPECTES_TECNICS, "rows");
+        if (pszRows)
+            psInfo->nYSize = atoi(pszRows);
+        else  // Not possible: invalid band.
+            psInfo->nYSize = 0;
+    }
     VSIFree(pszRows);
 
-    if (nWidth <= 0 || nHeight <= 0)
+    if (psInfo->nXSize <= 0 || psInfo->nYSize <= 0)
     {
         nWidth = 0;
         nHeight = 0;
