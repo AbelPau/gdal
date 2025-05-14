@@ -1679,8 +1679,8 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     eAccess = poDSIn->GetAccess();
 
     int nCompression = 0;
-    MMRGetBandInfo(hMMR, nBand, &eMMRDataType, &nBlockXSize, &nBlockYSize,
-                   &nCompression);
+    MMRGetBandInfo(hMMR, nBand, &eMMRDataTypeMiraMon, &nBlockXSize,
+                   &nBlockYSize, &nCompression);
 
     // Set some other information.
     if (nCompression != 0)
@@ -1692,11 +1692,11 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     DATATYPE_AND_COMPR_BIT_VELL = 2, // Not supported
     */
 
-    switch (eMMRDataType)
+    switch (eMMRDataTypeMiraMon)
     {
         case DATATYPE_AND_COMPR_BYTE:
         case DATATYPE_AND_COMPR_BYTE_RLE:
-            eDataType = GDT_Int8;
+            eDataType = GDT_Byte;
             break;
 
         case DATATYPE_AND_COMPR_UINTEGER:
@@ -1731,16 +1731,16 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
             // This should really report an error, but this isn't
             // so easy from within constructors.
             CPLDebug("GDAL", "Unsupported pixel type in MMRRasterBand: %d.",
-                     eMMRDataType);
+                     eMMRDataTypeMiraMon);
             break;
     }
 
-    if (MMRGetDataTypeBits(eMMRDataType) < 8)
+    /*if (MMRGetDataTypeBits(eMMRDataType) < 8)
     {
         GDALMajorObject::SetMetadataItem(
             "NBITS", CPLString().Printf("%d", MMRGetDataTypeBits(eMMRDataType)),
             "IMAGE_STRUCTURE");
-    }
+    }*/
 
     // Collect color table if present.
     double *padfRed = nullptr;
@@ -3996,8 +3996,8 @@ int MMRDataset::Identify(GDALOpenInfo *poOpenInfo)
     // Verify that this is a MiraMonRaster file.
     // A sidecar file I.rel with reference to poOpenInfo->pszFilename
     // must exist
-    CPLString pszRELFile = MMRGetAssociatedMetadataFileName(
-        (const char *)poOpenInfo->pszFilename, NULL);
+    CPLString pszRELFile =
+        MMRGetAssociatedMetadataFileName((const char *)poOpenInfo->pszFilename);
     if (EQUAL(pszRELFile, ""))
     {
         //CPLError(CE_Failure, CPLE_AppDefined,

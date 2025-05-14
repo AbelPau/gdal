@@ -115,6 +115,7 @@ class MMRRasterBand final : public GDALPamRasterBand
     GDALColorTable *poCT;
 
     EPTType eMMRDataType;
+    MMDataType eMMRDataTypeMiraMon;  // Arreglar nom
 
     MMRHandle hMMR;
 

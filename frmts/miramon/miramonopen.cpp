@@ -171,10 +171,9 @@ static char *MMRGetDictionary(MMRHandle hMMR)
 MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
 
 {
-    // Read metadata when needed.
-    bool bMultiBand;
-    CPLString pszRELFilename =
-        MMRGetAssociatedMetadataFileName(pszFilename, &bMultiBand);
+    // Getting the metadata file name. If it's already a REL file,
+    // then same name is returned.
+    CPLString pszRELFilename = MMRGetAssociatedMetadataFileName(pszFilename);
     if (EQUAL(pszRELFilename, ""))
     {
         CPLError(CE_Failure, CPLE_OpenFailed, "Metadata file for %s \
@@ -188,11 +187,8 @@ MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
     MMRInfo_t *psInfo =
         static_cast<MMRInfo_t *>(CPLCalloc(sizeof(MMRInfo_t), 1));
 
-    psInfo->pszFilename = CPLStrdup(pszFilename);
-    psInfo->pszRELFilename = CPLStrdup(pszRELFilename);
-    psInfo->pszPath = CPLStrdup(CPLGetPathSafe(pszFilename).c_str());
+    psInfo->pszRELFilename = pszRELFilename;
     //psInfo->fp = fp;
-    psInfo->bMultiBand = &bMultiBand;
 
     if (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb"))
         psInfo->eAccess = MMR_ReadOnly;
@@ -201,123 +197,12 @@ MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
 
     psInfo->bTreeDirty = false;
 
-    // Collect common metadata: dataType
-    psInfo->nCompressionType = DATATYPE_AND_COMPR_UNDEFINED;
-    psInfo->nBytesPerPixel = TYPE_BYTES_PER_PIXEL_UNDEFINED;
-
-    char *pszCompType = MMReturnValueFromSectionINIFile(
-        pszRELFilename, SECCIO_ATTRIBUTE_DATA, "TipusCompressio");
-    if (pszCompType)
-    {
-        if (MMGetDataTypeAndBytesPerPixel(pszCompType,
-                                          &psInfo->nCompressionType,
-                                          &psInfo->nBytesPerPixel) == 1)
-        {
-            // Data type not supported
-            CPLError(CE_Failure, CPLE_OpenFailed, "Data type %s not supported",
-                     pszCompType);
-
-            VSIFree(pszCompType);
-            return nullptr;
-        }
-        VSIFree(pszCompType);
-    }
-
     // Collect band definitions.
-    MMRParseBandInfo(psInfo);
+    CPLErr eErr = MMRParseBandInfo(psInfo);
 
-    return psInfo;
-}
-
-/************************************************************************/
-/*                         MMRCreateDependent()                         */
-/*                                                                      */
-/*      Create a .rrd file for the named file if it does not exist,     */
-/*      or return the existing dependent if it already exists.          */
-/************************************************************************/
-
-MMRInfo_t *MMRCreateDependent(MMRInfo_t *psBase)
-
-{
-    if (psBase->psDependent != nullptr)
-        return psBase->psDependent;
-
-    // Create desired RRD filename.
-    const CPLString oBasename = CPLGetBasenameSafe(psBase->pszFilename);
-    const CPLString oRRDFilename =
-        CPLFormFilenameSafe(psBase->pszPath, oBasename, "rrd");
-
-    // Does this file already exist?  If so, re-use it.
-    VSILFILE *fp = VSIFOpenL(oRRDFilename, "rb");
-    if (fp != nullptr)
-    {
-        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
-        psBase->psDependent = MMROpen(oRRDFilename, "rb");
-        // FIXME? this is not going to be reused but recreated...
-    }
-
-    // Otherwise create it now.
-    MMRInfo_t *psDep = MMRCreateLL(oRRDFilename);
-    psBase->psDependent = psDep;
-    if (psDep == nullptr)
-        return nullptr;
-
-    /* -------------------------------------------------------------------- */
-    /*      Add the DependentFile node with the pointer back to the         */
-    /*      parent.  When working from an .aux file we really want the      */
-    /*      .rrd to point back to the original file, not the .aux file.     */
-    /* -------------------------------------------------------------------- */
-    MMREntry *poEntry = psBase->poRoot->GetNamedChild("DependentFile");
-    const char *pszDependentFile = nullptr;
-    if (poEntry != nullptr)
-        pszDependentFile = poEntry->GetStringField("dependent.string");
-    if (pszDependentFile == nullptr)
-        pszDependentFile = psBase->pszFilename;
-
-    MMREntry *poDF = MMREntry::New(psDep, "DependentFile", "Eimg_DependentFile",
-                                   psDep->poRoot);
-
-    poDF->MakeData(static_cast<int>(strlen(pszDependentFile) + 50));
-    poDF->SetPosition();
-    poDF->SetStringField("dependent.string", pszDependentFile);
-
-    return psDep;
-}
-
-/************************************************************************/
-/*                          MMRGetDependent()                           */
-/************************************************************************/
-
-MMRInfo_t *MMRGetDependent(MMRInfo_t *psBase, const char *pszFilename)
-
-{
-    if (EQUAL(pszFilename, psBase->pszFilename))
-        return psBase;
-
-    if (psBase->psDependent != nullptr)
-    {
-        if (EQUAL(pszFilename, psBase->psDependent->pszFilename))
-            return psBase->psDependent;
-        else
-            return nullptr;
-    }
-
-    // Try to open the dependent file.
-    const char *pszMode = psBase->eAccess == MMR_Update ? "r+b" : "rb";
-
-    char *pszDependent = CPLStrdup(
-        CPLFormFilenameSafe(psBase->pszPath, pszFilename, nullptr).c_str());
-
-    VSILFILE *fp = VSIFOpenL(pszDependent, pszMode);
-    if (fp != nullptr)
-    {
-        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
-        psBase->psDependent = MMROpen(pszDependent, pszMode);
-    }
-
-    CPLFree(pszDependent);
-
-    return psBase->psDependent;
+    if (eErr == CE_None)
+        return psInfo;
+    return nullptr;
 }
 
 /************************************************************************/
@@ -335,17 +220,33 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
 
     psInfo->nBands = 0;
 
-    char *pszRELFilename = psInfo->pszRELFilename;
+    CPLString pszRELFilename = psInfo->pszRELFilename;
 
     char *pszFieldNames = MMReturnValueFromSectionINIFile(
         pszRELFilename, SECCIO_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
+
+    if (!pszFieldNames)
+    {
+        CPLError(CE_Failure, CPLE_AssertionFailed, "%s-%s section-key \
+            should exist in %s.",
+                 SECCIO_ATTRIBUTE_DATA, Key_IndexsNomsCamps,
+                 pszRELFilename.c_str());
+        return CE_Failure;
+    }
 
     // Separator ,
     char **papszTokens = CSLTokenizeString2(pszFieldNames, ",", 0);
     const int nTokenCount = CSLCount(papszTokens);
 
+    if (!nTokenCount)
+    {
+        CPLError(CE_Failure, CPLE_AssertionFailed, "No bands in file \
+            %s.",
+                 pszRELFilename.c_str());
+        return CE_Failure;
+    }
+
     CPLString szFieldName;
-    CPLString szAtributeDataName;
     CPLString pszFileAux;
     char *pszFieldNameValue;
     for (size_t i = 0; i < nTokenCount; i++)
@@ -362,17 +263,12 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
 
         MM_RemoveWhitespacesFromEndOfString(pszFieldNameValue);
 
-        // Example: [ATTRIBUTE_DATA:G1]
-        szAtributeDataName = SECCIO_ATTRIBUTE_DATA;
-        szAtributeDataName.append(":");
-        szAtributeDataName.append(pszFieldNameValue);
-
-        VSIFree(pszFieldNameValue);
-
         psInfo->papoBand = static_cast<MMRBand **>(CPLRealloc(
             psInfo->papoBand, sizeof(MMRBand *) * (psInfo->nBands + 1)));
         psInfo->papoBand[psInfo->nBands] =
-            new MMRBand(psInfo, szAtributeDataName.c_str());
+            new MMRBand(psInfo, pszFieldNameValue);
+
+        VSIFree(pszFieldNameValue);
         if (psInfo->papoBand[psInfo->nBands]->nWidth == 0)
         {
             delete psInfo->papoBand[psInfo->nBands];
@@ -408,16 +304,13 @@ int MMRClose(MMRHandle hMMR)
 
     delete hMMR->poRoot;
 
-    if (VSIFCloseL(hMMR->fp) != 0)
-        nRet = -1;
+    //if (VSIFCloseL(hMMR->fp) != 0)
+    //    nRet = -1;
 
     if (hMMR->poDictionary != nullptr)
         delete hMMR->poDictionary;
 
     CPLFree(hMMR->pszDictionary);
-    CPLFree(hMMR->pszFilename);
-    CPLFree(hMMR->pszRELFilename);
-    CPLFree(hMMR->pszPath);
 
     for (int i = 0; i < hMMR->nBands; i++)
     {
@@ -457,76 +350,6 @@ int MMRClose(MMRHandle hMMR)
 }
 
 /************************************************************************/
-/*                              MMRRemove()                             */
-/*  Used from MMRDelete() function.                                     */
-/************************************************************************/
-
-static CPLErr MMRRemove(const char *pszFilename)
-
-{
-    VSIStatBufL sStat;
-
-    if (VSIStatL(pszFilename, &sStat) == 0 && VSI_ISREG(sStat.st_mode))
-    {
-        if (VSIUnlink(pszFilename) == 0)
-            return CE_None;
-        else
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Attempt to unlink %s failed.", pszFilename);
-            return CE_Failure;
-        }
-    }
-
-    CPLError(CE_Failure, CPLE_AppDefined, "Unable to delete %s, not a file.",
-             pszFilename);
-    return CE_Failure;
-}
-
-/************************************************************************/
-/*                              MMRDelete()                             */
-/************************************************************************/
-
-CPLErr MMRDelete(const char *pszFilename)
-
-{
-    MMRInfo_t *psInfo = MMROpen(pszFilename, "rb");
-    MMREntry *poDMS = nullptr;
-    MMREntry *poLayer = nullptr;
-    MMREntry *poNode = nullptr;
-
-    if (psInfo != nullptr)
-    {
-        poNode = psInfo->poRoot->GetChild();
-        while ((poNode != nullptr) && (poLayer == nullptr))
-        {
-            if (EQUAL(poNode->GetType(), "Eimg_Layer"))
-            {
-                poLayer = poNode;
-            }
-            poNode = poNode->GetNext();
-        }
-
-        if (poLayer != nullptr)
-            poDMS = poLayer->GetNamedChild("ExternalRasterDMS");
-
-        if (poDMS)
-        {
-            const char *pszRawFilename =
-                poDMS->GetStringField("fileName.string");
-
-            if (pszRawFilename != nullptr)
-                MMRRemove(CPLFormFilenameSafe(psInfo->pszPath, pszRawFilename,
-                                              nullptr)
-                              .c_str());
-        }
-
-        CPL_IGNORE_RET_VAL(MMRClose(psInfo));
-    }
-    return MMRRemove(pszFilename);
-}
-
-/************************************************************************/
 /*                          MMRGetRasterInfo()                          */
 /************************************************************************/
 
@@ -547,7 +370,7 @@ CPLErr MMRGetRasterInfo(MMRHandle hMMR, int *pnXSize, int *pnYSize,
 /*                           MMRGetBandInfo()                           */
 /************************************************************************/
 
-CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, EPTType *peDataType,
+CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, MMDataType *eMMRDataType,
                       int *pnBlockXSize, int *pnBlockYSize,
                       int *pnCompressionType)
 
@@ -560,8 +383,8 @@ CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, EPTType *peDataType,
 
     MMRBand *poBand = hMMR->papoBand[nBand - 1];
 
-    if (peDataType != nullptr)
-        *peDataType = poBand->eDataType;
+    if (eMMRDataType != nullptr)
+        *eMMRDataType = poBand->eMMDataType;
 
     if (pnBlockXSize != nullptr)
         *pnBlockXSize = poBand->nBlockXSize;
@@ -1685,8 +1508,6 @@ MMRHandle MMRCreateLL(const char *pszFilename)
     psInfo->pDatum = nullptr;
     psInfo->pProParameters = nullptr;
     psInfo->bTreeDirty = false;
-    psInfo->pszFilename = CPLStrdup(CPLGetFilename(pszFilename));
-    psInfo->pszPath = CPLStrdup(CPLGetPathSafe(pszFilename).c_str());
 
     //·$·TODO això no sha descriure
     // Write out the Emiramon_HeaderTag.

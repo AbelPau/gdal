@@ -62,12 +62,7 @@ struct mmrinfo
 {
     VSILFILE *fp;
 
-    char *pszPath;
-    char *pszFilename;     // Without path
-    char *pszRELFilename;  // With path
-    //char *pszIGEFilename;  // Without path
-
-    bool bMultiBand;
+    CPLString pszRELFilename;
 
     MMRAccess eAccess;
 
@@ -86,8 +81,8 @@ struct mmrinfo
 
     int nXSize;
     int nYSize;
-    int nCompressionType;  // Compression (none, RLE, etc)
-    int nBytesPerPixel;
+    MMDataType nCompressionType;  // Compression (none, RLE, etc)
+    MMBytesPerPixel nBytesPerPixel;
 
     int nBands;
     MMRBand **papoBand;
@@ -103,8 +98,6 @@ typedef struct mmrinfo MMRInfo_t;
 
 GUInt32 MMRAllocateSpace(MMRInfo_t *, GUInt32);
 CPLErr MMRParseBandInfo(MMRInfo_t *);
-MMRInfo_t *MMRGetDependent(MMRInfo_t *, const char *);
-MMRInfo_t *MMRCreateDependent(MMRInfo_t *psBase);
 bool MMRCreateSpillStack(MMRInfo_t *, int nXSize, int nYSize, int nLayers,
                          int nBlockSize, EPTType eDataType,
                          GIntBig *pnValidFlagsOffset, GIntBig *pnDataOffset);
@@ -164,7 +157,6 @@ class MMRBand
     double *padfPCTBins;
 
     CPLErr LoadBlockInfo();
-    CPLErr LoadExternalBlockInfo();
 
     void ReAllocBlock(int iBlock, int nSize);
     void NullBlock(void *);
@@ -180,7 +172,7 @@ class MMRBand
     VSILFILE *fpExternal;
 
     EPTType eDataType;
-    MMType eMMDataType;
+    MMDataType eMMDataType;
     MMREntry *poNode;
 
     int nBlockXSize;
@@ -206,6 +198,23 @@ class MMRBand
     CPLErr GetPCT(int *, double **, double **, double **, double **, double **);
     CPLErr SetPCT(int, const double *, const double *, const double *,
                   const double *);
+};
+
+/************************************************************************/
+/*                               MMRRel                                */
+/************************************************************************/
+
+class MMRRel
+{
+    // File name with banda data.
+    CPLString pszRelFileName;
+
+  public:
+    char *GetMetadataValue(const char *pszMainSection,
+                           const char *pszBandSection, const char *pszKey);
+
+    MMRRel(CPLString);
+    ~MMRRel();
 };
 
 /************************************************************************/

@@ -6,6 +6,7 @@ add_gdal_driver(
           miramondataset.h
           miramon_rastertools.h
           miramonband.cpp
+          miramonrel.cpp
           miramoncompress.cpp
           miramondataset.cpp
           miramondictionary.cpp

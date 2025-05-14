@@ -21,11 +21,11 @@
 #include "cpl_string.h"
 
 CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
-CPLString MMRGetNameFromMetadata(const char *pszRELFile);
-CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename,
-                                           bool *bMultiBand);
+CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
+CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename);
 
 int MMGetDataTypeAndBytesPerPixel(const char *pszCompType,
-                                  int *nCompressionType, int *nBytesPerPixel);
+                                  MMDataType *nCompressionType,
+                                  MMBytesPerPixel *nBytesPerPixel);
 
 #endif /* ndef MMRRASTERTOOLS_H_INCLUDED */

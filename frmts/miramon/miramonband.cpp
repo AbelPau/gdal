@@ -50,75 +50,72 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
       psInfo(psInfoIn), fpExternal(nullptr),
       eDataType(static_cast<EPTType>(EPT_MIN)),
-      eMMDataType(static_cast<MMType>(DATATYPE_AND_COMPR_UNDEFINED)),
-      poNode(nullptr), nBlockXSize(1), nBlockYSize(1), nWidth(psInfoIn->nXSize),
+      eMMDataType(static_cast<MMDataType>(DATATYPE_AND_COMPR_UNDEFINED)),
+      poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
       bNoDataSet(false), dfNoData(0.0)
 {
-    char *pszRELFilename = psInfo->pszRELFilename;
-
-    // Band pixels are in a separated file
-    const char *pszRelativeBandFileName = MMReturnValueFromSectionINIFile(
-        pszRELFilename, pszSection, KEY_NomFitxer);
-    const CPLString oPath = CPLGetPathSafe(pszRELFilename);
-    pszBandFileName = CPLFormFilenameSafe(oPath, pszRelativeBandFileName, "");
-
-    char *pszCompType = MMReturnValueFromSectionINIFile(
-        pszRELFilename, pszSection, "TipusCompressio");
-    if (pszCompType)
-    {
-        if (MMGetDataTypeAndBytesPerPixel(pszCompType,
-                                          &psInfo->nCompressionType,
-                                          &psInfo->nBytesPerPixel) == 1)
-        {
-            VSIFree(pszCompType);
-            nWidth = 0;
-            nHeight = 0;
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "MMRBand::MMRBand : nDataType=%s unhandled", pszCompType);
-            return;
-        }
-        VSIFree(pszCompType);
-    }
-
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
     apadfPCT[2] = nullptr;
     apadfPCT[3] = nullptr;
 
-    // Number of rows/columns is specific or gets the dataset value
-    char *pszColumns =
-        MMReturnValueFromSectionINIFile(pszRELFilename, pszSection, "columns");
-    if (pszColumns)
-        psInfo->nXSize = atoi(pszColumns);
+    // Loading the metadata file
+    MMRRel *MMRelOp = new MMRRel(psInfo->pszRELFilename);
+
+    // Getting band and band file name from metadata
+    pszBandName = MMRelOp->GetMetadataValue(SECCIO_ATTRIBUTE_DATA, pszSection,
+                                            KEY_NomFitxer);
+
+    if (!pszBandName || *pszBandName == '\0')
+    {
+        pszBandFileName = MMRGetFileNameFromRelName(psInfoIn->pszRELFilename);
+        pszBandName = CPLGetBasenameSafe(pszBandFileName);
+    }
     else
     {
-        // If there is no columns value in ths section, perhaps it's in the main one
-        VSIFree(pszColumns);
-        pszColumns = MMReturnValueFromSectionINIFile(
-            pszRELFilename, SECTION_OVVW_ASPECTES_TECNICS, "columns");
-        if (pszColumns)
-            psInfo->nXSize = atoi(pszColumns);
-        else  // Not possible: invalid band.
-            psInfo->nXSize = 0;
+        pszBandFileName = psInfoIn->pszRELFilename;
     }
+
+    // Getting data type from metadata
+    char *pszCompType = MMRelOp->GetMetadataValue(
+        SECCIO_ATTRIBUTE_DATA, pszSection, "TipusCompressio");
+
+    if (!pszCompType)
+    {
+        psInfo->nCompressionType = DATATYPE_AND_COMPR_UNDEFINED;
+        psInfo->nBytesPerPixel = TYPE_BYTES_PER_PIXEL_UNDEFINED;
+
+        // Collect common metadata: dataType
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : No nDataType documented");
+        return;
+    }
+    if (MMGetDataTypeAndBytesPerPixel(pszCompType, &psInfo->nCompressionType,
+                                      &psInfo->nBytesPerPixel) == 1)
+    {
+        VSIFree(pszCompType);
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : nDataType=%s unhandled", pszCompType);
+        return;
+    }
+    eMMDataType = psInfo->nCompressionType;
+
+    VSIFree(pszCompType);
+
+    // Getting number of rows/columns from metadata
+    char *pszColumns = MMRelOp->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
+                                                 pszSection, "columns");
+    nWidth = psInfo->nXSize = pszColumns ? atoi(pszColumns) : 0;
     VSIFree(pszColumns);
 
-    char *pszRows =
-        MMReturnValueFromSectionINIFile(pszRELFilename, pszSection, "rows");
-    if (pszRows)
-        psInfo->nYSize = atoi(pszRows);
-    else
-    {
-        // If there is no rows value in ths section, perhaps it's in the main one
-        VSIFree(pszRows);
-        pszRows = MMReturnValueFromSectionINIFile(
-            pszRELFilename, SECTION_OVVW_ASPECTES_TECNICS, "rows");
-        if (pszRows)
-            psInfo->nYSize = atoi(pszRows);
-        else  // Not possible: invalid band.
-            psInfo->nYSize = 0;
-    }
+    char *pszRows = MMRelOp->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
+                                              pszSection, "rows");
+    nHeight = psInfo->nYSize = pszRows ? atoi(pszRows) : 0;
     VSIFree(pszRows);
 
     if (psInfo->nXSize <= 0 || psInfo->nYSize <= 0)
@@ -129,6 +126,13 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
                  "MMRBand::MMRBand : (nWidth <= 0 || nHeight <= 0)");
         return;
     }
+
+    // MiraMon IMG files are efficient in going to an specified row.
+    nBlocks = nHeight;
+    nBlockXSize = nWidth;
+    nBlockYSize = 1;
+    nBlocksPerRow = 1;
+    nBlocksPerColumn = nHeight;
 
     // Check for nodata.  This is really an RDO (ESRI Raster Data Objects?),
     // not used by Imagine itself.
@@ -165,18 +169,6 @@ CPLErr MMRBand::LoadBlockInfo()
     if (panBlockFlag != nullptr)
         return CE_None;
 
-    MMREntry *poDMS = poNode->GetNamedChild("RasterDMS");
-    if (poDMS == nullptr)
-    {
-        if (poNode->GetNamedChild("ExternalRasterDMS") != nullptr)
-            return LoadExternalBlockInfo();
-
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Can't find RasterDMS field in Eimg_Layer with block list.");
-
-        return CE_Failure;
-    }
-
     if (sizeof(vsi_l_offset) + 2 * sizeof(int) >
         (~(size_t)0) / static_cast<unsigned int>(nBlocks))
     {
@@ -203,6 +195,8 @@ CPLErr MMRBand::LoadBlockInfo()
         panBlockFlag = nullptr;
         return CE_Failure;
     }
+
+    MMREntry *poDMS = poNode->GetNamedChild("RasterDMS");
 
     for (int iBlock = 0; iBlock < nBlocks; iBlock++)
     {
@@ -301,111 +295,6 @@ CPLErr MMRBand::LoadBlockInfo()
         if (nCompressType != 0)
             panBlockFlag[iBlock] |= BFLG_COMPRESSED;
     }
-
-    return CE_None;
-}
-
-/************************************************************************/
-/*                       LoadExternalBlockInfo()                        */
-/************************************************************************/
-
-CPLErr MMRBand::LoadExternalBlockInfo()
-
-{
-    if (panBlockFlag != nullptr)
-        return CE_None;
-
-    // Get the info structure.
-    MMREntry *poDMS = poNode->GetNamedChild("ExternalRasterDMS");
-    CPLAssert(poDMS != nullptr);
-
-    nLayerStackCount = poDMS->GetIntField("layerStackCount");
-    nLayerStackIndex = poDMS->GetIntField("layerStackIndex");
-
-    // Open raw data file.
-    /*const std::string osFullFilename = MMRGetIGEFilename(psInfo);
-    if (osFullFilename.empty())
-    {
-        CPLError(CE_Failure, CPLE_OpenFailed,
-                 "Cannot find external data file name");
-        return CE_Failure;
-    }
-
-    if (psInfo->eAccess == MMR_ReadOnly)
-        fpExternal = VSIFOpenL(osFullFilename.c_str(), "rb");
-    else
-        fpExternal = VSIFOpenL(osFullFilename.c_str(), "r+b");
-    if (fpExternal == nullptr)
-    {
-        CPLError(CE_Failure, CPLE_OpenFailed,
-                 "Unable to open external data file: %s",
-                 osFullFilename.c_str());
-        return CE_Failure;
-    }
-
-    // Verify header.
-    char szHeader[49] = {};
-
-    if (VSIFReadL(szHeader, sizeof(szHeader), 1, fpExternal) != 1 ||
-        !STARTS_WITH(szHeader, "ERDAS_IMG_EXTERNAL_RASTER"))
-    {
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Raw data file %s appears to be corrupt.",
-                 osFullFilename.c_str());
-        return CE_Failure;
-    }
-
-    // Allocate blockmap.
-    panBlockFlag =
-        static_cast<int *>(VSI_MALLOC2_VERBOSE(sizeof(int), nBlocks));
-    if (panBlockFlag == nullptr)
-    {
-        return CE_Failure;
-    }
-
-    // Load the validity bitmap.
-    const int nBytesPerRow = (nBlocksPerRow + 7) / 8;
-    unsigned char *pabyBlockMap = static_cast<unsigned char *>(
-        VSI_MALLOC_VERBOSE(nBytesPerRow * nBlocksPerColumn + 20));
-    if (pabyBlockMap == nullptr)
-    {
-        return CE_Failure;
-    }
-
-    if (VSIFSeekL(fpExternal,
-                  poDMS->GetBigIntField("layerStackValidFlagsOffset"),
-                  SEEK_SET) < 0 ||
-        VSIFReadL(pabyBlockMap, nBytesPerRow * nBlocksPerColumn + 20, 1,
-                  fpExternal) != 1)
-    {
-        CPLError(CE_Failure, CPLE_FileIO, "Failed to read block validity map.");
-        return CE_Failure;
-    }
-
-    // Establish block information.  Block position is computed
-    // from data base address.  Blocks are never compressed.
-    // Validity is determined from the validity bitmap.
-
-    nBlockStart = poDMS->GetBigIntField("layerStackDataOffset");
-    nBlockSize = (nBlockXSize * static_cast<vsi_l_offset>(nBlockYSize) *
-                      MMRGetDataTypeBits(eDataType) +
-                  7) /
-                 8;
-
-    for (int iBlock = 0; iBlock < nBlocks; iBlock++)
-    {
-        const int nColumn = iBlock % nBlocksPerRow;
-        const int nRow = iBlock / nBlocksPerRow;
-        const int nBit = nRow * nBytesPerRow * 8 + nColumn + 20 * 8;
-
-        if ((pabyBlockMap[nBit >> 3] >> (nBit & 7)) & 0x1)
-            panBlockFlag[iBlock] = BFLG_VALID;
-        else
-            panBlockFlag[iBlock] = 0;
-    }
-
-    CPLFree(pabyBlockMap);
-    */
 
     return CE_None;
 }

@@ -156,7 +156,7 @@ typedef enum
     DATATYPE_AND_COMPR_REAL_RLE = 15,
     DATATYPE_AND_COMPR_DOUBLE_RLE = 16,
     DATATYPE_AND_COMPR_MAX = 16
-} MMType;
+} MMDataType;
 
 typedef enum
 {
@@ -177,7 +177,6 @@ CPL_C_START
 
 MMRHandle CPL_DLL MMROpen(const char *pszFilename, const char *pszMode);
 int CPL_DLL MMRClose(MMRHandle); /* 0 = success */
-CPLErr MMRDelete(const char *pszFilename);
 CPLErr MMRRenameReferences(MMRHandle, const char *, const char *);
 
 MMRHandle CPL_DLL MMRCreateLL(const char *pszFilename);
@@ -199,9 +198,9 @@ CPLErr CPL_DLL MMRSetProParameters(MMRHandle, const Eprj_ProParameters *);
 
 CPLErr CPL_DLL MMRGetRasterInfo(MMRHandle hMMR, int *pnXSize, int *pnYSize,
                                 int *pnBands);
-CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand, EPTType *peDataType,
-                              int *pnBlockXSize, int *pnBlockYSize,
-                              int *pnCompressionType);
+CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
+                              MMDataType *eMMRDataType, int *pnBlockXSize,
+                              int *pnBlockYSize, int *pnCompressionType);
 int CPL_DLL MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfValue);
 CPLErr CPL_DLL MMRSetBandNoData(MMRHandle hMMR, int nBand, double dfValue);
 CPLErr CPL_DLL MMRGetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock,

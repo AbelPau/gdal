@@ -387,7 +387,7 @@ MMREntry *MMREntry::GetNext()
             CPLError(CE_Warning, CPLE_AppDefined,
                      "Corrupt (looping) entry in %s, "
                      "ignoring some entries after %s.",
-                     psMMR->pszFilename, szName);
+                     psMMR->pszRELFilename.c_str(), szName);
             nNextPos = 0;
             return nullptr;
         }

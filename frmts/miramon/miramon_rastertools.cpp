@@ -54,7 +54,7 @@ CPLString MMRGetSimpleMetadataName(const char *pszLayerName)
 }
 
 // Converts FileNameI.rel to FileName.img
-CPLString MMRGetNameFromMetadata(const char *pszRELFile)
+CPLString MMRGetFileNameFromRelName(const char *pszRELFile)
 {
     if (!pszRELFile)
         return "";
@@ -119,12 +119,8 @@ MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
 }
 
 CPLString MMRGetGenericFieldFilesFromREL(const char *pszLayerName,
-                                         const char *pszRELFile,
-                                         bool *bMultiBand)
+                                         const char *pszRELFile)
 {
-    if (bMultiBand)
-        *bMultiBand = false;
-
     if (!pszRELFile)
         return "";
 
@@ -163,9 +159,6 @@ CPLString MMRGetGenericFieldFilesFromREL(const char *pszLayerName,
     char **papszTokens = CSLTokenizeString2(pszFieldNames, ",", 0);
     const int nBands = CSLCount(papszTokens);
     VSIFree(pszFieldNames);
-
-    if (bMultiBand && nBands > 1)
-        *bMultiBand = true;
 
     CPLString szFieldName;
     CPLString szAtributeDataName;
@@ -216,8 +209,7 @@ CPLString MMRGetGenericFieldFilesFromREL(const char *pszLayerName,
     return "";
 }
 
-CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename,
-                                           bool *bMultiBand)
+CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename)
 {
     if (!pszFilename)
         return "";
@@ -244,8 +236,6 @@ CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename,
     CPLString pszRELFile = MMRGetSimpleMetadataName(pszFilename);
     if (EQUAL(pszRELFile, ""))
     {
-        if (bMultiBand)
-            *bMultiBand = false;
         return "";
     }
 
@@ -253,8 +243,7 @@ CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename,
     VSIStatBufL sStat;
     if (VSIStatExL(pszRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
     {
-        return MMRGetGenericFieldFilesFromREL(pszFilename, pszRELFile.c_str(),
-                                              bMultiBand);
+        return MMRGetGenericFieldFilesFromREL(pszFilename, pszRELFile.c_str());
     }
 
     const CPLString osPath = CPLGetPathSafe(pszFilename);
@@ -271,8 +260,8 @@ CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename,
         const std::string filepath =
             CPLFormFilenameSafe(osPath, folder[i], nullptr);
 
-        pszRELFile = MMRGetGenericFieldFilesFromREL(
-            pszFilename, filepath.c_str(), bMultiBand);
+        pszRELFile =
+            MMRGetGenericFieldFilesFromREL(pszFilename, filepath.c_str());
         if (!EQUAL(pszRELFile, ""))
         {
             CSLDestroy(folder);
@@ -286,14 +275,16 @@ CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename,
 }
 
 int MMGetDataTypeAndBytesPerPixel(const char *pszCompType,
-                                  int *nCompressionType, int *nBytesPerPixel)
+                                  MMDataType *nCompressionType,
+                                  MMBytesPerPixel *nBytesPerPixel)
 {
     if (!nCompressionType || !nBytesPerPixel || !pszCompType)
         return 1;
 
     if (EQUAL(pszCompType, "bit"))
     {
-        *nCompressionType = *nBytesPerPixel = DATATYPE_AND_COMPR_BIT;
+        *nCompressionType = DATATYPE_AND_COMPR_BIT;
+        *nBytesPerPixel = TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
         return 0;
     }
     if (EQUAL(pszCompType, "byte"))
