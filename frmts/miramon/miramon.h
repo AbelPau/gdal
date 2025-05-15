@@ -199,8 +199,10 @@ CPLErr CPL_DLL MMRSetProParameters(MMRHandle, const Eprj_ProParameters *);
 CPLErr CPL_DLL MMRGetRasterInfo(MMRHandle hMMR, int *pnXSize, int *pnYSize,
                                 int *pnBands);
 CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
-                              MMDataType *eMMRDataType, int *pnBlockXSize,
-                              int *pnBlockYSize, int *pnCompressionType);
+                              MMDataType *eMMRDataType,
+                              MMBytesPerPixel *eMMBytesPerPixel,
+                              int *pnBlockXSize, int *pnBlockYSize,
+                              int *pnCompressionType);
 int CPL_DLL MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfValue);
 CPLErr CPL_DLL MMRSetBandNoData(MMRHandle hMMR, int nBand, double dfValue);
 CPLErr CPL_DLL MMRGetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock,

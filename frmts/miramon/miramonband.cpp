@@ -48,9 +48,10 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
-      psInfo(psInfoIn), fpExternal(nullptr),
-      eDataType(static_cast<EPTType>(EPT_MIN)),
+      psInfo(psInfoIn), fp(nullptr), eDataType(static_cast<EPTType>(EPT_MIN)),
       eMMDataType(static_cast<MMDataType>(DATATYPE_AND_COMPR_UNDEFINED)),
+      eMMBytesPerPixel(
+          static_cast<MMBytesPerPixel>(TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
       bNoDataSet(false), dfNoData(0.0)
@@ -77,6 +78,31 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
         pszBandFileName = psInfoIn->pszRELFilename;
     }
 
+    // There is a band file documented?
+    if (!pszBandName)
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AssertionFailed,
+                 "The REL file '%s' contains a documented \
+            band with no explicit name. Section [%s] or [%s:%s].\n",
+                 psInfo->pszRELFilename.c_str(), SECCIO_ATTRIBUTE_DATA,
+                 SECCIO_ATTRIBUTE_DATA, pszSection);
+        return;
+    }
+
+    // Can it be opened?
+    // Let's open the binari file that contains the raw data of the band.
+    fp = VSIFOpenL(pszBandFileName, "rb");
+    if (!fp)
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_OpenFailed,
+                 "Failed to open MiraMon band file `%s' with access 'rb'.");
+        return;
+    }
+
     // Getting data type from metadata
     char *pszCompType = MMRelOp->GetMetadataValue(
         SECCIO_ATTRIBUTE_DATA, pszSection, "TipusCompressio");
@@ -86,7 +112,6 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
         psInfo->nCompressionType = DATATYPE_AND_COMPR_UNDEFINED;
         psInfo->nBytesPerPixel = TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
-        // Collect common metadata: dataType
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
@@ -103,9 +128,25 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
                  "MMRBand::MMRBand : nDataType=%s unhandled", pszCompType);
         return;
     }
-    eMMDataType = psInfo->nCompressionType;
-
     VSIFree(pszCompType);
+
+    eMMDataType = psInfo->nCompressionType;
+    eMMBytesPerPixel = psInfo->nBytesPerPixel;
+
+    if (psInfo->nCompressionType == DATATYPE_AND_COMPR_BIT_VELL ||
+        psInfo->nCompressionType == DATATYPE_AND_COMPR_UNDEFINED)
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : nDataType=%s unhandled", pszCompType);
+        return;
+    }
+
+    bIsCompressed =
+        (((psInfo->nCompressionType > DATATYPE_AND_COMPR_BYTE_RLE) &&
+          (psInfo->nCompressionType < DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
+         psInfo->nCompressionType == DATATYPE_AND_COMPR_BIT);
 
     // Getting number of rows/columns from metadata
     char *pszColumns = MMRelOp->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
@@ -155,14 +196,16 @@ MMRBand::~MMRBand()
     CPLFree(apadfPCT[3]);
     CPLFree(padfPCTBins);
 
-    if (fpExternal != nullptr)
-        CPL_IGNORE_RET_VAL(VSIFCloseL(fpExternal));
+    if (fp != nullptr)
+        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
 }
 
 /************************************************************************/
 /*                           LoadBlockInfo()                            */
 /************************************************************************/
 
+// Accés als indexs o creació d'índexs.
+//Potser ni cal.
 CPLErr MMRBand::LoadBlockInfo()
 
 {
@@ -920,42 +963,31 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
                                int nDataSize)
 
 {
-    if (LoadBlockInfo() != CE_None)
-        return CE_Failure;
+    // No se si hi necessito. Aquñí podria llegir els indexs
+    //if (LoadBlockInfo() != CE_None)
+    //    return CE_Failure;
 
     const int iBlock = nXBlock + nYBlock * nBlocksPerRow;
-    const int nDataTypeSizeBytes =
-        std::max(1, MMRGetDataTypeBits(eDataType) / 8);
+    const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
     const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
 
-    // If the block isn't valid, we just return all zeros, and an
-    // indication of success.
-    if ((panBlockFlag[iBlock] & BFLG_VALID) == 0)
-    {
-        NullBlock(pData);
-        return CE_None;
-    }
-
-    // Otherwise we really read the data.
-    vsi_l_offset nBlockOffset = 0;
-    VSILFILE *fpData = nullptr;
+    // We really read the data.
+    vsi_l_offset nBlockOffset;
+    if (bIsCompressed)
+        nBlockOffset = 0;
+    else
+        nBlockOffset = nGDALBlockSize * iBlock;
 
     // Calculate block offset in case we have spill file. Use predefined
     // block map otherwise.
-    if (fpExternal)
+    if (!fp)
     {
-        fpData = fpExternal;
-        nBlockOffset = nBlockStart + nBlockSize * iBlock * nLayerStackCount +
-                       nLayerStackIndex * nBlockSize;
-    }
-    else
-    {
-        fpData = psInfo->fp;
-        nBlockOffset = panBlockStart[iBlock];
-        nBlockSize = panBlockSize[iBlock];
+        CPLError(CE_Failure, CPLE_FileIO, "File band not opened: \n%s",
+                 pszBandFileName.c_str());
+        return CE_Failure;
     }
 
-    if (VSIFSeekL(fpData, nBlockOffset, SEEK_SET) != 0)
+    if (VSIFSeekL(fp, nBlockOffset, SEEK_SET) != 0)
     {
         // XXX: We will not report error here, because file just may be
         // in update state and data for this block will be available later.
@@ -969,7 +1001,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
             CPLError(CE_Failure, CPLE_FileIO,
                      "Seek to %x:%08x on %p failed\n%s",
                      static_cast<int>(nBlockOffset >> 32),
-                     static_cast<int>(nBlockOffset & 0xffffffff), fpData,
+                     static_cast<int>(nBlockOffset & 0xffffffff), fp,
                      VSIStrerror(errno));
             return CE_Failure;
         }
@@ -977,7 +1009,8 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
 
     // If the block is compressed, read into an intermediate buffer
     // and convert.
-    if (panBlockFlag[iBlock] & BFLG_COMPRESSED)
+    if (bIsCompressed)
+    //if(panBlockFlag && panBlockFlag[iBlock] & BFLG_COMPRESSED)
     {
         GByte *pabyCData = static_cast<GByte *>(
             VSI_MALLOC_VERBOSE(static_cast<size_t>(nBlockSize)));
@@ -986,8 +1019,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
             return CE_Failure;
         }
 
-        if (VSIFReadL(pabyCData, static_cast<size_t>(nBlockSize), 1, fpData) !=
-            1)
+        if (VSIFReadL(pabyCData, static_cast<size_t>(nBlockSize), 1, fp) != 1)
         {
             CPLFree(pabyCData);
 
@@ -1003,7 +1035,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
                          "Read of %d bytes at %x:%08x on %p failed.\n%s",
                          static_cast<int>(nBlockSize),
                          static_cast<int>(nBlockOffset >> 32),
-                         static_cast<int>(nBlockOffset & 0xffffffff), fpData,
+                         static_cast<int>(nBlockOffset & 0xffffffff), fp,
                          VSIStrerror(errno));
                 return CE_Failure;
             }
@@ -1018,6 +1050,9 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         return eErr;
     }
 
+    // If no compressed, as we are reading a row, we have this nBlockSize
+    nBlockSize = nWidth * (vsi_l_offset)eMMBytesPerPixel;
+
     // Read uncompressed data directly into the return buffer.
     if (nDataSize != -1 &&
         (nBlockSize > INT_MAX || static_cast<int>(nBlockSize) > nDataSize))
@@ -1027,16 +1062,15 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         return CE_Failure;
     }
 
-    if (VSIFReadL(pData, static_cast<size_t>(nBlockSize), 1, fpData) != 1)
+    if (VSIFReadL(pData, static_cast<size_t>(nBlockSize), 1, fp) != 1)
     {
         memset(pData, 0, nGDALBlockSize);
 
-        if (fpData != fpExternal)
-            CPLDebug("MMRBand", "Read of %x:%08x bytes at %d on %p failed.\n%s",
-                     static_cast<int>(nBlockSize),
-                     static_cast<int>(nBlockOffset >> 32),
-                     static_cast<int>(nBlockOffset & 0xffffffff), fpData,
-                     VSIStrerror(errno));
+        CPLDebug("MMRBand", "Read of %x:%08x bytes at %d on %p failed.\n%s",
+                 static_cast<int>(nBlockSize),
+                 static_cast<int>(nBlockOffset >> 32),
+                 static_cast<int>(nBlockOffset & 0xffffffff), fp,
+                 VSIStrerror(errno));
 
         return CE_None;
     }
@@ -1157,18 +1191,9 @@ CPLErr MMRBand::SetRasterBlock(int nXBlock, int nYBlock, void *pData)
 
     // Calculate block offset in case we have spill file. Use predefined
     // block map otherwise.
-    if (fpExternal)
-    {
-        fpData = fpExternal;
-        nBlockOffset = nBlockStart + nBlockSize * iBlock * nLayerStackCount +
-                       nLayerStackIndex * nBlockSize;
-    }
-    else
-    {
-        fpData = psInfo->fp;
-        nBlockOffset = panBlockStart[iBlock];
-        nBlockSize = panBlockSize[iBlock];
-    }
+    fpData = fp;
+    nBlockOffset = nBlockStart + nBlockSize * iBlock * nLayerStackCount +
+                   nLayerStackIndex * nBlockSize;
 
     // Compressed Tile Handling.
     if (panBlockFlag[iBlock] & BFLG_COMPRESSED)

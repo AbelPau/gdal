@@ -371,8 +371,8 @@ CPLErr MMRGetRasterInfo(MMRHandle hMMR, int *pnXSize, int *pnYSize,
 /************************************************************************/
 
 CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, MMDataType *eMMRDataType,
-                      int *pnBlockXSize, int *pnBlockYSize,
-                      int *pnCompressionType)
+                      MMBytesPerPixel *eMMBytesPerPixel, int *pnBlockXSize,
+                      int *pnBlockYSize, int *pnCompressionType)
 
 {
     if (nBand < 0 || nBand > hMMR->nBands)
@@ -385,6 +385,9 @@ CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, MMDataType *eMMRDataType,
 
     if (eMMRDataType != nullptr)
         *eMMRDataType = poBand->eMMDataType;
+
+    if (eMMBytesPerPixel != nullptr)
+        *eMMBytesPerPixel = poBand->eMMBytesPerPixel;
 
     if (pnBlockXSize != nullptr)
         *pnBlockXSize = poBand->nBlockXSize;

@@ -1679,8 +1679,8 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     eAccess = poDSIn->GetAccess();
 
     int nCompression = 0;
-    MMRGetBandInfo(hMMR, nBand, &eMMRDataTypeMiraMon, &nBlockXSize,
-                   &nBlockYSize, &nCompression);
+    MMRGetBandInfo(hMMR, nBand, &eMMRDataTypeMiraMon, &eMMBytesPerPixel,
+                   &nBlockXSize, &nBlockYSize, &nCompression);
 
     // Set some other information.
     if (nCompression != 0)
@@ -2200,32 +2200,9 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
                                nBlockXSize * nBlockYSize *
                                    GDALGetDataTypeSizeBytes(eDataType));
 
-    if (eErr == CE_None && eMMRDataType == EPT_u4)
+    if (eErr == CE_None && eMMRDataTypeMiraMon == DATATYPE_AND_COMPR_BIT)
     {
-        GByte *pabyData = static_cast<GByte *>(pImage);
-
-        for (int ii = nBlockXSize * nBlockYSize - 2; ii >= 0; ii -= 2)
-        {
-            int k = ii >> 1;
-            pabyData[ii + 1] = (pabyData[k] >> 4) & 0xf;
-            pabyData[ii] = (pabyData[k]) & 0xf;
-        }
-    }
-    if (eErr == CE_None && eMMRDataType == EPT_u2)
-    {
-        GByte *pabyData = static_cast<GByte *>(pImage);
-
-        for (int ii = nBlockXSize * nBlockYSize - 4; ii >= 0; ii -= 4)
-        {
-            int k = ii >> 2;
-            pabyData[ii + 3] = (pabyData[k] >> 6) & 0x3;
-            pabyData[ii + 2] = (pabyData[k] >> 4) & 0x3;
-            pabyData[ii + 1] = (pabyData[k] >> 2) & 0x3;
-            pabyData[ii] = (pabyData[k]) & 0x3;
-        }
-    }
-    if (eErr == CE_None && eMMRDataType == EPT_u1)
-    {
+        // ·$·TODO Revisar
         GByte *pabyData = static_cast<GByte *>(pImage);
 
         for (int ii = nBlockXSize * nBlockYSize - 1; ii >= 0; ii--)
@@ -2827,10 +2804,12 @@ MMRDataset::~MMRDataset()
 CPLErr MMRDataset::FlushCache(bool bAtClosing)
 
 {
-    CPLErr eErr = GDALPamDataset::FlushCache(bAtClosing);
+    // ·$·TODO
+    /*CPLErr eErr = GDALPamDataset::FlushCache(bAtClosing);
 
     if (eAccess != GA_Update)
         return eErr;
+    */
 
     if (bGeoDirty)
         WriteProjection();
@@ -2845,14 +2824,16 @@ CPLErr MMRDataset::FlushCache(bool bAtClosing)
     {
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(iBand + 1));
+        //·$·TODO
+        /*
         if (poBand->bMetadataDirty && poBand->GetMetadata() != nullptr)
         {
             MMRSetMetadata(hMMR, iBand + 1, poBand->GetMetadata());
             poBand->bMetadataDirty = false;
-        }
+        }*/
     }
 
-    return eErr;
+    return CE_None;  //eErr;
 }
 
 /************************************************************************/
@@ -4287,13 +4268,6 @@ CPLErr MMRDataset::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
                              GDALRasterIOExtraArg *psExtraArg)
 
 {
-    if (hMMR->papoBand[panBandMap[0] - 1]->fpExternal != nullptr &&
-        nBandCount > 1)
-        return GDALDataset::BlockBasedRasterIO(
-            eRWFlag, nXOff, nYOff, nXSize, nYSize, pData, nBufXSize, nBufYSize,
-            eBufType, nBandCount, panBandMap, nPixelSpace, nLineSpace,
-            nBandSpace, psExtraArg);
-
     return GDALDataset::IRasterIO(eRWFlag, nXOff, nYOff, nXSize, nYSize, pData,
                                   nBufXSize, nBufYSize, eBufType, nBandCount,
                                   panBandMap, nPixelSpace, nLineSpace,

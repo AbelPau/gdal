@@ -116,6 +116,7 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     EPTType eMMRDataType;
     MMDataType eMMRDataTypeMiraMon;  // Arreglar nom
+    MMBytesPerPixel eMMBytesPerPixel;
 
     MMRHandle hMMR;
 

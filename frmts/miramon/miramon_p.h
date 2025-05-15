@@ -169,10 +169,13 @@ class MMRBand
 
     MMRInfo_t *psInfo;
 
-    VSILFILE *fpExternal;
+    VSILFILE *fp;
 
     EPTType eDataType;
     MMDataType eMMDataType;
+    MMBytesPerPixel eMMBytesPerPixel;
+    bool bIsCompressed;
+
     MMREntry *poNode;
 
     int nBlockXSize;
