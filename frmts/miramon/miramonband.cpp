@@ -61,12 +61,9 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     apadfPCT[2] = nullptr;
     apadfPCT[3] = nullptr;
 
-    // Loading the metadata file
-    MMRRel *MMRelOp = new MMRRel(psInfo->pszRELFilename);
-
     // Getting band and band file name from metadata
-    pszBandName = MMRelOp->GetMetadataValue(SECCIO_ATTRIBUTE_DATA, pszSection,
-                                            KEY_NomFitxer);
+    pszBandName = psInfoIn->MMRelOp->GetMetadataValue(
+        SECCIO_ATTRIBUTE_DATA, pszSection, KEY_NomFitxer);
 
     if (!pszBandName || *pszBandName == '\0')
     {
@@ -104,7 +101,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     }
 
     // Getting data type from metadata
-    char *pszCompType = MMRelOp->GetMetadataValue(
+    char *pszCompType = psInfoIn->MMRelOp->GetMetadataValue(
         SECCIO_ATTRIBUTE_DATA, pszSection, "TipusCompressio");
 
     if (!pszCompType)
@@ -149,13 +146,13 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
          psInfo->nCompressionType == DATATYPE_AND_COMPR_BIT);
 
     // Getting number of rows/columns from metadata
-    char *pszColumns = MMRelOp->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
-                                                 pszSection, "columns");
+    char *pszColumns = psInfoIn->MMRelOp->GetMetadataValue(
+        SECTION_OVVW_ASPECTES_TECNICS, pszSection, "columns");
     nWidth = psInfo->nXSize = pszColumns ? atoi(pszColumns) : 0;
     VSIFree(pszColumns);
 
-    char *pszRows = MMRelOp->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
-                                              pszSection, "rows");
+    char *pszRows = psInfoIn->MMRelOp->GetMetadataValue(
+        SECTION_OVVW_ASPECTES_TECNICS, pszSection, "rows");
     nHeight = psInfo->nYSize = pszRows ? atoi(pszRows) : 0;
     VSIFree(pszRows);
 
@@ -976,7 +973,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
     if (bIsCompressed)
         nBlockOffset = 0;
     else
-        nBlockOffset = nGDALBlockSize * iBlock;
+        nBlockOffset = (vsi_l_offset)nGDALBlockSize * iBlock;
 
     // Calculate block offset in case we have spill file. Use predefined
     // block map otherwise.
@@ -1051,7 +1048,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
     }
 
     // If no compressed, as we are reading a row, we have this nBlockSize
-    nBlockSize = nWidth * (vsi_l_offset)eMMBytesPerPixel;
+    nBlockSize = nGDALBlockSize;  //nWidth * (vsi_l_offset)eMMBytesPerPixel;
 
     // Read uncompressed data directly into the return buffer.
     if (nDataSize != -1 &&

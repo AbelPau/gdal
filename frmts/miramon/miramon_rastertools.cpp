@@ -89,6 +89,9 @@ MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
     char *pszDocumentedLayerName =
         MMReturnValueFromSectionINIFile(pszRELFile, pszSection, KEY_NomFitxer);
 
+    //MMRRel::GetMetadataValue(const char *pszSection,
+    //                           const char *pszKey)
+
     if (!pszDocumentedLayerName)
     {
         return MMRNomFitxerState::NOMFITXER_NOT_FOUND;

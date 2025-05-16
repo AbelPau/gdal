@@ -41,24 +41,28 @@ MMRRel::~MMRRel()
 }
 
 /************************************************************************/
-/*                     GetMetadataValue()                                    */
+/*                     GetMetadataValue()                               */
 /************************************************************************/
 char *MMRRel::GetMetadataValue(const char *pszMainSection,
-                               const char *pszBandSection, const char *pszKey)
+                               const char *pszSubSection, const char *pszKey)
 {
-    // Example: [pszMainSection:pszBandSection]
+    // Searches in [pszMainSection:pszSubSection]
     CPLString szAtributeDataName;
     szAtributeDataName = pszMainSection;
     szAtributeDataName.append(":");
-    szAtributeDataName.append(pszBandSection);
+    szAtributeDataName.append(pszSubSection);
 
-    char *pszCompType = MMReturnValueFromSectionINIFile(
+    char *pszValue = MMReturnValueFromSectionINIFile(
         pszRelFileName, szAtributeDataName, pszKey);
-    if (pszCompType)
-        return pszCompType;
+    if (pszValue)
+        return pszValue;
 
-    pszCompType =
-        MMReturnValueFromSectionINIFile(pszRelFileName, pszMainSection, pszKey);
+    // If the value is not found then searches in [pszMainSection]
+    return MMReturnValueFromSectionINIFile(pszRelFileName, pszMainSection,
+                                           pszKey);
+}
 
-    return pszCompType;
+char *MMRRel::GetMetadataValue(const char *pszSection, const char *pszKey)
+{
+    return MMReturnValueFromSectionINIFile(pszRelFileName, pszSection, pszKey);
 }

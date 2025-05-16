@@ -4044,10 +4044,10 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
         return nullptr;
     }
 
+    //poDS->adfGeoTransform
+
     // Get geotransform, or if that fails, try to find XForms to
     // build gcps, and metadata.
-    /* ·$·TODO
-        O ignorar o veure com ho fa el MM
     if (!MMRGetGeoTransform(hMMR, poDS->adfGeoTransform))
     {
         Efga_Polynomial *pasPolyListForward = nullptr;
@@ -4062,10 +4062,10 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
             CPLFree(pasPolyListForward);
             CPLFree(pasPolyListReverse);
         }
-    }*/
+    }
 
     //·$·TODO de moment m'ho salto
-    //poDS->ReadProjection();
+    poDS->ReadProjection();
 
     // DIVERSOS SUBDATASETS
     // /* Create subdatsets per granules and resolution (10, 20, 60m) */
@@ -4247,31 +4247,6 @@ CPLErr MMRDataset::SetGeoTransform(double *padfTransform)
     bGeoDirty = true;
 
     return CE_None;
-}
-
-/************************************************************************/
-/*                             IRasterIO()                              */
-/*                                                                      */
-/*      Multi-band raster io handler.  Here we ensure that the block    */
-/*      based loading is used for spill file rasters.  That is          */
-/*      because they are effectively pixel interleaved, so              */
-/*      processing all bands for a given block together avoid extra     */
-/*      seeks.                                                          */
-/************************************************************************/
-
-CPLErr MMRDataset::IRasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
-                             int nXSize, int nYSize, void *pData, int nBufXSize,
-                             int nBufYSize, GDALDataType eBufType,
-                             int nBandCount, BANDMAP_TYPE panBandMap,
-                             GSpacing nPixelSpace, GSpacing nLineSpace,
-                             GSpacing nBandSpace,
-                             GDALRasterIOExtraArg *psExtraArg)
-
-{
-    return GDALDataset::IRasterIO(eRWFlag, nXOff, nYOff, nXSize, nYSize, pData,
-                                  nBufXSize, nBufYSize, eBufType, nBandCount,
-                                  panBandMap, nPixelSpace, nLineSpace,
-                                  nBandSpace, psExtraArg);
 }
 
 /************************************************************************/

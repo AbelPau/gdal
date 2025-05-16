@@ -188,6 +188,7 @@ MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
         static_cast<MMRInfo_t *>(CPLCalloc(sizeof(MMRInfo_t), 1));
 
     psInfo->pszRELFilename = pszRELFilename;
+    psInfo->MMRelOp = new MMRRel(psInfo->pszRELFilename);
     //psInfo->fp = fp;
 
     if (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb"))
@@ -729,9 +730,9 @@ int MMRGetGeoTransform(MMRHandle hMMR, double *padfGeoTransform)
 
     padfGeoTransform[0] = 0.0;
     padfGeoTransform[1] = 1.0;
-    padfGeoTransform[2] = 0.0;
+    padfGeoTransform[2] = 0.0;  // Always 0 in MiraMon
     padfGeoTransform[3] = 0.0;
-    padfGeoTransform[4] = 0.0;
+    padfGeoTransform[4] = 0.0;  // Always 0 in MiraMon
     padfGeoTransform[5] = 1.0;
 
     // Simple (north up) MapInfo approach.

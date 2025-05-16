@@ -53,6 +53,23 @@ typedef enum
 } MMRAccess;
 
 /************************************************************************/
+/*                               MMRRel                                */
+/************************************************************************/
+
+class MMRRel
+{
+    // File name with banda data.
+    CPLString pszRelFileName;
+
+  public:
+    char *GetMetadataValue(const char *pszMainSection,
+                           const char *pszSubSection, const char *pszKey);
+    char *GetMetadataValue(const char *pszSection, const char *pszKey);
+    MMRRel(CPLString);
+    ~MMRRel();
+};
+
+/************************************************************************/
 /*                              MMRInfo_t                               */
 /*                                                                      */
 /*      This is just a structure, and used hold info about the whole    */
@@ -63,6 +80,7 @@ struct mmrinfo
     VSILFILE *fp;
 
     CPLString pszRELFilename;
+    MMRRel *MMRelOp;  // Access stuff to REL file
 
     MMRAccess eAccess;
 
@@ -201,23 +219,6 @@ class MMRBand
     CPLErr GetPCT(int *, double **, double **, double **, double **, double **);
     CPLErr SetPCT(int, const double *, const double *, const double *,
                   const double *);
-};
-
-/************************************************************************/
-/*                               MMRRel                                */
-/************************************************************************/
-
-class MMRRel
-{
-    // File name with banda data.
-    CPLString pszRelFileName;
-
-  public:
-    char *GetMetadataValue(const char *pszMainSection,
-                           const char *pszBandSection, const char *pszKey);
-
-    MMRRel(CPLString);
-    ~MMRRel();
 };
 
 /************************************************************************/
