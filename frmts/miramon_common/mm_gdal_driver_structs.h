@@ -55,7 +55,7 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define KEY_Value_characterSet "006"
 
 // Raster
-#define SECCIO_ATTRIBUTE_DATA "ATTRIBUTE_DATA"
+#define SECTION_ATTRIBUTE_DATA "ATTRIBUTE_DATA"
 #define KEY_NomFitxer "NomFitxer"
 #define KEY_via "via"
 #define Key_IndexsNomsCamps "IndexsNomsCamps"

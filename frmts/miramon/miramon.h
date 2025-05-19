@@ -20,6 +20,8 @@
 #include "cpl_conv.h"
 #include "cpl_string.h"
 
+#include "miramonrel.h"
+
 typedef struct mmrinfo *MMRHandle;
 
 /* -------------------------------------------------------------------- */
@@ -133,41 +135,6 @@ typedef enum
     EPT_c128 = 12,
     EPT_MAX = EPT_c128
 } EPTType;
-
-typedef enum
-{
-    DATATYPE_AND_COMPR_UNDEFINED = -1,
-    DATATYPE_AND_COMPR_MIN = 0,
-    DATATYPE_AND_COMPR_STRING = 0,
-    DATATYPE_AND_COMPR_BIT = 1,
-    DATATYPE_AND_COMPR_BIT_VELL = 2,  // Not supported
-    DATATYPE_AND_COMPR_BYTE = 3,
-    DATATYPE_AND_COMPR_INTEGER = 4,
-    DATATYPE_AND_COMPR_UINTEGER = 5,
-    DATATYPE_AND_COMPR_LONG = 6,
-    DATATYPE_AND_COMPR_INTEGER_ASCII = 7,
-    DATATYPE_AND_COMPR_REAL = 8,
-    DATATYPE_AND_COMPR_DOUBLE = 9,
-    DATATYPE_AND_COMPR_REAL_ASCII = 10,
-    DATATYPE_AND_COMPR_BYTE_RLE = 11,
-    DATATYPE_AND_COMPR_INTEGER_RLE = 12,
-    DATATYPE_AND_COMPR_UINTEGER_RLE = 13,
-    DATATYPE_AND_COMPR_LONG_RLE = 14,
-    DATATYPE_AND_COMPR_REAL_RLE = 15,
-    DATATYPE_AND_COMPR_DOUBLE_RLE = 16,
-    DATATYPE_AND_COMPR_MAX = 16
-} MMDataType;
-
-typedef enum
-{
-    TYPE_BYTES_PER_PIXEL_UNDEFINED = -1,
-    TYPE_BYTES_PER_PIXEL_STRING = 0,
-    TYPE_BYTES_PER_PIXEL_BIT = 0,
-    TYPE_BYTES_PER_PIXEL_BYTE_I_RLE = 1,
-    TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE = 2,
-    TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE = 4,
-    TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE = 8
-} MMBytesPerPixel;
 
 /* -------------------------------------------------------------------- */
 /*      Prototypes                                                      */

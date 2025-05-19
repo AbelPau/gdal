@@ -36,6 +36,7 @@ void MMRStandard(int, void *);
 #endif
 
 #include "miramon.h"
+#include "miramonrel.h"
 
 class MMRBand;
 class MMRDictionary;
@@ -43,30 +44,16 @@ class MMREntry;
 class MMRSpillFile;
 class MMRType;
 
+constexpr auto pszExtRaster = ".img";
+constexpr auto pszExtRasterREL = "I.rel";
+
 /************************************************************************/
 /*      Flag indicating read/write, or read-only access to data.        */
 /************************************************************************/
-typedef enum
+enum class MMRAccess
 {
     /*! Read only (no update) access */ MMR_ReadOnly = 0,
     /*! Read/write access. */ MMR_Update = 1
-} MMRAccess;
-
-/************************************************************************/
-/*                               MMRRel                                */
-/************************************************************************/
-
-class MMRRel
-{
-    // File name with banda data.
-    CPLString pszRelFileName;
-
-  public:
-    char *GetMetadataValue(const char *pszMainSection,
-                           const char *pszSubSection, const char *pszKey);
-    char *GetMetadataValue(const char *pszSection, const char *pszKey);
-    MMRRel(CPLString);
-    ~MMRRel();
 };
 
 /************************************************************************/
@@ -80,7 +67,7 @@ struct mmrinfo
     VSILFILE *fp;
 
     CPLString pszRELFilename;
-    MMRRel *MMRelOp;  // Access stuff to REL file
+    MMRRel *fRel;  // Access stuff to REL file
 
     MMRAccess eAccess;
 
@@ -99,8 +86,6 @@ struct mmrinfo
 
     int nXSize;
     int nYSize;
-    MMDataType nCompressionType;  // Compression (none, RLE, etc)
-    MMBytesPerPixel nBytesPerPixel;
 
     int nBands;
     MMRBand **papoBand;
@@ -113,6 +98,14 @@ struct mmrinfo
 };
 
 typedef struct mmrinfo MMRInfo_t;
+
+CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
+MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
+                                               const char *pszSection,
+                                               const char *pszRELFile);
+CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
+                                    const char *pszRELFile);
+CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename);
 
 GUInt32 MMRAllocateSpace(MMRInfo_t *, GUInt32);
 CPLErr MMRParseBandInfo(MMRInfo_t *);
@@ -188,6 +181,7 @@ class MMRBand
     MMRInfo_t *psInfo;
 
     VSILFILE *fp;
+    MMRRel *fRel;  // Rel where metadata is readed from
 
     EPTType eDataType;
     MMDataType eMMDataType;
@@ -205,8 +199,17 @@ class MMRBand
     int nBlocksPerRow;
     int nBlocksPerColumn;
 
-    bool bNoDataSet;
-    double dfNoData;
+    bool bNoDataSet;         // There is nodata?
+    CPLString pszNodataDef;  // Definition of nodata
+    double dfNoData;         // Value of nodata
+
+    // Extent values of the band:
+    // They always refer to extreme outer coordinates,
+    // not to cell centers.
+    double MinX;
+    double MinY;
+    double MaxX;
+    double MaxY;
 
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
     CPLErr SetRasterBlock(int nXBlock, int nYBlock, void *pData);

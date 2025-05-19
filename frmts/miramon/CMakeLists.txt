@@ -3,6 +3,7 @@ add_gdal_driver(
   TARGET gdal_MiraMon
   SOURCES miramon.h
           miramon_p.h
+          miramonrel.h
           miramondataset.h
           miramon_rastertools.h
           miramonband.cpp

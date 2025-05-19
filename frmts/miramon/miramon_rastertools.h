@@ -20,12 +20,4 @@
 #include "cpl_conv.h"
 #include "cpl_string.h"
 
-CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
-CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
-CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename);
-
-int MMGetDataTypeAndBytesPerPixel(const char *pszCompType,
-                                  MMDataType *nCompressionType,
-                                  MMBytesPerPixel *nBytesPerPixel);
-
 #endif /* ndef MMRRASTERTOOLS_H_INCLUDED */

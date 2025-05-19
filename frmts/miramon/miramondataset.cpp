@@ -13,6 +13,7 @@
 //#include "cpl_port.h"
 #include "miramondataset.h"
 #include "miramon_p.h"
+#include "miramonrel.h"
 
 #include <cassert>
 /*
@@ -1694,35 +1695,35 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
 
     switch (eMMRDataTypeMiraMon)
     {
-        case DATATYPE_AND_COMPR_BYTE:
-        case DATATYPE_AND_COMPR_BYTE_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_BYTE:
+        case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
             eDataType = GDT_Byte;
             break;
 
-        case DATATYPE_AND_COMPR_UINTEGER:
-        case DATATYPE_AND_COMPR_UINTEGER_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
             eDataType = GDT_UInt16;
             break;
 
-        case DATATYPE_AND_COMPR_INTEGER:
-        case DATATYPE_AND_COMPR_INTEGER_RLE:
-        case DATATYPE_AND_COMPR_INTEGER_ASCII:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_ASCII:
             eDataType = GDT_Int16;
             break;
 
-        case DATATYPE_AND_COMPR_LONG:
-        case DATATYPE_AND_COMPR_LONG_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_LONG:
+        case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
             eDataType = GDT_Int32;
             break;
 
-        case DATATYPE_AND_COMPR_REAL:
-        case DATATYPE_AND_COMPR_REAL_RLE:
-        case DATATYPE_AND_COMPR_REAL_ASCII:
+        case MMDataType::DATATYPE_AND_COMPR_REAL:
+        case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_REAL_ASCII:
             eDataType = GDT_Float32;
             break;
 
-        case DATATYPE_AND_COMPR_DOUBLE:
-        case DATATYPE_AND_COMPR_DOUBLE_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
             eDataType = GDT_Float64;
             break;
 
@@ -2200,7 +2201,8 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
                                nBlockXSize * nBlockYSize *
                                    GDALGetDataTypeSizeBytes(eDataType));
 
-    if (eErr == CE_None && eMMRDataTypeMiraMon == DATATYPE_AND_COMPR_BIT)
+    if (eErr == CE_None &&
+        eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BIT)
     {
         // ·$·TODO Revisar
         GByte *pabyData = static_cast<GByte *>(pImage);
@@ -4023,23 +4025,12 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     poDS->eAccess = poOpenInfo->eAccess;
 
     // Establish raster info.
-    MMRGetRasterInfo(hMMR, &poDS->nRasterXSize, &poDS->nRasterYSize,
-                     &poDS->nBands);  // Afegir les bandes que es vulguin
-
+    poDS->nBands = hMMR->nBands;
     if (poDS->nBands == 0)
     {
         delete poDS;
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Unable to open %s, it has zero usable bands.",
-                 poOpenInfo->pszFilename);
-        return nullptr;
-    }
-
-    if (poDS->nRasterXSize == 0 || poDS->nRasterYSize == 0)
-    {
-        delete poDS;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Unable to open %s, it has no pixels.",
                  poOpenInfo->pszFilename);
         return nullptr;
     }

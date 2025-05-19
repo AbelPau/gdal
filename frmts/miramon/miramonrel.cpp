@@ -12,6 +12,7 @@
 
 #include "cpl_port.h"
 #include "miramon_p.h"
+#include "miramonrel.h"
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
@@ -36,8 +37,99 @@ MMRRel::MMRRel(CPLString pszRELFilenameIn) : pszRelFileName(pszRELFilenameIn)
 /************************************************************************/
 
 MMRRel::~MMRRel()
-
 {
+}
+
+/************************************************************************/
+/*                  MMGetDataTypeAndBytesPerPixel()                     */
+/************************************************************************/
+int MMRRel::MMGetDataTypeAndBytesPerPixel(const char *pszCompType,
+                                          MMDataType *nCompressionType,
+                                          MMBytesPerPixel *nBytesPerPixel)
+{
+    if (!nCompressionType || !nBytesPerPixel || !pszCompType)
+        return 1;
+
+    if (EQUAL(pszCompType, "bit"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BIT;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "byte"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BYTE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "byte-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BYTE_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "integer"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_INTEGER;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "integer-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "uinteger"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_UINTEGER;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "uinteger-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "long"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_LONG;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "long-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_LONG_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "real"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_REAL;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "real-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_REAL_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "double"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_DOUBLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "double-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE;
+        return 0;
+    }
+
+    return 1;
 }
 
 /************************************************************************/

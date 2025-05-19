@@ -246,7 +246,7 @@ MMREntry::MMREntry(const char *pszDictionary, const char *pszTypeName,
     // Create a dummy MMRInfo_t.
     psMMR = static_cast<MMRInfo_t *>(CPLCalloc(sizeof(MMRInfo_t), 1));
 
-    psMMR->eAccess = MMR_ReadOnly;
+    psMMR->eAccess = MMRAccess::MMR_ReadOnly;
     psMMR->bTreeDirty = false;
     psMMR->poRoot = this;
 

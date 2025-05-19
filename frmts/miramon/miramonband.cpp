@@ -21,7 +21,7 @@
 //#include "../miramon_common/mm_gdal_constants.h"
 #endif
 
-#include "miramon_rastertools.h"
+#include "miramonrel.h"
 
 #include <cerrno>
 #include <climits>
@@ -43,18 +43,36 @@
 /************************************************************************/
 /*                              MMRBand()                               */
 /************************************************************************/
+// Converts FileNameI.rel to FileName.img
+CPLString MMRGetFileNameFromRelName(const char *pszRELFile)
+{
+    if (!pszRELFile)
+        return "";
+
+    CPLString pszFile =
+        CPLString(CPLResetExtensionSafe(pszRELFile, "").c_str());
+
+    if (pszFile.length() < 2)
+        return "";
+
+    pszFile.resize(pszFile.size() - 2);  // I.
+    pszFile += pszExtRaster;
+
+    return pszFile;
+}
 
 MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
       psInfo(psInfoIn), fp(nullptr), eDataType(static_cast<EPTType>(EPT_MIN)),
-      eMMDataType(static_cast<MMDataType>(DATATYPE_AND_COMPR_UNDEFINED)),
-      eMMBytesPerPixel(
-          static_cast<MMBytesPerPixel>(TYPE_BYTES_PER_PIXEL_UNDEFINED)),
+      eMMDataType(
+          static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
+      eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
+          MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), dfNoData(0.0)
+      bNoDataSet(false), dfNoData(0.0), fRel(psInfoIn->fRel)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
@@ -62,8 +80,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     apadfPCT[3] = nullptr;
 
     // Getting band and band file name from metadata
-    pszBandName = psInfoIn->MMRelOp->GetMetadataValue(
-        SECCIO_ATTRIBUTE_DATA, pszSection, KEY_NomFitxer);
+    pszBandName = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                         KEY_NomFitxer);
 
     if (!pszBandName || *pszBandName == '\0')
     {
@@ -83,10 +101,11 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "The REL file '%s' contains a documented \
             band with no explicit name. Section [%s] or [%s:%s].\n",
-                 psInfo->pszRELFilename.c_str(), SECCIO_ATTRIBUTE_DATA,
-                 SECCIO_ATTRIBUTE_DATA, pszSection);
+                 psInfo->pszRELFilename.c_str(), SECTION_ATTRIBUTE_DATA,
+                 SECTION_ATTRIBUTE_DATA, pszSection);
         return;
     }
+    SetBandName(pszBandName);  // Useful?
 
     // Can it be opened?
     // Let's open the binari file that contains the raw data of the band.
@@ -96,67 +115,57 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_OpenFailed,
-                 "Failed to open MiraMon band file `%s' with access 'rb'.");
+                 "Failed to open MiraMon band file `%s' with access 'rb'.",
+                 pszBandFileName.c_str());
         return;
     }
 
     // Getting data type from metadata
-    char *pszCompType = psInfoIn->MMRelOp->GetMetadataValue(
-        SECCIO_ATTRIBUTE_DATA, pszSection, "TipusCompressio");
+    char *pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                            "TipusCompressio");
 
-    if (!pszCompType)
+    eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
+    eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
+
+    if (!pszValue || fRel->MMGetDataTypeAndBytesPerPixel(
+                         pszValue, &eMMDataType, &eMMBytesPerPixel) == 1)
     {
-        psInfo->nCompressionType = DATATYPE_AND_COMPR_UNDEFINED;
-        psInfo->nBytesPerPixel = TYPE_BYTES_PER_PIXEL_UNDEFINED;
-
+        VSIFree(pszValue);
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
                  "MMRBand::MMRBand : No nDataType documented");
         return;
     }
-    if (MMGetDataTypeAndBytesPerPixel(pszCompType, &psInfo->nCompressionType,
-                                      &psInfo->nBytesPerPixel) == 1)
-    {
-        VSIFree(pszCompType);
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : nDataType=%s unhandled", pszCompType);
-        return;
-    }
-    VSIFree(pszCompType);
+    VSIFree(pszValue);
 
-    eMMDataType = psInfo->nCompressionType;
-    eMMBytesPerPixel = psInfo->nBytesPerPixel;
-
-    if (psInfo->nCompressionType == DATATYPE_AND_COMPR_BIT_VELL ||
-        psInfo->nCompressionType == DATATYPE_AND_COMPR_UNDEFINED)
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT_VELL ||
+        eMMDataType == MMDataType::DATATYPE_AND_COMPR_UNDEFINED)
     {
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : nDataType=%s unhandled", pszCompType);
+                 "MMRBand::MMRBand : nCompressionType unhandled");
         return;
     }
 
     bIsCompressed =
-        (((psInfo->nCompressionType > DATATYPE_AND_COMPR_BYTE_RLE) &&
-          (psInfo->nCompressionType < DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
-         psInfo->nCompressionType == DATATYPE_AND_COMPR_BIT);
+        (((eMMDataType > MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
+          (eMMDataType < MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
+         eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
 
     // Getting number of rows/columns from metadata
-    char *pszColumns = psInfoIn->MMRelOp->GetMetadataValue(
-        SECTION_OVVW_ASPECTES_TECNICS, pszSection, "columns");
-    nWidth = psInfo->nXSize = pszColumns ? atoi(pszColumns) : 0;
-    VSIFree(pszColumns);
+    pszValue = fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, pszSection,
+                                      "columns");
+    nWidth = pszValue ? atoi(pszValue) : 0;
+    VSIFree(pszValue);
 
-    char *pszRows = psInfoIn->MMRelOp->GetMetadataValue(
-        SECTION_OVVW_ASPECTES_TECNICS, pszSection, "rows");
-    nHeight = psInfo->nYSize = pszRows ? atoi(pszRows) : 0;
-    VSIFree(pszRows);
+    pszValue = fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, pszSection,
+                                      "rows");
+    nHeight = pszValue ? atoi(pszValue) : 0;
+    VSIFree(pszValue);
 
-    if (psInfo->nXSize <= 0 || psInfo->nYSize <= 0)
+    if (nWidth <= 0 || nHeight <= 0)
     {
         nWidth = 0;
         nHeight = 0;
@@ -166,6 +175,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     }
 
     // MiraMon IMG files are efficient in going to an specified row.
+    // So le'ts configurate the blocks as line blocks.
     nBlocks = nHeight;
     nBlockXSize = nWidth;
     nBlockYSize = 1;
@@ -174,6 +184,51 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
 
     // Check for nodata.  This is really an RDO (ESRI Raster Data Objects?),
     // not used by Imagine itself.
+
+    pszValue =
+        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATA");
+    if (pszValue && !EQUAL(pszValue, ""))
+    {
+        dfNoData = pszValue ? atoi(pszValue) : 0;
+        bNoDataSet = true;
+    }
+    else
+    {
+        dfNoData = 0;  // No a valid value.
+        bNoDataSet = false;
+    }
+    VSIFree(pszValue);
+
+    if (bNoDataSet)
+    {
+        pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                          "NODATADef");
+        if (!pszValue || EQUAL(pszValue, ""))
+        {
+            VSIFree(pszValue);
+            pszNodataDef = nullptr;
+        }
+        else
+            pszNodataDef = CPLString(pszValue);
+    }
+
+    // Bounding box of the band
+    // [EXTENT:xxxx] or [EXTENT]
+    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinX");
+    MinX = pszValue ? atof(pszValue) : 0;
+    VSIFree(pszValue);
+
+    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxX");
+    MaxX = pszValue ? atof(pszValue) : 0;
+    VSIFree(pszValue);
+
+    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinY");
+    MinY = pszValue ? atof(pszValue) : 0;
+    VSIFree(pszValue);
+
+    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxY");
+    MaxY = pszValue ? atof(pszValue) : 0;
+    VSIFree(pszValue);
 }
 
 /************************************************************************/
@@ -988,7 +1043,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
     {
         // XXX: We will not report error here, because file just may be
         // in update state and data for this block will be available later.
-        if (psInfo->eAccess == MMR_Update)
+        if (psInfo->eAccess == MMRAccess::MMR_Update)
         {
             memset(pData, 0, nGDALBlockSize);
             return CE_None;
@@ -1021,7 +1076,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
             CPLFree(pabyCData);
 
             // XXX: Suppose that file in update state
-            if (psInfo->eAccess == MMR_Update)
+            if (psInfo->eAccess == MMRAccess::MMR_Update)
             {
                 memset(pData, 0, nGDALBlockSize);
                 return CE_None;
@@ -1154,7 +1209,7 @@ void MMRBand::ReAllocBlock(int iBlock, int nSize)
 CPLErr MMRBand::SetRasterBlock(int nXBlock, int nYBlock, void *pData)
 
 {
-    if (psInfo->eAccess == MMR_ReadOnly)
+    if (psInfo->eAccess == MMRAccess::MMR_ReadOnly)
     {
         CPLError(
             CE_Failure, CPLE_NoWriteAccess,
@@ -1465,7 +1520,7 @@ const char *MMRBand::GetBandName()
 
 void MMRBand::SetBandName(const char *pszName)
 {
-    if (psInfo->eAccess == MMR_Update)
+    if (psInfo->eAccess == MMRAccess::MMR_Update)
     {
         poNode->SetName(pszName);
     }
@@ -1479,7 +1534,7 @@ void MMRBand::SetBandName(const char *pszName)
 
 CPLErr MMRBand::SetNoDataValue(double dfValue)
 {
-    if (psInfo->eAccess != MMR_Update)
+    if (psInfo->eAccess != MMRAccess::MMR_Update)
         return CE_Failure;
 
     MMREntry *poNDNode = poNode->GetNamedChild("Eimg_NonInitializedValue");

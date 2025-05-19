@@ -165,6 +165,229 @@ static char *MMRGetDictionary(MMRHandle hMMR)
 }*/
 
 /************************************************************************/
+/*              MMRGetAssociatedMetadataFileName()                      */
+/************************************************************************/
+
+// Converts FileName.img to FileNameI.rel
+CPLString MMRGetSimpleMetadataName(const char *pszLayerName)
+{
+    if (!pszLayerName)
+        return "";
+
+    // Extract extension
+    CPLString pszRELFile =
+        CPLString(CPLResetExtensionSafe(pszLayerName, "").c_str());
+
+    if (!pszRELFile.length())
+        return "";
+
+    // Extract "."
+    pszRELFile.resize(pszRELFile.size() - 1);
+    // Add "I.rel"
+    pszRELFile += pszExtRasterREL;
+
+    return pszRELFile;
+}
+
+// Gets the state (enum class MMRNomFitxerState) of NomFitxer in the
+// specified section
+// [pszSection]
+// NomFitxer=Value
+MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
+                                               const char *pszSection,
+                                               const char *pszRELFile)
+{
+    char *pszDocumentedLayerName =
+        MMReturnValueFromSectionINIFile(pszRELFile, pszSection, KEY_NomFitxer);
+
+    if (!pszDocumentedLayerName)
+    {
+        return MMRNomFitxerState::NOMFITXER_NOT_FOUND;
+    }
+
+    if (*pszDocumentedLayerName == '\0')
+    {
+        return MMRNomFitxerState::NOMFITXER_VALUE_EMPTY;
+    }
+    CPLString pszFileAux = CPLFormFilenameSafe(
+        CPLGetPathSafe(pszRELFile).c_str(), pszDocumentedLayerName, "");
+
+    MM_RemoveWhitespacesFromEndOfString(pszDocumentedLayerName);
+    if (*pszDocumentedLayerName == '*' || *pszDocumentedLayerName == '?')
+    {
+        return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
+    }
+
+    CPLFree(pszDocumentedLayerName);
+
+    // Is the found Value the same than the pszLayerName file?
+    if (pszFileAux == pszLayerName)
+    {
+        return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
+    }
+
+    return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
+}
+
+// Tries to find a reference to the IMG file 'pszLayerName'
+// we are opening in the REL file 'pszRELFile'
+CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
+                                    const char *pszRELFile)
+{
+    if (!pszRELFile)
+        return "";
+
+    // [ATTRIBUTE_DATA]
+    // NomFitxer=
+    // It should be empty but if it's not, at least,
+    // the value has to be pszLayerName
+    MMRNomFitxerState iState = MMRStateOfNomFitxerInSection(
+        pszLayerName, SECTION_ATTRIBUTE_DATA, pszRELFile);
+
+    if (iState == MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED ||
+        iState == MMRNomFitxerState::NOMFITXER_VALUE_EMPTY)
+    {
+        return pszRELFile;
+    }
+    else if (iState == MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED)
+    {
+        return "";
+    }
+
+    // Discarting not supported via SDE (some files
+    // could have this otpion)
+    char *pszVia = MMReturnValueFromSectionINIFile(
+        pszRELFile, SECTION_ATTRIBUTE_DATA, KEY_via);
+    if (pszVia && *pszVia != '\0' && !stricmp(pszVia, "SDE"))
+    {
+        VSIFree(pszVia);
+        return "";
+    }
+    VSIFree(pszVia);
+
+    char *pszFieldNames = MMReturnValueFromSectionINIFile(
+        pszRELFile, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
+
+    // Getting the internal names of the bands
+    char **papszTokens = CSLTokenizeString2(pszFieldNames, ",", 0);
+    const int nBands = CSLCount(papszTokens);
+    VSIFree(pszFieldNames);
+
+    CPLString szFieldName;
+    CPLString szAtributeDataName;
+    for (size_t nIBand = 0; nIBand < nBands; nIBand++)
+    {
+        szFieldName = KEY_NomCamp;
+        szFieldName.append("_");
+        szFieldName.append(papszTokens[nIBand]);
+
+        char *pszFieldNameValue = MMReturnValueFromSectionINIFile(
+            pszRELFile, SECTION_ATTRIBUTE_DATA, szFieldName);
+
+        if (!pszFieldNameValue)
+            continue;  // A band without name (·$· unexpected)
+
+        MM_RemoveWhitespacesFromEndOfString(pszFieldNameValue);
+
+        // Example: [ATTRIBUTE_DATA:G1]
+        szAtributeDataName = SECTION_ATTRIBUTE_DATA;
+        szAtributeDataName.append(":");
+        szAtributeDataName.append(pszFieldNameValue);
+
+        VSIFree(pszFieldNameValue);
+
+        // Let's see if this band contains the expected name
+        // or none (in monoband case)
+        iState = MMRStateOfNomFitxerInSection(
+            pszLayerName, szAtributeDataName.c_str(), pszRELFile);
+        if (iState == MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED)
+        {
+            CSLDestroy(papszTokens);
+            return pszRELFile;
+        }
+        else if (iState == MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED)
+        {
+            continue;
+        }
+
+        // If there is only one band is accepted NOMFITXER_NOT_FOUND/EMPTY iState result
+        if (nBands == 1)
+        {
+            CSLDestroy(papszTokens);
+            return pszRELFile;
+        }
+    }
+
+    CSLDestroy(papszTokens);
+    return "";
+}
+
+// Finds the metadata filename associated to pszFilename (usually an IMG file)
+CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename)
+{
+    if (!pszFilename)
+        return "";
+
+    // If the string finishes in "I.rel" we consider it can be
+    // the associated file to all bands that are documented in this file.
+    if (strlen(pszFilename) >= strlen(pszExtRasterREL) &&
+        EQUAL(pszFilename + strlen(pszFilename) - strlen(pszExtRasterREL),
+              pszExtRasterREL))
+    {
+        return CPLString(pszFilename);
+    }
+
+    // If the file is not a REL file, let's try to find the associated REL
+    // It must be a IMG file.
+    CPLString pszExtension =
+        CPLString(CPLGetExtensionSafe(pszFilename).c_str());
+    if (!EQUAL(pszExtension, pszExtRaster + 1))
+    {
+        return "";
+    }
+
+    // Converting FileName.img to FileNameI.rel
+    CPLString pszRELFile = MMRGetSimpleMetadataName(pszFilename);
+    if (EQUAL(pszRELFile, ""))
+    {
+        return "";
+    }
+
+    // Checking if the file exists
+    VSIStatBufL sStat;
+    if (VSIStatExL(pszRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
+    {
+        return MMRGetAReferenceToIMGFile(pszFilename, pszRELFile.c_str());
+    }
+
+    const CPLString osPath = CPLGetPathSafe(pszFilename);
+    char **folder = VSIReadDir(osPath.c_str());
+    int size = folder ? CSLCount(folder) : 0;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (folder[i][0] == '.' || !strstr(folder[i], "I.rel"))
+        {
+            continue;
+        }
+
+        const std::string filepath =
+            CPLFormFilenameSafe(osPath, folder[i], nullptr);
+
+        pszRELFile = MMRGetAReferenceToIMGFile(pszFilename, filepath.c_str());
+        if (!EQUAL(pszRELFile, ""))
+        {
+            CSLDestroy(folder);
+            return pszRELFile;
+        }
+    }
+
+    CSLDestroy(folder);
+
+    return "";
+}
+
+/************************************************************************/
 /*                              MMROpen()                               */
 /************************************************************************/
 
@@ -188,13 +411,13 @@ MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
         static_cast<MMRInfo_t *>(CPLCalloc(sizeof(MMRInfo_t), 1));
 
     psInfo->pszRELFilename = pszRELFilename;
-    psInfo->MMRelOp = new MMRRel(psInfo->pszRELFilename);
+    psInfo->fRel = new MMRRel(psInfo->pszRELFilename);
     //psInfo->fp = fp;
 
     if (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb"))
-        psInfo->eAccess = MMR_ReadOnly;
+        psInfo->eAccess = MMRAccess::MMR_ReadOnly;
     else
-        psInfo->eAccess = MMR_Update;
+        psInfo->eAccess = MMRAccess::MMR_Update;
 
     psInfo->bTreeDirty = false;
 
@@ -223,14 +446,14 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
 
     CPLString pszRELFilename = psInfo->pszRELFilename;
 
-    char *pszFieldNames = MMReturnValueFromSectionINIFile(
-        pszRELFilename, SECCIO_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
+    char *pszFieldNames = psInfo->fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                         Key_IndexsNomsCamps);
 
     if (!pszFieldNames)
     {
         CPLError(CE_Failure, CPLE_AssertionFailed, "%s-%s section-key \
             should exist in %s.",
-                 SECCIO_ATTRIBUTE_DATA, Key_IndexsNomsCamps,
+                 SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps,
                  pszRELFilename.c_str());
         return CE_Failure;
     }
@@ -256,16 +479,17 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
         szFieldName.append("_");
         szFieldName.append(papszTokens[i]);
 
-        pszFieldNameValue = MMReturnValueFromSectionINIFile(
-            pszRELFilename, SECCIO_ATTRIBUTE_DATA, szFieldName);
+        pszFieldNameValue =
+            psInfo->fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, szFieldName);
 
         if (!pszFieldNameValue)
             continue;
 
         MM_RemoveWhitespacesFromEndOfString(pszFieldNameValue);
 
-        psInfo->papoBand = static_cast<MMRBand **>(CPLRealloc(
-            psInfo->papoBand, sizeof(MMRBand *) * (psInfo->nBands + 1)));
+        psInfo->papoBand = static_cast<MMRBand **>(
+            CPLRealloc(psInfo->papoBand,
+                       sizeof(MMRBand *) * (psInfo->nBands + (size_t)1)));
         psInfo->papoBand[psInfo->nBands] =
             new MMRBand(psInfo, pszFieldNameValue);
 
@@ -291,7 +515,7 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
 int MMRClose(MMRHandle hMMR)
 
 {
-    if (hMMR->eAccess == MMR_Update &&
+    if (hMMR->eAccess == MMRAccess::MMR_Update &&
         (hMMR->bTreeDirty || (hMMR->poDictionary != nullptr &&
                               hMMR->poDictionary->bDictionaryTextDirty)))
         MMRFlush(hMMR);
@@ -348,23 +572,6 @@ int MMRClose(MMRHandle hMMR)
 
     CPLFree(hMMR);
     return nRet;
-}
-
-/************************************************************************/
-/*                          MMRGetRasterInfo()                          */
-/************************************************************************/
-
-CPLErr MMRGetRasterInfo(MMRHandle hMMR, int *pnXSize, int *pnYSize,
-                        int *pnBands)
-
-{
-    if (pnXSize != nullptr)
-        *pnXSize = hMMR->nXSize;
-    if (pnYSize != nullptr)
-        *pnYSize = hMMR->nYSize;
-    if (pnBands != nullptr)
-        *pnBands = hMMR->nBands;
-    return CE_None;
 }
 
 /************************************************************************/
@@ -632,58 +839,17 @@ const Eprj_MapInfo *MMRGetMapInfo(MMRHandle hMMR)
     if (hMMR->pMapInfo != nullptr)
         return (Eprj_MapInfo *)hMMR->pMapInfo;
 
-    // ·$·TODO que es aixo?
-    // Get the MMR node.  If we don't find it under the usual name
-    // we search for any node of the right type (#3338).
-    MMREntry *poMIEntry = hMMR->papoBand[0]->poNode->GetNamedChild("Map_Info");
-    if (poMIEntry == nullptr)
-    {
-        for (MMREntry *poChild = hMMR->papoBand[0]->poNode->GetChild();
-             poChild != nullptr && poMIEntry == nullptr;
-             poChild = poChild->GetNext())
-        {
-            if (EQUAL(poChild->GetType(), "Eprj_MapInfo"))
-                poMIEntry = poChild;
-        }
-    }
-
-    if (poMIEntry == nullptr)
-    {
-        return nullptr;
-    }
-
     // Allocate the structure.
     Eprj_MapInfo *psMapInfo =
         static_cast<Eprj_MapInfo *>(CPLCalloc(sizeof(Eprj_MapInfo), 1));
 
-    // Fetch the fields.
-    psMapInfo->proName = CPLStrdup(poMIEntry->GetStringField("proName"));
-
-    psMapInfo->upperLeftCenter.x =
-        poMIEntry->GetDoubleField("upperLeftCenter.x");
-    psMapInfo->upperLeftCenter.y =
-        poMIEntry->GetDoubleField("upperLeftCenter.y");
-
-    psMapInfo->lowerRightCenter.x =
-        poMIEntry->GetDoubleField("lowerRightCenter.x");
-    psMapInfo->lowerRightCenter.y =
-        poMIEntry->GetDoubleField("lowerRightCenter.y");
-
-    CPLErr eErr = CE_None;
-    psMapInfo->pixelSize.width =
-        poMIEntry->GetDoubleField("pixelSize.width", &eErr);
-    psMapInfo->pixelSize.height =
-        poMIEntry->GetDoubleField("pixelSize.height", &eErr);
-
     // The following is basically a hack to get files with
     // non-standard MapInfo's that misname the pixelSize fields. (#3338)
-    if (eErr != CE_None)
-    {
-        psMapInfo->pixelSize.width = poMIEntry->GetDoubleField("pixelSize.x");
-        psMapInfo->pixelSize.height = poMIEntry->GetDoubleField("pixelSize.y");
-    }
+    psMapInfo->pixelSize.width = 0;  //poMIEntry->GetDoubleField("pixelSize.x");
+    psMapInfo->pixelSize.height =
+        0;  //poMIEntry->GetDoubleField("pixelSize.y");
 
-    psMapInfo->units = CPLStrdup(poMIEntry->GetStringField("units"));
+    psMapInfo->units = "m";  //CPLStrdup(poMIEntry->GetStringField("units"));
 
     hMMR->pMapInfo = (void *)psMapInfo;
 
@@ -736,83 +902,36 @@ int MMRGetGeoTransform(MMRHandle hMMR, double *padfGeoTransform)
     padfGeoTransform[5] = 1.0;
 
     // Simple (north up) MapInfo approach.
-    if (psMapInfo != nullptr)
+    if (psMapInfo == nullptr)
+        return FALSE;
+
+    padfGeoTransform[0] =
+        psMapInfo->upperLeftCenter.x - psMapInfo->pixelSize.width * 0.5;
+    padfGeoTransform[1] = psMapInfo->pixelSize.width;
+    if (padfGeoTransform[1] == 0.0)
+        padfGeoTransform[1] = 1.0;
+    padfGeoTransform[2] = 0.0;
+    if (psMapInfo->upperLeftCenter.y >= psMapInfo->lowerRightCenter.y)
+        padfGeoTransform[5] = -psMapInfo->pixelSize.height;
+    else
+        padfGeoTransform[5] = psMapInfo->pixelSize.height;
+    if (padfGeoTransform[5] == 0.0)
+        padfGeoTransform[5] = 1.0;
+
+    padfGeoTransform[3] =
+        psMapInfo->upperLeftCenter.y - padfGeoTransform[5] * 0.5;
+    padfGeoTransform[4] = 0.0;
+
+    // Special logic to fixup odd angular units.
+    if (EQUAL(psMapInfo->units, "ds"))
     {
-        padfGeoTransform[0] =
-            psMapInfo->upperLeftCenter.x - psMapInfo->pixelSize.width * 0.5;
-        padfGeoTransform[1] = psMapInfo->pixelSize.width;
-        if (padfGeoTransform[1] == 0.0)
-            padfGeoTransform[1] = 1.0;
-        padfGeoTransform[2] = 0.0;
-        if (psMapInfo->upperLeftCenter.y >= psMapInfo->lowerRightCenter.y)
-            padfGeoTransform[5] = -psMapInfo->pixelSize.height;
-        else
-            padfGeoTransform[5] = psMapInfo->pixelSize.height;
-        if (padfGeoTransform[5] == 0.0)
-            padfGeoTransform[5] = 1.0;
-
-        padfGeoTransform[3] =
-            psMapInfo->upperLeftCenter.y - padfGeoTransform[5] * 0.5;
-        padfGeoTransform[4] = 0.0;
-
-        // Special logic to fixup odd angular units.
-        if (EQUAL(psMapInfo->units, "ds"))
-        {
-            padfGeoTransform[0] /= 3600.0;
-            padfGeoTransform[1] /= 3600.0;
-            padfGeoTransform[2] /= 3600.0;
-            padfGeoTransform[3] /= 3600.0;
-            padfGeoTransform[4] /= 3600.0;
-            padfGeoTransform[5] /= 3600.0;
-        }
-
-        return TRUE;
+        padfGeoTransform[0] /= 3600.0;
+        padfGeoTransform[1] /= 3600.0;
+        padfGeoTransform[2] /= 3600.0;
+        padfGeoTransform[3] /= 3600.0;
+        padfGeoTransform[4] /= 3600.0;
+        padfGeoTransform[5] /= 3600.0;
     }
-
-    // Try for a MapToPixelXForm affine polynomial supporting
-    // rotated and sheared affine transformations.
-    if (hMMR->nBands == 0)
-        return FALSE;
-
-    MMREntry *poXForm0 =
-        hMMR->papoBand[0]->poNode->GetNamedChild("MapToPixelXForm.XForm0");
-
-    if (poXForm0 == nullptr)
-        return FALSE;
-
-    if (poXForm0->GetIntField("order") != 1 ||
-        poXForm0->GetIntField("numdimtransform") != 2 ||
-        poXForm0->GetIntField("numdimpolynomial") != 2 ||
-        poXForm0->GetIntField("termcount") != 3)
-        return FALSE;
-
-    // Verify that there aren't any further xform steps.
-    if (hMMR->papoBand[0]->poNode->GetNamedChild("MapToPixelXForm.XForm1") !=
-        nullptr)
-        return FALSE;
-
-    // We should check that the exponent list is 0 0 1 0 0 1, but
-    // we don't because we are lazy.
-
-    // Fetch geotransform values.
-    double adfXForm[6] = {poXForm0->GetDoubleField("polycoefvector[0]"),
-                          poXForm0->GetDoubleField("polycoefmtx[0]"),
-                          poXForm0->GetDoubleField("polycoefmtx[2]"),
-                          poXForm0->GetDoubleField("polycoefvector[1]"),
-                          poXForm0->GetDoubleField("polycoefmtx[1]"),
-                          poXForm0->GetDoubleField("polycoefmtx[3]")};
-
-    // Invert.
-
-    if (!MMRInvGeoTransform(adfXForm, padfGeoTransform))
-        memset(padfGeoTransform, 0, 6 * sizeof(double));
-
-    // Adjust origin from center of top left pixel to top left corner
-    // of top left pixel.
-    padfGeoTransform[0] -= padfGeoTransform[1] * 0.5;
-    padfGeoTransform[0] -= padfGeoTransform[2] * 0.5;
-    padfGeoTransform[3] -= padfGeoTransform[4] * 0.5;
-    padfGeoTransform[3] -= padfGeoTransform[5] * 0.5;
 
     return TRUE;
 }
@@ -1503,7 +1622,7 @@ MMRHandle MMRCreateLL(const char *pszFilename)
         static_cast<MMRInfo_t *>(CPLCalloc(sizeof(MMRInfo_t), 1));
 
     psInfo->fp = fp;
-    psInfo->eAccess = MMR_Update;
+    psInfo->eAccess = MMRAccess::MMR_Update;
     psInfo->nXSize = 0;
     psInfo->nYSize = 0;
     psInfo->nBands = 0;
