@@ -142,11 +142,6 @@ const char *const *MMRGetUnitMap();
 
 class MMRBand
 {
-    // File name with banda data.
-    CPLString osBandFileName;
-    // Name of the band documented in REL metadata file.
-    CPLString osBandName;
-
     int nBlocks;
 
     // Used for single-file modification.
@@ -188,6 +183,11 @@ class MMRBand
     void GetMinMaxValues(const char *pszSection);
 
     MMRInfo_t *psInfo;
+
+    // File name with banda data.
+    CPLString osBandFileName;
+    // Name of the band documented in REL metadata file.
+    CPLString osBandName;
 
     VSILFILE *fp;
     MMRRel *fRel;  // Rel where metadata is readed from
@@ -235,7 +235,6 @@ class MMRBand
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
     CPLErr SetRasterBlock(int nXBlock, int nYBlock, void *pData);
 
-    const char *GetBandName();
     void SetBandName(const char *pszName);
 
     CPLErr SetNoDataValue(double dfValue);

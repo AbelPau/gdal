@@ -4038,6 +4038,8 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
         return nullptr;
     }
 
+    poDS->CreateSubdatasets(poOpenInfo);
+
     //poDS->adfGeoTransform
 
     // Get geotransform, or if that fails, try to find XForms to
@@ -4161,6 +4163,103 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     poDS->bMetadataDirty = false;
 
     return poDS;
+}
+
+/************************************************************************/
+/*                      CreateSubdatasets()                             */
+/************************************************************************/
+
+CPLErr MMRDataset::CreateSubdatasets(GDALOpenInfo *poOpenInfo)
+
+{
+    if (nBands <= 0 || papoBands == nullptr)
+        return CE_None;  // Nothing to create
+
+    CPLStringList oSubdatasetList;
+
+    // MiraMon formats allows diferent properties in a multi-band file
+    // for each band:
+    // nRasterXSize and nRasterYSize
+    // bounding box
+    // nfil or ncol
+    // datatype
+
+    int iSubdataset = 1;
+    int nIBand = 0;
+    do
+    {
+        MMRRasterBand *poBand =
+            reinterpret_cast<MMRRasterBand *>(papoBands[nIBand]);
+        if (!poBand)
+            continue;  // ·$·TODO Or ERROR
+
+        MMRDataset *poDS;
+        poDS = new MMRDataset();
+
+        poDS->hMMR = hMMR;
+        poDS->eAccess = poOpenInfo->eAccess;
+
+        // Establish raster info.
+        poDS->nRasterXSize = poBand->nRasterXSize;
+        poDS->nRasterYSize = poBand->nRasterYSize;
+        poDS->nBands = 1;
+
+        CPLString osDSName;
+        CPLString osDSDesc;
+
+        osDSName.Printf("MMR:");
+        osDSDesc.Printf("Subdataset %d:", iSubdataset);
+
+        // Are there more bands in this subdataset?
+        if (nIBand + 1 >= nBands)
+        {
+            nIBand++;
+            break;
+        }
+
+        MMRRasterBand *poBandp1 =
+            reinterpret_cast<MMRRasterBand *>(papoBands[nIBand + 1]);
+        for (; nIBand < nBands - 1; nIBand++)
+        {
+            if (hMMR->papoBand[nIBand]->nWidth !=
+                    hMMR->papoBand[nIBand + 1]->nWidth ||
+                hMMR->papoBand[nIBand]->nHeight !=
+                    hMMR->papoBand[nIBand + 1]->nHeight ||
+                hMMR->papoBand[nIBand]->dfBBMinX !=
+                    hMMR->papoBand[nIBand + 1]->dfBBMinX ||
+                hMMR->papoBand[nIBand]->dfBBMaxX !=
+                    hMMR->papoBand[nIBand + 1]->dfBBMaxX ||
+                hMMR->papoBand[nIBand]->dfBBMinY !=
+                    hMMR->papoBand[nIBand + 1]->dfBBMinY ||
+                hMMR->papoBand[nIBand]->dfBBMaxY !=
+                    hMMR->papoBand[nIBand + 1]->dfBBMaxY)
+            {
+                osDSName.Printf("\"%s\":BAND:%d",
+                                hMMR->papoBand[nIBand]->osBandName.c_str(),
+                                nIBand + 1);
+                osDSDesc.Printf("Subdataset %d: band %d", iSubdataset,
+                                nIBand + 1);
+
+                oSubdatasetList.AddNameValue(
+                    CPLSPrintf("SUBDATASET_%d_NAME", iSubdataset), osDSName);
+                oSubdatasetList.AddNameValue(
+                    CPLSPrintf("SUBDATASET_%d_DESC", iSubdataset), osDSDesc);
+
+                iSubdataset++;
+                break;
+            }
+            else
+            {
+            }
+        }
+        if (oSubdatasetList.Count() > 0)
+        {
+            // Afegir al metadades del dataset principal
+            SetMetadata(oSubdatasetList.StealList(), "SUBDATASETS");
+        }
+    } while (nIBand < nBands);
+
+    return CE_None;
 }
 
 /************************************************************************/

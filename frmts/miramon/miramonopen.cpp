@@ -706,18 +706,6 @@ CPLErr MMRSetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock, int nYBlock,
 }
 
 /************************************************************************/
-/*                         MMRGetBandName()                             */
-/************************************************************************/
-
-const char *MMRGetBandName(MMRHandle hMMR, int nBand)
-{
-    if (nBand < 1 || nBand > hMMR->nBands)
-        return "";
-
-    return hMMR->papoBand[nBand - 1]->GetBandName();
-}
-
-/************************************************************************/
 /*                         MMRSetBandName()                             */
 /************************************************************************/
 

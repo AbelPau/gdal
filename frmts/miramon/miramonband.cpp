@@ -303,7 +303,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
         return;
     }
 
-    // Getting essential metadata documented in
+    // Getting essential metadata documented at
     // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
 
     // Getting number of columns and rows
@@ -1618,30 +1618,6 @@ CPLErr MMRBand::SetRasterBlock(int nXBlock, int nYBlock, void *pData)
 #endif  // def CPL_MSB
 
     return CE_None;
-}
-
-/************************************************************************/
-/*                         GetBandName()                                */
-/*                                                                      */
-/*      Return the Layer Name                                           */
-/************************************************************************/
-
-const char *MMRBand::GetBandName()
-{
-    if (strlen(poNode->GetName()) > 0)
-        return poNode->GetName();
-
-    for (int iBand = 0; iBand < psInfo->nBands; iBand++)
-    {
-        if (psInfo->papoBand[iBand] == this)
-        {
-            osOverName.Printf("Layer_%d", iBand + 1);
-            return osOverName;
-        }
-    }
-
-    osOverName.Printf("Layer_%x", poNode->GetFilePos());
-    return osOverName;
 }
 
 /************************************************************************/
