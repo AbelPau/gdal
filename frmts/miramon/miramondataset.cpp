@@ -4025,7 +4025,10 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     poDS->eAccess = poOpenInfo->eAccess;
 
     // Establish raster info.
+    poDS->nRasterXSize = hMMR->nXSize;
+    poDS->nRasterYSize = hMMR->nYSize;
     poDS->nBands = hMMR->nBands;
+
     if (poDS->nBands == 0)
     {
         delete poDS;
@@ -4056,7 +4059,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     }
 
     //·$·TODO de moment m'ho salto
-    poDS->ReadProjection();
+    //poDS->ReadProjection();
 
     // DIVERSOS SUBDATASETS
     // /* Create subdatsets per granules and resolution (10, 20, 60m) */

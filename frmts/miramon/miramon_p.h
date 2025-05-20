@@ -143,9 +143,9 @@ const char *const *MMRGetUnitMap();
 class MMRBand
 {
     // File name with banda data.
-    CPLString pszBandFileName;
+    CPLString osBandFileName;
     // Name of the band documented in REL metadata file.
-    CPLString pszBandName;
+    CPLString osBandName;
 
     int nBlocks;
 
@@ -178,6 +178,15 @@ class MMRBand
     MMRBand(MMRInfo_t *, const char *pszSection);
     ~MMRBand();
 
+    int GetDataType(const char *pszSection);
+    int GetColumnsNumber(const char *pszSection);
+    int GetRowsNumber(const char *pszSection);
+    void GetNoDataValue(const char *pszSection);
+    void GetNoDataDefinition(const char *pszSection);
+    void GetReferenceSystem();
+    int GetBoundingBox(const char *pszSection);
+    void GetMinMaxValues(const char *pszSection);
+
     MMRInfo_t *psInfo;
 
     VSILFILE *fp;
@@ -203,13 +212,25 @@ class MMRBand
     CPLString pszNodataDef;  // Definition of nodata
     double dfNoData;         // Value of nodata
 
+    // Min and Max values from metadata:  This value should correspond
+    // to the actual minimum and maximum, not to an approximation.
+    // However, MiraMon is proof to approximate values. The minimum
+    // and maximum values are useful, for example, to properly scale
+    // colors, etc.
+    bool bMinSet;
+    double dfMin;
+    bool bMaxSet;
+    double dfMax;
+
+    CPLString pszRefSystem;
+
     // Extent values of the band:
     // They always refer to extreme outer coordinates,
     // not to cell centers.
-    double MinX;
-    double MinY;
-    double MaxX;
-    double MaxY;
+    double dfBBMinX;
+    double dfBBMinY;
+    double dfBBMaxX;
+    double dfBBMaxY;
 
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
     CPLErr SetRasterBlock(int nXBlock, int nYBlock, void *pData);

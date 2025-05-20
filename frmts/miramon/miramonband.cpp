@@ -61,6 +61,179 @@ CPLString MMRGetFileNameFromRelName(const char *pszRELFile)
     return pszFile;
 }
 
+// Getting data type from metadata
+int MMRBand::GetDataType(const char *pszSection)
+{
+    char *pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                            "TipusCompressio");
+
+    eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
+    eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
+
+    if (!pszValue || fRel->MMGetDataTypeAndBytesPerPixel(
+                         pszValue, &eMMDataType, &eMMBytesPerPixel) == 1)
+    {
+        VSIFree(pszValue);
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : No nDataType documented");
+        return 1;
+    }
+    VSIFree(pszValue);
+
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT_VELL ||
+        eMMDataType == MMDataType::DATATYPE_AND_COMPR_UNDEFINED)
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : nCompressionType unhandled");
+        return 1;
+    }
+    return 0;
+}
+
+// Getting number of columns from metadata
+int MMRBand::GetColumnsNumber(const char *pszSection)
+{
+    char *pszValue = fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
+                                            pszSection, "columns");
+    if (!pszValue || EQUAL(pszValue, ""))
+    {
+        VSIFree(pszValue);
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : No number columns documented");
+        return 1;
+    }
+    nWidth = pszValue ? atoi(pszValue) : 0;
+    VSIFree(pszValue);
+    return 0;
+}
+
+// Getting number of columns from metadata
+int MMRBand::GetRowsNumber(const char *pszSection)
+{
+    char *pszValue = fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
+                                            pszSection, "rows");
+    if (!pszValue || EQUAL(pszValue, ""))
+    {
+        VSIFree(pszValue);
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : No number columns documented");
+        return 1;
+    }
+    nHeight = pszValue ? atoi(pszValue) : 0;
+    VSIFree(pszValue);
+    return 0;
+}
+
+// Getting nodata value from metadata
+void MMRBand::GetNoDataValue(const char *pszSection)
+{
+    char *pszValue =
+        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATA");
+    if (pszValue && !EQUAL(pszValue, ""))
+    {
+        dfNoData = pszValue ? atoi(pszValue) : 0;
+        bNoDataSet = true;
+    }
+    else
+    {
+        dfNoData = 0;  // No a valid value.
+        bNoDataSet = false;
+    }
+    VSIFree(pszValue);
+}
+
+// Getting nodata value from metadata
+void MMRBand::GetNoDataDefinition(const char *pszSection)
+{
+    if (!bNoDataSet)
+        return;
+
+    char *pszValue =
+        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATADef");
+    if (!pszValue || EQUAL(pszValue, ""))
+    {
+        VSIFree(pszValue);
+        pszNodataDef = nullptr;
+    }
+    else
+        pszNodataDef = CPLString(pszValue);
+}
+
+void MMRBand::GetMinMaxValues(const char *pszSection)
+{
+    bMinSet = false;
+
+    char *pszValue =
+        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "min");
+    if (pszValue && !EQUAL(pszValue, ""))
+    {
+        bMinSet = true;
+        dfMin = atof(pszValue);
+    }
+    VSIFree(pszValue);
+
+    pszValue =
+        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "max");
+    if (pszValue && !EQUAL(pszValue, ""))
+    {
+        bMaxSet = true;
+        dfMax = atof(pszValue);
+    }
+    VSIFree(pszValue);
+}
+
+void MMRBand::GetReferenceSystem()
+{
+    char *pszValue = fRel->GetMetadataValue(
+        "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
+    if (!pszValue)
+    {
+        pszRefSystem = nullptr;
+        return;
+    }
+    pszRefSystem = CPLString(pszValue);
+    VSIFree(pszValue);
+}
+
+int MMRBand::GetBoundingBox(const char *pszSection)
+{
+    // Bounding box of the band
+    // [EXTENT:xxxx] or [EXTENT]
+    char *pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinX");
+    if (!pszValue)
+        return 1;
+    dfBBMinX = atof(pszValue);
+    VSIFree(pszValue);
+
+    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxX");
+    if (!pszValue)
+        return 1;
+    dfBBMaxX = atof(pszValue);
+    VSIFree(pszValue);
+
+    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinY");
+    if (!pszValue)
+        return 1;
+    dfBBMinY = atof(pszValue);
+    VSIFree(pszValue);
+
+    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxY");
+    if (!pszValue)
+        return 1;
+    dfBBMaxY = atof(pszValue);
+    VSIFree(pszValue);
+
+    return 0;
+}
+
 MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
@@ -80,21 +253,32 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     apadfPCT[3] = nullptr;
 
     // Getting band and band file name from metadata
-    pszBandName = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                         KEY_NomFitxer);
-
-    if (!pszBandName || *pszBandName == '\0')
+    char *pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                            KEY_NomFitxer);
+    osBandName = pszValue ? pszValue : "";
+    if (osBandName.empty())
     {
-        pszBandFileName = MMRGetFileNameFromRelName(psInfoIn->pszRELFilename);
-        pszBandName = CPLGetBasenameSafe(pszBandFileName);
+        osBandFileName = MMRGetFileNameFromRelName(psInfoIn->pszRELFilename);
+        if (osBandFileName.empty())
+        {
+            nWidth = 0;
+            nHeight = 0;
+            CPLError(CE_Failure, CPLE_AssertionFailed,
+                     "The REL file '%s' contains a documented \
+                band with no explicit name. Section [%s] or [%s:%s].\n",
+                     psInfo->pszRELFilename.c_str(), SECTION_ATTRIBUTE_DATA,
+                     SECTION_ATTRIBUTE_DATA, pszSection);
+            return;
+        }
+        osBandName = CPLGetBasenameSafe(osBandFileName);
     }
     else
     {
-        pszBandFileName = psInfoIn->pszRELFilename;
+        osBandFileName = psInfoIn->pszRELFilename;
     }
 
     // There is a band file documented?
-    if (!pszBandName)
+    if (osBandName.empty())
     {
         nWidth = 0;
         nHeight = 0;
@@ -105,72 +289,68 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
                  SECTION_ATTRIBUTE_DATA, pszSection);
         return;
     }
-    SetBandName(pszBandName);  // Useful?
 
     // Can it be opened?
     // Let's open the binari file that contains the raw data of the band.
-    fp = VSIFOpenL(pszBandFileName, "rb");
+    fp = VSIFOpenL(osBandFileName, "rb");
     if (!fp)
     {
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_OpenFailed,
                  "Failed to open MiraMon band file `%s' with access 'rb'.",
-                 pszBandFileName.c_str());
+                 osBandFileName.c_str());
         return;
     }
 
-    // Getting data type from metadata
-    char *pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                            "TipusCompressio");
+    // Getting essential metadata documented in
+    // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
 
-    eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
-    eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
-
-    if (!pszValue || fRel->MMGetDataTypeAndBytesPerPixel(
-                         pszValue, &eMMDataType, &eMMBytesPerPixel) == 1)
-    {
-        VSIFree(pszValue);
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : No nDataType documented");
+    // Getting number of columns and rows
+    if (GetColumnsNumber(pszSection))
         return;
-    }
-    VSIFree(pszValue);
-
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT_VELL ||
-        eMMDataType == MMDataType::DATATYPE_AND_COMPR_UNDEFINED)
-    {
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : nCompressionType unhandled");
+    if (GetRowsNumber(pszSection))
         return;
-    }
-
-    bIsCompressed =
-        (((eMMDataType > MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
-          (eMMDataType < MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
-         eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
-
-    // Getting number of rows/columns from metadata
-    pszValue = fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, pszSection,
-                                      "columns");
-    nWidth = pszValue ? atoi(pszValue) : 0;
-    VSIFree(pszValue);
-
-    pszValue = fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, pszSection,
-                                      "rows");
-    nHeight = pszValue ? atoi(pszValue) : 0;
-    VSIFree(pszValue);
-
     if (nWidth <= 0 || nHeight <= 0)
     {
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
                  "MMRBand::MMRBand : (nWidth <= 0 || nHeight <= 0)");
+        return;
+    }
+    else
+    {
+        psInfoIn->nXSize = nWidth;
+        psInfoIn->nYSize = nHeight;
+    }
+
+    // Getting data type and compression
+    if (GetDataType(pszSection))
+        return;
+
+    // Let's see if there is RLE compression
+    bIsCompressed =
+        (((eMMDataType > MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
+          (eMMDataType < MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
+         eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
+
+    // Getting min and max values
+    GetMinMaxValues(pszSection);
+
+    // Getting NoData value and definition
+    GetNoDataValue(pszSection);
+    GetNoDataDefinition(pszSection);
+
+    // Reference system and coordinates of the geographic bounding box
+    GetReferenceSystem();
+
+    if (GetBoundingBox(pszSection))
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : bounding box not found");
         return;
     }
 
@@ -181,54 +361,6 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     nBlockYSize = 1;
     nBlocksPerRow = 1;
     nBlocksPerColumn = nHeight;
-
-    // Check for nodata.  This is really an RDO (ESRI Raster Data Objects?),
-    // not used by Imagine itself.
-
-    pszValue =
-        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATA");
-    if (pszValue && !EQUAL(pszValue, ""))
-    {
-        dfNoData = pszValue ? atoi(pszValue) : 0;
-        bNoDataSet = true;
-    }
-    else
-    {
-        dfNoData = 0;  // No a valid value.
-        bNoDataSet = false;
-    }
-    VSIFree(pszValue);
-
-    if (bNoDataSet)
-    {
-        pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                          "NODATADef");
-        if (!pszValue || EQUAL(pszValue, ""))
-        {
-            VSIFree(pszValue);
-            pszNodataDef = nullptr;
-        }
-        else
-            pszNodataDef = CPLString(pszValue);
-    }
-
-    // Bounding box of the band
-    // [EXTENT:xxxx] or [EXTENT]
-    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinX");
-    MinX = pszValue ? atof(pszValue) : 0;
-    VSIFree(pszValue);
-
-    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxX");
-    MaxX = pszValue ? atof(pszValue) : 0;
-    VSIFree(pszValue);
-
-    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinY");
-    MinY = pszValue ? atof(pszValue) : 0;
-    VSIFree(pszValue);
-
-    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxY");
-    MaxY = pszValue ? atof(pszValue) : 0;
-    VSIFree(pszValue);
 }
 
 /************************************************************************/
@@ -1035,7 +1167,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
     if (!fp)
     {
         CPLError(CE_Failure, CPLE_FileIO, "File band not opened: \n%s",
-                 pszBandFileName.c_str());
+                 osBandFileName.c_str());
         return CE_Failure;
     }
 

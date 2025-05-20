@@ -563,12 +563,13 @@ int MMRClose(MMRHandle hMMR)
         CPLFree(hMMR->pDatum);
     }
 
-    if (hMMR->pMapInfo != nullptr)
+    // ·$·TODO alliberar correctament
+    /*if (hMMR->pMapInfo != nullptr)
     {
         CPLFree(((Eprj_MapInfo *)hMMR->pMapInfo)->proName);
         CPLFree(((Eprj_MapInfo *)hMMR->pMapInfo)->units);
         CPLFree(hMMR->pMapInfo);
-    }
+    }*/
 
     CPLFree(hMMR);
     return nRet;
