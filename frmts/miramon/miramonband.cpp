@@ -342,7 +342,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     GetNoDataValue(pszSection);
     GetNoDataDefinition(pszSection);
 
-    // Reference system and coordinates of the geographic bounding box
+    // Getting reference system and coordinates of the geographic bounding box
     GetReferenceSystem();
 
     if (GetBoundingBox(pszSection))
