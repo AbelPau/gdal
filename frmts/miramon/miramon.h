@@ -152,7 +152,6 @@ MMRHandle CPL_DLL MMRCreate(const char *pszFileName, int nXSize, int nYSize,
 CPLErr CPL_DLL MMRFlush(MMRHandle);
 
 const Eprj_MapInfo CPL_DLL *MMRGetMapInfo(MMRHandle);
-int CPL_DLL MMRGetGeoTransform(MMRHandle, double *);
 CPLErr CPL_DLL MMRSetGeoTransform(MMRHandle, const char *, const char *,
                                   double *);
 CPLErr CPL_DLL MMRSetMapInfo(MMRHandle, const Eprj_MapInfo *);
@@ -186,7 +185,6 @@ CPLErr CPL_DLL MMRGetPCT(MMRHandle, int, int *, double **, double **, double **,
                          double **, double **);
 CPLErr CPL_DLL MMRSetPCT(MMRHandle, int, int, double *, double *, double *,
                          double *);
-void CPL_DLL MMRDumpTree(MMRHandle, FILE *);
 void CPL_DLL MMRDumpDictionary(MMRHandle, FILE *);
 CPLErr CPL_DLL MMRGetDataRange(MMRHandle, int, double *, double *);
 char CPL_DLL **MMRGetMetadata(MMRHandle hMMR, int nBand);

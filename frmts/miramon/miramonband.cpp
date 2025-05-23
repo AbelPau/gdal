@@ -158,12 +158,11 @@ void MMRBand::GetNoDataDefinition(const char *pszSection)
     char *pszValue =
         fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATADef");
     if (!pszValue || EQUAL(pszValue, ""))
-    {
-        VSIFree(pszValue);
         pszNodataDef = nullptr;
-    }
     else
         pszNodataDef = CPLString(pszValue);
+
+    VSIFree(pszValue);
 }
 
 void MMRBand::GetMinMaxValues(const char *pszSection)
@@ -233,8 +232,7 @@ int MMRBand::GetBoundingBox(const char *pszSection)
     return 0;
 }
 
-MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection,
-                 CPLString osRawBandFileNameIn)
+MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
@@ -245,8 +243,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection,
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), dfNoData(0.0), fRel(psInfoIn->fRel),
-      osRawBandFileName(osRawBandFileNameIn)
+      bNoDataSet(false), dfNoData(0.0), fRel(psInfoIn->fRel)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
@@ -257,6 +254,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection,
     char *pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
                                             KEY_NomFitxer);
     osRawBandFileName = pszValue ? pszValue : "";
+
+    CPLFree(pszValue);
 
     psInfo->bBandInTheList = true;
     if (psInfo->nSDSBands)

@@ -56,6 +56,9 @@ class MMRDataset final : public GDALPamDataset
 
     void UseXFormStack(int nStepCount, Efga_Polynomial *pasPolyListForward,
                        Efga_Polynomial *pasPolyListReverse);
+    int GetBoundingBox();
+    int GetColumnsNumber(int *nNCols);
+    int GetRowsNumber(int *nNRows);
 
   public:
     MMRDataset();

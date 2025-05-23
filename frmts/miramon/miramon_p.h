@@ -176,7 +176,7 @@ class MMRBand
     CPLString osOverName;
 
   public:
-    MMRBand(MMRInfo_t *, const char *pszSection, CPLString osRawBandFileName);
+    MMRBand(MMRInfo_t *, const char *pszSection);
     ~MMRBand();
 
     int GetDataType(const char *pszSection);

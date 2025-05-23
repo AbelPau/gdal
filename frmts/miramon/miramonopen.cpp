@@ -207,6 +207,7 @@ MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
 
     if (*pszDocumentedLayerName == '\0')
     {
+        CPLFree(pszDocumentedLayerName);
         return MMRNomFitxerState::NOMFITXER_VALUE_EMPTY;
     }
     CPLString pszFileAux = CPLFormFilenameSafe(
@@ -215,6 +216,7 @@ MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
     MM_RemoveWhitespacesFromEndOfString(pszDocumentedLayerName);
     if (*pszDocumentedLayerName == '*' || *pszDocumentedLayerName == '?')
     {
+        CPLFree(pszDocumentedLayerName);
         return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
     }
 
@@ -503,6 +505,7 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
         CPLError(CE_Failure, CPLE_AssertionFailed, "No bands in file \
             %s.",
                  pszRELFileName.c_str());
+        VSIFree(pszFieldNames);
         return CE_Failure;
     }
 
@@ -527,7 +530,7 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
             CPLRealloc(psInfo->papoBand,
                        sizeof(MMRBand *) * (psInfo->nBands + (size_t)1)));
         psInfo->papoBand[psInfo->nBands] =
-            new MMRBand(psInfo, pszBandSectionValue, "");
+            new MMRBand(psInfo, pszBandSectionValue);
 
         VSIFree(pszBandSectionValue);
         if (!psInfo->bBandInTheList)
@@ -537,6 +540,7 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
         }
         if (psInfo->papoBand[psInfo->nBands]->nWidth == 0)
         {
+            VSIFree(pszFieldNames);
             delete psInfo->papoBand[psInfo->nBands];
             return CE_Failure;
         }
@@ -571,6 +575,16 @@ int MMRClose(MMRHandle hMMR)
     }
 
     delete hMMR->poRoot;
+
+    delete hMMR->fRel;
+
+    for (int i = 0; i < hMMR->nSDSBands && hMMR->papoSDSBand != nullptr; i++)
+    {
+        if (hMMR->papoSDSBand[i] != nullptr)
+            delete hMMR->papoSDSBand[i];
+    }
+    CPLFree(hMMR->papoSDSBand);
+    hMMR->papoSDSBand = nullptr;
 
     //if (VSIFCloseL(hMMR->fp) != 0)
     //    nRet = -1;
@@ -915,57 +929,6 @@ static bool MMRInvGeoTransform(const double *gt_in, double *gt_out)
     gt_out[3] = (-gt_in[1] * gt_in[3] + gt_in[0] * gt_in[4]) * inv_det;
 
     return true;
-}
-
-/************************************************************************/
-/*                         MMRGetGeoTransform()                         */
-/************************************************************************/
-
-int MMRGetGeoTransform(MMRHandle hMMR, double *padfGeoTransform)
-
-{
-    const Eprj_MapInfo *psMapInfo = MMRGetMapInfo(hMMR);
-
-    padfGeoTransform[0] = 0.0;
-    padfGeoTransform[1] = 1.0;
-    padfGeoTransform[2] = 0.0;  // Always 0 in MiraMon
-    padfGeoTransform[3] = 0.0;
-    padfGeoTransform[4] = 0.0;  // Always 0 in MiraMon
-    padfGeoTransform[5] = 1.0;
-
-    // Simple (north up) MapInfo approach.
-    if (psMapInfo == nullptr)
-        return FALSE;
-
-    padfGeoTransform[0] =
-        psMapInfo->upperLeftCenter.x - psMapInfo->pixelSize.width * 0.5;
-    padfGeoTransform[1] = psMapInfo->pixelSize.width;
-    if (padfGeoTransform[1] == 0.0)
-        padfGeoTransform[1] = 1.0;
-    padfGeoTransform[2] = 0.0;
-    if (psMapInfo->upperLeftCenter.y >= psMapInfo->lowerRightCenter.y)
-        padfGeoTransform[5] = -psMapInfo->pixelSize.height;
-    else
-        padfGeoTransform[5] = psMapInfo->pixelSize.height;
-    if (padfGeoTransform[5] == 0.0)
-        padfGeoTransform[5] = 1.0;
-
-    padfGeoTransform[3] =
-        psMapInfo->upperLeftCenter.y - padfGeoTransform[5] * 0.5;
-    padfGeoTransform[4] = 0.0;
-
-    // Special logic to fixup odd angular units.
-    if (EQUAL(psMapInfo->units, "ds"))
-    {
-        padfGeoTransform[0] /= 3600.0;
-        padfGeoTransform[1] /= 3600.0;
-        padfGeoTransform[2] /= 3600.0;
-        padfGeoTransform[3] /= 3600.0;
-        padfGeoTransform[4] /= 3600.0;
-        padfGeoTransform[5] /= 3600.0;
-    }
-
-    return TRUE;
 }
 
 /************************************************************************/
@@ -1484,45 +1447,6 @@ CPLErr MMRGetDataRange(MMRHandle hMMR, int nBand, double *pdfMin,
         return CE_None;
     else
         return CE_Failure;
-}
-
-/************************************************************************/
-/*                            MMRDumpNode()                             */
-/************************************************************************/
-
-static void MMRDumpNode(MMREntry *poEntry, int nIndent, bool bVerbose, FILE *fp)
-
-{
-    std::string osSpaces(nIndent * 2, ' ');
-
-    fprintf(fp, "%s%s(%s) @ %u + %u @ %u\n", osSpaces.c_str(),
-            poEntry->GetName(), poEntry->GetType(), poEntry->GetFilePos(),
-            poEntry->GetDataSize(), poEntry->GetDataPos());
-
-    if (bVerbose)
-    {
-        osSpaces += "+ ";
-        poEntry->DumpFieldValues(fp, osSpaces.c_str());
-        fprintf(fp, "\n");
-    }
-
-    if (poEntry->GetChild() != nullptr)
-        MMRDumpNode(poEntry->GetChild(), nIndent + 1, bVerbose, fp);
-
-    if (poEntry->GetNext() != nullptr)
-        MMRDumpNode(poEntry->GetNext(), nIndent, bVerbose, fp);
-}
-
-/************************************************************************/
-/*                            MMRDumpTree()                             */
-/*                                                                      */
-/*      Dump the tree of information in a MMR file.                     */
-/************************************************************************/
-
-void MMRDumpTree(MMRHandle hMMR, FILE *fpOut)
-
-{
-    MMRDumpNode(hMMR->poRoot, 0, true, fpOut);
 }
 
 /************************************************************************/

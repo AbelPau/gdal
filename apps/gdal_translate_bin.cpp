@@ -36,6 +36,8 @@ static void Usage()
 MAIN_START(argc, argv)
 
 {
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
     /* Check strict compilation and runtime library version as we use C++ API */
     if (!GDAL_CHECK_VERSION(argv[0]))
         exit(1);
