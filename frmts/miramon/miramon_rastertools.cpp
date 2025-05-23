@@ -31,3 +31,21 @@
 #include "../miramon_common/mm_gdal_functions.h"
 #include "../miramon_common/mm_gdal_constants.h"
 #endif
+
+// Converts FileNameI.rel to FileName.img
+CPLString MMRGetFileNameFromRelName(const char *pszRELFile)
+{
+    if (!pszRELFile)
+        return "";
+
+    CPLString pszFile =
+        CPLString(CPLResetExtensionSafe(pszRELFile, "").c_str());
+
+    if (pszFile.length() < 2)
+        return "";
+
+    pszFile.resize(pszFile.size() - 2);  // I.
+    pszFile += pszExtRaster;
+
+    return pszFile;
+}

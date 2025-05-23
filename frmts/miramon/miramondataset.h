@@ -56,7 +56,6 @@ class MMRDataset final : public GDALPamDataset
 
     void UseXFormStack(int nStepCount, Efga_Polynomial *pasPolyListForward,
                        Efga_Polynomial *pasPolyListReverse);
-    CPLErr CreateSubdatasets(GDALOpenInfo *poOpenInfo);
 
   public:
     MMRDataset();
@@ -66,15 +65,15 @@ class MMRDataset final : public GDALPamDataset
     static CPLErr Rename(const char *pszNewName, const char *pszOldName);
     static CPLErr CopyFiles(const char *pszNewName, const char *pszOldName);
     static GDALDataset *Open(GDALOpenInfo *);
-    static GDALDataset *Create(const char *pszFilename, int nXSize, int nYSize,
+    static GDALDataset *Create(const char *pszFileName, int nXSize, int nYSize,
                                int nBands, GDALDataType eType,
                                char **papszParamList);
-    static GDALDataset *CreateCopy(const char *pszFilename,
+    static GDALDataset *CreateCopy(const char *pszFileName,
                                    GDALDataset *poSrcDS, int bStrict,
                                    char **papszOptions,
                                    GDALProgressFunc pfnProgress,
                                    void *pProgressData);
-    static CPLErr Delete(const char *pszFilename);
+    static CPLErr Delete(const char *pszFileName);
 
     //virtual char **GetFileList() override;
 

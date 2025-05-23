@@ -273,28 +273,28 @@ CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
     const int nBands = CSLCount(papszTokens);
     VSIFree(pszFieldNames);
 
-    CPLString szFieldName;
+    CPLString pszBandSectionKey;
     CPLString szAtributeDataName;
     for (size_t nIBand = 0; nIBand < nBands; nIBand++)
     {
-        szFieldName = KEY_NomCamp;
-        szFieldName.append("_");
-        szFieldName.append(papszTokens[nIBand]);
+        pszBandSectionKey = KEY_NomCamp;
+        pszBandSectionKey.append("_");
+        pszBandSectionKey.append(papszTokens[nIBand]);
 
-        char *pszFieldNameValue = MMReturnValueFromSectionINIFile(
-            pszRELFile, SECTION_ATTRIBUTE_DATA, szFieldName);
+        char *pszBandSectionValue = MMReturnValueFromSectionINIFile(
+            pszRELFile, SECTION_ATTRIBUTE_DATA, pszBandSectionKey);
 
-        if (!pszFieldNameValue)
+        if (!pszBandSectionValue)
             continue;  // A band without name (·$· unexpected)
 
-        MM_RemoveWhitespacesFromEndOfString(pszFieldNameValue);
+        MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
 
         // Example: [ATTRIBUTE_DATA:G1]
         szAtributeDataName = SECTION_ATTRIBUTE_DATA;
         szAtributeDataName.append(":");
-        szAtributeDataName.append(pszFieldNameValue);
+        szAtributeDataName.append(pszBandSectionValue);
 
-        VSIFree(pszFieldNameValue);
+        VSIFree(pszBandSectionValue);
 
         // Let's see if this band contains the expected name
         // or none (in monoband case)
@@ -322,32 +322,32 @@ CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
     return "";
 }
 
-// Finds the metadata filename associated to pszFilename (usually an IMG file)
-CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename)
+// Finds the metadata filename associated to pszFileName (usually an IMG file)
+CPLString MMRGetAssociatedMetadataFileName(const char *pszFileName)
 {
-    if (!pszFilename)
+    if (!pszFileName)
         return "";
 
     // If the string finishes in "I.rel" we consider it can be
     // the associated file to all bands that are documented in this file.
-    if (strlen(pszFilename) >= strlen(pszExtRasterREL) &&
-        EQUAL(pszFilename + strlen(pszFilename) - strlen(pszExtRasterREL),
+    if (strlen(pszFileName) >= strlen(pszExtRasterREL) &&
+        EQUAL(pszFileName + strlen(pszFileName) - strlen(pszExtRasterREL),
               pszExtRasterREL))
     {
-        return CPLString(pszFilename);
+        return CPLString(pszFileName);
     }
 
     // If the file is not a REL file, let's try to find the associated REL
     // It must be a IMG file.
     CPLString pszExtension =
-        CPLString(CPLGetExtensionSafe(pszFilename).c_str());
+        CPLString(CPLGetExtensionSafe(pszFileName).c_str());
     if (!EQUAL(pszExtension, pszExtRaster + 1))
     {
         return "";
     }
 
     // Converting FileName.img to FileNameI.rel
-    CPLString pszRELFile = MMRGetSimpleMetadataName(pszFilename);
+    CPLString pszRELFile = MMRGetSimpleMetadataName(pszFileName);
     if (EQUAL(pszRELFile, ""))
     {
         return "";
@@ -357,10 +357,10 @@ CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename)
     VSIStatBufL sStat;
     if (VSIStatExL(pszRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
     {
-        return MMRGetAReferenceToIMGFile(pszFilename, pszRELFile.c_str());
+        return MMRGetAReferenceToIMGFile(pszFileName, pszRELFile.c_str());
     }
 
-    const CPLString osPath = CPLGetPathSafe(pszFilename);
+    const CPLString osPath = CPLGetPathSafe(pszFileName);
     char **folder = VSIReadDir(osPath.c_str());
     int size = folder ? CSLCount(folder) : 0;
 
@@ -371,10 +371,10 @@ CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename)
             continue;
         }
 
-        const std::string filepath =
+        const CPLString osFilePath =
             CPLFormFilenameSafe(osPath, folder[i], nullptr);
 
-        pszRELFile = MMRGetAReferenceToIMGFile(pszFilename, filepath.c_str());
+        pszRELFile = MMRGetAReferenceToIMGFile(pszFileName, osFilePath.c_str());
         if (!EQUAL(pszRELFile, ""))
         {
             CSLDestroy(folder);
@@ -391,27 +391,63 @@ CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename)
 /*                              MMROpen()                               */
 /************************************************************************/
 
-MMRHandle MMROpen(const char *pszFilename, const char *pszAccess)
+MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
 
 {
-    // Getting the metadata file name. If it's already a REL file,
-    // then same name is returned.
-    CPLString pszRELFilename = MMRGetAssociatedMetadataFileName(pszFilename);
-    if (EQUAL(pszRELFilename, ""))
-    {
-        CPLError(CE_Failure, CPLE_OpenFailed, "Metadata file for %s \
-                 should exist.",
-                 pszFilename);
-
-        return nullptr;
-    }
+    CPLString pszRELFileName;
 
     // Create the MMRInfo_t.
     MMRInfo_t *psInfo =
         static_cast<MMRInfo_t *>(CPLCalloc(sizeof(MMRInfo_t), 1));
 
-    psInfo->pszRELFilename = pszRELFilename;
-    psInfo->fRel = new MMRRel(psInfo->pszRELFilename);
+    const CPLString osMMRPrefix = "MiraMonRaster:";
+    if (STARTS_WITH(pszFileName, osMMRPrefix))
+    {
+        CPLString osFilename = pszFileName;
+        size_t nPos = osFilename.ifind(osMMRPrefix);
+        if (nPos != 0)
+            return false;
+
+        CPLString osSDSReL = osFilename.substr(osMMRPrefix.size());
+
+        // Getting the internal names of the bands
+        char **papszTokens = CSLTokenizeString2(osSDSReL, ",", 0);
+        const int nTokens = CSLCount(papszTokens);
+
+        if (nTokens < 1)
+            return false;
+        pszRELFileName = papszTokens[0];
+
+        // Getting the list of bands in the subdataset
+        psInfo->nSDSBands = nTokens - 1;
+        psInfo->papoSDSBand = static_cast<CPLString **>(
+            CPLMalloc(sizeof(CPLString *) * psInfo->nSDSBands));
+
+        for (size_t nIBand = 0; nIBand < psInfo->nSDSBands; nIBand++)
+        {
+            // Raw band name
+            psInfo->papoSDSBand[nIBand] =
+                new CPLString(papszTokens[nIBand + 1]);
+        }
+        CSLDestroy(papszTokens);
+    }
+    else
+    {
+        // Getting the metadata file name. If it's already a REL file,
+        // then same name is returned.
+        pszRELFileName = MMRGetAssociatedMetadataFileName(pszFileName);
+        if (EQUAL(pszRELFileName, ""))
+        {
+            CPLError(CE_Failure, CPLE_OpenFailed, "Metadata file for %s \
+                     should exist.",
+                     pszFileName);
+
+            return nullptr;
+        }
+    }
+
+    psInfo->pszRELFileName = pszRELFileName;
+    psInfo->fRel = new MMRRel(psInfo->pszRELFileName);
     //psInfo->fp = fp;
 
     if (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb"))
@@ -444,7 +480,7 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
 
     psInfo->nBands = 0;
 
-    CPLString pszRELFilename = psInfo->pszRELFilename;
+    CPLString pszRELFileName = psInfo->pszRELFileName;
 
     char *pszFieldNames = psInfo->fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                          Key_IndexsNomsCamps);
@@ -454,7 +490,7 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
         CPLError(CE_Failure, CPLE_AssertionFailed, "%s-%s section-key \
             should exist in %s.",
                  SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps,
-                 pszRELFilename.c_str());
+                 pszRELFileName.c_str());
         return CE_Failure;
     }
 
@@ -466,39 +502,46 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
     {
         CPLError(CE_Failure, CPLE_AssertionFailed, "No bands in file \
             %s.",
-                 pszRELFilename.c_str());
+                 pszRELFileName.c_str());
         return CE_Failure;
     }
 
-    CPLString szFieldName;
+    CPLString pszBandSectionKey;
     CPLString pszFileAux;
-    char *pszFieldNameValue;
+    char *pszBandSectionValue;
     for (size_t i = 0; i < nTokenCount; i++)
     {
-        szFieldName = KEY_NomCamp;
-        szFieldName.append("_");
-        szFieldName.append(papszTokens[i]);
+        pszBandSectionKey = KEY_NomCamp;
+        pszBandSectionKey.append("_");
+        pszBandSectionKey.append(papszTokens[i]);
 
-        pszFieldNameValue =
-            psInfo->fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, szFieldName);
+        pszBandSectionValue = psInfo->fRel->GetMetadataValue(
+            SECTION_ATTRIBUTE_DATA, pszBandSectionKey);
 
-        if (!pszFieldNameValue)
+        if (!pszBandSectionValue)
             continue;
 
-        MM_RemoveWhitespacesFromEndOfString(pszFieldNameValue);
+        MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
 
         psInfo->papoBand = static_cast<MMRBand **>(
             CPLRealloc(psInfo->papoBand,
                        sizeof(MMRBand *) * (psInfo->nBands + (size_t)1)));
         psInfo->papoBand[psInfo->nBands] =
-            new MMRBand(psInfo, pszFieldNameValue);
+            new MMRBand(psInfo, pszBandSectionValue, "");
 
-        VSIFree(pszFieldNameValue);
+        VSIFree(pszBandSectionValue);
+        if (!psInfo->bBandInTheList)
+        {
+            delete psInfo->papoBand[psInfo->nBands];
+            continue;
+        }
         if (psInfo->papoBand[psInfo->nBands]->nWidth == 0)
         {
             delete psInfo->papoBand[psInfo->nBands];
             return CE_Failure;
         }
+
+        psInfo->papoBand[psInfo->nBands]->osRELFileName = pszRELFileName;
         psInfo->nBands++;
     }
 
@@ -1169,10 +1212,12 @@ const Eprj_ProParameters *MMRGetProParameters(MMRHandle hMMR)
 
     for (int i = 0; i < 15; i++)
     {
-        char szFieldName[40] = {};
+        char pszBandSectionKey[40] = {};
 
-        snprintf(szFieldName, sizeof(szFieldName), "proParams[%d]", i);
-        psProParams->proParams[i] = poMIEntry->GetDoubleField(szFieldName);
+        snprintf(pszBandSectionKey, sizeof(pszBandSectionKey), "proParams[%d]",
+                 i);
+        psProParams->proParams[i] =
+            poMIEntry->GetDoubleField(pszBandSectionKey);
     }
 
     psProParams->proSpheroid.sphereName =
@@ -1304,9 +1349,9 @@ const Eprj_Datum *MMRGetDatum(MMRHandle hMMR)
 
     for (int i = 0; i < 7; i++)
     {
-        char szFieldName[30] = {};
-        snprintf(szFieldName, sizeof(szFieldName), "params[%d]", i);
-        psDatum->params[i] = poMIEntry->GetDoubleField(szFieldName);
+        char pszBandSectionKey[30] = {};
+        snprintf(pszBandSectionKey, sizeof(pszBandSectionKey), "params[%d]", i);
+        psDatum->params[i] = poMIEntry->GetDoubleField(pszBandSectionKey);
     }
 
     psDatum->gridname = CPLStrdup(poMIEntry->GetStringField("gridname"));
@@ -1594,15 +1639,15 @@ static const char *const aszDefaultDD[] = {
 /*      Emiramon_HeaderTag, dictionary and Emmr_File.                       */
 /************************************************************************/
 
-MMRHandle MMRCreateLL(const char *pszFilename)
+MMRHandle MMRCreateLL(const char *pszFileName)
 
 {
     // Create the file in the file system.
-    VSILFILE *fp = VSIFOpenL(pszFilename, "w+b");
+    VSILFILE *fp = VSIFOpenL(pszFileName, "w+b");
     if (fp == nullptr)
     {
         CPLError(CE_Failure, CPLE_OpenFailed, "Creation of file %s failed.",
-                 pszFilename);
+                 pszFileName);
         return nullptr;
     }
 
@@ -1685,11 +1730,11 @@ MMRHandle MMRCreateLL(const char *pszFilename)
 
     // If an .ige or .rrd file exists with the same base name,
     // delete them.  (#1784)
-    CPLString osExtension = CPLGetExtensionSafe(pszFilename);
+    CPLString osExtension = CPLGetExtensionSafe(pszFileName);
     if (!EQUAL(osExtension, "rrd") && !EQUAL(osExtension, "aux"))
     {
-        CPLString osPath = CPLGetPathSafe(pszFilename);
-        CPLString osBasename = CPLGetBasenameSafe(pszFilename);
+        CPLString osPath = CPLGetPathSafe(pszFileName);
+        CPLString osBasename = CPLGetBasenameSafe(pszFileName);
         VSIStatBufL sStatBuf;
         CPLString osSupFile = CPLFormCIFilenameSafe(osPath, osBasename, "rrd");
 
@@ -2035,7 +2080,7 @@ int MMRCreateLayer(MMRHandle psInfo, MMREntry *poParent,
 /*                             MMRCreate()                              */
 /************************************************************************/
 
-MMRHandle MMRCreate(const char *pszFilename, int nXSize, int nYSize, int nBands,
+MMRHandle MMRCreate(const char *pszFileName, int nXSize, int nYSize, int nBands,
                     EPTType eDataType, char **papszOptions)
 
 {
@@ -2086,7 +2131,7 @@ MMRHandle MMRCreate(const char *pszFilename, int nXSize, int nYSize, int nBands,
     const int nBytesPerBlock = static_cast<int>(nBytesPerBlock64);
 
     // Create the low level structure.
-    MMRHandle psInfo = MMRCreateLL(pszFilename);
+    MMRHandle psInfo = MMRCreateLL(pszFileName);
     if (psInfo == nullptr)
         return nullptr;
 
@@ -2704,7 +2749,7 @@ std::string MMRGetIGEFilename(MMRHandle hMMR)
                     const CPLString osExtension =
                         CPLGetExtensionSafe(pszRawFilename);
                     const CPLString osBasename =
-                        CPLGetBasenameSafe(hMMR->pszFilename);
+                        CPLGetBasenameSafe(hMMR->pszFileName);
                     osFullFilename = CPLFormFilenameSafe(
                         hMMR->pszPath, osBasename, osExtension);
 
@@ -2757,16 +2802,16 @@ bool MMRCreateSpillStack(MMRInfo_t *psInfo, int nXSize, int nYSize, int nLayers,
     
     if (psInfo->pszIGEFilename == nullptr)
     {
-        const auto osExt = CPLGetExtensionSafe(psInfo->pszFilename);
+        const auto osExt = CPLGetExtensionSafe(psInfo->pszFileName);
         if (EQUAL(osExt.c_str(), "rrd"))
             psInfo->pszIGEFilename = CPLStrdup(
-                CPLResetExtensionSafe(psInfo->pszFilename, "rde").c_str());
+                CPLResetExtensionSafe(psInfo->pszFileName, "rde").c_str());
         else if (EQUAL(osExt.c_str(), "aux"))
             psInfo->pszIGEFilename = CPLStrdup(
-                CPLResetExtensionSafe(psInfo->pszFilename, "axe").c_str());
+                CPLResetExtensionSafe(psInfo->pszFileName, "axe").c_str());
         else
             psInfo->pszIGEFilename = CPLStrdup(
-                CPLResetExtensionSafe(psInfo->pszFilename, "ige").c_str());
+                CPLResetExtensionSafe(psInfo->pszFileName, "ige").c_str());
     }
 
     char *pszFullFilename = CPLStrdup(
@@ -3316,11 +3361,11 @@ char **MMRReadCameraModel(MMRHandle hMMR)
 
         for (int i = 0; i < 7; i++)
         {
-            char szFieldName[60] = {};
+            char pszBandSectionKey[60] = {};
 
-            snprintf(szFieldName, sizeof(szFieldName),
+            snprintf(pszBandSectionKey, sizeof(pszBandSectionKey),
                      "earthModel.datum.params[%d]", i);
-            sDatum.params[i] = poProjInfo->GetDoubleField(szFieldName);
+            sDatum.params[i] = poProjInfo->GetDoubleField(pszBandSectionKey);
         }
 
         sDatum.gridname =
@@ -3342,11 +3387,11 @@ char **MMRReadCameraModel(MMRHandle hMMR)
 
         for (int i = 0; i < 15; i++)
         {
-            char szFieldName[40] = {};
+            char pszBandSectionKey[40] = {};
 
-            snprintf(szFieldName, sizeof(szFieldName),
+            snprintf(pszBandSectionKey, sizeof(pszBandSectionKey),
                      "projectionObject.proParams[%d]", i);
-            sPro.proParams[i] = poProjInfo->GetDoubleField(szFieldName);
+            sPro.proParams[i] = poProjInfo->GetDoubleField(pszBandSectionKey);
         }
 
         // Fetch the spheroid.

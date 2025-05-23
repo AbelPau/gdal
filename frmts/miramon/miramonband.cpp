@@ -12,6 +12,7 @@
 
 #include "cpl_port.h"
 #include "miramon_p.h"
+#include "miramon_rastertools.h"
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
@@ -43,8 +44,8 @@
 /************************************************************************/
 /*                              MMRBand()                               */
 /************************************************************************/
-// Converts FileNameI.rel to FileName.img
-CPLString MMRGetFileNameFromRelName(const char *pszRELFile)
+// Converts FileNameI.rel to FileName
+CPLString MMRGetBandNameFromRelName(const char *pszRELFile)
 {
     if (!pszRELFile)
         return "";
@@ -56,8 +57,6 @@ CPLString MMRGetFileNameFromRelName(const char *pszRELFile)
         return "";
 
     pszFile.resize(pszFile.size() - 2);  // I.
-    pszFile += pszExtRaster;
-
     return pszFile;
 }
 
@@ -234,7 +233,8 @@ int MMRBand::GetBoundingBox(const char *pszSection)
     return 0;
 }
 
-MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
+MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection,
+                 CPLString osRawBandFileNameIn)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
@@ -245,7 +245,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), dfNoData(0.0), fRel(psInfoIn->fRel)
+      bNoDataSet(false), dfNoData(0.0), fRel(psInfoIn->fRel),
+      osRawBandFileName(osRawBandFileNameIn)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
@@ -255,10 +256,28 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     // Getting band and band file name from metadata
     char *pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
                                             KEY_NomFitxer);
-    osBandName = pszValue ? pszValue : "";
-    if (osBandName.empty())
+    osRawBandFileName = pszValue ? pszValue : "";
+
+    psInfo->bBandInTheList = true;
+    if (psInfo->nSDSBands)
     {
-        osBandFileName = MMRGetFileNameFromRelName(psInfoIn->pszRELFilename);
+        int nISDSBand;
+        for (nISDSBand = 0; nISDSBand < psInfo->nSDSBands; nISDSBand++)
+        {
+            if (EQUAL(psInfo->papoSDSBand[nISDSBand]->c_str(),
+                      osRawBandFileName.c_str()))
+                break;
+        }
+        if (nISDSBand == psInfo->nSDSBands)
+        {
+            psInfo->bBandInTheList = false;
+            return;
+        }
+    }
+
+    if (osRawBandFileName.empty())
+    {
+        osBandFileName = MMRGetFileNameFromRelName(psInfoIn->pszRELFileName);
         if (osBandFileName.empty())
         {
             nWidth = 0;
@@ -266,15 +285,20 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
             CPLError(CE_Failure, CPLE_AssertionFailed,
                      "The REL file '%s' contains a documented \
                 band with no explicit name. Section [%s] or [%s:%s].\n",
-                     psInfo->pszRELFilename.c_str(), SECTION_ATTRIBUTE_DATA,
+                     psInfo->pszRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
                      SECTION_ATTRIBUTE_DATA, pszSection);
             return;
         }
         osBandName = CPLGetBasenameSafe(osBandFileName);
+        osRawBandFileName = osBandName;
     }
     else
     {
-        osBandFileName = psInfoIn->pszRELFilename;
+        osBandName = CPLGetBasenameSafe(osRawBandFileName);
+        CPLString osAux =
+            CPLGetPathSafe((const char *)fRel->pszRelFileName.c_str());
+        osBandFileName =
+            CPLFormFilenameSafe(osAux.c_str(), osRawBandFileName.c_str(), "");
     }
 
     // There is a band file documented?
@@ -285,21 +309,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "The REL file '%s' contains a documented \
             band with no explicit name. Section [%s] or [%s:%s].\n",
-                 psInfo->pszRELFilename.c_str(), SECTION_ATTRIBUTE_DATA,
+                 psInfo->pszRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
                  SECTION_ATTRIBUTE_DATA, pszSection);
-        return;
-    }
-
-    // Can it be opened?
-    // Let's open the binari file that contains the raw data of the band.
-    fp = VSIFOpenL(osBandFileName, "rb");
-    if (!fp)
-    {
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_OpenFailed,
-                 "Failed to open MiraMon band file `%s' with access 'rb'.",
-                 osBandFileName.c_str());
         return;
     }
 
@@ -361,6 +372,18 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     nBlockYSize = 1;
     nBlocksPerRow = 1;
     nBlocksPerColumn = nHeight;
+
+    // Can the binary file that contains all data for this band be opened?
+    fp = VSIFOpenL(osBandFileName, "rb");
+    if (!fp)
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_OpenFailed,
+                 "Failed to open MiraMon band file `%s' with access 'rb'.",
+                 osBandFileName.c_str());
+        return;
+    }
 }
 
 /************************************************************************/

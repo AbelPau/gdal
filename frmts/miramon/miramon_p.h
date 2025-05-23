@@ -66,7 +66,7 @@ struct mmrinfo
 {
     VSILFILE *fp;
 
-    CPLString pszRELFilename;
+    CPLString pszRELFileName;
     MMRRel *fRel;  // Access stuff to REL file
 
     MMRAccess eAccess;
@@ -87,6 +87,12 @@ struct mmrinfo
     int nXSize;
     int nYSize;
 
+    // List of rawBandNames in a subdataset
+    int nSDSBands;
+    CPLString **papoSDSBand;
+    // Used to know if the band is in the list
+    bool bBandInTheList;
+
     int nBands;
     MMRBand **papoBand;
 
@@ -105,7 +111,7 @@ MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
                                                const char *pszRELFile);
 CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
                                     const char *pszRELFile);
-CPLString MMRGetAssociatedMetadataFileName(const char *pszFilename);
+CPLString MMRGetAssociatedMetadataFileName(const char *pszFileName);
 
 GUInt32 MMRAllocateSpace(MMRInfo_t *, GUInt32);
 CPLErr MMRParseBandInfo(MMRInfo_t *);
@@ -170,7 +176,7 @@ class MMRBand
     CPLString osOverName;
 
   public:
-    MMRBand(MMRInfo_t *, const char *pszSection);
+    MMRBand(MMRInfo_t *, const char *pszSection, CPLString osRawBandFileName);
     ~MMRBand();
 
     int GetDataType(const char *pszSection);
@@ -184,7 +190,11 @@ class MMRBand
 
     MMRInfo_t *psInfo;
 
-    // File name with banda data.
+    // REL file name that contains the band
+    CPLString osRELFileName;
+    // File name relative to REL file with banda data
+    CPLString osRawBandFileName;
+    // Friendly osRawBandFileName
     CPLString osBandFileName;
     // Name of the band documented in REL metadata file.
     CPLString osBandName;

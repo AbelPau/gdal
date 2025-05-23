@@ -75,10 +75,10 @@ enum class MMBytesPerPixel
 
 class MMRRel
 {
+  public:
     // File name with banda data.
     CPLString pszRelFileName;
 
-  public:
     int MMGetDataTypeAndBytesPerPixel(const char *pszCompType,
                                       MMDataType *nCompressionType,
                                       MMBytesPerPixel *nBytesPerPixel);

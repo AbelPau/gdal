@@ -20,4 +20,6 @@
 #include "cpl_conv.h"
 #include "cpl_string.h"
 
+CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
+
 #endif /* ndef MMRRASTERTOOLS_H_INCLUDED */
