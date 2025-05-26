@@ -260,7 +260,7 @@ CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
     // could have this otpion)
     char *pszVia = MMReturnValueFromSectionINIFile(
         pszRELFile, SECTION_ATTRIBUTE_DATA, KEY_via);
-    if (pszVia && *pszVia != '\0' && !stricmp(pszVia, "SDE"))
+    if (pszVia && *pszVia != '\0' && !EQUAL(pszVia, "SDE"))
     {
         VSIFree(pszVia);
         return "";
@@ -277,7 +277,7 @@ CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
 
     CPLString pszBandSectionKey;
     CPLString szAtributeDataName;
-    for (size_t nIBand = 0; nIBand < nBands; nIBand++)
+    for (int nIBand = 0; nIBand < nBands; nIBand++)
     {
         pszBandSectionKey = KEY_NomCamp;
         pszBandSectionKey.append("_");
@@ -408,7 +408,7 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
         CPLString osFilename = pszFileName;
         size_t nPos = osFilename.ifind(osMMRPrefix);
         if (nPos != 0)
-            return false;
+            return nullptr;
 
         CPLString osSDSReL = osFilename.substr(osMMRPrefix.size());
 
@@ -417,7 +417,7 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
         const int nTokens = CSLCount(papszTokens);
 
         if (nTokens < 1)
-            return false;
+            return nullptr;
         pszRELFileName = papszTokens[0];
 
         // Getting the list of bands in the subdataset
@@ -425,7 +425,7 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
         psInfo->papoSDSBand = static_cast<CPLString **>(
             CPLMalloc(sizeof(CPLString *) * psInfo->nSDSBands));
 
-        for (size_t nIBand = 0; nIBand < psInfo->nSDSBands; nIBand++)
+        for (int nIBand = 0; nIBand < psInfo->nSDSBands; nIBand++)
         {
             // Raw band name
             psInfo->papoSDSBand[nIBand] =
@@ -450,7 +450,6 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
 
     psInfo->pszRELFileName = pszRELFileName;
     psInfo->fRel = new MMRRel(psInfo->pszRELFileName);
-    //psInfo->fp = fp;
 
     if (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb"))
         psInfo->eAccess = MMRAccess::MMR_ReadOnly;
@@ -512,7 +511,7 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
     CPLString pszBandSectionKey;
     CPLString pszFileAux;
     char *pszBandSectionValue;
-    for (size_t i = 0; i < nTokenCount; i++)
+    for (int i = 0; i < nTokenCount; i++)
     {
         pszBandSectionKey = KEY_NomCamp;
         pszBandSectionKey.append("_");
@@ -869,37 +868,6 @@ const char *MMRGetDataTypeName(EPTType eDataType)
             CPLAssert(false);
             return "unknown";
     }
-}
-
-/************************************************************************/
-/*                           MMRGetMapInfo()                            */
-/************************************************************************/
-
-const Eprj_MapInfo *MMRGetMapInfo(MMRHandle hMMR)
-
-{
-    if (hMMR->nBands < 1)
-        return nullptr;
-
-    // Do we already have it?
-    if (hMMR->pMapInfo != nullptr)
-        return (Eprj_MapInfo *)hMMR->pMapInfo;
-
-    // Allocate the structure.
-    Eprj_MapInfo *psMapInfo =
-        static_cast<Eprj_MapInfo *>(CPLCalloc(sizeof(Eprj_MapInfo), 1));
-
-    // The following is basically a hack to get files with
-    // non-standard MapInfo's that misname the pixelSize fields. (#3338)
-    psMapInfo->pixelSize.width = 0;  //poMIEntry->GetDoubleField("pixelSize.x");
-    psMapInfo->pixelSize.height =
-        0;  //poMIEntry->GetDoubleField("pixelSize.y");
-
-    psMapInfo->units = "m";  //CPLStrdup(poMIEntry->GetStringField("units"));
-
-    hMMR->pMapInfo = (void *)psMapInfo;
-
-    return psMapInfo;
 }
 
 /************************************************************************/

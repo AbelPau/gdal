@@ -1733,7 +1733,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
             // This should really report an error, but this isn't
             // so easy from within constructors.
             CPLDebug("GDAL", "Unsupported pixel type in MMRRasterBand: %d.",
-                     eMMRDataTypeMiraMon);
+                     (int)eMMRDataTypeMiraMon);
             break;
     }
 
@@ -2821,12 +2821,10 @@ MMRDataset::~MMRDataset()
 CPLErr MMRDataset::FlushCache(bool bAtClosing)
 
 {
-    // ·$·TODO
-    /*CPLErr eErr = GDALPamDataset::FlushCache(bAtClosing);
+    CPLErr eErr = GDALPamDataset::FlushCache(bAtClosing);
 
     if (eAccess != GA_Update)
         return eErr;
-    */
 
     if (bGeoDirty)
         WriteProjection();
@@ -3920,7 +3918,7 @@ static CPLErr CheckBandInRel(const char *pszRELFileName, const char *pszIMGFile)
     CPLString pszBandSectionKey;
     CPLString pszFileAux;
     char *pszBandSectionValue;
-    for (size_t i = 0; i < nTokenCount; i++)
+    for (int i = 0; i < nTokenCount; i++)
     {
         pszBandSectionKey = KEY_NomCamp;
         pszBandSectionKey.append("_");
@@ -3986,10 +3984,6 @@ static int MMRIdentifyFile(CPLString pszFileName)
 
     if (EQUAL(pszRELFile, ""))
     {
-        //CPLError(CE_Failure, CPLE_AppDefined,
-        //         "There is no associated metadata file \
-        //            for the file %s.",
-        //         poOpenInfo->pszFilename);
         return FALSE;
     }
 
@@ -4025,7 +4019,7 @@ int MMRDataset::Identify(GDALOpenInfo *poOpenInfo)
             return FALSE;
 
         // Getting the index + internal names of the bands
-        for (size_t nIBand = 1; nIBand < nTokens; nIBand++)
+        for (int nIBand = 1; nIBand < nTokens; nIBand++)
         {
             // Let's check that this band (papszTokens[nIBand+1]) is in the REL file.
             if (CE_None != CheckBandInRel(papszTokens[0], papszTokens[nIBand]))
@@ -4081,7 +4075,7 @@ static bool NewSubdatasetCondition(MMRHandle hMMR, int nIBand)
     return false;
 }
 
-bool ThereIsNeedForSubDataSets(MMRHandle hMMR)
+static bool ThereIsNeedForSubDataSets(MMRHandle hMMR)
 {
     for (int nIBand = 1; nIBand < hMMR->nBands; nIBand++)
     {

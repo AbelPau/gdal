@@ -151,7 +151,6 @@ MMRHandle CPL_DLL MMRCreate(const char *pszFileName, int nXSize, int nYSize,
                             int nBands, EPTType eDataType, char **papszOptions);
 CPLErr CPL_DLL MMRFlush(MMRHandle);
 
-const Eprj_MapInfo CPL_DLL *MMRGetMapInfo(MMRHandle);
 CPLErr CPL_DLL MMRSetGeoTransform(MMRHandle, const char *, const char *,
                                   double *);
 CPLErr CPL_DLL MMRSetMapInfo(MMRHandle, const Eprj_MapInfo *);

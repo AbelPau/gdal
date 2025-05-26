@@ -58,6 +58,7 @@ static void Usage()
 MAIN_START(argc, argv)
 
 {
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     EarlySetConfigOptions(argc, argv);
 
     /* -------------------------------------------------------------------- */

@@ -45,7 +45,7 @@
 /*                              MMRBand()                               */
 /************************************************************************/
 // Converts FileNameI.rel to FileName
-CPLString MMRGetBandNameFromRelName(const char *pszRELFile)
+/*CPLString MMRGetBandNameFromRelName(const char *pszRELFile)
 {
     if (!pszRELFile)
         return "";
@@ -58,7 +58,7 @@ CPLString MMRGetBandNameFromRelName(const char *pszRELFile)
 
     pszFile.resize(pszFile.size() - 2);  // I.
     return pszFile;
-}
+}*/
 
 // Getting data type from metadata
 int MMRBand::GetDataType(const char *pszSection)
@@ -236,14 +236,16 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
-      psInfo(psInfoIn), fp(nullptr), eDataType(static_cast<EPTType>(EPT_MIN)),
+      psInfo(psInfoIn), fp(nullptr), fRel(psInfoIn->fRel),
+      eDataType(static_cast<EPTType>(EPT_MIN)),
       eMMDataType(
           static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
       eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), dfNoData(0.0), fRel(psInfoIn->fRel)
+      bNoDataSet(false), pszNodataDef(nullptr), dfNoData(0.0), bMinSet(false),
+      dfMin(0.0), bMaxSet(false), dfMax(0.0)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
