@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Project:  OpenGIS Simple Features Reference Implementation
+ * Project:  MiraMonRaster driver
  * Purpose:  Implements OGRMiraMonDataSource class.
  * Author:   Abel Pau
  * 
@@ -387,7 +387,7 @@ MMREntry *MMREntry::GetNext()
             CPLError(CE_Warning, CPLE_AppDefined,
                      "Corrupt (looping) entry in %s, "
                      "ignoring some entries after %s.",
-                     psMMR->pszRELFileName.c_str(), szName);
+                     psMMR->osRELFileName.c_str(), szName);
             nNextPos = 0;
             return nullptr;
         }

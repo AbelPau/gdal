@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Project:  OpenGIS Simple Features Reference Implementation
+ * Project:  MiraMonRaster driver
  * Purpose:  Implements MMRREL class.
  * Author:   Abel Pau
  * 
@@ -28,8 +28,9 @@
 /*                              MMRRel()                               */
 /************************************************************************/
 
-MMRRel::MMRRel(CPLString pszRELFilenameIn) : pszRelFileName(pszRELFilenameIn)
+MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName("")
 {
+    osRelFileName = osRELFilenameIn;
 }
 
 /************************************************************************/
@@ -145,16 +146,16 @@ char *MMRRel::GetMetadataValue(const char *pszMainSection,
     szAtributeDataName.append(pszSubSection);
 
     char *pszValue = MMReturnValueFromSectionINIFile(
-        pszRelFileName, szAtributeDataName, pszKey);
+        osRelFileName, szAtributeDataName, pszKey);
     if (pszValue)
         return pszValue;
 
     // If the value is not found then searches in [pszMainSection]
-    return MMReturnValueFromSectionINIFile(pszRelFileName, pszMainSection,
+    return MMReturnValueFromSectionINIFile(osRelFileName, pszMainSection,
                                            pszKey);
 }
 
 char *MMRRel::GetMetadataValue(const char *pszSection, const char *pszKey)
 {
-    return MMReturnValueFromSectionINIFile(pszRelFileName, pszSection, pszKey);
+    return MMReturnValueFromSectionINIFile(osRelFileName, pszSection, pszKey);
 }

@@ -66,7 +66,7 @@ struct mmrinfo
 {
     VSILFILE *fp;
 
-    CPLString pszRELFileName;
+    CPLString osRELFileName;
     MMRRel *fRel;  // Access stuff to REL file
 
     MMRAccess eAccess;
@@ -200,7 +200,7 @@ class MMRBand
     CPLString osBandName;
 
     VSILFILE *fp;
-    MMRRel *fRel;  // Rel where metadata is readed from
+    MMRRel *pfRel;  // Rel where metadata is readed from
 
     EPTType eDataType;
     MMDataType eMMDataType;

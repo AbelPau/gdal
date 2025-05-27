@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Project:  OpenGIS Simple Features Reference Implementation
- * Purpose:  Implements MMRBand class.
+ * Project:  MiraMonRaster driver
+ * Purpose:  Contains generic raster functions 
  * Author:   Abel Pau
  * 
  ******************************************************************************
@@ -63,13 +63,13 @@
 // Getting data type from metadata
 int MMRBand::GetDataType(const char *pszSection)
 {
-    char *pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                            "TipusCompressio");
+    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                             "TipusCompressio");
 
     eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
-    if (!pszValue || fRel->MMGetDataTypeAndBytesPerPixel(
+    if (!pszValue || pfRel->MMGetDataTypeAndBytesPerPixel(
                          pszValue, &eMMDataType, &eMMBytesPerPixel) == 1)
     {
         VSIFree(pszValue);
@@ -96,8 +96,8 @@ int MMRBand::GetDataType(const char *pszSection)
 // Getting number of columns from metadata
 int MMRBand::GetColumnsNumber(const char *pszSection)
 {
-    char *pszValue = fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
-                                            pszSection, "columns");
+    char *pszValue = pfRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
+                                             pszSection, "columns");
     if (!pszValue || EQUAL(pszValue, ""))
     {
         VSIFree(pszValue);
@@ -115,8 +115,8 @@ int MMRBand::GetColumnsNumber(const char *pszSection)
 // Getting number of columns from metadata
 int MMRBand::GetRowsNumber(const char *pszSection)
 {
-    char *pszValue = fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
-                                            pszSection, "rows");
+    char *pszValue = pfRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
+                                             pszSection, "rows");
     if (!pszValue || EQUAL(pszValue, ""))
     {
         VSIFree(pszValue);
@@ -135,7 +135,7 @@ int MMRBand::GetRowsNumber(const char *pszSection)
 void MMRBand::GetNoDataValue(const char *pszSection)
 {
     char *pszValue =
-        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATA");
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATA");
     if (pszValue && !EQUAL(pszValue, ""))
     {
         dfNoData = pszValue ? atoi(pszValue) : 0;
@@ -155,8 +155,8 @@ void MMRBand::GetNoDataDefinition(const char *pszSection)
     if (!bNoDataSet)
         return;
 
-    char *pszValue =
-        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATADef");
+    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                             "NODATADef");
     if (!pszValue || EQUAL(pszValue, ""))
         pszNodataDef = nullptr;
     else
@@ -170,7 +170,7 @@ void MMRBand::GetMinMaxValues(const char *pszSection)
     bMinSet = false;
 
     char *pszValue =
-        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "min");
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "min");
     if (pszValue && !EQUAL(pszValue, ""))
     {
         bMinSet = true;
@@ -179,7 +179,7 @@ void MMRBand::GetMinMaxValues(const char *pszSection)
     VSIFree(pszValue);
 
     pszValue =
-        fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "max");
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "max");
     if (pszValue && !EQUAL(pszValue, ""))
     {
         bMaxSet = true;
@@ -190,7 +190,7 @@ void MMRBand::GetMinMaxValues(const char *pszSection)
 
 void MMRBand::GetReferenceSystem()
 {
-    char *pszValue = fRel->GetMetadataValue(
+    char *pszValue = pfRel->GetMetadataValue(
         "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
     if (!pszValue)
     {
@@ -205,25 +205,26 @@ int MMRBand::GetBoundingBox(const char *pszSection)
 {
     // Bounding box of the band
     // [EXTENT:xxxx] or [EXTENT]
-    char *pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinX");
+    char *pszValue =
+        pfRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinX");
     if (!pszValue)
         return 1;
     dfBBMinX = atof(pszValue);
     VSIFree(pszValue);
 
-    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxX");
+    pszValue = pfRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxX");
     if (!pszValue)
         return 1;
     dfBBMaxX = atof(pszValue);
     VSIFree(pszValue);
 
-    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinY");
+    pszValue = pfRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinY");
     if (!pszValue)
         return 1;
     dfBBMinY = atof(pszValue);
     VSIFree(pszValue);
 
-    pszValue = fRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxY");
+    pszValue = pfRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxY");
     if (!pszValue)
         return 1;
     dfBBMaxY = atof(pszValue);
@@ -236,7 +237,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
-      psInfo(psInfoIn), fp(nullptr), fRel(psInfoIn->fRel),
+      psInfo(psInfoIn), fp(nullptr), pfRel(psInfoIn->fRel),
       eDataType(static_cast<EPTType>(EPT_MIN)),
       eMMDataType(
           static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
@@ -244,7 +245,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), pszNodataDef(nullptr), dfNoData(0.0), bMinSet(false),
+      bNoDataSet(false), pszNodataDef(""), dfNoData(0.0), bMinSet(false),
       dfMin(0.0), bMaxSet(false), dfMax(0.0)
 {
     apadfPCT[0] = nullptr;
@@ -253,8 +254,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     apadfPCT[3] = nullptr;
 
     // Getting band and band file name from metadata
-    char *pszValue = fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                            KEY_NomFitxer);
+    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                             KEY_NomFitxer);
     osRawBandFileName = pszValue ? pszValue : "";
 
     CPLFree(pszValue);
@@ -278,7 +279,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
 
     if (osRawBandFileName.empty())
     {
-        osBandFileName = MMRGetFileNameFromRelName(psInfoIn->pszRELFileName);
+        osBandFileName = MMRGetFileNameFromRelName(psInfoIn->osRELFileName);
         if (osBandFileName.empty())
         {
             nWidth = 0;
@@ -286,7 +287,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
             CPLError(CE_Failure, CPLE_AssertionFailed,
                      "The REL file '%s' contains a documented \
                 band with no explicit name. Section [%s] or [%s:%s].\n",
-                     psInfo->pszRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                     psInfo->osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
                      SECTION_ATTRIBUTE_DATA, pszSection);
             return;
         }
@@ -297,7 +298,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     {
         osBandName = CPLGetBasenameSafe(osRawBandFileName);
         CPLString osAux =
-            CPLGetPathSafe((const char *)fRel->pszRelFileName.c_str());
+            CPLGetPathSafe((const char *)pfRel->osRelFileName.c_str());
         osBandFileName =
             CPLFormFilenameSafe(osAux.c_str(), osRawBandFileName.c_str(), "");
     }
@@ -310,7 +311,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "The REL file '%s' contains a documented \
             band with no explicit name. Section [%s] or [%s:%s].\n",
-                 psInfo->pszRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                 psInfo->osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
                  SECTION_ATTRIBUTE_DATA, pszSection);
         return;
     }

@@ -5140,18 +5140,6 @@ int MMResizeStringToOperateIfNeeded(struct MiraMonVectLayerInfo *hMiraMonLayer,
     return 0;
 }
 
-// Checks if a string is empty
-int MMIsEmptyString(const char *string)
-{
-    const char *ptr = string;
-
-    for (; *ptr; ptr++)
-        if (*ptr != ' ' && *ptr != '\t')
-            return 0;
-
-    return 1;
-}
-
 /* -------------------------------------------------------------------- */
 /*      Metadata Functions                                              */
 /* -------------------------------------------------------------------- */

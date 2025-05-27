@@ -46,8 +46,9 @@ extern "C" int wmain(int argc, wchar_t **argv_w, wchar_t ** /* envp */);
 #define MAIN_START(argc, argv)                                                 \
     extern "C" int wmain(int argc, wchar_t **argv_w, wchar_t ** /* envp */)    \
     {                                                                          \
-        char **argv =                                                          \
-            static_cast<char **>(CPLCalloc(argc + 1, sizeof(char *)));         \
+        char **argv;                                                           \
+        _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);          \
+        argv = static_cast<char **>(CPLCalloc(argc + 1, sizeof(char *)));      \
         for (int i = 0; i < argc; i++)                                         \
         {                                                                      \
             argv[i] =                                                          \

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Project:  OpenGIS Simple Features Reference Implementation
+ * Project:  MiraMonRaster driver
  * Purpose:  Implements OGRMiraMonDataSource class.
  * Author:   Abel Pau
  * 
@@ -396,7 +396,7 @@ CPLString MMRGetAssociatedMetadataFileName(const char *pszFileName)
 MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
 
 {
-    CPLString pszRELFileName;
+    CPLString osRELFileName;
 
     // Create the MMRInfo_t.
     MMRInfo_t *psInfo =
@@ -418,7 +418,11 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
 
         if (nTokens < 1)
             return nullptr;
-        pszRELFileName = papszTokens[0];
+
+        osRELFileName = papszTokens[0];
+        osRELFileName.erase(
+            std::remove(osRELFileName.begin(), osRELFileName.end(), '\"'),
+            osRELFileName.end());
 
         // Getting the list of bands in the subdataset
         psInfo->nSDSBands = nTokens - 1;
@@ -428,8 +432,11 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
         for (int nIBand = 0; nIBand < psInfo->nSDSBands; nIBand++)
         {
             // Raw band name
-            psInfo->papoSDSBand[nIBand] =
-                new CPLString(papszTokens[nIBand + 1]);
+            CPLString osBandName = papszTokens[nIBand + 1];
+            osBandName.erase(
+                std::remove(osBandName.begin(), osBandName.end(), '\"'),
+                osBandName.end());
+            psInfo->papoSDSBand[nIBand] = new CPLString(osBandName);
         }
         CSLDestroy(papszTokens);
     }
@@ -437,8 +444,8 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
     {
         // Getting the metadata file name. If it's already a REL file,
         // then same name is returned.
-        pszRELFileName = MMRGetAssociatedMetadataFileName(pszFileName);
-        if (EQUAL(pszRELFileName, ""))
+        osRELFileName = MMRGetAssociatedMetadataFileName(pszFileName);
+        if (EQUAL(osRELFileName, ""))
         {
             CPLError(CE_Failure, CPLE_OpenFailed, "Metadata file for %s \
                      should exist.",
@@ -448,8 +455,8 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
         }
     }
 
-    psInfo->pszRELFileName = pszRELFileName;
-    psInfo->fRel = new MMRRel(psInfo->pszRELFileName);
+    psInfo->osRELFileName = osRELFileName;
+    psInfo->fRel = new MMRRel(psInfo->osRELFileName);
 
     if (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb"))
         psInfo->eAccess = MMRAccess::MMR_ReadOnly;
@@ -461,9 +468,14 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
     // Collect band definitions.
     CPLErr eErr = MMRParseBandInfo(psInfo);
 
-    if (eErr == CE_None)
-        return psInfo;
-    return nullptr;
+    if (eErr != CE_None)
+    {
+        MMRClose(psInfo);
+        psInfo = nullptr;
+        return nullptr;
+    }
+
+    return psInfo;
 }
 
 /************************************************************************/
@@ -476,12 +488,12 @@ MMRHandle MMROpen(const char *pszFileName, const char *pszAccess)
 CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
 
 {
-    if (!psInfo)
+    if (!psInfo || !psInfo->fRel)
         return CE_Fatal;
 
     psInfo->nBands = 0;
 
-    CPLString pszRELFileName = psInfo->pszRELFileName;
+    CPLString pszRELFileName = psInfo->osRELFileName;
 
     char *pszFieldNames = psInfo->fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                          Key_IndexsNomsCamps);
@@ -539,6 +551,7 @@ CPLErr MMRParseBandInfo(MMRInfo_t *psInfo)
         }
         if (psInfo->papoBand[psInfo->nBands]->nWidth == 0)
         {
+            CSLDestroy(papszTokens);
             VSIFree(pszFieldNames);
             delete psInfo->papoBand[psInfo->nBands];
             return CE_Failure;
@@ -574,8 +587,6 @@ int MMRClose(MMRHandle hMMR)
     }
 
     delete hMMR->poRoot;
-
-    delete hMMR->fRel;
 
     for (int i = 0; i < hMMR->nSDSBands && hMMR->papoSDSBand != nullptr; i++)
     {
@@ -618,6 +629,9 @@ int MMRClose(MMRHandle hMMR)
         CPLFree(((Eprj_Datum *)hMMR->pDatum)->gridname);
         CPLFree(hMMR->pDatum);
     }
+
+    delete hMMR->fRel;
+    hMMR->fRel = nullptr;
 
     // ·$·TODO alliberar correctament
     /*if (hMMR->pMapInfo != nullptr)

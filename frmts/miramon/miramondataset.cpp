@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Project:  OpenGIS Simple Features Reference Implementation
+ * Project:  MiraMonRaster driver
  * Purpose:  Implements MMRDataset class.
  * Author:   Abel Pau
  * 
@@ -4015,21 +4015,30 @@ int MMRDataset::Identify(GDALOpenInfo *poOpenInfo)
         if (nTokens < 2)
             return FALSE;
 
-        if (MMCheck_REL_FILE(papszTokens[0]))
+        // Let's remove "\"" if existant.
+        CPLString osRELName = papszTokens[0];
+        osRELName.erase(std::remove(osRELName.begin(), osRELName.end(), '\"'),
+                        osRELName.end());
+
+        if (MMCheck_REL_FILE(osRELName))
             return FALSE;
 
         // Getting the index + internal names of the bands
         for (int nIBand = 1; nIBand < nTokens; nIBand++)
         {
-            // Let's check that this band (papszTokens[nIBand+1]) is in the REL file.
-            if (CE_None != CheckBandInRel(papszTokens[0], papszTokens[nIBand]))
+            // Let's check that this band (papszTokens[nIBand]) is in the REL file.
+            CPLString osBandName = papszTokens[nIBand];
+            // Let's remove "\"" if existant.
+            osBandName.erase(
+                std::remove(osBandName.begin(), osBandName.end(), '\"'),
+                osBandName.end());
+            if (CE_None != CheckBandInRel(osRELName, osBandName))
             {
                 CSLDestroy(papszTokens);
                 return FALSE;
             }
         }
         CSLDestroy(papszTokens);
-
         return TRUE;
     }
 
@@ -4220,10 +4229,11 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     CPLString osDSName;
     CPLString osDSDesc;
 
-    osDSName.Printf("MiraMonRaster:%s,%s",
+    // ·$·TODO passar els noms a una funció que determini si calen cometes.
+    osDSName.Printf("MiraMonRaster:\"%s\",\"%s\"",
                     hMMR->papoBand[nIBand]->osRELFileName.c_str(),
                     hMMR->papoBand[nIBand]->osRawBandFileName.c_str());
-    osDSDesc.Printf("Subdataset %d: band (%s)", iSubdataset,
+    osDSDesc.Printf("Subdataset %d: \"%s\"", iSubdataset,
                     hMMR->papoBand[nIBand]->osBandName.c_str());
 
     for (; nIBand < hMMR->nBands; nIBand++)
@@ -4241,26 +4251,27 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
             {
                 // Open a new possible subdataset
                 osDSName.Printf(
-                    "MiraMonRaster:%s,%s",
+                    "MiraMonRaster:\"%s\",\"%s\"",
                     hMMR->papoBand[nIBand]->osRELFileName.c_str(),
                     hMMR->papoBand[nIBand + 1]->osRawBandFileName.c_str());
-                osDSDesc.Printf("Subdataset %d: band (%s)", iSubdataset,
+                osDSDesc.Printf("Subdataset %d: \"%s\"", iSubdataset,
                                 hMMR->papoBand[nIBand + 1]->osBandName.c_str());
             }
         }
         else
         {
             osDSName.append(CPLSPrintf(
-                "%s", hMMR->papoBand[nIBand]->osRawBandFileName.c_str()));
+                "\"%s\"", hMMR->papoBand[nIBand]->osRawBandFileName.c_str()));
             osDSDesc.append(CPLSPrintf(
-                ": band (%s)", hMMR->papoBand[nIBand]->osBandName.c_str()));
+                ", \"%s\"", hMMR->papoBand[nIBand]->osBandName.c_str()));
         }
     }
 
     if (oSubdatasetList.Count() > 0)
     {
         // Afegir al metadades del dataset principal
-        poDS->SetMetadata(oSubdatasetList.StealList(), "SUBDATASETS");
+        poDS->SetMetadata(oSubdatasetList.List(), "SUBDATASETS");
+        oSubdatasetList.Clear();
     }
     return poDS;
 }

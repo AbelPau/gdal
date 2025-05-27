@@ -2758,6 +2758,18 @@ CPL_DLL char *MM_RemoveLeadingWhitespaceOfString(char *szChain)
     return szChain;
 }
 
+// Checks if a string is empty
+CPL_DLL int MMIsEmptyString(const char *string)
+{
+    const char *ptr = string;
+
+    for (; *ptr; ptr++)
+        if (*ptr != ' ' && *ptr != '\t')
+            return 0;
+
+    return 1;
+}
+
 CPL_DLL char *MM_RemoveWhitespacesFromEndOfString(char *str)
 {
     if (str == nullptr)

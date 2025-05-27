@@ -99,7 +99,6 @@ int MMResizeDoublePointer(MM_COORD_TYPE **pDouble, MM_N_VERTICES_TYPE *nMax,
                           MM_N_VERTICES_TYPE nProposedMax);
 int MMResizeStringToOperateIfNeeded(struct MiraMonVectLayerInfo *hMiraMonLayer,
                                     MM_EXT_DBF_N_FIELDS nNewSize);
-int MMIsEmptyString(const char *string);
 // Metadata functions
 
 int MMWriteVectorMetadata(struct MiraMonVectLayerInfo *hMiraMonLayer);

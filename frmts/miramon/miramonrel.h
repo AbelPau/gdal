@@ -77,7 +77,7 @@ class MMRRel
 {
   public:
     // File name with banda data.
-    CPLString pszRelFileName;
+    CPLString osRelFileName;
 
     int MMGetDataTypeAndBytesPerPixel(const char *pszCompType,
                                       MMDataType *nCompressionType,

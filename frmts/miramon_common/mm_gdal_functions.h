@@ -141,6 +141,7 @@ CPL_DLL int MM_GetArcHeights(double *coord_z, VSILFILE *pF,
 CPL_DLL char *MM_RemoveInitial_and_FinalQuotationMarks(char *cadena);
 CPL_DLL char *MM_RemoveWhitespacesFromEndOfString(char *str);
 CPL_DLL char *MM_RemoveLeadingWhitespaceOfString(char *cadena);
+CPL_DLL int MMIsEmptyString(const char *string);
 
 // DBF
 CPL_DLL struct MM_ID_GRAFIC_MULTIPLE_RECORD *MMCreateExtendedDBFIndex(

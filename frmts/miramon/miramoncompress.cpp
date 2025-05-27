@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Project:  OpenGIS Simple Features Reference Implementation
+ * Project:  MiraMonRaster driver
  * Purpose:  Implements OGRMiraMonDataSource class.
  * Author:   Abel Pau
  * 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Project:  OpenGIS Simple Features Reference Implementation
+ * Project:  MiraMonRaster driver
  * Purpose:  Implements some raster functions.
  * Author:   Abel Pau
  * 
@@ -10,27 +10,7 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-#include "cpl_port.h"
 #include "miramon_p.h"
-
-#include <cstddef>
-#include <string>
-
-#include "cpl_conv.h"
-#include "cpl_error.h"
-#include "cpl_progress.h"
-#include "cpl_string.h"
-#include "gdal.h"
-#include "gdal_pam.h"
-#include "gdal_priv.h"
-
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_functions.h"
-#include "..\miramon_common\mm_gdal_constants.h"
-#else
-#include "../miramon_common/mm_gdal_functions.h"
-#include "../miramon_common/mm_gdal_constants.h"
-#endif
 
 // Converts FileNameI.rel to FileName.img
 CPLString MMRGetFileNameFromRelName(const char *pszRELFile)
