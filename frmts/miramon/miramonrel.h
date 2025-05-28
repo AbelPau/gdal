@@ -26,6 +26,9 @@
 #include "cpl_vsi.h"
 #include "ogr_spatialref.h"
 
+typedef struct mmrinfo *MMRHandle;
+typedef struct mmrinfo MMRInfo_t;
+
 /************************************************************************/
 /*                               MMRRel                                */
 /************************************************************************/
@@ -76,17 +79,34 @@ enum class MMBytesPerPixel
 class MMRRel
 {
   public:
-    // File name with banda data.
-    CPLString osRelFileName;
-
-    int MMGetDataTypeAndBytesPerPixel(const char *pszCompType,
-                                      MMDataType *nCompressionType,
-                                      MMBytesPerPixel *nBytesPerPixel);
+    MMRHandle GetInfoFromREL(const char *pszFileName, const char *pszAccess);
+    static CPLString GetAssociatedMetadataFileName(const char *pszFileName);
+    static int IdentifySubdataSetFile(const CPLString pszFileName);
+    static int IdentifyFile(CPLString pszFileName);
+    int GetDataTypeAndBytesPerPixel(const char *pszCompType,
+                                    MMDataType *nCompressionType,
+                                    MMBytesPerPixel *nBytesPerPixel);
     char *GetMetadataValue(const char *pszMainSection,
                            const char *pszSubSection, const char *pszKey);
     char *GetMetadataValue(const char *pszSection, const char *pszKey);
+    const char *GetRELNameChar();
+    void SetRELNameChar(CPLString osRelFileNameIn);
+    static CPLErr ParseBandInfo(MMRInfo_t *psInfo);
+
     MMRRel(CPLString);
     ~MMRRel();
+
+  private:
+    CPLString osRelFileName;
+    static CPLErr CheckBandInRel(const char *pszRELFileName,
+                                 const char *pszIMGFile);
+    static CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
+    static MMRNomFitxerState
+    MMRStateOfNomFitxerInSection(const char *pszLayerName,
+                                 const char *pszSection,
+                                 const char *pszRELFile);
+    static CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
+                                               const char *pszRELFile);
 };
 
 #endif /* ndef MMR_REL_H_INCLUDED */

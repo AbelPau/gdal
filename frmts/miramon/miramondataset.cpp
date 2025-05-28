@@ -3895,209 +3895,18 @@ CPLErr MMRDataset::ReadProjection()
 /************************************************************************/
 /*                              Identify()                              */
 /************************************************************************/
-
-static CPLErr CheckBandInRel(const char *pszRELFileName, const char *pszIMGFile)
-
-{
-    char *pszFieldNames = MMReturnValueFromSectionINIFile(
-        pszRELFileName, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
-
-    if (!pszFieldNames)
-        return CE_Failure;
-
-    // Separator ,
-    char **papszTokens = CSLTokenizeString2(pszFieldNames, ",", 0);
-    const int nTokenCount = CSLCount(papszTokens);
-
-    if (!nTokenCount)
-    {
-        VSIFree(pszFieldNames);
-        return CE_Failure;
-    }
-
-    CPLString pszBandSectionKey;
-    CPLString pszFileAux;
-    char *pszBandSectionValue;
-    for (int i = 0; i < nTokenCount; i++)
-    {
-        pszBandSectionKey = KEY_NomCamp;
-        pszBandSectionKey.append("_");
-        pszBandSectionKey.append(papszTokens[i]);
-
-        pszBandSectionValue = MMReturnValueFromSectionINIFile(
-            pszRELFileName, SECTION_ATTRIBUTE_DATA, pszBandSectionKey);
-
-        if (!pszBandSectionValue)
-        {
-            VSIFree(pszBandSectionValue);
-            VSIFree(pszFieldNames);
-            return CE_Failure;
-        }
-
-        MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
-
-        CPLString szAtributeDataName;
-        szAtributeDataName = SECTION_ATTRIBUTE_DATA;
-        szAtributeDataName.append(":");
-        szAtributeDataName.append(pszBandSectionValue);
-        VSIFree(pszBandSectionValue);
-
-        char *pszValue = MMReturnValueFromSectionINIFile(
-            pszRELFileName, szAtributeDataName, KEY_NomFitxer);
-
-        CPLString osRawBandFileName = pszValue ? pszValue : "";
-        VSIFree(pszValue);
-
-        if (osRawBandFileName.empty())
-        {
-            CPLString osBandFileName =
-                MMRGetFileNameFromRelName(pszRELFileName);
-            if (osBandFileName.empty())
-            {
-                VSIFree(pszFieldNames);
-                return CE_Failure;
-            }
-        }
-        else
-        {
-            if (!EQUAL(osRawBandFileName, pszIMGFile))
-            {
-                continue;
-            }
-            break;  // Found
-        }
-    }
-
-    CSLDestroy(papszTokens);
-    VSIFree(pszFieldNames);
-
-    return CE_None;
-}
-
-static int MMRIdentifyFile(CPLString pszFileName)
-{
-    // Verify that this is a MiraMonRaster file.
-    // A sidecar file I.rel with reference to poOpenInfo->pszFilename
-    // must exist
-    CPLString pszRELFile =
-        MMRGetAssociatedMetadataFileName((const char *)pszFileName);
-
-    if (EQUAL(pszRELFile, ""))
-    {
-        return FALSE;
-    }
-
-    // Some versions of REL files are not allowed.
-    if (MMCheck_REL_FILE(pszRELFile))
-        return FALSE;
-
-    return TRUE;
-}
-
 int MMRDataset::Identify(GDALOpenInfo *poOpenInfo)
 
 {
-    const CPLString osMMRPrefix = "MiraMonRaster:";
-    if (STARTS_WITH(poOpenInfo->pszFilename, osMMRPrefix))
-    {
-        // SUBDATASETS
-        CPLString osFilename = poOpenInfo->pszFilename;
-        size_t nPos = osFilename.ifind(osMMRPrefix);
-        if (nPos != 0)
-            return FALSE;
-
-        CPLString osRELAndBandName = osFilename.substr(osMMRPrefix.size());
-
-        char **papszTokens = CSLTokenizeString2(osRELAndBandName, ",", 0);
-        const int nTokens = CSLCount(papszTokens);
-        // Getting the REL associated to the bands
-        // We need the REL and at least one band (index + name).
-        if (nTokens < 2)
-            return FALSE;
-
-        // Let's remove "\"" if existant.
-        CPLString osRELName = papszTokens[0];
-        osRELName.erase(std::remove(osRELName.begin(), osRELName.end(), '\"'),
-                        osRELName.end());
-
-        if (MMCheck_REL_FILE(osRELName))
-            return FALSE;
-
-        // Getting the index + internal names of the bands
-        for (int nIBand = 1; nIBand < nTokens; nIBand++)
-        {
-            // Let's check that this band (papszTokens[nIBand]) is in the REL file.
-            CPLString osBandName = papszTokens[nIBand];
-            // Let's remove "\"" if existant.
-            osBandName.erase(
-                std::remove(osBandName.begin(), osBandName.end(), '\"'),
-                osBandName.end());
-            if (CE_None != CheckBandInRel(osRELName, osBandName))
-            {
-                CSLDestroy(papszTokens);
-                return FALSE;
-            }
-        }
-        CSLDestroy(papszTokens);
+    if (MMRRel::IdentifySubdataSetFile(poOpenInfo->pszFilename))
         return TRUE;
-    }
 
-    return MMRIdentifyFile(poOpenInfo->pszFilename);
-}
-
-// Tell if there is need to separete all bands
-// in subdatasets due to dataset restrictions or concept
-static bool NewSubdatasetCondition(MMRHandle hMMR, int nIBand)
-{
-    if (nIBand < 0)
-        return false;
-
-    if (nIBand + 1 >= hMMR->nBands)
-        return true;
-
-    if (nIBand >= hMMR->nBands)
-        return true;
-
-    if (hMMR->papoBand[nIBand]->nWidth != hMMR->papoBand[nIBand + 1]->nWidth)
-        return true;
-    if (hMMR->papoBand[nIBand]->nHeight != hMMR->papoBand[nIBand + 1]->nHeight)
-        return true;
-    if (hMMR->papoBand[nIBand]->dfBBMinX !=
-        hMMR->papoBand[nIBand + 1]->dfBBMinX)
-        return true;
-    if (hMMR->papoBand[nIBand]->dfBBMaxX !=
-        hMMR->papoBand[nIBand + 1]->dfBBMaxX)
-        return true;
-    if (hMMR->papoBand[nIBand]->dfBBMinY !=
-        hMMR->papoBand[nIBand + 1]->dfBBMinY)
-        return true;
-    if (hMMR->papoBand[nIBand]->dfBBMaxY !=
-        hMMR->papoBand[nIBand + 1]->dfBBMaxY)
-        return true;
-    if (hMMR->papoBand[nIBand]->bNoDataSet !=
-        hMMR->papoBand[nIBand + 1]->bNoDataSet)
-        return true;
-    if (hMMR->papoBand[nIBand]->dfNoData !=
-        hMMR->papoBand[nIBand + 1]->dfNoData)
-        return true;
-
-    return false;
-}
-
-static bool ThereIsNeedForSubDataSets(MMRHandle hMMR)
-{
-    for (int nIBand = 1; nIBand < hMMR->nBands; nIBand++)
-    {
-        if (NewSubdatasetCondition(hMMR, nIBand))
-            return true;
-    }
-    return false;
+    return MMRRel::IdentifyFile(poOpenInfo->pszFilename);
 }
 
 /************************************************************************/
 /*                                Open()                                */
 /************************************************************************/
-
 GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 
 {
@@ -4108,28 +3917,30 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
         return nullptr;
 #endif
 
-    // Open the file.
-    MMRHandle hMMR = MMROpen(poOpenInfo->pszFilename,
-                             (poOpenInfo->eAccess == GA_Update ? "r+" : "r"));
-
-    if (hMMR == nullptr)
+    MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
+    if (!fRel)
         return nullptr;
+
+    MMRHandle hMMR =
+        fRel->GetInfoFromREL(poOpenInfo->pszFilename,
+                             (poOpenInfo->eAccess == GA_Update ? "r+" : "r"));
+    if (!hMMR)
+    {
+        delete fRel;
+        return nullptr;
+    }
 
     if (hMMR->nBands == 0)
     {
+        delete fRel;
+        delete hMMR;
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Unable to open %s, it has zero usable bands.",
                  poOpenInfo->pszFilename);
         return nullptr;
     }
 
-    // Create a corresponding GDALDataset (with bands or subdatasets).
-    // MiraMon formats allows diferent properties in a multi-band file
-    // for each band:
-    // nRasterXSize and nRasterYSize
-    // bounding box
-    // nfil or ncol
-    // datatype
+    // Creating the dataset (with bands or subdatasets).
     MMRDataset *poDS;
     poDS = new MMRDataset();
     poDS->hMMR = hMMR;
@@ -4139,12 +3950,10 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     poDS->nRasterXSize = hMMR->nXSize;
     poDS->nRasterYSize = hMMR->nYSize;
     poDS->GetBoundingBox();  // Fills adfGeoTransform
-
     poDS->ReadProjection();
-
     poDS->nBands = 0;
 
-    if (!ThereIsNeedForSubDataSets(hMMR))
+    if (!MMRDataset::ThereIsNeedForSubDataSets(hMMR))
     {
         for (int nIBand = 0; nIBand < hMMR->nBands; nIBand++)
         {
@@ -4222,7 +4031,6 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     }
 
     // Creates as subdatasets as needed to adapt to subdataset requirements
-
     int iSubdataset = 1;
     int nIBand = 0;
     CPLStringList oSubdatasetList;
@@ -4774,7 +4582,8 @@ CPLErr MMRDataset::Rename(const char *pszNewName, const char *pszOldName)
 
     if (osOldBasename != osNewBasename)
     {
-        MMRHandle hMMR = MMROpen(pszNewName, "r+");
+        MMRRel *fRel = new MMRRel(pszNewName);  // ·$·TODO Alliberar
+        MMRHandle hMMR = fRel->GetInfoFromREL(pszNewName, "r+");
 
         if (hMMR != nullptr)
         {
@@ -4814,7 +4623,8 @@ CPLErr MMRDataset::CopyFiles(const char *pszNewName, const char *pszOldName)
 
     if (osOldBasename != osNewBasename)
     {
-        MMRHandle hMMR = MMROpen(pszNewName, "r+");
+        MMRRel *fRel = new MMRRel(pszNewName);  // ·$·TODO Alliberar
+        MMRHandle hMMR = fRel->GetInfoFromREL(pszNewName, "r+");
 
         if (hMMR != nullptr)
         {
@@ -5052,7 +4862,7 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFileName,
 }
 
 /************************************************************************/
-/*                          GDALRegister_MiraMonRaster()                          */
+/*                GDALRegister_MiraMonRaster()                          */
 /************************************************************************/
 
 void GDALRegister_MiraMonRaster()
@@ -5122,4 +4932,56 @@ void GDALRegister_MiraMonRaster()
     poDriver->pfnCopyFiles = MMRDataset::CopyFiles;
 
     GetGDALDriverManager()->RegisterDriver(poDriver);
+}
+
+/************************************************************************/
+/*                ThereIsNeedForSubDataSets()                           */
+/************************************************************************/
+// Tell if there is need to separete all bands
+// in subdatasets due to dataset restrictions or concept
+bool MMRDataset::NewSubdatasetCondition(MMRHandle hMMR, int nIBand)
+{
+    if (nIBand < 0)
+        return false;
+
+    if (nIBand + 1 >= hMMR->nBands)
+        return true;
+
+    if (nIBand >= hMMR->nBands)
+        return true;
+
+    if (hMMR->papoBand[nIBand]->nWidth != hMMR->papoBand[nIBand + 1]->nWidth)
+        return true;
+    if (hMMR->papoBand[nIBand]->nHeight != hMMR->papoBand[nIBand + 1]->nHeight)
+        return true;
+    if (hMMR->papoBand[nIBand]->dfBBMinX !=
+        hMMR->papoBand[nIBand + 1]->dfBBMinX)
+        return true;
+    if (hMMR->papoBand[nIBand]->dfBBMaxX !=
+        hMMR->papoBand[nIBand + 1]->dfBBMaxX)
+        return true;
+    if (hMMR->papoBand[nIBand]->dfBBMinY !=
+        hMMR->papoBand[nIBand + 1]->dfBBMinY)
+        return true;
+    if (hMMR->papoBand[nIBand]->dfBBMaxY !=
+        hMMR->papoBand[nIBand + 1]->dfBBMaxY)
+        return true;
+    if (hMMR->papoBand[nIBand]->bNoDataSet !=
+        hMMR->papoBand[nIBand + 1]->bNoDataSet)
+        return true;
+    if (hMMR->papoBand[nIBand]->dfNoData !=
+        hMMR->papoBand[nIBand + 1]->dfNoData)
+        return true;
+
+    return false;
+}
+
+bool MMRDataset::ThereIsNeedForSubDataSets(MMRHandle hMMR)
+{
+    for (int nIBand = 1; nIBand < hMMR->nBands; nIBand++)
+    {
+        if (NewSubdatasetCondition(hMMR, nIBand))
+            return true;
+    }
+    return false;
 }

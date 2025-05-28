@@ -103,18 +103,7 @@ struct mmrinfo
     struct mmrinfo *psDependent;
 };
 
-typedef struct mmrinfo MMRInfo_t;
-
-CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
-MMRNomFitxerState MMRStateOfNomFitxerInSection(const char *pszLayerName,
-                                               const char *pszSection,
-                                               const char *pszRELFile);
-CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
-                                    const char *pszRELFile);
-CPLString MMRGetAssociatedMetadataFileName(const char *pszFileName);
-
 GUInt32 MMRAllocateSpace(MMRInfo_t *, GUInt32);
-CPLErr MMRParseBandInfo(MMRInfo_t *);
 bool MMRCreateSpillStack(MMRInfo_t *, int nXSize, int nYSize, int nLayers,
                          int nBlockSize, EPTType eDataType,
                          GIntBig *pnValidFlagsOffset, GIntBig *pnDataOffset);

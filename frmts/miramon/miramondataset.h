@@ -78,6 +78,8 @@ class MMRDataset final : public GDALPamDataset
                                    void *pProgressData);
     static CPLErr Delete(const char *pszFileName);
 
+    static bool ThereIsNeedForSubDataSets(MMRHandle hMMR);
+
     //virtual char **GetFileList() override;
 
     const OGRSpatialReference *GetSpatialRef() const override;
@@ -95,6 +97,9 @@ class MMRDataset final : public GDALPamDataset
                                    const char * = "") override;
 
     virtual CPLErr FlushCache(bool bAtClosing) override;
+
+  private:
+    static bool NewSubdatasetCondition(MMRHandle hMMR, int nIBand);
 };
 
 /************************************************************************/

@@ -69,8 +69,8 @@ int MMRBand::GetDataType(const char *pszSection)
     eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
-    if (!pszValue || pfRel->MMGetDataTypeAndBytesPerPixel(
-                         pszValue, &eMMDataType, &eMMBytesPerPixel) == 1)
+    if (!pszValue || pfRel->GetDataTypeAndBytesPerPixel(pszValue, &eMMDataType,
+                                                        &eMMBytesPerPixel) == 1)
     {
         VSIFree(pszValue);
         nWidth = 0;
@@ -297,8 +297,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     else
     {
         osBandName = CPLGetBasenameSafe(osRawBandFileName);
-        CPLString osAux =
-            CPLGetPathSafe((const char *)pfRel->osRelFileName.c_str());
+        CPLString osAux = CPLGetPathSafe((const char *)pfRel->GetRELNameChar());
         osBandFileName =
             CPLFormFilenameSafe(osAux.c_str(), osRawBandFileName.c_str(), "");
     }

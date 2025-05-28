@@ -22,8 +22,6 @@
 
 #include "miramonrel.h"
 
-typedef struct mmrinfo *MMRHandle;
-
 /* -------------------------------------------------------------------- */
 /*      Structure definitions from eprj.h, with some type               */
 /*      simplifications.                                                */
@@ -142,7 +140,7 @@ typedef enum
 
 CPL_C_START
 
-MMRHandle CPL_DLL MMROpen(const char *pszFileName, const char *pszMode);
+//MMRHandle CPL_DLL GetInfoFromREL(const char *pszFileName, const char *pszMode);
 int CPL_DLL MMRClose(MMRHandle); /* 0 = success */
 CPLErr MMRRenameReferences(MMRHandle, const char *, const char *);
 
