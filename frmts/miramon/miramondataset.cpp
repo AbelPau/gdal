@@ -915,17 +915,14 @@ CPLErr MMRDataset::ReadProjection()
     if (!hMMR->fRel)
         return CE_Failure;
 
-    char *pszSRS = hMMR->fRel->GetMetadataValue(
+    CPLString osSRS = hMMR->fRel->GetMetadataValue(
         "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
 
     char szResult[MM_MAX_ID_SNY + 10];
-    int nResult = ReturnEPSGCodeSRSFromMMIDSRS(pszSRS, szResult);
-    CPLFree(pszSRS);
-
+    int nResult = ReturnEPSGCodeSRSFromMMIDSRS(osSRS.c_str(), szResult);
     if (nResult == 1 || szResult[0] == '\0')
-    {
         return CE_Failure;
-    }
+
     m_oSRS.importFromEPSG(atoi(szResult));
 
     return m_oSRS.IsEmpty() ? CE_Failure : CE_None;
@@ -1065,16 +1062,13 @@ int MMRDataset::GetColumnsNumber(int *nNCols)
     if (!nNCols || !hMMR || !hMMR->fRel)
         return 1;
 
-    char *pszValue =
+    CPLString osValue =
         hMMR->fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "columns");
 
-    if (!pszValue || EQUAL(pszValue, ""))
-    {
-        VSIFree(pszValue);
+    if (osValue.empty())
         return 1;
-    }
-    *nNCols = pszValue ? atoi(pszValue) : 0;
-    VSIFree(pszValue);
+
+    *nNCols = atoi(osValue);
     return 0;
 }
 
@@ -1086,16 +1080,13 @@ int MMRDataset::GetRowsNumber(int *nNRows)
     if (!nNRows || !hMMR || !hMMR->fRel)
         return 1;
 
-    char *pszValue =
+    CPLString osValue =
         hMMR->fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "rows");
 
-    if (!pszValue || EQUAL(pszValue, ""))
-    {
-        VSIFree(pszValue);
+    if (osValue.empty())
         return 1;
-    }
-    *nNRows = pszValue ? atoi(pszValue) : 0;
-    VSIFree(pszValue);
+
+    *nNRows = atoi(osValue);
     return 0;
 }
 
@@ -1114,55 +1105,38 @@ int MMRDataset::GetDataSetBoundingBox()
     if (!hMMR || !hMMR->fRel)
         return 1;
 
-    char *pszMinX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MinX");
-    if (!pszMinX)
+    CPLString osMinX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MinX");
+    if (osMinX.empty())
         return 1;
-    adfGeoTransform[0] = atof(pszMinX);
+    adfGeoTransform[0] = atof(osMinX);
 
     int nNCols;
     if (1 == GetColumnsNumber(&nNCols) || nNCols <= 0)
-    {
-        VSIFree(pszMinX);
         return 1;
-    }
-    char *pszMaxX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
-    if (!pszMaxX)
-    {
-        VSIFree(pszMinX);
-        return 1;
-    }
-    adfGeoTransform[1] = (atof(pszMaxX) - adfGeoTransform[0]) / nNCols;
-    VSIFree(pszMaxX);
-    VSIFree(pszMinX);
 
+    CPLString osMaxX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
+    if (osMaxX.empty())
+        return 1;
+
+    adfGeoTransform[1] = (atof(osMaxX) - adfGeoTransform[0]) / nNCols;
     adfGeoTransform[2] = 0.0;  // No rotation in MiraMon rasters
 
-    char *pszMinY = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MinY");
-    if (!pszMinY)
-    {
+    CPLString osMinY = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MinY");
+    if (osMinY.empty())
         return 1;
-    }
 
-    char *pszMaxY = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxY");
-    if (!pszMaxY)
-    {
-        VSIFree(pszMinY);
+    CPLString osMaxY = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxY");
+    if (osMaxY.empty())
         return 1;
-    }
 
     int nNRows;
     if (1 == GetRowsNumber(&nNRows) || nNRows <= 0)
-    {
-        VSIFree(pszMinY);
-        VSIFree(pszMaxY);
         return 1;
-    }
-    adfGeoTransform[3] = atof(pszMaxY);
+
+    adfGeoTransform[3] = atof(osMaxY);
     adfGeoTransform[4] = 0.0;
 
-    adfGeoTransform[5] = (atof(pszMinY) - adfGeoTransform[3]) / nNRows;
-    VSIFree(pszMaxY);
-    VSIFree(pszMinY);
+    adfGeoTransform[5] = (atof(osMinY) - adfGeoTransform[3]) / nNRows;
 
     return 0;
 }

@@ -161,8 +161,8 @@ CPL_DLL char *MMReturnValueFromSectionINIFile(const char *filename,
                                               const char *section,
                                               const char *key);
 
-CPL_DLL int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *result,
-                                        MM_BYTE direction);
+CPL_DLL int MMReturnCodeFromMM_m_idofic(const char *pMMSRS_or_pSRS,
+                                        char *result, MM_BYTE direction);
 
 #define EPSG_FROM_MMSRS 0
 #define MMSRS_FROM_EPSG 1

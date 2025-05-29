@@ -3009,8 +3009,8 @@ CPL_DLL char *MMReturnValueFromSectionINIFile(const char *filename,
 }
 
 // Retrieves EPSG codes from a CSV file based on provided geodetic identifiers.
-CPL_DLL int MMReturnCodeFromMM_m_idofic(char *pMMSRS_or_pSRS, char *szResult,
-                                        MM_BYTE direction)
+CPL_DLL int MMReturnCodeFromMM_m_idofic(const char *pMMSRS_or_pSRS,
+                                        char *szResult, MM_BYTE direction)
 {
     char *aMMIDDBFFile = nullptr;  //m_idofic.dbf
     VSILFILE *pfMMSRS = nullptr;

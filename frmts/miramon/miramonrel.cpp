@@ -164,30 +164,21 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
                                                        const char *pszSection,
                                                        const char *pszRELFile)
 {
-    char *pszDocumentedLayerName =
+    CPLString osDocumentedLayerName =
         MMReturnValueFromSectionINIFile(pszRELFile, pszSection, KEY_NomFitxer);
 
-    if (!pszDocumentedLayerName)
-    {
+    if (osDocumentedLayerName.empty())
         return MMRNomFitxerState::NOMFITXER_NOT_FOUND;
-    }
 
-    if (*pszDocumentedLayerName == '\0')
-    {
-        CPLFree(pszDocumentedLayerName);
+    if (*osDocumentedLayerName == '\0')
         return MMRNomFitxerState::NOMFITXER_VALUE_EMPTY;
-    }
+
     CPLString pszFileAux = CPLFormFilenameSafe(
-        CPLGetPathSafe(pszRELFile).c_str(), pszDocumentedLayerName, "");
+        CPLGetPathSafe(pszRELFile).c_str(), osDocumentedLayerName, "");
 
-    MM_RemoveWhitespacesFromEndOfString(pszDocumentedLayerName);
-    if (*pszDocumentedLayerName == '*' || *pszDocumentedLayerName == '?')
-    {
-        CPLFree(pszDocumentedLayerName);
+    RemoveWhitespacesFromEndOfString(osDocumentedLayerName);
+    if (*osDocumentedLayerName == '*' || *osDocumentedLayerName == '?')
         return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
-    }
-
-    CPLFree(pszDocumentedLayerName);
 
     // Is the found Value the same than the pszLayerName file?
     if (pszFileAux == pszLayerName)
@@ -250,20 +241,21 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
         pszBandSectionKey.append("_");
         pszBandSectionKey.append(papszTokens[nIBand]);
 
-        char *pszBandSectionValue = MMReturnValueFromSectionINIFile(
+        CPLString osBandSectionValue = MMReturnValueFromSectionINIFile(
             pszRELFile, SECTION_ATTRIBUTE_DATA, pszBandSectionKey);
 
-        if (!pszBandSectionValue)
+        if (!osBandSectionValue)
             continue;  // A band without name (·$· unexpected)
 
+        char *pszBandSectionValue = CPLStrdup(osBandSectionValue);
         MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
+        osBandSectionValue = pszBandSectionValue;
+        VSIFree(pszBandSectionValue);
 
         // Example: [ATTRIBUTE_DATA:G1]
         szAtributeDataName = SECTION_ATTRIBUTE_DATA;
         szAtributeDataName.append(":");
-        szAtributeDataName.append(pszBandSectionValue);
-
-        VSIFree(pszBandSectionValue);
+        szAtributeDataName.append(osBandSectionValue);
 
         // Let's see if this band contains the expected name
         // or none (in monoband case)
@@ -602,9 +594,10 @@ int MMRRel::GetDataTypeAndBytesPerPixel(const char *pszCompType,
 /************************************************************************/
 /*                     GetMetadataValue()                               */
 /************************************************************************/
-char *MMRRel::GetMetadataValue(const char *pszMainSection,
-                               const char *pszSubSection,
-                               const char *pszSubSubSection, const char *pszKey)
+CPLString MMRRel::GetMetadataValue(const char *pszMainSection,
+                                   const char *pszSubSection,
+                                   const char *pszSubSubSection,
+                                   const char *pszKey)
 {
     // Searches in [pszMainSection:pszSubSection]
     CPLString szAtributeDataName;
@@ -617,15 +610,27 @@ char *MMRRel::GetMetadataValue(const char *pszMainSection,
     char *pszValue = MMReturnValueFromSectionINIFile(
         GetRELNameChar(), szAtributeDataName, pszKey);
     if (pszValue)
-        return pszValue;
+    {
+        CPLString osValue = pszValue;
+        CPLFree(pszValue);
+        return osValue;
+    }
 
     // If the value is not found then searches in [pszMainSection]
-    return MMReturnValueFromSectionINIFile(GetRELNameChar(), pszSubSubSection,
-                                           pszKey);
+    pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
+                                               pszSubSubSection, pszKey);
+    if (pszValue)
+    {
+        CPLString osValue = pszValue;
+        CPLFree(pszValue);
+        return osValue;
+    }
+    return "";
 }
 
-char *MMRRel::GetMetadataValue(const char *pszMainSection,
-                               const char *pszSubSection, const char *pszKey)
+CPLString MMRRel::GetMetadataValue(const char *pszMainSection,
+                                   const char *pszSubSection,
+                                   const char *pszKey)
 {
     // Searches in [pszMainSection:pszSubSection]
     CPLString szAtributeDataName;
@@ -636,17 +641,35 @@ char *MMRRel::GetMetadataValue(const char *pszMainSection,
     char *pszValue = MMReturnValueFromSectionINIFile(
         GetRELNameChar(), szAtributeDataName, pszKey);
     if (pszValue)
-        return pszValue;
+    {
+        CPLString osValue = pszValue;
+        CPLFree(pszValue);
+        return osValue;
+    }
 
     // If the value is not found then searches in [pszMainSection]
-    return MMReturnValueFromSectionINIFile(GetRELNameChar(), pszMainSection,
-                                           pszKey);
+    pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(), pszMainSection,
+                                               pszKey);
+    if (pszValue)
+    {
+        CPLString osValue = pszValue;
+        CPLFree(pszValue);
+        return osValue;
+    }
+    return "";
 }
 
-char *MMRRel::GetMetadataValue(const char *pszSection, const char *pszKey)
+CPLString MMRRel::GetMetadataValue(const char *pszSection, const char *pszKey)
 {
-    return MMReturnValueFromSectionINIFile(GetRELNameChar(), pszSection,
-                                           pszKey);
+    char *pszValue =
+        MMReturnValueFromSectionINIFile(GetRELNameChar(), pszSection, pszKey);
+    if (pszValue)
+    {
+        CPLString osValue = pszValue;
+        CPLFree(pszValue);
+        return osValue;
+    }
+    return "";
 }
 
 const char *MMRRel::GetRELNameChar()
@@ -672,10 +695,10 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
 
     CPLString pszRELFileName = psInfo->osRELFileName;
 
-    char *pszFieldNames = psInfo->fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                         Key_IndexsNomsCamps);
+    CPLString osFieldNames = psInfo->fRel->GetMetadataValue(
+        SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
 
-    if (!pszFieldNames)
+    if (!osFieldNames)
     {
         CPLError(CE_Failure, CPLE_AssertionFailed, "%s-%s section-key \
             should exist in %s.",
@@ -685,7 +708,7 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
     }
 
     // Separator ,
-    char **papszTokens = CSLTokenizeString2(pszFieldNames, ",", 0);
+    char **papszTokens = CSLTokenizeString2(osFieldNames, ",", 0);
     const int nTokenCount = CSLCount(papszTokens);
 
     if (!nTokenCount)
@@ -693,34 +716,32 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
         CPLError(CE_Failure, CPLE_AssertionFailed, "No bands in file \
             %s.",
                  pszRELFileName.c_str());
-        VSIFree(pszFieldNames);
         return CE_Failure;
     }
 
     CPLString pszBandSectionKey;
     CPLString pszFileAux;
-    char *pszBandSectionValue;
+    CPLString osBandSectionValue;
     for (int i = 0; i < nTokenCount; i++)
     {
         pszBandSectionKey = KEY_NomCamp;
         pszBandSectionKey.append("_");
         pszBandSectionKey.append(papszTokens[i]);
 
-        pszBandSectionValue = psInfo->fRel->GetMetadataValue(
+        osBandSectionValue = psInfo->fRel->GetMetadataValue(
             SECTION_ATTRIBUTE_DATA, pszBandSectionKey);
 
-        if (!pszBandSectionValue)
+        if (!osBandSectionValue)
             continue;
 
-        MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
+        RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
         psInfo->papoBand = static_cast<MMRBand **>(
             CPLRealloc(psInfo->papoBand,
                        sizeof(MMRBand *) * (psInfo->nBands + (size_t)1)));
         psInfo->papoBand[psInfo->nBands] =
-            new MMRBand(psInfo, pszBandSectionValue);
+            new MMRBand(psInfo, osBandSectionValue);
 
-        VSIFree(pszBandSectionValue);
         if (!psInfo->bBandInTheList)
         {
             delete psInfo->papoBand[psInfo->nBands];
@@ -729,7 +750,6 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
         if (psInfo->papoBand[psInfo->nBands]->nWidth == 0)
         {
             CSLDestroy(papszTokens);
-            VSIFree(pszFieldNames);
             delete psInfo->papoBand[psInfo->nBands];
             return CE_Failure;
         }
@@ -739,7 +759,15 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
     }
 
     CSLDestroy(papszTokens);
-    VSIFree(pszFieldNames);
 
     return CE_None;
+}
+
+// ·$·TODO USE ONLY CPL stuff
+void MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
+{
+    char *pszBandSectionValue = CPLStrdup(osInputWithSpaces);
+    MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
+    osInputWithSpaces = pszBandSectionValue;
+    VSIFree(pszBandSectionValue);
 }

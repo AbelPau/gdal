@@ -68,49 +68,43 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
     if (!pszSection || !pszKey || !nValue)
         return 1;
 
-    char *pszValue =
+    CPLString osValue =
         pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, pszKey);
 
-    if (!pszValue || EQUAL(pszValue, ""))
+    if (osValue.empty())
     {
-        VSIFree(pszValue);
-        pszValue = pfRel->GetMetadataValue(SECTION_OVERVIEW,
-                                           SECTION_ASPECTES_TECNICS, pszKey);
-        if (!pszValue || EQUAL(pszValue, ""))
+        osValue = pfRel->GetMetadataValue(SECTION_OVERVIEW,
+                                          SECTION_ASPECTES_TECNICS, pszKey);
+        if (osValue.empty())
         {
-            VSIFree(pszValue);
             if (pszErrorMessage)
-            {
                 CPLError(CE_Failure, CPLE_AppDefined, pszErrorMessage);
-            }
             return 1;
         }
     }
-    *nValue = pszValue ? atoi(pszValue) : 0;
-    VSIFree(pszValue);
+    *nValue = osValue.empty() ? 0 : atoi(osValue);
     return 0;
 }
 
 // Getting data type from metadata
 int MMRBand::GetDataType(const char *pszSection)
 {
-    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                             "TipusCompressio");
+    CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                pszSection, "TipusCompressio");
 
     eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
-    if (!pszValue || pfRel->GetDataTypeAndBytesPerPixel(pszValue, &eMMDataType,
-                                                        &eMMBytesPerPixel) == 1)
+    if (osValue.empty() ||
+        pfRel->GetDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
+                                           &eMMBytesPerPixel) == 1)
     {
-        VSIFree(pszValue);
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
                  "MMRBand::MMRBand : No nDataType documented");
         return 1;
     }
-    VSIFree(pszValue);
 
     if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT_VELL ||
         eMMDataType == MMDataType::DATATYPE_AND_COMPR_UNDEFINED)
@@ -127,16 +121,14 @@ int MMRBand::GetDataType(const char *pszSection)
 // Getting number of columns from metadata
 int MMRBand::GetResolution(const char *pszSection)
 {
-    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                             "resolution");
-    if (!pszValue || EQUAL(pszValue, ""))
+    CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                pszSection, "resolution");
+    if (osValue.empty())
     {
-        VSIFree(pszValue);
-        pszValue = pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
-                                           SECTION_HORIZONTAL, "resolution");
-        if (!pszValue || EQUAL(pszValue, ""))
+        osValue = pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
+                                          SECTION_HORIZONTAL, "resolution");
+        if (osValue.empty())
         {
-            VSIFree(pszValue);
             nWidth = 0;
             nHeight = 0;
             CPLError(CE_Failure, CPLE_AppDefined,
@@ -144,8 +136,7 @@ int MMRBand::GetResolution(const char *pszSection)
             return 1;
         }
     }
-    nResolution = pszValue ? atoi(pszValue) : 0;
-    VSIFree(pszValue);
+    nResolution = osValue.empty() ? 0 : atoi(osValue);
     return 0;
 }
 
@@ -167,19 +158,18 @@ int MMRBand::GetRowsNumber(const char *pszSection)
 // Getting nodata value from metadata
 void MMRBand::GetNoDataValue(const char *pszSection)
 {
-    char *pszValue =
+    CPLString osValue =
         pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATA");
-    if (pszValue && !EQUAL(pszValue, ""))
-    {
-        dfNoData = pszValue ? atoi(pszValue) : 0;
-        bNoDataSet = true;
-    }
-    else
+    if (osValue.empty())
     {
         dfNoData = 0;  // No a valid value.
         bNoDataSet = false;
     }
-    VSIFree(pszValue);
+    else
+    {
+        dfNoData = atoi(osValue);
+        bNoDataSet = true;
+    }
 }
 
 // Getting nodata value from metadata
@@ -188,93 +178,72 @@ void MMRBand::GetNoDataDefinition(const char *pszSection)
     if (!bNoDataSet)
         return;
 
-    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                             "NODATADef");
-    if (!pszValue || EQUAL(pszValue, ""))
-        pszNodataDef = nullptr;
-    else
-        pszNodataDef = CPLString(pszValue);
-
-    VSIFree(pszValue);
+    pszNodataDef = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                           "NODATADef");
 }
 
 void MMRBand::GetMinMaxValues(const char *pszSection)
 {
     bMinSet = false;
 
-    char *pszValue =
+    CPLString osValue =
         pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "min");
-    if (pszValue && !EQUAL(pszValue, ""))
+    if (!osValue.empty())
     {
         bMinSet = true;
-        dfMin = atof(pszValue);
+        dfMin = atof(osValue);
     }
-    VSIFree(pszValue);
 
-    pszValue =
+    bMaxSet = false;
+    osValue =
         pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "max");
-    if (pszValue && !EQUAL(pszValue, ""))
+
+    if (!osValue.empty())
     {
         bMaxSet = true;
-        dfMax = atof(pszValue);
+        dfMax = atof(osValue);
     }
-    VSIFree(pszValue);
 }
 
 void MMRBand::GetFriendlyDescription(const char *pszSection)
 {
-    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                             "descriptor");
-    if (pszValue)
-        osFriendlyDescription = pszValue;
-
-    VSIFree(pszValue);
+    osFriendlyDescription = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                    pszSection, "descriptor");
 }
 
 void MMRBand::GetReferenceSystem()
 {
-    char *pszValue = pfRel->GetMetadataValue(
+    pszRefSystem = pfRel->GetMetadataValue(
         "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
-    if (!pszValue)
-    {
-        pszRefSystem = nullptr;
-        return;
-    }
-    pszRefSystem = CPLString(pszValue);
-    VSIFree(pszValue);
 }
 
 int MMRBand::GetBoundingBox(const char *pszSection)
 {
     // Bounding box of the band
     // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]
-    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                             SECTION_EXTENT, "MinX");
-    if (!pszValue)
+    CPLString osValue = pfRel->GetMetadataValue(
+        SECTION_ATTRIBUTE_DATA, pszSection, SECTION_EXTENT, "MinX");
+    if (osValue.empty())
         return 1;
-    dfBBMinX = atof(pszValue);
-    VSIFree(pszValue);
+    dfBBMinX = atof(osValue);
 
-    pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                       SECTION_EXTENT, "MaxX");
-    if (!pszValue)
+    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                      SECTION_EXTENT, "MaxX");
+    if (osValue.empty())
         return 1;
-    dfBBMaxX = atof(pszValue);
-    VSIFree(pszValue);
+    dfBBMaxX = atof(osValue);
 
-    pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                       SECTION_EXTENT, "MinY");
-    if (!pszValue)
+    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                      SECTION_EXTENT, "MinY");
+    if (osValue.empty())
         return 1;
-    dfBBMinY = atof(pszValue);
-    VSIFree(pszValue);
+    dfBBMinY = atof(osValue);
 
-    pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                       SECTION_EXTENT, "MaxY");
-    if (!pszValue)
+    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                      SECTION_EXTENT, "MaxY");
+    if (osValue.empty())
         return 1;
-    dfBBMaxY = atof(pszValue);
-    VSIFree(pszValue);
+    dfBBMaxY = atof(osValue);
 
     return 0;
 }
@@ -310,11 +279,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     apadfPCT[3] = nullptr;
 
     // Getting band and band file name from metadata
-    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                             KEY_NomFitxer);
-    osRawBandFileName = pszValue ? pszValue : "";
-
-    CPLFree(pszValue);
+    osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                pszSection, KEY_NomFitxer);
 
     psInfo->bBandInTheList = true;
     if (psInfo->nSDSBands)
