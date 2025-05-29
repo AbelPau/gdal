@@ -27,9 +27,8 @@
 /*                              MMRRel()                               */
 /************************************************************************/
 
-MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName("")
+MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
 {
-    osRelFileName = osRELFilenameIn;
 }
 
 /************************************************************************/
@@ -126,9 +125,7 @@ MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName, const char *pszAccess)
     psInfo->bTreeDirty = false;
 
     // Collect band definitions.
-    CPLErr eErr = ParseBandInfo(psInfo);
-
-    if (eErr != CE_None)
+    if (ParseBandInfo(psInfo) != CE_None)
     {
         MMRClose(psInfo);
         psInfo = nullptr;
@@ -612,6 +609,28 @@ int MMRRel::GetDataTypeAndBytesPerPixel(const char *pszCompType,
 /************************************************************************/
 /*                     GetMetadataValue()                               */
 /************************************************************************/
+char *MMRRel::GetMetadataValue(const char *pszMainSection,
+                               const char *pszSubSection,
+                               const char *pszSubSubSection, const char *pszKey)
+{
+    // Searches in [pszMainSection:pszSubSection]
+    CPLString szAtributeDataName;
+    szAtributeDataName = pszMainSection;
+    szAtributeDataName.append(":");
+    szAtributeDataName.append(pszSubSection);
+    szAtributeDataName.append(":");
+    szAtributeDataName.append(pszSubSubSection);
+
+    char *pszValue = MMReturnValueFromSectionINIFile(
+        GetRELNameChar(), szAtributeDataName, pszKey);
+    if (pszValue)
+        return pszValue;
+
+    // If the value is not found then searches in [pszMainSection]
+    return MMReturnValueFromSectionINIFile(GetRELNameChar(), pszSubSubSection,
+                                           pszKey);
+}
+
 char *MMRRel::GetMetadataValue(const char *pszMainSection,
                                const char *pszSubSection, const char *pszKey)
 {

@@ -1103,12 +1103,13 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
                                 hMMR->papoBand[nIBand + 1]->osBandName.c_str());
             }
         }
-        else
+        else if (nIBand + 1 < hMMR->nBands)
         {
             osDSName.append(CPLSPrintf(
-                ", \"%s\"", hMMR->papoBand[nIBand]->osRawBandFileName.c_str()));
+                ",\"%s\"",
+                hMMR->papoBand[nIBand + 1]->osRawBandFileName.c_str()));
             osDSDesc.append(CPLSPrintf(
-                ", \"%s\"", hMMR->papoBand[nIBand]->osBandName.c_str()));
+                ",\"%s\"", hMMR->papoBand[nIBand + 1]->osBandName.c_str()));
         }
     }
 
@@ -1891,7 +1892,7 @@ bool MMRDataset::NewSubdatasetCondition(MMRHandle hMMR, int nIBand)
         return false;
 
     if (nIBand + 1 >= hMMR->nBands)
-        return true;
+        return false;
 
     if (nIBand >= hMMR->nBands)
         return true;
@@ -1899,6 +1900,9 @@ bool MMRDataset::NewSubdatasetCondition(MMRHandle hMMR, int nIBand)
     if (hMMR->papoBand[nIBand]->nWidth != hMMR->papoBand[nIBand + 1]->nWidth)
         return true;
     if (hMMR->papoBand[nIBand]->nHeight != hMMR->papoBand[nIBand + 1]->nHeight)
+        return true;
+    if (hMMR->papoBand[nIBand]->nResolution !=
+        hMMR->papoBand[nIBand + 1]->nResolution)
         return true;
     if (hMMR->papoBand[nIBand]->dfBBMinX !=
         hMMR->papoBand[nIBand + 1]->dfBBMinX)
@@ -1924,7 +1928,7 @@ bool MMRDataset::NewSubdatasetCondition(MMRHandle hMMR, int nIBand)
 
 bool MMRDataset::ThereIsNeedForSubDataSets(MMRHandle hMMR)
 {
-    for (int nIBand = 1; nIBand < hMMR->nBands; nIBand++)
+    for (int nIBand = 0; nIBand < hMMR->nBands; nIBand++)
     {
         if (NewSubdatasetCondition(hMMR, nIBand))
             return true;

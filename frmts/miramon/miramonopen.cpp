@@ -248,7 +248,7 @@ CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, MMDataType *eMMRDataType,
 /************************************************************************/
 /*                          MMRGetBandNoData()                          */
 /*                                                                      */
-/*      returns TRUE if value is set, otherwise FALSE.                  */
+/*      returns true if value is set, otherwise false.                  */
 /************************************************************************/
 
 int MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfNoData)
@@ -257,15 +257,15 @@ int MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfNoData)
     if (nBand < 0 || nBand > hMMR->nBands)
     {
         CPLAssert(false);
-        return CE_Failure;
+        return false;
     }
 
     MMRBand *poBand = hMMR->papoBand[nBand - 1];
 
-    if (!poBand->bNoDataSet)
+    if (!poBand || !poBand->bNoDataSet)
     {
         if (poBand == nullptr)
-            return FALSE;
+            return false;
     }
 
     *pdfNoData = poBand->dfNoData;
@@ -288,6 +288,12 @@ CPLErr MMRSetBandNoData(MMRHandle hMMR, int nBand, double dfValue)
     }
 
     MMRBand *poBand = hMMR->papoBand[nBand - 1];
+
+    if (!poBand)
+    {
+        if (poBand == nullptr)
+            return CE_Failure;
+    }
 
     return poBand->SetNoDataValue(dfValue);
 }

@@ -160,7 +160,6 @@ class MMRBand
     CPLErr LoadBlockInfo();
 
     void ReAllocBlock(int iBlock, int nSize);
-    void NullBlock(void *);
 
     CPLString osOverName;
 
@@ -169,6 +168,7 @@ class MMRBand
     ~MMRBand();
 
     int GetDataType(const char *pszSection);
+    int GetResolution(const char *pszSection);
     int GetColumnsNumber(const char *pszSection);
     int GetRowsNumber(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
@@ -203,6 +203,9 @@ class MMRBand
 
     int nWidth;
     int nHeight;
+
+    // Resolution of the pixel
+    int nResolution;
 
     int nBlocksPerRow;
     int nBlocksPerColumn;

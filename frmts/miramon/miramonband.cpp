@@ -94,6 +94,31 @@ int MMRBand::GetDataType(const char *pszSection)
 }
 
 // Getting number of columns from metadata
+int MMRBand::GetResolution(const char *pszSection)
+{
+    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                             "resolution");
+    if (!pszValue || EQUAL(pszValue, ""))
+    {
+        VSIFree(pszValue);
+        pszValue = pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
+                                           SECTION_HORIZONTAL, "resolution");
+        if (!pszValue || EQUAL(pszValue, ""))
+        {
+            VSIFree(pszValue);
+            nWidth = 0;
+            nHeight = 0;
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "MMRBand::MMRBand : No resolution documented");
+            return 1;
+        }
+    }
+    nResolution = pszValue ? atoi(pszValue) : 0;
+    VSIFree(pszValue);
+    return 0;
+}
+
+// Getting number of columns from metadata
 int MMRBand::GetColumnsNumber(const char *pszSection)
 {
     char *pszValue = pfRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
@@ -204,27 +229,30 @@ void MMRBand::GetReferenceSystem()
 int MMRBand::GetBoundingBox(const char *pszSection)
 {
     // Bounding box of the band
-    // [EXTENT:xxxx] or [EXTENT]
-    char *pszValue =
-        pfRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinX");
+    // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]
+    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                             SECTION_EXTENT, "MinX");
     if (!pszValue)
         return 1;
     dfBBMinX = atof(pszValue);
     VSIFree(pszValue);
 
-    pszValue = pfRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxX");
+    pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                       SECTION_EXTENT, "MaxX");
     if (!pszValue)
         return 1;
     dfBBMaxX = atof(pszValue);
     VSIFree(pszValue);
 
-    pszValue = pfRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MinY");
+    pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                       SECTION_EXTENT, "MinY");
     if (!pszValue)
         return 1;
     dfBBMinY = atof(pszValue);
     VSIFree(pszValue);
 
-    pszValue = pfRel->GetMetadataValue(SECTION_EXTENT, pszSection, "MaxY");
+    pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                       SECTION_EXTENT, "MaxY");
     if (!pszValue)
         return 1;
     dfBBMaxY = atof(pszValue);
@@ -244,9 +272,9 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
-      nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), pszNodataDef(""), dfNoData(0.0), bMinSet(false),
-      dfMin(0.0), bMaxSet(false), dfMax(0.0)
+      nHeight(psInfo->nYSize), nResolution(0), nBlocksPerRow(1),
+      nBlocksPerColumn(1), bNoDataSet(false), pszNodataDef(""), dfNoData(0.0),
+      bMinSet(false), dfMin(0.0), bMaxSet(false), dfMax(0.0)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
@@ -341,6 +369,10 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     if (GetDataType(pszSection))
         return;
 
+    // Getting resolution
+    if (GetResolution(pszSection))
+        return;
+
     // Let's see if there is RLE compression
     bIsCompressed =
         (((eMMDataType > MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
@@ -352,11 +384,13 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
 
     // Getting NoData value and definition
     GetNoDataValue(pszSection);
-    GetNoDataDefinition(pszSection);
+    GetNoDataDefinition(
+        pszSection);  // ·$·TODO put it in metadata MIRAMON subdomain?
 
     // Getting reference system and coordinates of the geographic bounding box
     GetReferenceSystem();
 
+    // Getting the bounding box: coordinates in the terrain
     if (GetBoundingBox(pszSection))
     {
         nWidth = 0;
@@ -1023,144 +1057,6 @@ static CPLErr UncompressBlock(GByte *pabyCData, int nSrcBytes, GByte *pabyDest,
     }
 
     return CE_None;
-}
-
-/************************************************************************/
-/*                             NullBlock()                              */
-/*                                                                      */
-/*      Set the block buffer to zero or the nodata value as             */
-/*      appropriate.                                                    */
-/************************************************************************/
-
-void MMRBand::NullBlock(void *pData)
-
-{
-    const int nChunkSize = std::max(1, MMRGetDataTypeBits(eDataType) / 8);
-    int nWords = nBlockXSize * nBlockYSize;
-
-    if (!bNoDataSet)
-    {
-#ifdef ESRI_BUILD
-        // We want special defaulting for 1 bit data in ArcGIS.
-        if (eDataType >= EPT_u2)
-            memset(pData, 0, static_cast<size_t>(nChunkSize) * nWords);
-        else
-            memset(pData, 255, static_cast<size_t>(nChunkSize) * nWords);
-#else
-        memset(pData, 0, static_cast<size_t>(nChunkSize) * nWords);
-#endif
-    }
-    else
-    {
-        GByte abyTmp[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-        switch (eDataType)
-        {
-            case EPT_u1:
-            {
-                nWords = (nWords + 7) / 8;
-                if (dfNoData != 0.0)
-                    ((unsigned char *)abyTmp)[0] = 0xff;
-                else
-                    ((unsigned char *)abyTmp)[0] = 0x00;
-            }
-            break;
-
-            case EPT_u2:
-            {
-                nWords = (nWords + 3) / 4;
-                if (dfNoData == 0.0)
-                    ((unsigned char *)abyTmp)[0] = 0x00;
-                else if (dfNoData == 1.0)
-                    ((unsigned char *)abyTmp)[0] = 0x55;
-                else if (dfNoData == 2.0)
-                    ((unsigned char *)abyTmp)[0] = 0xaa;
-                else
-                    ((unsigned char *)abyTmp)[0] = 0xff;
-            }
-            break;
-
-            case EPT_u4:
-            {
-                const unsigned char byVal = static_cast<unsigned char>(
-                    std::max(0, std::min(15, static_cast<int>(dfNoData))));
-
-                nWords = (nWords + 1) / 2;
-
-                ((unsigned char *)abyTmp)[0] = byVal + (byVal << 4);
-            }
-            break;
-
-            case EPT_u8:
-                ((unsigned char *)abyTmp)[0] = static_cast<unsigned char>(
-                    std::max(0, std::min(255, static_cast<int>(dfNoData))));
-                break;
-
-            case EPT_s8:
-                ((signed char *)abyTmp)[0] = static_cast<signed char>(
-                    std::max(-128, std::min(127, static_cast<int>(dfNoData))));
-                break;
-
-            case EPT_u16:
-            {
-                GUInt16 nTmp = static_cast<GUInt16>(dfNoData);
-                memcpy(abyTmp, &nTmp, sizeof(nTmp));
-                break;
-            }
-
-            case EPT_s16:
-            {
-                GInt16 nTmp = static_cast<GInt16>(dfNoData);
-                memcpy(abyTmp, &nTmp, sizeof(nTmp));
-                break;
-            }
-
-            case EPT_u32:
-            {
-                GUInt32 nTmp = static_cast<GUInt32>(dfNoData);
-                memcpy(abyTmp, &nTmp, sizeof(nTmp));
-                break;
-            }
-
-            case EPT_s32:
-            {
-                GInt32 nTmp = static_cast<GInt32>(dfNoData);
-                memcpy(abyTmp, &nTmp, sizeof(nTmp));
-                break;
-            }
-
-            case EPT_f32:
-            {
-                float fTmp = static_cast<float>(dfNoData);
-                memcpy(abyTmp, &fTmp, sizeof(fTmp));
-                break;
-            }
-
-            case EPT_f64:
-            {
-                memcpy(abyTmp, &dfNoData, sizeof(dfNoData));
-                break;
-            }
-
-            case EPT_c64:
-            {
-                float fTmp = static_cast<float>(dfNoData);
-                memcpy(abyTmp, &fTmp, sizeof(fTmp));
-                memset(abyTmp + 4, 0, sizeof(float));
-                break;
-            }
-
-            case EPT_c128:
-            {
-                memcpy(abyTmp, &dfNoData, sizeof(dfNoData));
-                memset(abyTmp + 8, 0, sizeof(double));
-                break;
-            }
-        }
-
-        for (int i = 0; i < nWords; i++)
-            memcpy(((GByte *)pData) + nChunkSize * i, abyTmp, nChunkSize);
-    }
 }
 
 /************************************************************************/
