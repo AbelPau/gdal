@@ -42,7 +42,7 @@ class ARGVDestroyer
 };
 
 extern "C" int wmain(int argc, wchar_t **argv_w, wchar_t ** /* envp */);
-
+#if defined(_MSC_VER) && (_DEBUG)
 #define MAIN_START(argc, argv)                                                 \
     extern "C" int wmain(int argc, wchar_t **argv_w, wchar_t ** /* envp */)    \
     {                                                                          \
@@ -57,7 +57,21 @@ extern "C" int wmain(int argc, wchar_t **argv_w, wchar_t ** /* envp */);
         ARGVDestroyer argvDestroyer(argv);                                     \
         try                                                                    \
         {
-
+#else
+#define MAIN_START(argc, argv)                                                 \
+    extern "C" int wmain(int argc, wchar_t **argv_w, wchar_t ** /* envp */)    \
+    {                                                                          \
+        char **argv;                                                           \
+        argv = static_cast<char **>(CPLCalloc(argc + 1, sizeof(char *)));      \
+        for (int i = 0; i < argc; i++)                                         \
+        {                                                                      \
+            argv[i] =                                                          \
+                CPLRecodeFromWChar(argv_w[i], CPL_ENC_UCS2, CPL_ENC_UTF8);     \
+        }                                                                      \
+        ARGVDestroyer argvDestroyer(argv);                                     \
+        try                                                                    \
+        {
+#endif
 #else  // defined(_WIN32)
 
 #define MAIN_START(argc, argv)                                                 \

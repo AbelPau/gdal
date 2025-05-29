@@ -168,15 +168,19 @@ class MMRBand
     MMRBand(MMRInfo_t *, const char *pszSection);
     ~MMRBand();
 
+    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+        const char *pszSection, const char *pszKey, int *nValue,
+        const char *pszErrorMessage);
     int GetDataType(const char *pszSection);
     int GetResolution(const char *pszSection);
     int GetColumnsNumber(const char *pszSection);
     int GetRowsNumber(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
     void GetNoDataDefinition(const char *pszSection);
-    void GetReferenceSystem();
     int GetBoundingBox(const char *pszSection);
+    void GetReferenceSystem();
     void GetMinMaxValues(const char *pszSection);
+    void GetFriendlyDescription(const char *pszSection);
 
     int GetAssignedSubDataSet();
     void AssignSubDataSet(int nAssignedSDSIn);
@@ -191,6 +195,8 @@ class MMRBand
     CPLString osBandFileName;
     // Name of the band documented in REL metadata file.
     CPLString osBandName;
+    // Descripcion of the band, not the name
+    CPLString osFriendlyDescription;
 
     VSILFILE *fp;
     MMRRel *pfRel;  // Rel where metadata is readed from

@@ -60,6 +60,37 @@
     return pszFile;
 }*/
 
+// [ATTRIBUTE_DATA:xxxx] or [OVERVIEW:ASPECTES_TECNICS]
+int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+    const char *pszSection, const char *pszKey, int *nValue,
+    const char *pszErrorMessage)
+{
+    if (!pszSection || !pszKey || !nValue)
+        return 1;
+
+    char *pszValue =
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, pszKey);
+
+    if (!pszValue || EQUAL(pszValue, ""))
+    {
+        VSIFree(pszValue);
+        pszValue = pfRel->GetMetadataValue(SECTION_OVERVIEW,
+                                           SECTION_ASPECTES_TECNICS, pszKey);
+        if (!pszValue || EQUAL(pszValue, ""))
+        {
+            VSIFree(pszValue);
+            if (pszErrorMessage)
+            {
+                CPLError(CE_Failure, CPLE_AppDefined, pszErrorMessage);
+            }
+            return 1;
+        }
+    }
+    *nValue = pszValue ? atoi(pszValue) : 0;
+    VSIFree(pszValue);
+    return 0;
+}
+
 // Getting data type from metadata
 int MMRBand::GetDataType(const char *pszSection)
 {
@@ -121,39 +152,16 @@ int MMRBand::GetResolution(const char *pszSection)
 // Getting number of columns from metadata
 int MMRBand::GetColumnsNumber(const char *pszSection)
 {
-    char *pszValue = pfRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
-                                             pszSection, "columns");
-    if (!pszValue || EQUAL(pszValue, ""))
-    {
-        VSIFree(pszValue);
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : No number columns documented");
-        return 1;
-    }
-    nWidth = pszValue ? atoi(pszValue) : 0;
-    VSIFree(pszValue);
-    return 0;
+    return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+        pszSection, "columns", &nWidth,
+        "MMRBand::MMRBand : No number of columns documented");
 }
 
-// Getting number of columns from metadata
 int MMRBand::GetRowsNumber(const char *pszSection)
 {
-    char *pszValue = pfRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS,
-                                             pszSection, "rows");
-    if (!pszValue || EQUAL(pszValue, ""))
-    {
-        VSIFree(pszValue);
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : No number columns documented");
-        return 1;
-    }
-    nHeight = pszValue ? atoi(pszValue) : 0;
-    VSIFree(pszValue);
-    return 0;
+    return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+        pszSection, "rows", &nHeight,
+        "MMRBand::MMRBand : No number of rows documented");
 }
 
 // Getting nodata value from metadata
@@ -210,6 +218,16 @@ void MMRBand::GetMinMaxValues(const char *pszSection)
         bMaxSet = true;
         dfMax = atof(pszValue);
     }
+    VSIFree(pszValue);
+}
+
+void MMRBand::GetFriendlyDescription(const char *pszSection)
+{
+    char *pszValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                             "descriptor");
+    if (pszValue)
+        osFriendlyDescription = pszValue;
+
     VSIFree(pszValue);
 }
 
@@ -275,8 +293,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
-      psInfo(psInfoIn), fp(nullptr), pfRel(psInfoIn->fRel),
-      eDataType(static_cast<EPTType>(EPT_MIN)),
+      psInfo(psInfoIn), osFriendlyDescription(""), fp(nullptr),
+      pfRel(psInfoIn->fRel), eDataType(static_cast<EPTType>(EPT_MIN)),
       eMMDataType(
           static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
       eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
@@ -358,9 +376,19 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
 
     // Getting number of columns and rows
     if (GetColumnsNumber(pszSection))
+    {
+        nWidth = 0;
+        nHeight = 0;
         return;
+    }
+
     if (GetRowsNumber(pszSection))
+    {
+        nWidth = 0;
+        nHeight = 0;
         return;
+    }
+
     if (nWidth <= 0 || nHeight <= 0)
     {
         nWidth = 0;
@@ -391,6 +419,9 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
 
     // Getting min and max values
     GetMinMaxValues(pszSection);
+
+    // Getting the friendly description of the band
+    GetFriendlyDescription(pszSection);
 
     // Getting NoData value and definition
     GetNoDataValue(pszSection);

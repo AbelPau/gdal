@@ -87,6 +87,9 @@ class MMRDataset final : public GDALPamDataset
     virtual CPLErr GetGeoTransform(double *) override;
     virtual CPLErr SetGeoTransform(double *) override;
 
+    int GetDataSetBoundingBox();
+    int GetBandBoundingBox(int nIBand);
+
     virtual int GetGCPCount() override;
     const OGRSpatialReference *GetGCPSpatialRef() const override;
     virtual const GDAL_GCP *GetGCPs() override;
