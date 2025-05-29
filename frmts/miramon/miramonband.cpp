@@ -78,7 +78,7 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         if (osValue.empty())
         {
             if (pszErrorMessage)
-                CPLError(CE_Failure, CPLE_AppDefined, pszErrorMessage);
+                CPLError(CE_Failure, CPLE_AppDefined, "%s", pszErrorMessage);
             return 1;
         }
     }
@@ -262,7 +262,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
-      psInfo(psInfoIn), osFriendlyDescription(""), fp(nullptr),
+      nAssignedSDS(0), psInfo(psInfoIn), osFriendlyDescription(""), fp(nullptr),
       pfRel(psInfoIn->fRel), eDataType(static_cast<EPTType>(EPT_MIN)),
       eMMDataType(
           static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
@@ -271,7 +271,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nResolution(0), nBlocksPerRow(1),
       nBlocksPerColumn(1), bNoDataSet(false), pszNodataDef(""), dfNoData(0.0),
-      bMinSet(false), dfMin(0.0), bMaxSet(false), dfMax(0.0), nAssignedSDS(0)
+      bMinSet(false), dfMin(0.0), bMaxSet(false), dfMax(0.0)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;

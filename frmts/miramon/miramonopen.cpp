@@ -280,7 +280,7 @@ int MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfNoData)
 CPLErr MMRSetBandNoData(MMRHandle hMMR, int nBand, double dfValue)
 
 {
-    if (nBand < 0 || nBand > hMMR->nBands)
+    if (nBand < 0 || nBand - 1 > hMMR->nBands)
     {
         CPLAssert(false);
         return CE_Failure;
@@ -289,10 +289,7 @@ CPLErr MMRSetBandNoData(MMRHandle hMMR, int nBand, double dfValue)
     MMRBand *poBand = hMMR->papoBand[nBand - 1];
 
     if (!poBand)
-    {
-        if (poBand == nullptr)
-            return CE_Failure;
-    }
+        return CE_Failure;
 
     return poBand->SetNoDataValue(dfValue);
 }

@@ -96,9 +96,10 @@ class MMRRel
     const char *GetRELNameChar();
     void SetRELNameChar(CPLString osRelFileNameIn);
     static CPLErr ParseBandInfo(MMRInfo_t *psInfo);
-    static void RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
+    static CPLString
+    RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
 
-    MMRRel(CPLString);
+    explicit MMRRel(CPLString);
     ~MMRRel();
 
   private:

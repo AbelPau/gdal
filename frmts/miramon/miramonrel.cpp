@@ -176,7 +176,8 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
     CPLString pszFileAux = CPLFormFilenameSafe(
         CPLGetPathSafe(pszRELFile).c_str(), osDocumentedLayerName, "");
 
-    RemoveWhitespacesFromEndOfString(osDocumentedLayerName);
+    osDocumentedLayerName =
+        RemoveWhitespacesFromEndOfString(osDocumentedLayerName);
     if (*osDocumentedLayerName == '*' || *osDocumentedLayerName == '?')
         return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
 
@@ -734,7 +735,8 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
         if (!osBandSectionValue)
             continue;
 
-        RemoveWhitespacesFromEndOfString(osBandSectionValue);
+        osBandSectionValue =
+            RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
         psInfo->papoBand = static_cast<MMRBand **>(
             CPLRealloc(psInfo->papoBand,
@@ -764,10 +766,11 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
 }
 
 // ·$·TODO USE ONLY CPL stuff
-void MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
+CPLString MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
 {
     char *pszBandSectionValue = CPLStrdup(osInputWithSpaces);
     MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
     osInputWithSpaces = pszBandSectionValue;
     VSIFree(pszBandSectionValue);
+    return osInputWithSpaces;
 }
