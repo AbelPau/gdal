@@ -254,19 +254,18 @@ CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, MMDataType *eMMRDataType,
 int MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfNoData)
 
 {
-    if (nBand < 0 || nBand > hMMR->nBands)
+    if (nBand < 0 || (nBand - 1) > hMMR->nBands || !pdfNoData)
     {
         CPLAssert(false);
         return false;
     }
 
     MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    if (!poBand)
+        return false;
 
-    if (!poBand || !poBand->bNoDataSet)
-    {
-        if (poBand == nullptr)
-            return false;
-    }
+    if (!poBand->bNoDataSet)
+        return false;
 
     *pdfNoData = poBand->dfNoData;
     return poBand->bNoDataSet;
