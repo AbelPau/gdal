@@ -86,10 +86,9 @@ class MMRRel
     static int GetDataTypeAndBytesPerPixel(const char *pszCompType,
                                            MMDataType *nCompressionType,
                                            MMBytesPerPixel *nBytesPerPixel);
-    char *MMRRel::GetMetadataValue(const char *pszMainSection,
-                                   const char *pszSubSection,
-                                   const char *pszSubSubSection,
-                                   const char *pszKey);
+    char *GetMetadataValue(const char *pszMainSection,
+                           const char *pszSubSection,
+                           const char *pszSubSubSection, const char *pszKey);
     char *GetMetadataValue(const char *pszMainSection,
                            const char *pszSubSection, const char *pszKey);
     char *GetMetadataValue(const char *pszSection, const char *pszKey);

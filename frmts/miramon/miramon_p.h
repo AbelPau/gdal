@@ -157,11 +157,12 @@ class MMRBand
     double *apadfPCT[4];
     double *padfPCTBins;
 
+    // Assigned Subdataset for this band.
+    int nAssignedSDS;
+
     CPLErr LoadBlockInfo();
 
     void ReAllocBlock(int iBlock, int nSize);
-
-    CPLString osOverName;
 
   public:
     MMRBand(MMRInfo_t *, const char *pszSection);
@@ -176,6 +177,9 @@ class MMRBand
     void GetReferenceSystem();
     int GetBoundingBox(const char *pszSection);
     void GetMinMaxValues(const char *pszSection);
+
+    int GetAssignedSubDataSet();
+    void AssignSubDataSet(int nAssignedSDSIn);
 
     MMRInfo_t *psInfo;
 

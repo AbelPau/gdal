@@ -261,6 +261,16 @@ int MMRBand::GetBoundingBox(const char *pszSection)
     return 0;
 }
 
+int MMRBand::GetAssignedSubDataSet()
+{
+    return nAssignedSDS;
+}
+
+void MMRBand::AssignSubDataSet(int nAssignedSDSIn)
+{
+    nAssignedSDS = nAssignedSDSIn;
+}
+
 MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
@@ -274,7 +284,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
       nHeight(psInfo->nYSize), nResolution(0), nBlocksPerRow(1),
       nBlocksPerColumn(1), bNoDataSet(false), pszNodataDef(""), dfNoData(0.0),
-      bMinSet(false), dfMin(0.0), bMaxSet(false), dfMax(0.0)
+      bMinSet(false), dfMin(0.0), bMaxSet(false), dfMax(0.0), nAssignedSDS(0)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;

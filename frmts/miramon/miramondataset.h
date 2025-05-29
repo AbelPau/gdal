@@ -75,7 +75,9 @@ class MMRDataset final : public GDALPamDataset
                                    void *pProgressData);
     static CPLErr Delete(const char *pszFileName);
 
-    static bool ThereIsNeedForSubDataSets(MMRHandle hMMR);
+    void AssignBandsToSubdataSets();
+    void CreateSubdatasetsFromBands();
+    void AssignBands(GDALOpenInfo *poOpenInfo);
 
     //virtual char **GetFileList() override;
 
@@ -94,7 +96,10 @@ class MMRDataset final : public GDALPamDataset
                                    const char * = "") override;
 
   private:
-    static bool NewSubdatasetCondition(MMRHandle hMMR, int nIBand);
+    bool NextBandInANewDataSet(int nIBand);
+
+    // Numbers of subdatasets (if any) in this dataset.
+    int nNSubdataSets;
 };
 
 /************************************************************************/

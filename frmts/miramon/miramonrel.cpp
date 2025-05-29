@@ -75,9 +75,7 @@ MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName, const char *pszAccess)
             return nullptr;
 
         osRELFileNameIn = papszTokens[0];
-        osRELFileNameIn.erase(
-            std::remove(osRELFileNameIn.begin(), osRELFileNameIn.end(), '\"'),
-            osRELFileNameIn.end());
+        osRELFileNameIn.replaceAll("\"", "");
 
         // Getting the list of bands in the subdataset
         psInfo->nSDSBands = nTokens - 1;
@@ -88,9 +86,7 @@ MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName, const char *pszAccess)
         {
             // Raw band name
             CPLString osBandName = papszTokens[nIBand + 1];
-            osBandName.erase(
-                std::remove(osBandName.begin(), osBandName.end(), '\"'),
-                osBandName.end());
+            osBandName.replaceAll("\"", "");
             psInfo->papoSDSBand[nIBand] = new CPLString(osBandName);
         }
         CSLDestroy(papszTokens);
@@ -468,8 +464,7 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
 
     // Let's remove "\"" if existant.
     CPLString osRELName = papszTokens[0];
-    osRELName.erase(std::remove(osRELName.begin(), osRELName.end(), '\"'),
-                    osRELName.end());
+    osRELName.replaceAll("\"", "");
 
     if (MMCheck_REL_FILE(osRELName))
         return FALSE;
@@ -480,9 +475,7 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
         // Let's check that this band (papszTokens[nIBand]) is in the REL file.
         CPLString osBandName = papszTokens[nIBand];
         // Let's remove "\"" if existant.
-        osBandName.erase(
-            std::remove(osBandName.begin(), osBandName.end(), '\"'),
-            osBandName.end());
+        osBandName.replaceAll("\"", "");
         if (CE_None != CheckBandInRel(osRELName, osBandName))
         {
             CSLDestroy(papszTokens);
