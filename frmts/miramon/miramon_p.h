@@ -104,9 +104,9 @@ struct mmrinfo
 };
 
 GUInt32 MMRAllocateSpace(MMRInfo_t *, GUInt32);
-bool MMRCreateSpillStack(MMRInfo_t *, int nXSize, int nYSize, int nLayers,
-                         int nBlockSize, EPTType eDataType,
-                         GIntBig *pnValidFlagsOffset, GIntBig *pnDataOffset);
+//bool MMRCreateSpillStack(MMRInfo_t *, int nXSize, int nYSize, int nLayers,
+//                         int nBlockSize, EPTType eDataType,
+//                         GIntBig *pnValidFlagsOffset, GIntBig *pnDataOffset);
 
 const char *const *GetMMRAuxMetaDataList();
 

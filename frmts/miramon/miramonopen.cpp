@@ -1656,7 +1656,7 @@ MMRHandle MMRCreate(const char *pszFileName, int nXSize, int nYSize, int nBands,
     }
 
     // Create external file and write its header.
-    GIntBig nValidFlagsOffset = 0;
+    /*GIntBig nValidFlagsOffset = 0;
     GIntBig nDataOffset = 0;
 
     if (bCreateLargeRaster)
@@ -1668,7 +1668,7 @@ MMRHandle MMRCreate(const char *pszFileName, int nXSize, int nYSize, int nBands,
             CPLFree(pszFullFilename);
             return nullptr;
         }
-    }
+    }*/
 
     // Create each band (layer).
     for (int iBand = 0; iBand < nBands; iBand++)
@@ -2249,13 +2249,13 @@ std::string MMRGetIGEFilename(MMRHandle hMMR)
 /*      Create a new stack of raster layers in the spill (.ige)         */
 /*      file.  Create the spill file if it didn't exist before.         */
 /************************************************************************/
-
+/*
 bool MMRCreateSpillStack(MMRInfo_t *psInfo, int nXSize, int nYSize, int nLayers,
                          int nBlockSize, EPTType eDataType,
                          GIntBig *pnValidFlagsOffset, GIntBig *pnDataOffset)
 
 {
-    /*
+    
     // Form .ige filename.
     if (nBlockSize <= 0)
     {
@@ -2405,9 +2405,9 @@ bool MMRCreateSpillStack(MMRInfo_t *psInfo, int nXSize, int nYSize, int nLayers,
 
     if (VSIFCloseL(fpVSIL) != 0)
         return false;
-        */
+        
     return true;
-}
+}*/
 
 /************************************************************************/
 /*                       MMRReadAndValidatePoly()                       */
