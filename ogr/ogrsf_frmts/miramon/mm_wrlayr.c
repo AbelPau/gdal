@@ -93,33 +93,6 @@ int MMCloseMMBD_XP(struct MiraMonVectLayerInfo *hMiraMonLayer);
 void MMDestroyMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer);
 
 /* -------------------------------------------------------------------- */
-/*      Managing errors and warnings                                    */
-/* -------------------------------------------------------------------- */
-
-// Checks for potential arithmetic overflow when performing multiplication
-// operations between two GUInt64 values and converting the result to size_t.
-// Important for 32 vs. 64 bit compiling compatibility.
-int MMCheckSize_t(GUInt64 nCount, GUInt64 nSize)
-{
-    if ((size_t)nCount != nCount)
-        return 1;
-
-    if ((size_t)nSize != nSize)
-        return 1;
-
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-    if (nCount != 0 && nSize > SIZE_MAX / nCount)
-#else
-    if (nCount != 0 && nSize > (1000 * 1000 * 1000U) / nCount)
-#endif
-    {
-        CPLError(CE_Failure, CPLE_OutOfMemory, "Overflow in MMCheckSize_t()");
-        return 1;
-    }
-    return 0;
-}
-
-/* -------------------------------------------------------------------- */
 /*      Layer Functions: Version                                         */
 /* -------------------------------------------------------------------- */
 int MMGetVectorVersion(struct MM_TH *pTopHeader)

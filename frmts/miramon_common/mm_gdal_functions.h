@@ -111,9 +111,7 @@ CPL_DLL size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
                                             MM_BYTE n_decimals);
 CPL_DLL size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
 CPL_DLL size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
-CPL_DLL int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
-                                          int nSignifFigures,
-                                          double nRealValue);
+
 CPL_DLL int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
     struct MM_FIELD *camp, struct MM_DATA_BASE_XP *bd_xp,
     MM_BOOLEAN no_modifica_descriptor, size_t mida_nom);
@@ -172,6 +170,8 @@ CPL_DLL int MMReturnCodeFromMM_m_idofic(const char *pMMSRS_or_pSRS,
     MMReturnCodeFromMM_m_idofic((pSRS), (szResult), MMSRS_FROM_EPSG)
 
 CPL_DLL int MMCheck_REL_FILE(const char *szREL_file);
+
+int MMCheckSize_t(GUInt64 nCount, GUInt64 nSize);
 
 CPL_C_END  // Necessary for compiling in GDAL project
 #endif     //__MM_GDAL_FUNCTIONS_H
