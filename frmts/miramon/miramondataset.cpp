@@ -954,8 +954,6 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 #endif
 
     MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
-    if (!fRel)
-        return nullptr;
 
     MMRHandle hMMR =
         fRel->GetInfoFromREL(poOpenInfo->pszFilename,
@@ -1419,10 +1417,6 @@ CPLErr MMRDataset::Rename(const char *pszNewName, const char *pszOldName)
         {
             eErr = MMRRenameReferences(hMMR, osNewBasename, osOldBasename);
 
-            if (hMMR->psDependent != nullptr)
-                MMRRenameReferences(hMMR->psDependent, osNewBasename,
-                                    osOldBasename);
-
             if (MMRClose(hMMR) != 0)
                 eErr = CE_Failure;
         }
@@ -1459,10 +1453,6 @@ CPLErr MMRDataset::CopyFiles(const char *pszNewName, const char *pszOldName)
         if (hMMR != nullptr)
         {
             eErr = MMRRenameReferences(hMMR, osNewBasename, osOldBasename);
-
-            if (hMMR->psDependent != nullptr)
-                MMRRenameReferences(hMMR->psDependent, osNewBasename,
-                                    osOldBasename);
 
             if (MMRClose(hMMR) != 0)
                 eErr = CE_Failure;

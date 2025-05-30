@@ -64,10 +64,10 @@ enum class MMRAccess
 /************************************************************************/
 struct mmrinfo
 {
-    VSILFILE *fp;
+    VSILFILE *fp = nullptr;
 
     CPLString osRELFileName;
-    MMRRel *fRel;  // Access stuff to REL file
+    MMRRel *fRel = nullptr;  // Access stuff to REL file
 
     MMRAccess eAccess;
 
@@ -79,28 +79,25 @@ struct mmrinfo
     GInt32 nVersion;
 
     bool bTreeDirty;
-    MMREntry *poRoot;
+    MMREntry *poRoot = nullptr;
 
-    MMRDictionary *poDictionary;
-    char *pszDictionary;
+    MMRDictionary *poDictionary = nullptr;
+    char *pszDictionary = nullptr;
 
     int nXSize;
     int nYSize;
 
     // List of rawBandNames in a subdataset
-    int nSDSBands;
-    CPLString **papoSDSBand;
-    // Used to know if the band is in the list
-    bool bBandInTheList;
+    std::vector<CPLString> papoSDSBands;
 
     int nBands;
-    MMRBand **papoBand;
+    MMRBand **papoBand = nullptr;
 
-    void *pMapInfo;
-    void *pDatum;
-    void *pProParameters;
+    void *pMapInfo = nullptr;
+    void *pDatum = nullptr;
+    void *pProParameters = nullptr;
 
-    struct mmrinfo *psDependent;
+    //struct mmrinfo *psDependent;
 };
 
 GUInt32 MMRAllocateSpace(MMRInfo_t *, GUInt32);

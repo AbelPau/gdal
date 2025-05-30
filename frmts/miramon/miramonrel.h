@@ -93,6 +93,9 @@ class MMRRel
     CPLString GetMetadataValue(const char *pszMainSection,
                                const char *pszSubSection, const char *pszKey);
     CPLString GetMetadataValue(const char *pszSection, const char *pszKey);
+    static CPLString GetMetadataValueDirectly(const char *pszRELFile,
+                                              const char *pszSection,
+                                              const char *pszKey);
     const char *GetRELNameChar();
     void SetRELNameChar(CPLString osRelFileNameIn);
     static CPLErr ParseBandInfo(MMRInfo_t *psInfo);

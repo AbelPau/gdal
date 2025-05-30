@@ -282,23 +282,6 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, KEY_NomFitxer);
 
-    psInfo->bBandInTheList = true;
-    if (psInfo->nSDSBands)
-    {
-        int nISDSBand;
-        for (nISDSBand = 0; nISDSBand < psInfo->nSDSBands; nISDSBand++)
-        {
-            if (EQUAL(psInfo->papoSDSBand[nISDSBand]->c_str(),
-                      osRawBandFileName.c_str()))
-                break;
-        }
-        if (nISDSBand == psInfo->nSDSBands)
-        {
-            psInfo->bBandInTheList = false;
-            return;
-        }
-    }
-
     if (osRawBandFileName.empty())
     {
         osBandFileName = MMRGetFileNameFromRelName(psInfoIn->osRELFileName);

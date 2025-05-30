@@ -137,24 +137,8 @@ int MMRClose(MMRHandle hMMR)
         MMRFlush(hMMR);
 
     int nRet = 0;
-    if (hMMR->psDependent != nullptr)
-    {
-        if (MMRClose(hMMR->psDependent) != 0)
-            nRet = -1;
-    }
 
     delete hMMR->poRoot;
-
-    for (int i = 0; i < hMMR->nSDSBands && hMMR->papoSDSBand != nullptr; i++)
-    {
-        if (hMMR->papoSDSBand[i] != nullptr)
-            delete hMMR->papoSDSBand[i];
-    }
-    CPLFree(hMMR->papoSDSBand);
-    hMMR->papoSDSBand = nullptr;
-
-    //if (VSIFCloseL(hMMR->fp) != 0)
-    //    nRet = -1;
 
     if (hMMR->poDictionary != nullptr)
         delete hMMR->poDictionary;
@@ -165,8 +149,7 @@ int MMRClose(MMRHandle hMMR)
     {
         delete hMMR->papoBand[i];
     }
-
-    CPLFree(hMMR->papoBand);
+    delete hMMR->papoBand;
 
     if (hMMR->pProParameters != nullptr)
     {
@@ -198,7 +181,7 @@ int MMRClose(MMRHandle hMMR)
         CPLFree(hMMR->pMapInfo);
     }*/
 
-    CPLFree(hMMR);
+    delete hMMR;
     return nRet;
 }
 
