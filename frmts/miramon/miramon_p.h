@@ -120,9 +120,9 @@ int CPL_DLL MMRCreateLayer(MMRHandle psInfo, MMREntry *poParent,
                            char **papszOptions,
 
                            // These are only related to external (large) files.
-                           GIntBig nStackValidFlagsOffset,
-                           GIntBig nStackDataOffset, int nStackCount,
-                           int nStackIndex);
+                           //GIntBig nStackValidFlagsOffset,
+                           //GIntBig nStackDataOffset,
+                           int nStackCount, int nStackIndex);
 
 std::unique_ptr<OGRSpatialReference>
 MMRPCSStructToOSR(const Eprj_Datum *psDatum, const Eprj_ProParameters *psPro,

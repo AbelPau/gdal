@@ -1315,7 +1315,7 @@ int MMRCreateLayer(MMRHandle psInfo, MMREntry *poParent,
                    int bDependentLayer, int nXSize, int nYSize,
                    EPTType eDataType, char ** /* papszOptions */,
                    // These are only related to external (large) files.
-                   GIntBig nStackValidFlagsOffset, GIntBig nStackDataOffset,
+                   //GIntBig nStackValidFlagsOffset, GIntBig nStackDataOffset,
                    int nStackCount, int nStackIndex)
 
 {
@@ -1455,18 +1455,18 @@ int MMRCreateLayer(MMRHandle psInfo, MMREntry *poParent,
 
         //poEdms_State->SetStringField("fileName.string", psInfo->pszIGEFilename);
 
-        poEdms_State->SetIntField(
-            "layerStackValidFlagsOffset[0]",
-            static_cast<int>(nStackValidFlagsOffset & 0xFFFFFFFF));
-        poEdms_State->SetIntField(
-            "layerStackValidFlagsOffset[1]",
-            static_cast<int>(nStackValidFlagsOffset >> 32));
+        //poEdms_State->SetIntField(
+        //    "layerStackValidFlagsOffset[0]",
+        //    static_cast<int>(nStackValidFlagsOffset & 0xFFFFFFFF));
+        //poEdms_State->SetIntField(
+        //    "layerStackValidFlagsOffset[1]",
+        //    static_cast<int>(nStackValidFlagsOffset >> 32));
 
-        poEdms_State->SetIntField(
-            "layerStackDataOffset[0]",
-            static_cast<int>(nStackDataOffset & 0xFFFFFFFF));
-        poEdms_State->SetIntField("layerStackDataOffset[1]",
-                                  static_cast<int>(nStackDataOffset >> 32));
+        //poEdms_State->SetIntField(
+        //    "layerStackDataOffset[0]",
+        //    static_cast<int>(nStackDataOffset & 0xFFFFFFFF));
+        //poEdms_State->SetIntField("layerStackDataOffset[1]",
+        //                          static_cast<int>(nStackDataOffset >> 32));
         poEdms_State->SetIntField("layerStackCount", nStackCount);
         poEdms_State->SetIntField("layerStackIndex", nStackIndex);
     }
@@ -1571,8 +1571,8 @@ MMRHandle MMRCreate(const char *pszFileName, int nXSize, int nYSize, int nBands,
                              CPLFetchBool(papszOptions, "COMPRESSED", false);
     const bool bCreateAux = CPLFetchBool(papszOptions, "AUX", false);
 
-    char *pszFullFilename = nullptr;
-    char *pszRawFilename = nullptr;
+    //char *pszFullFilename = nullptr;
+    //char *pszRawFilename = nullptr;
 
     // Work out some details about the tiling scheme.
     const int nBlocksPerRow = DIV_ROUND_UP(nXSize, nBlockSize);
@@ -1680,7 +1680,7 @@ MMRHandle MMRCreate(const char *pszFileName, int nXSize, int nYSize, int nBands,
         if (!MMRCreateLayer(psInfo, psInfo->poRoot, szName, FALSE, nBlockSize,
                             bCreateCompressed, bCreateLargeRaster, bCreateAux,
                             nXSize, nYSize, eDataType, papszOptions,
-                            nValidFlagsOffset, nDataOffset, nBands, iBand))
+                            /*nValidFlagsOffset, nDataOffset, */ nBands, iBand))
         {
             CPL_IGNORE_RET_VAL(MMRClose(psInfo));
             return nullptr;
