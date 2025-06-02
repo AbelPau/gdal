@@ -262,8 +262,9 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
       panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
       nLayerStackIndex(0), nPCTColors(-1), padfPCTBins(nullptr),
-      nAssignedSDS(0), psInfo(psInfoIn), osFriendlyDescription(""), fp(nullptr),
-      pfRel(psInfoIn->fRel), eDataType(static_cast<EPTType>(EPT_MIN)),
+      nAssignedSDS(0), psInfo(psInfoIn), osBandSection(pszSection),
+      osFriendlyDescription(""), fp(nullptr), pfRel(psInfoIn->fRel),
+      eDataType(static_cast<EPTType>(EPT_MIN)),
       eMMDataType(
           static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
       eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
@@ -1670,13 +1671,32 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
 
         nPCTColors = 0;
 
-        // ·$·TODO Lectura de la DBF
-        /*
-        MMREntry *poColumnEntry = poNode->GetNamedChild("Descriptor_Table.Red");
-        if (poColumnEntry == nullptr)
-            return CE_Failure;
+        CPLString osColor_Color_Paleta = pfRel->GetMetadataValue(
+            "COLOR_TEXT", osBandSection, "Color_Paleta");
 
-        nPCTColors = poColumnEntry->GetIntField("numRows");
+        if (osColor_Color_Paleta.empty() ||
+            osColor_Color_Paleta == "<Automatic>")
+            return CE_None;  // No color table availab
+
+        CPLString osAux = CPLGetPathSafe((const char *)pfRel->GetRELNameChar());
+        CPLString osColorTableFileName = CPLFormFilenameSafe(
+            osAux.c_str(), osColor_Color_Paleta.c_str(), "");
+
+        struct MM_DATA_BASE_XP *pColorTable;
+        pColorTable = static_cast<struct MM_DATA_BASE_XP *>(
+            VSICalloc(1, sizeof(*pColorTable)));
+        if (!pColorTable)
+            return CE_Failure;
+        if (MM_ReadExtendedDBFHeaderFromFile(
+                osColorTableFileName.c_str(), pColorTable,
+                (const char *)pfRel->GetRELNameChar()))
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "Error reading color table %s.",
+                     osColorTableFileName.c_str());
+            return CE_None;
+        }
+        nPCTColors = pColorTable->nRecords;
         if (nPCTColors < 0 || nPCTColors > 65536)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
@@ -1684,6 +1704,19 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             return CE_Failure;
         }
 
+        for (int iColumn = 0; iColumn < 4; iColumn++)
+        {
+            apadfPCT[iColumn] = static_cast<double *>(
+                VSI_MALLOC2_VERBOSE(sizeof(double), nPCTColors));
+            if (apadfPCT[iColumn] == nullptr)
+            {
+                return CE_Failure;
+            }
+        }
+
+        // ·$·TODO Lectura de la DBF
+        /*
+        
         for (int iColumn = 0; iColumn < 4; iColumn++)
         {
             apadfPCT[iColumn] = static_cast<double *>(

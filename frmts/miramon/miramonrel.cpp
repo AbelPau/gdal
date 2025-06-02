@@ -746,7 +746,7 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
             CPLString osRawBandFileName = psInfo->fRel->GetMetadataValue(
                 SECTION_ATTRIBUTE_DATA, osBandSectionValue, KEY_NomFitxer);
 
-            // I'm in a SubDataSet
+            // I'm in a Subataset
             int nISDSBand;
             for (nISDSBand = 0; nISDSBand < psInfo->papoSDSBands.size();
                  nISDSBand++)

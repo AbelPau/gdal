@@ -184,6 +184,8 @@ class MMRBand
 
     MMRInfo_t *psInfo;
 
+    // Section in REL file that give information about the band
+    CPLString osBandSection;
     // REL file name that contains the band
     CPLString osRELFileName;
     // File name relative to REL file with banda data

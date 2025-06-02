@@ -953,8 +953,10 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
         return nullptr;
 #endif
 
+    // Creating of the object that allows inspect metadata (REL file)
     MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
 
+    // Getting the info fromthat REL
     MMRHandle hMMR =
         fRel->GetInfoFromREL(poOpenInfo->pszFilename,
                              (poOpenInfo->eAccess == GA_Update ? "r+" : "r"));
@@ -974,13 +976,14 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
         return nullptr;
     }
 
-    // Creating the dataset (with bands or subdatasets).
+    // Creating the Dataset (with bands or Subdatasets).
     MMRDataset *poDS;
     poDS = new MMRDataset();
-    poDS->hMMR = hMMR;
+    poDS->hMMR =
+        hMMR;  // Assigning the information to the Dataset, who will delete that
     poDS->eAccess = poOpenInfo->eAccess;
 
-    // General information available
+    // General Dataset information available
     poDS->nRasterXSize = hMMR->nXSize;
     poDS->nRasterYSize = hMMR->nYSize;
     poDS->GetDataSetBoundingBox();  // Fills adfGeoTransform
@@ -988,6 +991,9 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     poDS->nBands = 0;
 
     // Assign every band to a subdataset (if any)
+    // If all bands should go to a one single Subdataset, then,
+    // no subdataset will be created and all bands will go to this
+    // dataset.
     poDS->AssignBandsToSubdataSets();
 
     // Create subdatasets or add bands, as needed
@@ -1888,7 +1894,7 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
     for (int nIBand = 0; nIBand < hMMR->nBands; nIBand++)
     {
         if (!hMMR->papoBand[nIBand])
-            continue;  // ·$·TODO Or ERROR
+            continue;  // It's impoosible, but...
 
         // Establish raster info.
         nRasterXSize = hMMR->papoBand[nIBand]->nWidth;
@@ -1900,30 +1906,25 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
             static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
         poBand->SetMetadataItem("DESCRIPTION",
                                 hMMR->papoBand[nIBand]->osFriendlyDescription);
-    }
 
-    // Collect GDAL custom Metadata, and "auxiliary" metadata from
-    // well known MMR structures for the bands.  We defer this till
-    // now to ensure that the bands are properly setup before
-    // interacting with PAM.
-    //·$·TODO ens saltem aixo de moment.
-    /*for (int i = 0; i < nBands; i++)
-    {
-        MMRRasterBand *poBand =
-            static_cast<MMRRasterBand *>(GetRasterBand(i + 1));
+        // Collect GDAL custom Metadata, and "auxiliary" metadata from
+        // well known MMR structures for the bands.  We defer this till
+        // now to ensure that the bands are properly setup before
+        // interacting with PAM.
+        //·$·TODO ens saltem aixo de moment.
 
-        char **papszMD = MMRGetMetadata(hMMR, i + 1);
+        /*char **papszMD = MMRGetMetadata(hMMR, i + 1);
         if (papszMD != nullptr)
         {
             poBand->SetMetadata(papszMD);
             CSLDestroy(papszMD);
-        }
+        }*/
 
         //poBand->ReadAuxMetadata();
         //poBand->ReadHistogramMetadata();
     }
 
-
+    /*
     // Check for GDAL style metadata.
     char **papszMD = MMRGetMetadata(hMMR, 0);
     if (papszMD != nullptr)
