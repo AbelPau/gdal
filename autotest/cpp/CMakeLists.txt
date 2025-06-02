@@ -389,6 +389,9 @@ gdal_gtest_target(testlog test-log
 gdal_gtest_target(test_deferred_plugin test-deferred-plugin
     FILES
         test_deferred_plugin.cpp)
+gdal_gtest_target(test_driver_metadata_multithread test-driver-metadata-multithread.cpp
+    FILES
+        test_driver_metadata_multithread.cpp)
 
 if (GDAL_ENABLE_DRIVER_JPEG_PLUGIN)
     target_compile_definitions(test_deferred_plugin PRIVATE -DJPEG_PLUGIN)
@@ -416,3 +419,12 @@ foreach (_test IN LISTS QUICKTEST_LIST)
   set_tests_properties(${_test} PROPERTIES LABELS "quicktest")
 endforeach ()
 
+###
+
+gdal_gtest_target(viewshed_internal_test test-viewshed-internal
+    FILES
+        test_viewshed_internal.cpp
+        ../../alg/viewshed/viewshed.cpp
+        ../../alg/viewshed/progress.cpp
+        ../../alg/viewshed/viewshed_executor.cpp
+        ../../alg/viewshed/util.cpp)

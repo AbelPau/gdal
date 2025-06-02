@@ -46,17 +46,41 @@ Details for options can be found in :ref:`gdal_raster_clip`.
 
 Details for options can be found in :ref:`gdal_raster_color_map`.
 
+* color-merge
+
+.. program-output:: gdal raster pipeline --help-doc=color-merge
+
+Details for options can be found in :ref:`gdal_raster_color_merge`.
+
 * edit
 
 .. program-output:: gdal raster pipeline --help-doc=edit
 
 Details for options can be found in :ref:`gdal_raster_edit`.
 
+* fill-nodata
+
+.. program-output:: gdal raster pipeline --help-doc=fill-nodata
+
+Details for options can be found in :ref:`gdal_raster_fill_nodata`.
+
 * hillshade
 
 .. program-output:: gdal raster pipeline --help-doc=hillshade
 
 Details for options can be found in :ref:`gdal_raster_hillshade`.
+
+* pansharpen
+
+.. program-output:: gdal raster pipeline --help-doc=pansharpen
+
+Details for options can be found in :ref:`gdal_raster_pansharpen`.
+
+* proximity
+
+.. program-output:: gdal raster pipeline --help-doc=proximity
+
+Details for options can be found in :ref:`gdal_raster_proximity`.
 
 * reproject
 
@@ -69,6 +93,12 @@ Details for options can be found in :ref:`gdal_raster_reproject`.
 .. program-output:: gdal raster pipeline --help-doc=resize
 
 Details for options can be found in :ref:`gdal_raster_resize`.
+
+* rgb-to-palette
+
+.. program-output:: gdal raster pipeline --help-doc=rgb-to-palette
+
+Details for options can be found in :ref:`gdal_raster_rgb_to_palette`.
 
 * roughness
 
@@ -94,6 +124,12 @@ Details for options can be found in :ref:`gdal_raster_select`.
 
 Details for options can be found in :ref:`gdal_raster_set_type`.
 
+* sieve
+
+.. program-output:: gdal raster pipeline --help-doc=sieve
+
+Details for options can be found in :ref:`gdal_raster_sieve`.
+
 * slope
 
 .. program-output:: gdal raster pipeline --help-doc=slope
@@ -117,6 +153,12 @@ Details for options can be found in :ref:`gdal_raster_tri`.
 .. program-output:: gdal raster pipeline --help-doc=unscale
 
 Details for options can be found in :ref:`gdal_raster_unscale`.
+
+* viewshed
+
+.. program-output:: gdal raster pipeline --help-doc=viewshed
+
+Details for options can be found in :ref:`gdal_raster_viewshed`.
 
 * write
 

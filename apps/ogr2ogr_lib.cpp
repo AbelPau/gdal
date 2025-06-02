@@ -2432,9 +2432,6 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
         bUpdate = true;
     }
 
-    const CPLString osDateLineOffset =
-        CPLOPrintf("%g", psOptions->dfDateLineOffset);
-
     if (psOptions->bPreserveFID && psOptions->bExplodeCollections)
     {
         CPLError(CE_Failure, CPLE_IllegalArg,
@@ -3093,7 +3090,8 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
     oTranslator.m_poODS = poODS;
     oTranslator.m_bTransform = psOptions->bTransform;
     oTranslator.m_bWrapDateline = psOptions->bWrapDateline;
-    oTranslator.m_osDateLineOffset = osDateLineOffset;
+    oTranslator.m_osDateLineOffset =
+        CPLOPrintf("%g", psOptions->dfDateLineOffset);
     oTranslator.m_poOutputSRS = oOutputSRSHolder.get();
     oTranslator.m_bNullifyOutputSRS = psOptions->bNullifyOutputSRS;
     oTranslator.m_poUserSourceSRS = poSourceSRS;
@@ -3597,8 +3595,7 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
             psOptions->osNewLayerName = CPLGetBasenameSafe(osDestFilename);
         }
 
-        std::vector<GIntBig> anLayerCountFeatures;
-        anLayerCountFeatures.resize(nLayerCount);
+        std::vector<GIntBig> anLayerCountFeatures(nLayerCount);
         GIntBig nCountLayersFeatures = 0;
         GIntBig nAccCountFeatures = 0;
 
@@ -3645,7 +3642,18 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
                     if (psOptions->nLimit >= 0)
                         anLayerCountFeatures[iLayer] = std::min(
                             anLayerCountFeatures[iLayer], psOptions->nLimit);
-                    nCountLayersFeatures += anLayerCountFeatures[iLayer];
+                    if (anLayerCountFeatures[iLayer] >= 0 &&
+                        anLayerCountFeatures[iLayer] <=
+                            std::numeric_limits<GIntBig>::max() -
+                                nCountLayersFeatures)
+                    {
+                        nCountLayersFeatures += anLayerCountFeatures[iLayer];
+                    }
+                    else
+                    {
+                        nCountLayersFeatures = 0;
+                        psOptions->bDisplayProgress = false;
+                    }
                 }
             }
         }
@@ -3714,9 +3722,9 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
                             1.0 / nCountLayersFeatures,
                         psOptions->pfnProgress, psOptions->pProgressData);
                 }
-            }
 
-            nAccCountFeatures += anLayerCountFeatures[iLayer];
+                nAccCountFeatures += anLayerCountFeatures[iLayer];
+            }
 
             auto psInfo = oSetup.Setup(poPassedLayer,
                                        psOptions->osNewLayerName.empty()

@@ -2739,7 +2739,7 @@ CPLErr GDALDataset::RasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
 
         psExtraArg = &sExtraArg;
     }
-    else if (CPL_UNLIKELY(psExtraArg->nVersion !=
+    else if (CPL_UNLIKELY(psExtraArg->nVersion >
                           RASTERIO_EXTRA_ARG_CURRENT_VERSION))
     {
         ReportError(CE_Failure, CPLE_AppDefined,
@@ -3257,8 +3257,8 @@ char **GDALDataset::GetFileList()
     VSIStatBufL sStat;
 
     GDALAntiRecursionStruct &sAntiRecursion = GetAntiRecursionOpen();
-    const GDALAntiRecursionStruct::DatasetContext datasetCtxt(osMainFilename, 0,
-                                                              std::string());
+    GDALAntiRecursionStruct::DatasetContext datasetCtxt(osMainFilename, 0,
+                                                        std::string());
     auto &aosDatasetList = sAntiRecursion.aosDatasetNamesWithFlags;
     if (cpl::contains(aosDatasetList, datasetCtxt))
         return nullptr;
@@ -3302,7 +3302,7 @@ char **GDALDataset::GetFileList()
     /* -------------------------------------------------------------------- */
     if (oOvManager.HaveMaskFile())
     {
-        auto iter = aosDatasetList.insert(datasetCtxt).first;
+        auto iter = aosDatasetList.insert(std::move(datasetCtxt)).first;
         for (const char *pszFile :
              CPLStringList(oOvManager.poMaskDS->GetFileList()))
         {
@@ -4940,6 +4940,43 @@ int GDALDatasetIsLayerPrivate(GDALDatasetH hDS, int iLayer)
     const bool res = GDALDataset::FromHandle(hDS)->IsLayerPrivate(iLayer);
 
     return res ? 1 : 0;
+}
+
+/************************************************************************/
+/*                            GetLayerIndex()                           */
+/************************************************************************/
+
+/**
+ \brief Returns the index of the layer specified by name.
+
+ @since GDAL 3.12
+
+ @param pszName layer name (not NULL)
+
+ @return an index >= 0, or -1 if not found.
+*/
+
+int GDALDataset::GetLayerIndex(const char *pszName)
+{
+    const int nLayerCount = GetLayerCount();
+    int iMatch = -1;
+    for (int i = 0; i < nLayerCount; ++i)
+    {
+        if (const auto poLayer = GetLayer(i))
+        {
+            const char *pszLayerName = poLayer->GetDescription();
+            if (strcmp(pszName, pszLayerName) == 0)
+            {
+                iMatch = i;
+                break;
+            }
+            else if (EQUAL(pszName, pszLayerName))
+            {
+                iMatch = i;
+            }
+        }
+    }
+    return iMatch;
 }
 
 /************************************************************************/
