@@ -250,7 +250,7 @@ class MMRBand
 
     CPLErr SetNoDataValue(double dfValue);
 
-    CPLErr GetPCT(int *, double **, double **, double **, double **, double **);
+    CPLErr GetPCT(int *, double **, double **, double **, double **);
     CPLErr SetPCT(int, const double *, const double *, const double *,
                   const double *);
 };

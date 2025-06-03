@@ -179,7 +179,7 @@ void MMRSetBandName(MMRHandle hMMR, int nBand, const char *pszName);
 int CPL_DLL MMRGetDataTypeBits(EPTType eDataType);
 const char CPL_DLL *MMRGetDataTypeName(EPTType eDataType);
 CPLErr CPL_DLL MMRGetPCT(MMRHandle, int, int *, double **, double **, double **,
-                         double **, double **);
+                         double **);
 CPLErr CPL_DLL MMRSetPCT(MMRHandle, int, int, double *, double *, double *,
                          double *);
 void CPL_DLL MMRDumpDictionary(MMRHandle, FILE *);

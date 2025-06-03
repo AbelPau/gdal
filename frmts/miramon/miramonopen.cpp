@@ -919,15 +919,14 @@ CPLErr MMRSetDatum(MMRHandle hMMR, const Eprj_Datum *poDatum)
 /************************************************************************/
 
 CPLErr MMRGetPCT(MMRHandle hMMR, int nBand, int *pnColors, double **ppadfRed,
-                 double **ppadfGreen, double **ppadfBlue, double **ppadfAlpha,
-                 double **ppadfBins)
+                 double **ppadfGreen, double **ppadfBlue, double **ppadfAlpha)
 
 {
     if (nBand < 1 || nBand > hMMR->nBands)
         return CE_Failure;
 
     return hMMR->papoBand[nBand - 1]->GetPCT(pnColors, ppadfRed, ppadfGreen,
-                                             ppadfBlue, ppadfAlpha, ppadfBins);
+                                             ppadfBlue, ppadfAlpha);
 }
 
 /************************************************************************/

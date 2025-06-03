@@ -156,43 +156,21 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     double *padfGreen = nullptr;
     double *padfBlue = nullptr;
     double *padfAlpha = nullptr;
-    double *padfBins = nullptr;
     int nColors = 0;
 
     if (MMRGetPCT(hMMR, nBand, &nColors, &padfRed, &padfGreen, &padfBlue,
-                  &padfAlpha, &padfBins) == CE_None &&
+                  &padfAlpha) == CE_None &&
         nColors > 0)
     {
         poCT = new GDALColorTable();
         for (int iColor = 0; iColor < nColors; iColor++)
         {
-            // The following mapping assigns "equal sized" section of
-            // the [0...1] range to each possible output value and avoid
-            // rounding issues for the "normal" values generated using n/255.
-            // See bug #1732 for some discussion.
             GDALColorEntry sEntry = {ColorToShort(padfRed[iColor]),
                                      ColorToShort(padfGreen[iColor]),
                                      ColorToShort(padfBlue[iColor]),
                                      ColorToShort(padfAlpha[iColor])};
 
-            if (padfBins != nullptr)
-            {
-                const double dfIdx = padfBins[iColor];
-                if (!(dfIdx >= 0.0 && dfIdx <= 65535.0))
-                {
-                    CPLError(CE_Failure, CPLE_NotSupported,
-                             "Invalid index padfBins[%d] = %g", iColor, dfIdx);
-                    break;
-                }
-                else
-                {
-                    poCT->SetColorEntry(static_cast<int>(dfIdx), &sEntry);
-                }
-            }
-            else
-            {
-                poCT->SetColorEntry(iColor, &sEntry);
-            }
+            poCT->SetColorEntry(iColor, &sEntry);
         }
     }
 }

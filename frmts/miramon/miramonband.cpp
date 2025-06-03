@@ -1654,8 +1654,7 @@ double *MMRReadBFUniqueBins(MMREntry *poBinFunc, int nPCTColors)
 /************************************************************************/
 
 CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
-                       double **ppadfBlue, double **ppadfAlpha,
-                       double **ppadfBins)
+                       double **ppadfBlue, double **ppadfAlpha)
 
 {
     *pnColors = 0;
@@ -1663,12 +1662,10 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
     *ppadfGreen = nullptr;
     *ppadfBlue = nullptr;
     *ppadfAlpha = nullptr;
-    *ppadfBins = nullptr;
 
     // If we haven't already tried to load the colors, do so now.
     if (nPCTColors == -1)
     {
-
         nPCTColors = 0;
 
         CPLString osColor_Color_Paleta = pfRel->GetMetadataValue(
@@ -1676,7 +1673,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
 
         if (osColor_Color_Paleta.empty() ||
             osColor_Color_Paleta == "<Automatic>")
-            return CE_None;  // No color table availab
+            return CE_None;  // No color table available
 
         CPLString osAux = CPLGetPathSafe((const char *)pfRel->GetRELNameChar());
         CPLString osColorTableFileName = CPLFormFilenameSafe(
@@ -1696,7 +1693,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
                      osColorTableFileName.c_str());
             return CE_None;
         }
-        nPCTColors = pColorTable->nRecords;
+        nPCTColors = (int)pColorTable->nRecords;
         if (nPCTColors < 0 || nPCTColors > 65536)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
@@ -1704,6 +1701,34 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             return CE_Failure;
         }
 
+        if (pColorTable->nFields != 4 ||
+            strcmp(pColorTable->pField[0].FieldName, "CLAUSIMBOL") ||
+            strcmp(pColorTable->pField[1].FieldName, "R_COLOR") ||
+            strcmp(pColorTable->pField[2].FieldName, "G_COLOR") ||
+            strcmp(pColorTable->pField[3].FieldName, "B_COLOR") ||
+            pColorTable->pField[0].BytesPerField <= 0 ||
+            pColorTable->pField[1].BytesPerField <= 0 ||
+            pColorTable->pField[2].BytesPerField <= 0 ||
+            pColorTable->pField[3].BytesPerField <= 0 ||
+            pColorTable->pField[0].FieldType != 'N' ||
+            pColorTable->pField[1].FieldType != 'N' ||
+            pColorTable->pField[2].FieldType != 'N' ||
+            pColorTable->pField[3].FieldType != 'N')
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: %s",
+                     osColorTableFileName.c_str());
+            return CE_Failure;
+        }
+
+        VSIFSeekL(pColorTable->pfDataBase, pColorTable->FirstRecordOffset,
+                  SEEK_SET);
+        size_t bytesRead;
+        MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = pColorTable->BytesPerRecord;
+        char *pzsBuffer =
+            static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
+        char *pzsField =
+            static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
+
         for (int iColumn = 0; iColumn < 4; iColumn++)
         {
             apadfPCT[iColumn] = static_cast<double *>(
@@ -1714,86 +1739,60 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             }
         }
 
-        // ·$·TODO Lectura de la DBF
-        /*
-        
-        for (int iColumn = 0; iColumn < 4; iColumn++)
+        for (MM_EXT_DBF_N_RECORDS nIRecord = 0; nIRecord < nPCTColors;
+             nIRecord++)
         {
-            apadfPCT[iColumn] = static_cast<double *>(
-                VSI_MALLOC2_VERBOSE(sizeof(double), nPCTColors));
-            if (apadfPCT[iColumn] == nullptr)
+            if (nBufferSize !=
+                (bytesRead = VSIFReadL(pzsBuffer, sizeof(unsigned char),
+                                       nBufferSize, pColorTable->pfDataBase)))
             {
+                CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: %s",
+                         osColorTableFileName.c_str());
                 return CE_Failure;
             }
 
-            if (iColumn == 0)
-            {
-                poColumnEntry = poNode->GetNamedChild("Descriptor_Table.Red");
-            }
-            else if (iColumn == 1)
-            {
-                poColumnEntry = poNode->GetNamedChild("Descriptor_Table.Green");
-            }
-            else if (iColumn == 2)
-            {
-                poColumnEntry = poNode->GetNamedChild("Descriptor_Table.Blue");
-            }
-            else if (iColumn == 3)
-            {
-                poColumnEntry =
-                    poNode->GetNamedChild("Descriptor_Table.Opacity");
-            }
+            // Index of the color
+            memcpy(pzsField,
+                   pzsBuffer + pColorTable->pField[0].AccumulatedBytes,
+                   pColorTable->pField[0].BytesPerField);
+            CPLString osField = pzsField;
+            osField.replaceAll(" ", "");
+            if (osField.empty())  // No data value
+                continue;
 
-            if (poColumnEntry == nullptr)
-            {
-                double *pdCol = apadfPCT[iColumn];
-                for (int i = 0; i < nPCTColors; i++)
-                    pdCol[i] = 1.0;
-            }
-            else
-            {
-                if (VSIFSeekL(psInfo->fp,
-                              poColumnEntry->GetIntField("columnDataPtr"),
-                              SEEK_SET) < 0)
-                {
-                    CPLError(CE_Failure, CPLE_FileIO,
-                             "VSIFSeekL() failed in MMRBand::GetPCT().");
-                    return CE_Failure;
-                }
-                if (VSIFReadL(apadfPCT[iColumn], sizeof(double), nPCTColors,
-                              psInfo->fp) != static_cast<size_t>(nPCTColors))
-                {
-                    CPLError(CE_Failure, CPLE_FileIO,
-                             "VSIFReadL() failed in MMRBand::GetPCT().");
-                    return CE_Failure;
-                }
+            // RED
+            memcpy(pzsField,
+                   pzsBuffer + pColorTable->pField[1].AccumulatedBytes,
+                   pColorTable->pField[1].BytesPerField);
+            apadfPCT[0][atoi(osField)] = CPLAtof(pzsField);
 
-                for (int i = 0; i < nPCTColors; i++)
-                    MMRStandard(8, apadfPCT[iColumn] + i);
-            }
+            // GREEN
+            memcpy(pzsField,
+                   pzsBuffer + pColorTable->pField[2].AccumulatedBytes,
+                   pColorTable->pField[2].BytesPerField);
+            apadfPCT[1][atoi(osField)] = CPLAtof(pzsField);
+
+            // BLUE
+            memcpy(pzsField,
+                   pzsBuffer + pColorTable->pField[3].AccumulatedBytes,
+                   pColorTable->pField[3].BytesPerField);
+            apadfPCT[2][atoi(osField)] = CPLAtof(pzsField);
+
+            // ALPHA
+            apadfPCT[3][atoi(osField)] = 0;
         }
-
-        // Do we have a custom binning function? If so, try reading it.
-        MMREntry *poBinFunc =
-            poNode->GetNamedChild("Descriptor_Table.#Bin_Function840#");
-
-        if (poBinFunc != nullptr)
-        {
-            padfPCTBins = MMRReadBFUniqueBins(poBinFunc, nPCTColors);
-        }
-        */
+        VSIFree(pzsField);
+        VSIFree(pzsBuffer);
+        VSIFCloseL(pColorTable->pfDataBase);
+        MM_ReleaseDBFHeader(&pColorTable);
+        VSIFree(pColorTable);
     }
-
-    // Return the values.
-    //if (nPCTColors == 0)
-    //    return CE_Failure;
 
     *pnColors = nPCTColors;
     *ppadfRed = apadfPCT[0];
     *ppadfGreen = apadfPCT[1];
     *ppadfBlue = apadfPCT[2];
     *ppadfAlpha = apadfPCT[3];
-    *ppadfBins = padfPCTBins;
 
     return CE_None;
 }
