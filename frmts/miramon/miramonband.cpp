@@ -1932,7 +1932,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
     int nIPaletteColor;
     if ((int)eMMBytesPerPixel < 2)
     {
-        for (nIPaletteColor = 0; nIPaletteColor < (size_t)nNPossibleValues / 3;
+        for (nIPaletteColor = 0; nIPaletteColor < nNPossibleValues / 3;
              nIPaletteColor++)
         {
             if (bPaletteHasNodata && nIPaletteColor == nNoDataPaletteIndex)
@@ -1956,7 +1956,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             }
         }
         if (nNoDataPaletteIndex != 0 &&
-            nNoDataPaletteIndex < (size_t)nNPossibleValues / 3)
+            nNoDataPaletteIndex < nNPossibleValues / 3)
         {
             if (nNoDataPaletteIndex < nNPaletteColors)
             {
@@ -1969,7 +1969,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
                 apadfPCT[3][nIPaletteColor] =
                     apadfPaletteColors[3][nNoDataPaletteIndex];
             }
-            else if (nNPaletteColors < (size_t)nNPossibleValues / 3)
+            else if (nNPaletteColors < nNPossibleValues / 3)
             {
                 apadfPCT[0][nIPaletteColor] = (double)65535;
                 apadfPCT[1][nIPaletteColor] = (double)65535;
@@ -1987,8 +1987,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
         dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
         dfIntercept = -dfSlope * dfMin;
 
-        for (nIPaletteColor = 0; nIPaletteColor < (size_t)dfMin;
-             nIPaletteColor++)
+        for (nIPaletteColor = 0; nIPaletteColor < (int)dfMin; nIPaletteColor++)
         {
             if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
             {
@@ -2020,7 +2019,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             }
         }
 
-        for (/*continuing from last loop*/; nIPaletteColor <= (size_t)dfMax;
+        for (/*continuing from last loop*/; nIPaletteColor <= (int)dfMax;
              nIPaletteColor++)
         {
             if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
@@ -2062,7 +2061,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             }
         }
         for (/*continuing from last loop*/;
-             nIPaletteColor < (size_t)nNPossibleValues / 3; nIPaletteColor++)
+             nIPaletteColor < nNPossibleValues / 3; nIPaletteColor++)
         {
             if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
             {

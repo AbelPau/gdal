@@ -747,7 +747,7 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
                 SECTION_ATTRIBUTE_DATA, osBandSectionValue, KEY_NomFitxer);
 
             // I'm in a Subataset
-            int nISDSBand;
+            size_t nISDSBand;
             for (nISDSBand = 0; nISDSBand < psInfo->papoSDSBands.size();
                  nISDSBand++)
             {
