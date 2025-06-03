@@ -150,9 +150,16 @@ class MMRBand
 #define BFLG_VALID 0x01
 #define BFLG_COMPRESSED 0x02
 
+    // Palette info
+    int nNPossibleValues;
+    int nNPaletteColors;
+    double *apadfPaletteColors[4];
+    int nNoDataOriginalIndex;
+    bool bPaletteHasNodata;
+
     int nPCTColors;
     double *apadfPCT[4];
-    double *padfPCTBins;
+    int nNoDataPaletteIndex;
 
     // Assigned Subdataset for this band.
     int nAssignedSDS;
@@ -251,6 +258,13 @@ class MMRBand
     CPLErr SetNoDataValue(double dfValue);
 
     CPLErr GetPCT(int *, double **, double **, double **, double **);
+    CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF, int *pnColors,
+                                double **ppadfRed, double **ppadfGreen,
+                                double **ppadfBlue, double **ppadfAlpha);
+    CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF,
+                                        int *pnColors, double **ppadfRed,
+                                        double **ppadfGreen, double **ppadfBlue,
+                                        double **ppadfAlpha);
     CPLErr SetPCT(int, const double *, const double *, const double *,
                   const double *);
 };
