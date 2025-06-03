@@ -1656,10 +1656,7 @@ double *MMRReadBFUniqueBins(MMREntry *poBinFunc, int nPCTColors)
 }
 
 // Colors in a DBF format file
-CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF,
-                                     int *pnColors, double **ppadfRed,
-                                     double **ppadfGreen, double **ppadfBlue,
-                                     double **ppadfAlpha)
+CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
 {
     CPLString osAux = CPLGetPathSafe((const char *)pfRel->GetRELNameChar());
@@ -1778,11 +1775,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF,
 }
 
 // Colors in a DBF format file
-CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF,
-                                             int *pnColors, double **ppadfRed,
-                                             double **ppadfGreen,
-                                             double **ppadfBlue,
-                                             double **ppadfAlpha)
+CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
 {
     CPLString osAux = CPLGetPathSafe((const char *)pfRel->GetRELNameChar());
@@ -1899,18 +1892,14 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
     CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta_DBF);
     if (osExtension.tolower() == "dbf")
     {
-        CPLErr peErr =
-            GetPaletteColors_DBF(os_Color_Paleta_DBF, pnColors, ppadfRed,
-                                 ppadfGreen, ppadfBlue, ppadfAlpha);
+        CPLErr peErr = GetPaletteColors_DBF(os_Color_Paleta_DBF);
         if (CE_None != peErr)
             return peErr;
     }
     else if (osExtension.tolower() == "pal" || osExtension.tolower() == "p25" ||
              osExtension.tolower() == "p65")
     {
-        CPLErr peErr = GetPaletteColors_PAL_P25_P65(
-            os_Color_Paleta_DBF, pnColors, ppadfRed, ppadfGreen, ppadfBlue,
-            ppadfAlpha);
+        CPLErr peErr = GetPaletteColors_PAL_P25_P65(os_Color_Paleta_DBF);
         if (CE_None != peErr)
             return peErr;
     }

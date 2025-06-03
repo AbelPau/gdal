@@ -258,13 +258,8 @@ class MMRBand
     CPLErr SetNoDataValue(double dfValue);
 
     CPLErr GetPCT(int *, double **, double **, double **, double **);
-    CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF, int *pnColors,
-                                double **ppadfRed, double **ppadfGreen,
-                                double **ppadfBlue, double **ppadfAlpha);
-    CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF,
-                                        int *pnColors, double **ppadfRed,
-                                        double **ppadfGreen, double **ppadfBlue,
-                                        double **ppadfAlpha);
+    CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
+    CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
     CPLErr SetPCT(int, const double *, const double *, const double *,
                   const double *);
 };
