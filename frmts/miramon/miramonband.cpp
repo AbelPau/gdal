@@ -1868,10 +1868,10 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 /************************************************************************/
 void MMRBand::AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete)
 {
-    apadfPCT[0][nIndexDstPalete] = apadfPaletteColors[0][nIndexSrcPalete] / 256;
-    apadfPCT[1][nIndexDstPalete] = apadfPaletteColors[1][nIndexSrcPalete] / 256;
-    apadfPCT[2][nIndexDstPalete] = apadfPaletteColors[2][nIndexSrcPalete] / 256;
-    apadfPCT[3][nIndexDstPalete] = apadfPaletteColors[3][nIndexSrcPalete] / 256;
+    apadfPCT[0][nIndexDstPalete] = apadfPaletteColors[0][nIndexSrcPalete];
+    apadfPCT[1][nIndexDstPalete] = apadfPaletteColors[1][nIndexSrcPalete];
+    apadfPCT[2][nIndexDstPalete] = apadfPaletteColors[2][nIndexSrcPalete];
+    apadfPCT[3][nIndexDstPalete] = apadfPaletteColors[3][nIndexSrcPalete];
 }
 
 void MMRBand::AssignRGBColorDirectly(int nIndexDstPalete, double dfValue)
@@ -1944,7 +1944,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             if (nIPaletteColor < nNPaletteColors)
                 AssignRGBColor(nIPaletteColor, nIPaletteColor);
             else
-                AssignRGBColorDirectly(nIPaletteColor, 1);
+                AssignRGBColorDirectly(nIPaletteColor, 255);
         }
         if (nNoDataPaletteIndex != 0 &&
             nNoDataPaletteIndex < nNPossibleValues / 3)
@@ -1952,7 +1952,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             if (nNoDataPaletteIndex < nNPaletteColors)
                 AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
             else if (nNPaletteColors < nNPossibleValues / 3)
-                AssignRGBColorDirectly(nIPaletteColor, 1);
+                AssignRGBColorDirectly(nIPaletteColor, 255);
         }
     }
     else
@@ -1967,7 +1967,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
                 if (bPaletteHasNodata)
                     AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
                 else
-                    AssignRGBColorDirectly(nIPaletteColor, 1);
+                    AssignRGBColorDirectly(nIPaletteColor, 255);
             }
             else
                 AssignRGBColor(nIPaletteColor, 0);
@@ -1987,7 +1987,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
                 if (bPaletteHasNodata)
                     AssignRGBColor(nIPaletteColor, nNoDataOriginalIndex);
                 else
-                    AssignRGBColorDirectly(nIPaletteColor, 1);
+                    AssignRGBColorDirectly(nIPaletteColor, 255);
             }
             else
             {
@@ -2008,7 +2008,7 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
                 if (bPaletteHasNodata)
                     AssignRGBColor(nIPaletteColor, nNoDataOriginalIndex);
                 else
-                    AssignRGBColorDirectly(nIPaletteColor, 1);
+                    AssignRGBColorDirectly(nIPaletteColor, 255);
             }
             else
                 AssignRGBColor(nIPaletteColor, nNPaletteColors - 1);

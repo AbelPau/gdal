@@ -61,22 +61,6 @@
 /************************************************************************/
 /*                           MMRRasterBand()                            */
 /************************************************************************/
-
-namespace
-{
-
-// Convert 0..1 input color range to 0..255.
-// Clamp overflow and underflow.
-short ColorToShort(double val)
-{
-    const double dfScaled = val * 256.0;
-    // Clamp to [0..255].
-    const double dfClamped = std::max(0.0, std::min(255.0, dfScaled));
-    return static_cast<short>(dfClamped);
-}
-
-}  // namespace
-
 MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     : poCT(nullptr),
       // eMMRDataType
@@ -165,10 +149,19 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
         poCT = new GDALColorTable(GPI_RGB);
         for (int iColor = 0; iColor < nColors; iColor++)
         {
-            GDALColorEntry sEntry = {ColorToShort(padfRed[iColor]),
-                                     ColorToShort(padfGreen[iColor]),
-                                     ColorToShort(padfBlue[iColor]),
-                                     ColorToShort(padfAlpha[iColor])};
+            GDALColorEntry sEntry = {
+                (short int)(padfRed[iColor]), (short int)(padfGreen[iColor]),
+                (short int)(padfBlue[iColor]), (short int)(padfAlpha[iColor])};
+
+            if ((sEntry.c1 < 0 || sEntry.c1 > 255) ||
+                (sEntry.c2 < 0 || sEntry.c2 > 255) ||
+                (sEntry.c3 < 0 || sEntry.c3 > 255))
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Color table entry appears to be corrupt, skipping "
+                         "the rest. ");
+                break;
+            }
 
             poCT->SetColorEntry(iColor, &sEntry);
         }
