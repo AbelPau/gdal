@@ -162,7 +162,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
                   &padfAlpha) == CE_None &&
         nColors > 0)
     {
-        poCT = new GDALColorTable();
+        poCT = new GDALColorTable(GPI_RGB);
         for (int iColor = 0; iColor < nColors; iColor++)
         {
             GDALColorEntry sEntry = {ColorToShort(padfRed[iColor]),

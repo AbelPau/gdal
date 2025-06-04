@@ -154,13 +154,8 @@ CPLErr CPL_DLL MMRSetGeoTransform(MMRHandle, const char *, const char *,
 CPLErr CPL_DLL MMRSetMapInfo(MMRHandle, const Eprj_MapInfo *);
 const Eprj_Datum CPL_DLL *MMRGetDatum(MMRHandle);
 CPLErr CPL_DLL MMRSetDatum(MMRHandle, const Eprj_Datum *);
-const Eprj_ProParameters CPL_DLL *MMRGetProParameters(MMRHandle);
 char CPL_DLL *MMRGetPEString(MMRHandle);
 CPLErr CPL_DLL MMRSetPEString(MMRHandle hMMR, const char *pszPEString);
-CPLErr CPL_DLL MMRSetProParameters(MMRHandle, const Eprj_ProParameters *);
-
-CPLErr CPL_DLL MMRGetRasterInfo(MMRHandle hMMR, int *pnXSize, int *pnYSize,
-                                int *pnBands);
 CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
                               MMDataType *eMMRDataType,
                               MMBytesPerPixel *eMMBytesPerPixel,

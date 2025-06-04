@@ -257,6 +257,8 @@ class MMRBand
 
     CPLErr SetNoDataValue(double dfValue);
 
+    void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
+    void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
     CPLErr GetPCT(int *, double **, double **, double **, double **);
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);

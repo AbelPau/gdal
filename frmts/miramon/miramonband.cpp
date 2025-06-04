@@ -1762,7 +1762,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         apadfPaletteColors[2][nIRecord] = CPLAtof(pzsField);
 
         // ALPHA
-        apadfPaletteColors[3][nIRecord] = 255;  // ·$·TODO
+        apadfPaletteColors[3][nIRecord] = 65535;
         nNPaletteColors++;
     }
     VSIFree(pzsField);
@@ -1841,7 +1841,7 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
         apadfPaletteColors[2][nNReadPaletteColors] = CPLAtof(papszTokens[3]);
 
         // ALPHA
-        apadfPaletteColors[3][nNReadPaletteColors] = 255;  // ·$·TODO
+        apadfPaletteColors[3][nNReadPaletteColors] = 65535;
 
         CSLDestroy(papszTokens);
 
@@ -1866,6 +1866,21 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 /*                                                                      */
 /*      Return PCT information, if any exists.                          */
 /************************************************************************/
+void MMRBand::AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete)
+{
+    apadfPCT[0][nIndexDstPalete] = apadfPaletteColors[0][nIndexSrcPalete] / 256;
+    apadfPCT[1][nIndexDstPalete] = apadfPaletteColors[1][nIndexSrcPalete] / 256;
+    apadfPCT[2][nIndexDstPalete] = apadfPaletteColors[2][nIndexSrcPalete] / 256;
+    apadfPCT[3][nIndexDstPalete] = apadfPaletteColors[3][nIndexSrcPalete] / 256;
+}
+
+void MMRBand::AssignRGBColorDirectly(int nIndexDstPalete, double dfValue)
+{
+    apadfPCT[0][nIndexDstPalete] = dfValue;
+    apadfPCT[1][nIndexDstPalete] = dfValue;
+    apadfPCT[2][nIndexDstPalete] = dfValue;
+    apadfPCT[3][nIndexDstPalete] = dfValue;
+}
 
 CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
                        double **ppadfBlue, double **ppadfAlpha)
@@ -1927,44 +1942,17 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
             if (bPaletteHasNodata && nIPaletteColor == nNoDataPaletteIndex)
                 continue;
             if (nIPaletteColor < nNPaletteColors)
-            {
-                apadfPCT[0][nIPaletteColor] =
-                    apadfPaletteColors[0][nIPaletteColor];
-                apadfPCT[1][nIPaletteColor] =
-                    apadfPaletteColors[1][nIPaletteColor];
-                apadfPCT[2][nIPaletteColor] =
-                    apadfPaletteColors[2][nIPaletteColor];
-                apadfPCT[3][nIPaletteColor] =
-                    apadfPaletteColors[3][nIPaletteColor];
-            }
+                AssignRGBColor(nIPaletteColor, nIPaletteColor);
             else
-            {
-                apadfPCT[0][nIPaletteColor] = apadfPCT[1][nIPaletteColor] =
-                    apadfPCT[2][nIPaletteColor] = apadfPCT[3][nIPaletteColor] =
-                        (double)65535;
-            }
+                AssignRGBColorDirectly(nIPaletteColor, 1);
         }
         if (nNoDataPaletteIndex != 0 &&
             nNoDataPaletteIndex < nNPossibleValues / 3)
         {
             if (nNoDataPaletteIndex < nNPaletteColors)
-            {
-                apadfPCT[0][nIPaletteColor] =
-                    apadfPaletteColors[0][nNoDataPaletteIndex];
-                apadfPCT[1][nIPaletteColor] =
-                    apadfPaletteColors[1][nNoDataPaletteIndex];
-                apadfPCT[2][nIPaletteColor] =
-                    apadfPaletteColors[2][nNoDataPaletteIndex];
-                apadfPCT[3][nIPaletteColor] =
-                    apadfPaletteColors[3][nNoDataPaletteIndex];
-            }
+                AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
             else if (nNPaletteColors < nNPossibleValues / 3)
-            {
-                apadfPCT[0][nIPaletteColor] = (double)65535;
-                apadfPCT[1][nIPaletteColor] = (double)65535;
-                apadfPCT[2][nIPaletteColor] = (double)65535;
-                apadfPCT[3][nIPaletteColor] = (double)65535;
-            }
+                AssignRGBColorDirectly(nIPaletteColor, 1);
         }
     }
     else
@@ -1972,41 +1960,22 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
         if (!bMinSet || !bMaxSet)
             return CE_None;
 
-        double dfSlope, dfIntercept;
-        dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
-        dfIntercept = -dfSlope * dfMin;
-
         for (nIPaletteColor = 0; nIPaletteColor < (int)dfMin; nIPaletteColor++)
         {
             if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
             {
                 if (bPaletteHasNodata)
-                {
-                    apadfPCT[0][nIPaletteColor] =
-                        apadfPaletteColors[0][nNoDataPaletteIndex];
-                    apadfPCT[1][nIPaletteColor] =
-                        apadfPaletteColors[1][nNoDataPaletteIndex];
-                    apadfPCT[2][nIPaletteColor] =
-                        apadfPaletteColors[2][nNoDataPaletteIndex];
-                    apadfPCT[3][nIPaletteColor] =
-                        apadfPaletteColors[3][nNoDataPaletteIndex];
-                }
+                    AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
                 else
-                {
-                    apadfPCT[0][nIPaletteColor] = (double)65535;
-                    apadfPCT[1][nIPaletteColor] = (double)65535;
-                    apadfPCT[2][nIPaletteColor] = (double)65535;
-                    apadfPCT[3][nIPaletteColor] = (double)65535;
-                }
+                    AssignRGBColorDirectly(nIPaletteColor, 1);
             }
             else
-            {
-                apadfPCT[0][nIPaletteColor] = apadfPaletteColors[0][0];
-                apadfPCT[1][nIPaletteColor] = apadfPaletteColors[1][0];
-                apadfPCT[2][nIPaletteColor] = apadfPaletteColors[2][0];
-                apadfPCT[3][nIPaletteColor] = apadfPaletteColors[3][0];
-            }
+                AssignRGBColor(nIPaletteColor, 0);
         }
+
+        double dfSlope, dfIntercept;
+        dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
+        dfIntercept = -dfSlope * dfMin;
 
         for (/*continuing from last loop*/; nIPaletteColor <= (int)dfMax;
              nIPaletteColor++)
@@ -2016,37 +1985,17 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
                 // El ràster té un nodata i m'acabo de trobar el seu índex.
                 // Per a fer-ho cal que la paleta tingui nodata. Si no el té, li poso un color blanc.
                 if (bPaletteHasNodata)
-                {
-                    apadfPCT[0][nIPaletteColor] =
-                        apadfPaletteColors[0][nNoDataOriginalIndex];
-                    apadfPCT[1][nIPaletteColor] =
-                        apadfPaletteColors[1][nNoDataOriginalIndex];
-                    apadfPCT[2][nIPaletteColor] =
-                        apadfPaletteColors[2][nNoDataOriginalIndex];
-                    apadfPCT[3][nIPaletteColor] =
-                        apadfPaletteColors[3][nNoDataOriginalIndex];
-                }
+                    AssignRGBColor(nIPaletteColor, nNoDataOriginalIndex);
                 else
-                {
-                    apadfPCT[0][nIPaletteColor] = (double)65535;
-                    apadfPCT[1][nIPaletteColor] = (double)65535;
-                    apadfPCT[2][nIPaletteColor] = (double)65535;
-                    apadfPCT[3][nIPaletteColor] = (double)65535;
-                }
+                    AssignRGBColorDirectly(nIPaletteColor, 1);
             }
             else
             {
                 // Fórmula de la recta
                 unsigned short nIndexColor =
                     (unsigned short)(dfSlope * nIPaletteColor + dfIntercept);
-                apadfPCT[0][nIPaletteColor] =
-                    apadfPaletteColors[0][nIndexColor];
-                apadfPCT[1][nIPaletteColor] =
-                    apadfPaletteColors[1][nIndexColor];
-                apadfPCT[2][nIPaletteColor] =
-                    apadfPaletteColors[2][nIndexColor];
-                apadfPCT[3][nIPaletteColor] =
-                    apadfPaletteColors[3][nIndexColor];
+
+                AssignRGBColor(nIPaletteColor, nIndexColor);
             }
         }
         for (/*continuing from last loop*/;
@@ -2057,35 +2006,12 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
                 // El ràster té un nodata i m'acabo de trobar el seu índex.
                 // Per a fer-ho cal que la paleta tingui nodata. Si no el té, li poso un color blanc.
                 if (bPaletteHasNodata)
-                {
-                    apadfPCT[0][nIPaletteColor] =
-                        apadfPaletteColors[0][nNoDataOriginalIndex];
-                    apadfPCT[1][nIPaletteColor] =
-                        apadfPaletteColors[1][nNoDataOriginalIndex];
-                    apadfPCT[2][nIPaletteColor] =
-                        apadfPaletteColors[2][nNoDataOriginalIndex];
-                    apadfPCT[3][nIPaletteColor] =
-                        apadfPaletteColors[3][nNoDataOriginalIndex];
-                }
+                    AssignRGBColor(nIPaletteColor, nNoDataOriginalIndex);
                 else
-                {
-                    apadfPCT[0][nIPaletteColor] = (double)65535;
-                    apadfPCT[1][nIPaletteColor] = (double)65535;
-                    apadfPCT[2][nIPaletteColor] = (double)65535;
-                    apadfPCT[3][nIPaletteColor] = (double)65535;
-                }
+                    AssignRGBColorDirectly(nIPaletteColor, 1);
             }
             else
-            {
-                apadfPCT[0][nIPaletteColor] =
-                    apadfPaletteColors[0][nNPaletteColors - 1];
-                apadfPCT[1][nIPaletteColor] =
-                    apadfPaletteColors[1][nNPaletteColors - 1];
-                apadfPCT[2][nIPaletteColor] =
-                    apadfPaletteColors[2][nNPaletteColors - 1];
-                apadfPCT[3][nIPaletteColor] =
-                    apadfPaletteColors[3][nNPaletteColors - 1];
-            }
+                AssignRGBColor(nIPaletteColor, nNPaletteColors - 1);
         }
     }
 
