@@ -151,7 +151,6 @@ class MMRBand
 #define BFLG_COMPRESSED 0x02
 
     // Palette info
-    int nNPossibleValues;
     int nNPaletteColors;
     double *apadfPaletteColors[4];
     int nNoDataOriginalIndex;
@@ -184,6 +183,7 @@ class MMRBand
     int GetBoundingBox(const char *pszSection);
     void GetReferenceSystem();
     void GetMinMaxValues(const char *pszSection);
+    void GetMinMaxVisuValues(const char *pszSection);
     void GetFriendlyDescription(const char *pszSection);
 
     int GetAssignedSubDataSet();
@@ -239,6 +239,11 @@ class MMRBand
     double dfMin;
     bool bMaxSet;
     double dfMax;
+    //
+    bool bMinVisuSet;
+    double dfVisuMin;  // Key Color_ValorColor_0 in COLOR_TEXT
+    bool bMaxVisuSet;
+    double dfVisuMax;  // Key Color_ValorColor_n_1 COLOR_TEXT
 
     CPLString pszRefSystem;
 
@@ -259,6 +264,7 @@ class MMRBand
 
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
+    CPLErr ConvertPaletteColors(int &nIPaletteColor);
     CPLErr GetPCT(int *, double **, double **, double **, double **);
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);

@@ -61,6 +61,7 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define KEY_via "via"
 #define Key_IndexsNomsCamps "IndexsNomsCamps"
 #define KEY_NomCamp "NomCamp"
+#define SECTION_COLOR_TEXT "COLOR_TEXT"
 
 // MiraMon feature field names
 #define szMMNomCampIdGraficDefecte "ID_GRAFIC"

@@ -52,19 +52,16 @@
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-//#include "..\miramon_common\mm_gdal_constants.h"
 #else
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-//#include "../miramon_common/mm_gdal_constants.h"
 #endif
 
 /************************************************************************/
 /*                           MMRRasterBand()                            */
 /************************************************************************/
 MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
-    : poCT(nullptr),
-      // eMMRDataType
-      hMMR(poDSIn->hMMR), bMetadataDirty(false), poDefaultRAT(nullptr)
+    : poCT(nullptr), eMMRDataType(EPT_MIN), hMMR(poDSIn->hMMR),
+      bMetadataDirty(false), poDefaultRAT(nullptr)
 {
     poDS = poDSIn;
 
