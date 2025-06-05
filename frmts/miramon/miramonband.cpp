@@ -1970,6 +1970,10 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
         return CE_None;
     }
 
+    // Some necessary information
+    if (!bMinSet || !bMaxSet)
+        return CE_None;
+
     nNoDataPaletteIndex = 0;
     nNoDataOriginalIndex = 0;
 
@@ -1999,79 +2003,54 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
     nPCTColors = 0;
     if ((int)eMMBytesPerPixel <= 2 || nNPaletteColors >= nNPossibleValues)
     {
-        if ((int)eMMBytesPerPixel < 2)
-        {
-            for (nIPaletteColor = 0; nIPaletteColor < nNPossibleValues / 3;
-                 nIPaletteColor++)
-            {
-                if (bPaletteHasNodata &&
-                    nIPaletteColor == nNoDataPaletteIndex)  // Aqui no cal aixo?
-                    continue;
-                if (nIPaletteColor < nNPaletteColors)
-                    AssignRGBColor(nIPaletteColor, nIPaletteColor);
-                else
-                    AssignRGBColorDirectly(nIPaletteColor, 255);
-            }
-            if (nNoDataPaletteIndex != 0 &&
-                nNoDataPaletteIndex < nNPossibleValues / 3)
-            {
-                if (nNoDataPaletteIndex < nNPaletteColors)
-                    AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
-                else if (nNPaletteColors < nNPossibleValues / 3)
-                    AssignRGBColorDirectly(nIPaletteColor, 255);
-            }
-        }
+        int nFirstValidPaletteIndex;
+        unsigned short nIndexColor;
+        double dfSlope = 1, dfIntercept = 0;
+
+        if (nNoDataPaletteIndex == 0)
+            nFirstValidPaletteIndex = 1;
         else
+            nFirstValidPaletteIndex = 0;
+
+        if ((int)eMMBytesPerPixel == 2)
         {
-            if (!bMinSet || !bMaxSet)
-                return CE_None;
-
-            for (nIPaletteColor = 0; nIPaletteColor < (int)dfMin;
-                 nIPaletteColor++)
-            {
-                if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
-                {
-                    if (bPaletteHasNodata)
-                        AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
-                    else
-                        AssignRGBColorDirectly(nIPaletteColor, 255);
-                }
-                else
-                    AssignRGBColor(nIPaletteColor, 0);
-            }
-
-            double dfSlope, dfIntercept;
             dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
-            dfIntercept = -dfSlope * dfMin;
 
-            for (/*continuing from last loop*/; nIPaletteColor <= (int)dfMax;
-                 nIPaletteColor++)
+            if (nNoDataPaletteIndex != 0)  // nodata at the end of the list
+                dfIntercept = -dfSlope * dfMin;
+            else
+                dfIntercept = -dfSlope * dfMin + 1;
+        }
+
+        for (nIPaletteColor = 0; nIPaletteColor < nNPossibleValues / 3;
+             nIPaletteColor++)
+        {
+            if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
             {
-                if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
-                {
-                    if (bPaletteHasNodata)
-                        AssignRGBColor(nIPaletteColor, nNoDataOriginalIndex);
-                    else
-                        AssignRGBColorDirectly(nIPaletteColor, 255);
-                }
+                if (bPaletteHasNodata)
+                    AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
                 else
-                {
-                    unsigned short nIndexColor =
-                        (unsigned short)(dfSlope * nIPaletteColor +
-                                         dfIntercept);
-
-                    AssignRGBColor(nIPaletteColor, nIndexColor);
-                }
+                    AssignRGBColorDirectly(nIPaletteColor, 65535);
             }
-            for (/*continuing from last loop*/;
-                 nIPaletteColor < nNPossibleValues / 3; nIPaletteColor++)
+            else
             {
-                if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
+                if (nIPaletteColor < (int)dfMin)
+                    AssignRGBColor(nIPaletteColor, 0);
+                else if (nIPaletteColor >= (int)dfMin &&
+                         nIPaletteColor <= (int)dfMax)
                 {
-                    if (bPaletteHasNodata)
-                        AssignRGBColor(nIPaletteColor, nNoDataOriginalIndex);
+                    if ((int)eMMBytesPerPixel < 2)
+                    {
+                        AssignRGBColor(nIPaletteColor, nFirstValidPaletteIndex);
+                        nFirstValidPaletteIndex++;
+                    }
                     else
-                        AssignRGBColorDirectly(nIPaletteColor, 255);
+                    {
+                        nIndexColor =
+                            (unsigned short)(dfSlope * nIPaletteColor +
+                                             dfIntercept);
+                        AssignRGBColor(nIPaletteColor, nIndexColor);
+                    }
                 }
                 else
                     AssignRGBColor(nIPaletteColor, nNPaletteColors - 1);
