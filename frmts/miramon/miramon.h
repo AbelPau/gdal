@@ -155,7 +155,6 @@ CPLErr CPL_DLL MMRSetMapInfo(MMRHandle, const Eprj_MapInfo *);
 const Eprj_Datum CPL_DLL *MMRGetDatum(MMRHandle);
 CPLErr CPL_DLL MMRSetDatum(MMRHandle, const Eprj_Datum *);
 char CPL_DLL *MMRGetPEString(MMRHandle);
-CPLErr CPL_DLL MMRSetPEString(MMRHandle hMMR, const char *pszPEString);
 CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
                               MMDataType *eMMRDataType,
                               MMBytesPerPixel *eMMBytesPerPixel,
@@ -193,7 +192,6 @@ int CPL_DLL MMREvaluateXFormStack(int nStepCount, int bForward,
                                   Efga_Polynomial *pasPolyList, double *pdfX,
                                   double *pdfY);
 
-char CPL_DLL **MMRReadCameraModel(MMRHandle psInfo);
 const char CPL_DLL *MMRReadElevationUnit(MMRHandle psInfo, int iBand);
 
 /* -------------------------------------------------------------------- */

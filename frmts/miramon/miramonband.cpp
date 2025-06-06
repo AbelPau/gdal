@@ -351,14 +351,13 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
           static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
       eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
-      bIsCompressed(false), psInfo(psInfoIn),
-      eDataType(static_cast<EPTType>(EPT_MIN)), poNode(nullptr), nBlockXSize(0),
-      nBlockYSize(1), nWidth(psInfoIn->nXSize), nHeight(psInfo->nYSize),
-      nResolution(0), nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false),
-      pszNodataDef(""), dfNoData(0.0), bMinSet(false), dfMin(0.0),
-      bMaxSet(false), dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0),
-      bMaxVisuSet(false), dfVisuMax(0.0), pszRefSystem(""), dfBBMinX(0),
-      dfBBMinY(0), dfBBMaxX(0), dfBBMaxY(0)
+      bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
+      dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
+      dfVisuMax(0.0), pszRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
+      dfBBMaxY(0), psInfo(psInfoIn), eDataType(static_cast<EPTType>(EPT_MIN)),
+      poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
+      nHeight(psInfo->nYSize), nResolution(0), nBlocksPerRow(1),
+      nBlocksPerColumn(1), bNoDataSet(false), pszNodataDef(""), dfNoData(0.0)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
@@ -1821,7 +1820,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     }
 
     nNPaletteColors = 0;
-    for (MM_EXT_DBF_N_RECORDS nIRecord = 0; nIRecord < nPCTColors; nIRecord++)
+    for (int nIRecord = 0; nIRecord < nPCTColors; nIRecord++)
     {
         if (pColorTable->BytesPerRecord !=
             VSIFReadL(pzsBuffer, sizeof(unsigned char),
@@ -1841,7 +1840,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         if (osField.empty())  // Nodata value
         {
             bPaletteHasNodata = true;
-            nNoDataOriginalIndex = (int)nIRecord;
+            nNoDataOriginalIndex = nIRecord;
         }
 
         // RED
@@ -2102,8 +2101,7 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
                     // element (as a placeholder).
                     AssignRGBColor(nIPaletteColor, 0);
                 }
-                else if (nIPaletteColor >= (int)dfMin &&
-                         nIPaletteColor <= (int)dfMax)
+                else if (nIPaletteColor <= (int)dfMax)
                 {
                     // Between the minimum and maximum, we apply the value
                     // read from the table.
@@ -2129,20 +2127,6 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
                     AssignRGBColor(nIPaletteColor, nNPaletteColors - 1);
                 }
             }
-        }
-    }
-    else
-    {
-        int nInterval, nColorIndex;
-
-        nInterval = nNPossibleValues / nNPaletteColors;
-        nColorIndex = 0;
-        for (nIPaletteColor = 0; nIPaletteColor < (size_t)nNPossibleValues / 3;
-             nIPaletteColor++)
-        {
-            AssignRGBColor(nIPaletteColor, nColorIndex);
-            if ((nIPaletteColor + 1) % nInterval == 0)
-                nColorIndex++;
         }
     }
 
