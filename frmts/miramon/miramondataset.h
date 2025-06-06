@@ -62,7 +62,6 @@ class MMRDataset final : public GDALPamDataset
     virtual ~MMRDataset();
 
     static int Identify(GDALOpenInfo *);
-    static CPLErr Rename(const char *pszNewName, const char *pszOldName);
     static CPLErr CopyFiles(const char *pszNewName, const char *pszOldName);
     static GDALDataset *Open(GDALOpenInfo *);
     static GDALDataset *Create(const char *pszFileName, int nXSize, int nYSize,

@@ -1364,42 +1364,6 @@ GDALDataset *MMRDataset::Create(const char *pszFilenameIn, int nXSize,
 }
 
 /************************************************************************/
-/*                               Rename()                               */
-/*                                                                      */
-/*      Custom Rename() implementation that knows how to update         */
-/*      filename references in .img and .aux files.                     */
-/************************************************************************/
-
-CPLErr MMRDataset::Rename(const char *pszNewName, const char *pszOldName)
-
-{
-    // Rename all the files at the filesystem level.
-    CPLErr eErr = GDALDriver::DefaultRename(pszNewName, pszOldName);
-    if (eErr != CE_None)
-        return eErr;
-
-    // Now try to go into the .img file and update RRDNames[] lists.
-    CPLString osOldBasename = CPLGetBasenameSafe(pszOldName);
-    CPLString osNewBasename = CPLGetBasenameSafe(pszNewName);
-
-    if (osOldBasename != osNewBasename)
-    {
-        MMRRel *fRel = new MMRRel(pszNewName);  // ·$·TODO Alliberar
-        MMRHandle hMMR = fRel->GetInfoFromREL(pszNewName, "r+");
-
-        if (hMMR != nullptr)
-        {
-            eErr = MMRRenameReferences(hMMR, osNewBasename, osOldBasename);
-
-            if (MMRClose(hMMR) != 0)
-                eErr = CE_Failure;
-        }
-    }
-
-    return eErr;
-}
-
-/************************************************************************/
 /*                             CopyFiles()                              */
 /*                                                                      */
 /*      Custom CopyFiles() implementation that knows how to update      */
@@ -1722,7 +1686,6 @@ void GDALRegister_MiraMonRaster()
     poDriver->pfnCreate = MMRDataset::Create;
     poDriver->pfnCreateCopy = MMRDataset::CreateCopy;
     poDriver->pfnIdentify = MMRDataset::Identify;
-    poDriver->pfnRename = MMRDataset::Rename;
     poDriver->pfnCopyFiles = MMRDataset::CopyFiles;
 
     GetGDALDriverManager()->RegisterDriver(poDriver);
@@ -1748,7 +1711,7 @@ bool MMRDataset::NextBandInANewDataSet(int nIBand)
         return true;
 
     // Two images with different resolution are assigned to different subdatasets
-    if (pThisBand->nResolution != pNextBand->nResolution)
+    if (pThisBand->GetPixelResolution() != pNextBand->GetPixelResolution())
         return true;
 
     // Two images with different bounding box are assigned to different subdatasets

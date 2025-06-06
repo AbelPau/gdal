@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements MMRDataset class.
+ * Purpose:  Implements MMRRasterAttributeTable class.
  * Author:   Abel Pau
  * 
  ******************************************************************************
@@ -13,6 +13,8 @@
 //#include "cpl_port.h"
 #include "miramondataset.h"
 #include "miramon_atributte_table.h"
+
+#include <algorithm>
 
 /************************************************************************/
 /*                     MMRRasterAttributeTable()                        */

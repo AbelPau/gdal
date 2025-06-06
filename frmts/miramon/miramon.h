@@ -182,9 +182,6 @@ char CPL_DLL **MMRGetMetadata(MMRHandle hMMR, int nBand);
 CPLErr CPL_DLL MMRSetMetadata(MMRHandle hMMR, int nBand, char **);
 char CPL_DLL **MMRGetClassNames(MMRHandle hMMR, int nBand);
 
-int CPL_DLL MMRReadXFormStack(MMRHandle psInfo,
-                              Efga_Polynomial **ppasPolyListForward,
-                              Efga_Polynomial **ppasPolyListReverse);
 CPLErr CPL_DLL MMRWriteXFormStack(MMRHandle psInfo, int nBand, int nXFormCount,
                                   Efga_Polynomial **ppasPolyListForward,
                                   Efga_Polynomial **ppasPolyListReverse);

@@ -339,6 +339,11 @@ double MMRBand::GetBoundingBoxMaxY()
     return dfBBMaxY;
 }
 
+double MMRBand::GetPixelResolution()
+{
+    return nResolution;
+}
+
 MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : pfIMG(nullptr), pfRel(psInfoIn->fRel), nBlocks(0), panBlockStart(nullptr),
       panBlockSize(nullptr), panBlockFlag(nullptr), nBlockStart(0),
@@ -354,10 +359,11 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
       dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
       dfVisuMax(0.0), pszRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
-      dfBBMaxY(0), psInfo(psInfoIn), eDataType(static_cast<EPTType>(EPT_MIN)),
-      poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
-      nHeight(psInfo->nYSize), nResolution(0), nBlocksPerRow(1),
-      nBlocksPerColumn(1), bNoDataSet(false), pszNodataDef(""), dfNoData(0.0)
+      dfBBMaxY(0), nResolution(0), psInfo(psInfoIn),
+      eDataType(static_cast<EPTType>(EPT_MIN)), poNode(nullptr), nBlockXSize(0),
+      nBlockYSize(1), nWidth(psInfoIn->nXSize), nHeight(psInfo->nYSize),
+      nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false),
+      pszNodataDef(""), dfNoData(0.0)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
@@ -453,8 +459,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
 
     // Let's see if there is RLE compression
     bIsCompressed =
-        (((eMMDataType > MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
-          (eMMDataType < MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
+        (((eMMDataType >= MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
+          (eMMDataType <= MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
          eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
 
     // Getting min and max values
@@ -1221,9 +1227,12 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
             return CE_Failure;
         }
 
+        //__int32 nBytesPerRow = nWidth * (__int32)eMMBytesPerPixel;
+
         if (VSIFReadL(pabyCData, static_cast<size_t>(nBlockSize), 1, pfIMG) !=
             1)
         {
+
             CPLFree(pabyCData);
 
             // XXX: Suppose that file in update state

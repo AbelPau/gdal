@@ -121,9 +121,6 @@ int CPL_DLL MMRCreateLayer(MMRHandle psInfo, MMREntry *poParent,
                            //GIntBig nStackDataOffset,
                            int nStackCount, int nStackIndex);
 
-const char *const *MMRGetDatumMap();
-const char *const *MMRGetUnitMap();
-
 /************************************************************************/
 /*                               MMRBand                                */
 /************************************************************************/
@@ -204,6 +201,9 @@ class MMRBand
     double dfBBMaxX;
     double dfBBMaxY;
 
+    // Resolution of the pixel
+    double nResolution;
+
     CPLErr LoadBlockInfo();
     void ReAllocBlock(int iBlock, int nSize);
 
@@ -240,6 +240,7 @@ class MMRBand
     double GetBoundingBoxMaxX();
     double GetBoundingBoxMinY();
     double GetBoundingBoxMaxY();
+    double GetPixelResolution();
 
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
     CPLErr SetRasterBlock(int nXBlock, int nYBlock, void *pData);
@@ -267,9 +268,6 @@ class MMRBand
 
     int nWidth;
     int nHeight;
-
-    // Resolution of the pixel
-    int nResolution;
 
     int nBlocksPerRow;
     int nBlocksPerColumn;
