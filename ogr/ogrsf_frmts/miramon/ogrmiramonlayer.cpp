@@ -2271,10 +2271,8 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
     Moreover, it avoids some failures in compilers not expecting
     NAN or INF values.
 */
-int OGRMiraMonLayer::MM_SprintfDoubleSignifFigures(char *szChain,
-                                                   size_t size_szChain,
-                                                   int nSignifFigures,
-                                                   double dfRealValue)
+int MM_SprintfDoubleSignifFigures(char *szChain, size_t size_szChain,
+                                  int nSignifFigures, double dfRealValue)
 {
     double VALOR_LIMIT_PRINT_IN_FORMAT_E;
     double VALOR_TOO_SMALL_TO_PRINT_f;

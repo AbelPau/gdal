@@ -770,7 +770,7 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
             return CE_Failure;
         }
 
-        psInfo->papoBand[psInfo->nBands]->osRELFileName = pszRELFileName;
+        psInfo->papoBand[psInfo->nBands]->SetRELFileName(pszRELFileName);
         psInfo->nBands++;
     }
 

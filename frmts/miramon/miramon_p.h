@@ -134,6 +134,9 @@ const char *const *MMRGetUnitMap();
 
 class MMRBand
 {
+    VSILFILE *pfIMG;  // Point to IMG file
+    MMRRel *pfRel;    // Rel where metadata is readed from
+
     int nBlocks;
 
     // Used for single-file modification.
@@ -163,34 +166,6 @@ class MMRBand
     // Assigned Subdataset for this band.
     int nAssignedSDS;
 
-    CPLErr LoadBlockInfo();
-
-    void ReAllocBlock(int iBlock, int nSize);
-
-  public:
-    MMRBand(MMRInfo_t *, const char *pszSection);
-    ~MMRBand();
-
-    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
-        const char *pszSection, const char *pszKey, int *nValue,
-        const char *pszErrorMessage);
-    int GetDataType(const char *pszSection);
-    int GetResolution(const char *pszSection);
-    int GetColumnsNumber(const char *pszSection);
-    int GetRowsNumber(const char *pszSection);
-    void GetNoDataValue(const char *pszSection);
-    void GetNoDataDefinition(const char *pszSection);
-    int GetBoundingBox(const char *pszSection);
-    void GetReferenceSystem();
-    void GetMinMaxValues(const char *pszSection);
-    void GetMinMaxVisuValues(const char *pszSection);
-    void GetFriendlyDescription(const char *pszSection);
-
-    int GetAssignedSubDataSet();
-    void AssignSubDataSet(int nAssignedSDSIn);
-
-    MMRInfo_t *psInfo;
-
     // Section in REL file that give information about the band
     CPLString osBandSection;
     // REL file name that contains the band
@@ -204,31 +179,9 @@ class MMRBand
     // Descripcion of the band, not the name
     CPLString osFriendlyDescription;
 
-    VSILFILE *fp;
-    MMRRel *pfRel;  // Rel where metadata is readed from
-
-    EPTType eDataType;
     MMDataType eMMDataType;
     MMBytesPerPixel eMMBytesPerPixel;
     bool bIsCompressed;
-
-    MMREntry *poNode;
-
-    int nBlockXSize;
-    int nBlockYSize;
-
-    int nWidth;
-    int nHeight;
-
-    // Resolution of the pixel
-    int nResolution;
-
-    int nBlocksPerRow;
-    int nBlocksPerColumn;
-
-    bool bNoDataSet;         // There is nodata?
-    CPLString pszNodataDef;  // Definition of nodata
-    double dfNoData;         // Value of nodata
 
     // Min and Max values from metadata:  This value should correspond
     // to the actual minimum and maximum, not to an approximation.
@@ -255,11 +208,47 @@ class MMRBand
     double dfBBMaxX;
     double dfBBMaxY;
 
+    CPLErr LoadBlockInfo();
+    void ReAllocBlock(int iBlock, int nSize);
+
+  public:
+    MMRBand(MMRInfo_t *, const char *pszSection);
+    ~MMRBand();
+
+    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+        const char *pszSection, const char *pszKey, int *nValue,
+        const char *pszErrorMessage);
+    int GetDataType(const char *pszSection);
+    int GetResolution(const char *pszSection);
+    int GetColumnsNumber(const char *pszSection);
+    int GetRowsNumber(const char *pszSection);
+    void GetNoDataValue(const char *pszSection);
+    void GetNoDataDefinition(const char *pszSection);
+    int GetBoundingBox(const char *pszSection);
+    void GetReferenceSystem();
+    void GetMinMaxValues(const char *pszSection);
+    void GetMinMaxVisuValues(const char *pszSection);
+    void GetFriendlyDescription(const char *pszSection);
+
+    int GetAssignedSubDataSet();
+    void AssignSubDataSet(int nAssignedSDSIn);
+    CPLString GetBandName();
+    CPLString GetRELFileName();
+    void SetRELFileName(CPLString osRELFileNameIn);
+    CPLString GetRawBandFileName();
+    CPLString GetFriendlyDescription();
+    MMDataType GeteMMDataType();
+    MMBytesPerPixel GeteMMBytesPerPixel();
+
+    double GetBoundingBoxMinX();
+    double GetBoundingBoxMaxX();
+    double GetBoundingBoxMinY();
+    double GetBoundingBoxMaxY();
+
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
     CPLErr SetRasterBlock(int nXBlock, int nYBlock, void *pData);
 
     void SetBandName(const char *pszName);
-
     CPLErr SetNoDataValue(double dfValue);
 
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
@@ -270,6 +259,28 @@ class MMRBand
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
     CPLErr SetPCT(int, const double *, const double *, const double *,
                   const double *);
+
+    MMRInfo_t *psInfo;
+
+    EPTType eDataType;
+
+    MMREntry *poNode;
+
+    int nBlockXSize;
+    int nBlockYSize;
+
+    int nWidth;
+    int nHeight;
+
+    // Resolution of the pixel
+    int nResolution;
+
+    int nBlocksPerRow;
+    int nBlocksPerColumn;
+
+    bool bNoDataSet;         // There is nodata?
+    CPLString pszNodataDef;  // Definition of nodata
+    double dfNoData;         // Value of nodata
 };
 
 /************************************************************************/

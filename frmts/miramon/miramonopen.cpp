@@ -203,10 +203,10 @@ CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, MMDataType *eMMRDataType,
     MMRBand *poBand = hMMR->papoBand[nBand - 1];
 
     if (eMMRDataType != nullptr)
-        *eMMRDataType = poBand->eMMDataType;
+        *eMMRDataType = poBand->GeteMMDataType();
 
     if (eMMBytesPerPixel != nullptr)
-        *eMMBytesPerPixel = poBand->eMMBytesPerPixel;
+        *eMMBytesPerPixel = poBand->GeteMMBytesPerPixel();
 
     if (pnBlockXSize != nullptr)
         *pnBlockXSize = poBand->nBlockXSize;

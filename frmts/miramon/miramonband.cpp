@@ -284,20 +284,81 @@ void MMRBand::AssignSubDataSet(int nAssignedSDSIn)
     nAssignedSDS = nAssignedSDSIn;
 }
 
+CPLString MMRBand::GetBandName()
+{
+    return osBandName;
+}
+
+CPLString MMRBand::GetRELFileName()
+{
+    return osRELFileName;
+}
+
+void MMRBand::SetRELFileName(CPLString osRELFileNameIn)
+{
+    osRELFileName = osRELFileNameIn;
+}
+
+CPLString MMRBand::GetRawBandFileName()
+{
+    return osRawBandFileName;
+}
+
+CPLString MMRBand::GetFriendlyDescription()
+{
+    return osFriendlyDescription;
+}
+
+MMDataType MMRBand::GeteMMDataType()
+{
+    return eMMDataType;
+}
+
+MMBytesPerPixel MMRBand::GeteMMBytesPerPixel()
+{
+    return eMMBytesPerPixel;
+}
+
+double MMRBand::GetBoundingBoxMinX()
+{
+    return dfBBMinX;
+}
+
+double MMRBand::GetBoundingBoxMaxX()
+{
+    return dfBBMaxX;
+}
+
+double MMRBand::GetBoundingBoxMinY()
+{
+    return dfBBMinY;
+}
+
+double MMRBand::GetBoundingBoxMaxY()
+{
+    return dfBBMaxY;
+}
+
 MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
-    : nBlocks(0), panBlockStart(nullptr), panBlockSize(nullptr),
-      panBlockFlag(nullptr), nBlockStart(0), nBlockSize(0), nLayerStackCount(0),
-      nLayerStackIndex(0), nPCTColors(-1), nAssignedSDS(0), psInfo(psInfoIn),
-      osBandSection(pszSection), osFriendlyDescription(""), fp(nullptr),
-      pfRel(psInfoIn->fRel), eDataType(static_cast<EPTType>(EPT_MIN)),
+    : pfIMG(nullptr), pfRel(psInfoIn->fRel), nBlocks(0), panBlockStart(nullptr),
+      panBlockSize(nullptr), panBlockFlag(nullptr), nBlockStart(0),
+      nBlockSize(0), nLayerStackCount(0), nLayerStackIndex(0),
+      nNPaletteColors(0), nNoDataOriginalIndex(0), bPaletteHasNodata(false),
+      nPCTColors(-1), nNoDataPaletteIndex(0), nAssignedSDS(0),
+      osBandSection(pszSection), osRELFileName(""), osRawBandFileName(""),
+      osBandFileName(""), osBandName(""), osFriendlyDescription(""),
       eMMDataType(
           static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
       eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
-      poNode(nullptr), nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
-      nHeight(psInfo->nYSize), nResolution(0), nBlocksPerRow(1),
-      nBlocksPerColumn(1), bNoDataSet(false), pszNodataDef(""), dfNoData(0.0),
-      bMinSet(false), dfMin(0.0), bMaxSet(false), dfMax(0.0)
+      bIsCompressed(false), psInfo(psInfoIn),
+      eDataType(static_cast<EPTType>(EPT_MIN)), poNode(nullptr), nBlockXSize(0),
+      nBlockYSize(1), nWidth(psInfoIn->nXSize), nHeight(psInfo->nYSize),
+      nResolution(0), nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false),
+      pszNodataDef(""), dfNoData(0.0), bMinSet(false), dfMin(0.0),
+      bMaxSet(false), dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0),
+      bMaxVisuSet(false), dfVisuMax(0.0), pszRefSystem(""), dfBBMinX(0),
+      dfBBMinY(0), dfBBMaxX(0), dfBBMaxY(0)
 {
     apadfPCT[0] = nullptr;
     apadfPCT[1] = nullptr;
@@ -443,8 +504,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     nBlocksPerColumn = nHeight;
 
     // Can the binary file that contains all data for this band be opened?
-    fp = VSIFOpenL(osBandFileName, "rb");
-    if (!fp)
+    pfIMG = VSIFOpenL(osBandFileName, "rb");
+    if (!pfIMG)
     {
         nWidth = 0;
         nHeight = 0;
@@ -476,8 +537,8 @@ MMRBand::~MMRBand()
     CPLFree(apadfPCT[2]);
     CPLFree(apadfPCT[3]);
 
-    if (fp != nullptr)
-        CPL_IGNORE_RET_VAL(VSIFCloseL(fp));
+    if (pfIMG != nullptr)
+        CPL_IGNORE_RET_VAL(VSIFCloseL(pfIMG));
 }
 
 /************************************************************************/
@@ -1122,14 +1183,14 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
 
     // Calculate block offset in case we have spill file. Use predefined
     // block map otherwise.
-    if (!fp)
+    if (!pfIMG)
     {
         CPLError(CE_Failure, CPLE_FileIO, "File band not opened: \n%s",
                  osBandFileName.c_str());
         return CE_Failure;
     }
 
-    if (VSIFSeekL(fp, nBlockOffset, SEEK_SET) != 0)
+    if (VSIFSeekL(pfIMG, nBlockOffset, SEEK_SET) != 0)
     {
         // XXX: We will not report error here, because file just may be
         // in update state and data for this block will be available later.
@@ -1143,7 +1204,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
             CPLError(CE_Failure, CPLE_FileIO,
                      "Seek to %x:%08x on %p failed\n%s",
                      static_cast<int>(nBlockOffset >> 32),
-                     static_cast<int>(nBlockOffset & 0xffffffff), fp,
+                     static_cast<int>(nBlockOffset & 0xffffffff), pfIMG,
                      VSIStrerror(errno));
             return CE_Failure;
         }
@@ -1161,7 +1222,8 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
             return CE_Failure;
         }
 
-        if (VSIFReadL(pabyCData, static_cast<size_t>(nBlockSize), 1, fp) != 1)
+        if (VSIFReadL(pabyCData, static_cast<size_t>(nBlockSize), 1, pfIMG) !=
+            1)
         {
             CPLFree(pabyCData);
 
@@ -1177,7 +1239,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
                          "Read of %d bytes at %x:%08x on %p failed.\n%s",
                          static_cast<int>(nBlockSize),
                          static_cast<int>(nBlockOffset >> 32),
-                         static_cast<int>(nBlockOffset & 0xffffffff), fp,
+                         static_cast<int>(nBlockOffset & 0xffffffff), pfIMG,
                          VSIStrerror(errno));
                 return CE_Failure;
             }
@@ -1204,14 +1266,14 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         return CE_Failure;
     }
 
-    if (VSIFReadL(pData, static_cast<size_t>(nBlockSize), 1, fp) != 1)
+    if (VSIFReadL(pData, static_cast<size_t>(nBlockSize), 1, pfIMG) != 1)
     {
         memset(pData, 0, nGDALBlockSize);
 
         CPLDebug("MMRBand", "Read of %x:%08x bytes at %d on %p failed.\n%s",
                  static_cast<int>(nBlockSize),
                  static_cast<int>(nBlockOffset >> 32),
-                 static_cast<int>(nBlockOffset & 0xffffffff), fp,
+                 static_cast<int>(nBlockOffset & 0xffffffff), pfIMG,
                  VSIStrerror(errno));
 
         return CE_None;
@@ -1333,7 +1395,7 @@ CPLErr MMRBand::SetRasterBlock(int nXBlock, int nYBlock, void *pData)
 
     // Calculate block offset in case we have spill file. Use predefined
     // block map otherwise.
-    fpData = fp;
+    fpData = pfIMG;
     nBlockOffset = nBlockStart + nBlockSize * iBlock * nLayerStackCount +
                    nLayerStackIndex * nBlockSize;
 
@@ -1729,10 +1791,10 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         strcmp(pColorTable->pField[1].FieldName, "R_COLOR") ||
         strcmp(pColorTable->pField[2].FieldName, "G_COLOR") ||
         strcmp(pColorTable->pField[3].FieldName, "B_COLOR") ||
-        pColorTable->pField[0].BytesPerField <= 0 ||
-        pColorTable->pField[1].BytesPerField <= 0 ||
-        pColorTable->pField[2].BytesPerField <= 0 ||
-        pColorTable->pField[3].BytesPerField <= 0 ||
+        pColorTable->pField[0].BytesPerField == 0 ||
+        pColorTable->pField[1].BytesPerField == 0 ||
+        pColorTable->pField[2].BytesPerField == 0 ||
+        pColorTable->pField[3].BytesPerField == 0 ||
         pColorTable->pField[0].FieldType != 'N' ||
         pColorTable->pField[1].FieldType != 'N' ||
         pColorTable->pField[2].FieldType != 'N' ||
@@ -1745,7 +1807,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
     VSIFSeekL(pColorTable->pfDataBase, pColorTable->FirstRecordOffset,
               SEEK_SET);
-    size_t bytesRead;
+
     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = pColorTable->BytesPerRecord + 1;
     char *pzsBuffer = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
     char *pzsField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
@@ -1762,9 +1824,8 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     for (MM_EXT_DBF_N_RECORDS nIRecord = 0; nIRecord < nPCTColors; nIRecord++)
     {
         if (pColorTable->BytesPerRecord !=
-            (bytesRead = VSIFReadL(pzsBuffer, sizeof(unsigned char),
-                                   pColorTable->BytesPerRecord,
-                                   pColorTable->pfDataBase)))
+            VSIFReadL(pzsBuffer, sizeof(unsigned char),
+                      pColorTable->BytesPerRecord, pColorTable->pfDataBase))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: \"%s\"",
                      osColorTableFileName.c_str());
@@ -1997,7 +2058,7 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
     }
 
     // Number of real colors (appart from NoData)
-    if (bPaletteHasNodata)  //·$·TODO FAlta alguna cosa que falla en casos petits.
+    if (bPaletteHasNodata)
         nNPaletteColors--;
 
     nPCTColors = 0;
@@ -2014,6 +2075,7 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
 
         if ((int)eMMBytesPerPixel == 2)
         {
+            // A scaling is applied between the minimum and maximum display values.
             dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
 
             if (nNoDataPaletteIndex != 0)  // nodata at the end of the list
@@ -2035,17 +2097,25 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
             else
             {
                 if (nIPaletteColor < (int)dfMin)
+                {
+                    // Before the minimum, we apply the color of the first
+                    // element (as a placeholder).
                     AssignRGBColor(nIPaletteColor, 0);
+                }
                 else if (nIPaletteColor >= (int)dfMin &&
                          nIPaletteColor <= (int)dfMax)
                 {
+                    // Between the minimum and maximum, we apply the value
+                    // read from the table.
                     if ((int)eMMBytesPerPixel < 2)
                     {
+                        // The value is applied directly.
                         AssignRGBColor(nIPaletteColor, nFirstValidPaletteIndex);
                         nFirstValidPaletteIndex++;
                     }
                     else
                     {
+                        // The value is applied according to the scaling.
                         nIndexColor =
                             (unsigned short)(dfSlope * nIPaletteColor +
                                              dfIntercept);
@@ -2053,7 +2123,11 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
                     }
                 }
                 else
+                {
+                    // After the maximum, we apply the value of the last
+                    // element(as a placeholder).
                     AssignRGBColor(nIPaletteColor, nNPaletteColors - 1);
+                }
             }
         }
     }

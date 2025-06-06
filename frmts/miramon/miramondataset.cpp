@@ -371,7 +371,7 @@ const char *MMRGetBandName(MMRHandle hMMR, int nBand)
     if (nBand < 1 || nBand > hMMR->nBands)
         return "";
 
-    return hMMR->papoBand[nBand - 1]->osBandName;
+    return hMMR->papoBand[nBand - 1]->GetBandName();
 }
 
 /************************************************************************/
@@ -1129,14 +1129,14 @@ int MMRDataset::GetBandBoundingBox(int nIBand)
 
     MMRBand *poBand = hMMR->papoBand[nIBand];
 
-    adfGeoTransform[0] = poBand->dfBBMinX;
+    adfGeoTransform[0] = poBand->GetBoundingBoxMinX();
     adfGeoTransform[1] =
-        (poBand->dfBBMaxX - adfGeoTransform[0]) / poBand->nWidth;
+        (poBand->GetBoundingBoxMaxX() - adfGeoTransform[0]) / poBand->nWidth;
     adfGeoTransform[2] = 0.0;  // No rotation in MiraMon rasters
-    adfGeoTransform[3] = poBand->dfBBMaxY;
+    adfGeoTransform[3] = poBand->GetBoundingBoxMaxY();
     adfGeoTransform[4] = 0.0;
     adfGeoTransform[5] =
-        (poBand->dfBBMinY - adfGeoTransform[3]) / poBand->nHeight;
+        (poBand->GetBoundingBoxMinY() - adfGeoTransform[3]) / poBand->nHeight;
 
     return 0;
 }
@@ -1736,42 +1736,38 @@ bool MMRDataset::NextBandInANewDataSet(int nIBand)
     if (nIBand + 1 >= hMMR->nBands)
         return false;
 
+    MMRBand *pThisBand = hMMR->papoBand[nIBand];
+    MMRBand *pNextBand = hMMR->papoBand[nIBand + 1];
+
     // Two images with different numbers of columns are assigned to different subdatasets
-    if (hMMR->papoBand[nIBand]->nWidth != hMMR->papoBand[nIBand + 1]->nWidth)
+    if (pThisBand->nWidth != pNextBand->nWidth)
         return true;
 
     // Two images with different numbers of rows are assigned to different subdatasets
-    if (hMMR->papoBand[nIBand]->nHeight != hMMR->papoBand[nIBand + 1]->nHeight)
+    if (pThisBand->nHeight != pNextBand->nHeight)
         return true;
 
     // Two images with different resolution are assigned to different subdatasets
-    if (hMMR->papoBand[nIBand]->nResolution !=
-        hMMR->papoBand[nIBand + 1]->nResolution)
+    if (pThisBand->nResolution != pNextBand->nResolution)
         return true;
 
     // Two images with different bounding box are assigned to different subdatasets
-    if (hMMR->papoBand[nIBand]->dfBBMinX !=
-        hMMR->papoBand[nIBand + 1]->dfBBMinX)
+    if (pThisBand->GetBoundingBoxMinX() != pNextBand->GetBoundingBoxMinX())
         return true;
-    if (hMMR->papoBand[nIBand]->dfBBMaxX !=
-        hMMR->papoBand[nIBand + 1]->dfBBMaxX)
+    if (pThisBand->GetBoundingBoxMaxX() != pNextBand->GetBoundingBoxMaxX())
         return true;
-    if (hMMR->papoBand[nIBand]->dfBBMinY !=
-        hMMR->papoBand[nIBand + 1]->dfBBMinY)
+    if (pThisBand->GetBoundingBoxMinY() != pNextBand->GetBoundingBoxMinY())
         return true;
-    if (hMMR->papoBand[nIBand]->dfBBMaxY !=
-        hMMR->papoBand[nIBand + 1]->dfBBMaxY)
+    if (pThisBand->GetBoundingBoxMaxY() != pNextBand->GetBoundingBoxMaxY())
         return true;
 
     // One image has NoData values and the other does not;
     // they are assigned to different subdatasets
-    if (hMMR->papoBand[nIBand]->bNoDataSet !=
-        hMMR->papoBand[nIBand + 1]->bNoDataSet)
+    if (pThisBand->bNoDataSet != pNextBand->bNoDataSet)
         return true;
 
     // Two images with different NoData values are assigned to different subdatasets
-    if (hMMR->papoBand[nIBand]->dfNoData !=
-        hMMR->papoBand[nIBand + 1]->dfNoData)
+    if (pThisBand->dfNoData != pNextBand->dfNoData)
         return true;
 
     return false;
@@ -1825,10 +1821,10 @@ void MMRDataset::CreateSubdatasetsFromBands()
 
         // ·$·TODO passar els noms a una funció que determini si calen cometes.
         osDSName.Printf("MiraMonRaster:\"%s\",\"%s\"",
-                        hMMR->papoBand[nIBand]->osRELFileName.c_str(),
-                        hMMR->papoBand[nIBand]->osRawBandFileName.c_str());
+                        hMMR->papoBand[nIBand]->GetRELFileName().c_str(),
+                        hMMR->papoBand[nIBand]->GetRawBandFileName().c_str());
         osDSDesc.Printf("Subdataset %d: \"%s\"", iSubdataset,
-                        hMMR->papoBand[nIBand]->osBandName.c_str());
+                        hMMR->papoBand[nIBand]->GetBandName().c_str());
         nIBand++;
 
         for (; nIBand < hMMR->nBands; nIBand++)
@@ -1837,9 +1833,10 @@ void MMRDataset::CreateSubdatasetsFromBands()
                 continue;
 
             osDSName.append(CPLSPrintf(
-                ",\"%s\"", hMMR->papoBand[nIBand]->osRawBandFileName.c_str()));
+                ",\"%s\"",
+                hMMR->papoBand[nIBand]->GetRawBandFileName().c_str()));
             osDSDesc.append(CPLSPrintf(
-                ",\"%s\"", hMMR->papoBand[nIBand]->osBandName.c_str()));
+                ",\"%s\"", hMMR->papoBand[nIBand]->GetBandName().c_str()));
         }
 
         oSubdatasetList.AddNameValue(
@@ -1872,8 +1869,8 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
 
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
-        poBand->SetMetadataItem("DESCRIPTION",
-                                hMMR->papoBand[nIBand]->osFriendlyDescription);
+        poBand->SetMetadataItem(
+            "DESCRIPTION", hMMR->papoBand[nIBand]->GetFriendlyDescription());
 
         // Collect GDAL custom Metadata, and "auxiliary" metadata from
         // well known MMR structures for the bands.  We defer this till
