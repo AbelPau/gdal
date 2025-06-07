@@ -354,12 +354,15 @@ CPLErr MMRRasterBand::IWriteBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 
 const char *MMRRasterBand::GetDescription() const
 {
+    return MMRGetBandName(hMMR, nBand);
+    /*
     const char *pszName = MMRGetBandName(hMMR, nBand);
 
     if (pszName == nullptr)
         return GDALPamRasterBand::GetDescription();
 
     return pszName;
+    */
 }
 
 /************************************************************************/

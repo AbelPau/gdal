@@ -11,6 +11,7 @@
  ****************************************************************************/
 
 #include "miramon_p.h"
+#include "miramon_rastertools.h"
 
 // Converts FileNameI.rel to FileName.img
 CPLString MMRGetFileNameFromRelName(const char *pszRELFile)

@@ -1197,22 +1197,11 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
 
     if (VSIFSeekL(pfIMG, nBlockOffset, SEEK_SET) != 0)
     {
-        // XXX: We will not report error here, because file just may be
-        // in update state and data for this block will be available later.
-        if (psInfo->eAccess == MMRAccess::MMR_Update)
-        {
-            memset(pData, 0, nGDALBlockSize);
-            return CE_None;
-        }
-        else
-        {
-            CPLError(CE_Failure, CPLE_FileIO,
-                     "Seek to %x:%08x on %p failed\n%s",
-                     static_cast<int>(nBlockOffset >> 32),
-                     static_cast<int>(nBlockOffset & 0xffffffff), pfIMG,
-                     VSIStrerror(errno));
-            return CE_Failure;
-        }
+        CPLError(CE_Failure, CPLE_FileIO, "Seek to %x:%08x on %p failed\n%s",
+                 static_cast<int>(nBlockOffset >> 32),
+                 static_cast<int>(nBlockOffset & 0xffffffff), pfIMG,
+                 VSIStrerror(errno));
+        return CE_Failure;
     }
 
     // If the block is compressed, read into an intermediate buffer

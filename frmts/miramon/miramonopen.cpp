@@ -55,10 +55,6 @@
 
 #include "miramon_rastertools.h"
 
-constexpr double R2D = 180.0 / M_PI;
-
-constexpr double RAD2ARCSEC = 648000.0 / M_PI;
-
 static const char *const apszAuxMetadataItems[] = {
     // node/entry            field_name                  metadata_key       type
     "Statistics",
