@@ -36,6 +36,10 @@
 
 #include "libtiff_codecs.h"
 
+#if defined(__x86_64__) || defined(_M_X64)
+#include <emmintrin.h>
+#endif
+
 #define STRINGIFY(x) #x
 #define XSTRINGIFY(x) STRINGIFY(x)
 
@@ -67,20 +71,7 @@ struct LIBERTIFFDatasetFileReader final : public LIBERTIFF_NS::FileReader
         return m_nFileSize;
     }
 
-    size_t read(uint64_t offset, size_t count, void *buffer) const override
-    {
-        if (m_bHasPread && m_bPReadAllowed)
-        {
-            return m_fp->PRead(buffer, count, offset);
-        }
-        else
-        {
-            std::lock_guard oLock(m_oMutex);
-            return m_fp->Seek(offset, SEEK_SET) == 0
-                       ? m_fp->Read(buffer, 1, count)
-                       : 0;
-        }
-    }
+    size_t read(uint64_t offset, size_t count, void *buffer) const override;
 
     void setPReadAllowed() const
     {
@@ -89,6 +80,21 @@ struct LIBERTIFFDatasetFileReader final : public LIBERTIFF_NS::FileReader
 
     CPL_DISALLOW_COPY_ASSIGN(LIBERTIFFDatasetFileReader)
 };
+
+size_t LIBERTIFFDatasetFileReader::read(uint64_t offset, size_t count,
+                                        void *buffer) const
+{
+    if (m_bHasPread && m_bPReadAllowed)
+    {
+        return m_fp->PRead(buffer, count, offset);
+    }
+    else
+    {
+        std::lock_guard oLock(m_oMutex);
+        return m_fp->Seek(offset, SEEK_SET) == 0 ? m_fp->Read(buffer, 1, count)
+                                                 : 0;
+    }
+}
 
 /************************************************************************/
 /*                         LIBERTIFFDataset                             */
@@ -338,7 +344,6 @@ class LIBERTIFFBand final : public GDALPamRasterBand
             CPLDebug("LIBERTIFF", "GetLockedBlockRef() called");
         }
         std::lock_guard oLock(m_oMutexBlockCache);
-        // coverity[sleep]
         return GDALRasterBand::GetLockedBlockRef(nXBlockOff, nYBlockOff,
                                                  bJustInitialize);
     }
@@ -1145,7 +1150,55 @@ FloatingPointHorizPredictorDecode(std::vector<uint8_t> &tmpBuffer,
     memcpy(tmpBuffer.data(), buffer, tmpBufferSize);
     constexpr uint32_t bytesPerWords = static_cast<uint32_t>(sizeof(T));
     const size_t wordCount = nPixelCount * nComponentsPerPixel;
-    for (size_t iWord = 0; iWord < wordCount; iWord++)
+
+    size_t iWord = 0;
+
+#if defined(__x86_64__) || defined(_M_X64)
+    if constexpr (bytesPerWords == 4)
+    {
+        /* Optimization of general case */
+        for (; iWord + 15 < wordCount; iWord += 16)
+        {
+            /* Interlace 4*16 byte values */
+
+            __m128i xmm0 = _mm_loadu_si128(reinterpret_cast<__m128i const *>(
+                tmpBuffer.data() + iWord + 3 * wordCount));
+            __m128i xmm1 = _mm_loadu_si128(reinterpret_cast<__m128i const *>(
+                tmpBuffer.data() + iWord + 2 * wordCount));
+            __m128i xmm2 = _mm_loadu_si128(reinterpret_cast<__m128i const *>(
+                tmpBuffer.data() + iWord + 1 * wordCount));
+            __m128i xmm3 = _mm_loadu_si128(reinterpret_cast<__m128i const *>(
+                tmpBuffer.data() + iWord + 0 * wordCount));
+            /* (xmm0_0, xmm1_0, xmm0_1, xmm1_1, xmm0_2, xmm1_2, ...) */
+            __m128i tmp0 = _mm_unpacklo_epi8(xmm0, xmm1);
+            /* (xmm0_8, xmm1_8, xmm0_9, xmm1_9, xmm0_10, xmm1_10, ...) */
+            __m128i tmp1 = _mm_unpackhi_epi8(xmm0, xmm1);
+            /* (xmm2_0, xmm3_0, xmm2_1, xmm3_1, xmm2_2, xmm3_2, ...) */
+            __m128i tmp2 = _mm_unpacklo_epi8(xmm2, xmm3);
+            /* (xmm2_8, xmm3_8, xmm2_9, xmm3_9, xmm2_10, xmm3_10, ...) */
+            __m128i tmp3 = _mm_unpackhi_epi8(xmm2, xmm3);
+            /* (xmm0_0, xmm1_0, xmm2_0, xmm3_0, xmm0_1, xmm1_1, xmm2_1, xmm3_1, ...) */
+            __m128i tmp2_0 = _mm_unpacklo_epi16(tmp0, tmp2);
+            __m128i tmp2_1 = _mm_unpackhi_epi16(tmp0, tmp2);
+            __m128i tmp2_2 = _mm_unpacklo_epi16(tmp1, tmp3);
+            __m128i tmp2_3 = _mm_unpackhi_epi16(tmp1, tmp3);
+            _mm_storeu_si128(
+                reinterpret_cast<__m128i *>(buffer + 4 * iWord + 0 * 16),
+                tmp2_0);
+            _mm_storeu_si128(
+                reinterpret_cast<__m128i *>(buffer + 4 * iWord + 1 * 16),
+                tmp2_1);
+            _mm_storeu_si128(
+                reinterpret_cast<__m128i *>(buffer + 4 * iWord + 2 * 16),
+                tmp2_2);
+            _mm_storeu_si128(
+                reinterpret_cast<__m128i *>(buffer + 4 * iWord + 3 * 16),
+                tmp2_3);
+        }
+    }
+#endif
+
+    for (; iWord < wordCount; iWord++)
     {
         for (uint32_t iByte = 0; iByte < bytesPerWords; iByte++)
         {
@@ -1192,7 +1245,7 @@ bool LIBERTIFFDataset::ReadBlock(GByte *pabyBlockData, int nBlockXOff,
             curStrileIdx =
                 nBlockYOff + DIV_ROUND_UP(m_image->height(),
                                           m_image->rowsPerStripSanitized()) *
-                                 iBandTIFFFirst;
+                                 static_cast<uint64_t>(iBandTIFFFirst);
         else
             curStrileIdx = nBlockYOff;
     }

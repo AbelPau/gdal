@@ -91,7 +91,7 @@ Standard options
 
     Minimum zoom level to generate. If not specified, equal to :option:`--max-zoom`.
 
-.. option:: --max-zoom <MIN-ZOOM>
+.. option:: --max-zoom <MAX-ZOOM>
 
     Maximum zoom level to generate. If not specified, this will be determined by
     comparing the resolution of the input dataset with the closest resolution in
@@ -189,6 +189,40 @@ Standard options
 
    Number of jobs to run at once.
    Default: number of CPUs detected.
+
+
+Advanced Resampling Options
++++++++++++++++++++++++++++
+
+.. option:: --excluded-values=<EXCLUDED-VALUES>
+
+  Comma-separated tuple of values (thus typically "R,G,B"), that are ignored
+  as contributing source pixels during resampling. The number of values in
+  the tuple must be the same as the number of bands, excluding the alpha band.
+  Several tuples of excluded values may be specified using the "(R1,G1,B2),(R2,G2,B2)" syntax.
+  Only taken into account for average resampling.
+  This concept is a bit similar to nodata/alpha, but the main difference is
+  that pixels matching one of the excluded value tuples are still considered
+  as valid, when determining the target pixel validity/density.
+
+.. versionadded:: 3.11.1
+
+.. option:: --excluded-values-pct-threshold=<EXCLUDED-VALUES-PCT-THRESHOLD>
+
+  Minimum percentage of source pixels that must be set at one of the --excluded-values to cause the excluded
+  value, that is in majority among source pixels, to be used as the target pixel value. Default value is 50(%)
+
+.. versionadded:: 3.11.1
+
+.. option:: --nodata-values-pct-threshold=<NODATA-VALUES-PCT-THRESHOLD>
+
+  Minimum percentage of source pixels that must be at nodata (or alpha=0 or any
+  other way to express transparent pixel) to cause the target pixel value to
+  be transparent. Default value is 100 (%), which means that a target pixel is
+  transparent only if all contributing source pixels are transparent.
+  Only taken into account for average resampling.
+
+.. versionadded:: 3.11.1
 
 
 Publication Options

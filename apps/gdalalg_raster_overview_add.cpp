@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
+#include "gdalalg_raster_overview.h"
 #include "gdalalg_raster_overview_add.h"
 
 #include "cpl_string.h"
@@ -20,6 +21,14 @@
 #ifndef _
 #define _(x) (x)
 #endif
+
+bool GDALRasterOverviewAlgorithm::RunImpl(GDALProgressFunc, void *)
+{
+    CPLError(CE_Failure, CPLE_AppDefined,
+             "The Run() method should not be called directly on the \"gdal "
+             "raster overview\" program.");
+    return false;
+}
 
 /************************************************************************/
 /*                    GDALRasterOverviewAlgorithmAdd()                  */
@@ -42,7 +51,7 @@ GDALRasterOverviewAlgorithmAdd::GDALRasterOverviewAlgorithmAdd()
     AddArg("resampling", 'r', _("Resampling method"), &m_resampling)
         .SetChoices("nearest", "average", "cubic", "cubicspline", "lanczos",
                     "bilinear", "gauss", "average_magphase", "rms", "mode")
-        .SetHiddenChoices("near");
+        .SetHiddenChoices("near", "none");
 
     AddArg("levels", 0, _("Levels / decimation factors"), &m_levels)
         .SetMinValueIncluded(2);

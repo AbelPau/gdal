@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <mutex>
 #include <vector>
 #include <iostream>
 #include <geoheif.h>
@@ -1064,26 +1065,32 @@ GDALDataset *GDALAVIFDataset::CreateCopy(const char *pszFilename,
 
 class GDALAVIFDriver final : public GDALDriver
 {
+    std::mutex m_oMutex{};
     bool m_bMetadataInitialized = false;
     void InitMetadata();
 
   public:
     const char *GetMetadataItem(const char *pszName,
-                                const char *pszDomain = "") override
-    {
-        if (EQUAL(pszName, GDAL_DMD_CREATIONOPTIONLIST))
-        {
-            InitMetadata();
-        }
-        return GDALDriver::GetMetadataItem(pszName, pszDomain);
-    }
+                                const char *pszDomain = "") override;
 
     char **GetMetadata(const char *pszDomain) override
     {
+        std::lock_guard oLock(m_oMutex);
         InitMetadata();
         return GDALDriver::GetMetadata(pszDomain);
     }
 };
+
+const char *GDALAVIFDriver::GetMetadataItem(const char *pszName,
+                                            const char *pszDomain)
+{
+    std::lock_guard oLock(m_oMutex);
+    if (EQUAL(pszName, GDAL_DMD_CREATIONOPTIONLIST))
+    {
+        InitMetadata();
+    }
+    return GDALDriver::GetMetadataItem(pszName, pszDomain);
+}
 
 void GDALAVIFDriver::InitMetadata()
 {

@@ -68,6 +68,11 @@ static int GetMinBitsForPair(const bool pabSigned[], const bool pabFloating[],
 
     if (pabSigned[0] != pabSigned[1])
     {
+        if (!pabSigned[0] && panBits[0] < panBits[1])
+            return panBits[1];
+        if (!pabSigned[1] && panBits[1] < panBits[0])
+            return panBits[0];
+
         const int nUnsignedTypeIndex = pabSigned[0] ? 1 : 0;
         const int nSignedTypeIndex = pabSigned[0] ? 0 : 1;
 
@@ -78,7 +83,7 @@ static int GetMinBitsForPair(const bool pabSigned[], const bool pabFloating[],
     return std::max(panBits[0], panBits[1]);
 }
 
-static int GetDataTypeElementSizeBits(GDALDataType eDataType)
+static int GetNonComplexDataTypeElementSizeBits(GDALDataType eDataType)
 {
     switch (eDataType)
     {
@@ -136,8 +141,8 @@ GDALDataType CPL_STDCALL GDALDataTypeUnion(GDALDataType eType1,
     if (eType2 == GDT_Unknown)
         return eType1;
 
-    const int panBits[] = {GetDataTypeElementSizeBits(eType1),
-                           GetDataTypeElementSizeBits(eType2)};
+    const int panBits[] = {GetNonComplexDataTypeElementSizeBits(eType1),
+                           GetNonComplexDataTypeElementSizeBits(eType2)};
 
     if (panBits[0] == 0 || panBits[1] == 0)
         return GDT_Unknown;
@@ -149,12 +154,11 @@ GDALDataType CPL_STDCALL GDALDataTypeUnion(GDALDataType eType1,
     const bool pabFloating[] = {CPL_TO_BOOL(GDALDataTypeIsFloating(eType1)),
                                 CPL_TO_BOOL(GDALDataTypeIsFloating(eType2))};
     const bool bFloating = pabFloating[0] || pabFloating[1];
-    const bool bComplex = CPL_TO_BOOL(GDALDataTypeIsComplex(eType1)) ||
-                          CPL_TO_BOOL(GDALDataTypeIsComplex(eType2));
-
     const int nBits = GetMinBitsForPair(pabSigned, pabFloating, panBits);
+    const bool bIsComplex = CPL_TO_BOOL(GDALDataTypeIsComplex(eType1)) ||
+                            CPL_TO_BOOL(GDALDataTypeIsComplex(eType2));
 
-    return GDALFindDataType(nBits, bSigned, bFloating, bComplex);
+    return GDALFindDataType(nBits, bSigned, bFloating, bIsComplex);
 }
 
 /************************************************************************/
@@ -1521,10 +1525,8 @@ int CPL_STDCALL GDALGetRandomRasterSample(GDALRasterBandH hBand, int nSamples,
     int nBlockYSize = 0;
     poBand->GetBlockSize(&nBlockXSize, &nBlockYSize);
 
-    const int nBlocksPerRow =
-        (poBand->GetXSize() + nBlockXSize - 1) / nBlockXSize;
-    const int nBlocksPerColumn =
-        (poBand->GetYSize() + nBlockYSize - 1) / nBlockYSize;
+    const int nBlocksPerRow = DIV_ROUND_UP(poBand->GetXSize(), nBlockXSize);
+    const int nBlocksPerColumn = DIV_ROUND_UP(poBand->GetYSize(), nBlockYSize);
 
     const GIntBig nBlockPixels =
         static_cast<GIntBig>(nBlockXSize) * nBlockYSize;
@@ -3148,9 +3150,10 @@ int CPL_STDCALL GDALGCPsToGeoTransform(int nGCPCount, const GDAL_GCP *pasGCPs,
             CPLGetConfigOption("GDAL_GCPS_TO_GEOTRANSFORM_APPROX_OK", "NO"));
         if (!bApproxOK)
         {
-            // coverity[tainted_data]
-            dfPixelThreshold = CPLAtof(CPLGetConfigOption(
-                "GDAL_GCPS_TO_GEOTRANSFORM_APPROX_THRESHOLD", "0.25"));
+            dfPixelThreshold = std::clamp(
+                CPLAtof(CPLGetConfigOption(
+                    "GDAL_GCPS_TO_GEOTRANSFORM_APPROX_THRESHOLD", "0.25")),
+                0.0, std::numeric_limits<double>::max());
         }
     }
 
@@ -4741,8 +4744,7 @@ int GDALCheckBandCount(int nBands, int bIsZeroAllowed)
     }
     const char *pszMaxBandCount =
         CPLGetConfigOption("GDAL_MAX_BAND_COUNT", "65536");
-    /* coverity[tainted_data] */
-    int nMaxBands = atoi(pszMaxBandCount);
+    int nMaxBands = std::clamp(atoi(pszMaxBandCount), 0, INT_MAX - 1);
     if (nBands > nMaxBands)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
@@ -5837,4 +5839,24 @@ bool GDALDoesFileOrDatasetExist(const char *pszName, const char **ppszType,
     }
 
     return false;
+}
+
+/************************************************************************/
+/*                        GDALRescaleGeoTransform()                     */
+/************************************************************************/
+
+/** Rescale a geotransform by multiplying its scale and rotation terms by
+ * the provided ratios.
+ *
+ * This is typically used to compute the geotransform matrix of an overview
+ * dataset from the full resolution dataset, where the ratios are the size
+ * of the full resolution dataset divided by the size of the overview.
+ */
+void GDALRescaleGeoTransform(double adfGeoTransform[6], double dfXRatio,
+                             double dfYRatio)
+{
+    adfGeoTransform[1] *= dfXRatio;
+    adfGeoTransform[2] *= dfYRatio;
+    adfGeoTransform[4] *= dfXRatio;
+    adfGeoTransform[5] *= dfYRatio;
 }

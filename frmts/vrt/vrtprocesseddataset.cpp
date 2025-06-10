@@ -268,7 +268,7 @@ CPLErr VRTProcessedDataset::Init(const CPLXMLNode *psTree,
         CPLXMLNode sVRTDatasetTmp = *psVRTDataset;
         sVRTDatasetTmp.psNext = nullptr;
         char *pszXML = CPLSerializeXMLTree(&sVRTDatasetTmp);
-        m_poSrcDS.reset(VRTDataset::OpenXML(pszXML, pszVRTPathIn, GA_ReadOnly));
+        m_poSrcDS = VRTDataset::OpenXML(pszXML, pszVRTPathIn, GA_ReadOnly);
         CPLFree(pszXML);
     }
     else
@@ -1529,26 +1529,15 @@ CPLErr VRTProcessedDataset::IRasterIO(
     if (eRWFlag == GF_Read && nXSize == nBufXSize && nYSize == nBufYSize &&
         nBandCount == nBands)
     {
-        const auto IsSequentialBandMap = [panBandMap, nBandCount]()
-        {
-            for (int i = 0; i < nBandCount; ++i)
-            {
-                if (panBandMap[i] != i + 1)
-                {
-                    return false;
-                }
-            }
-            return true;
-        };
-
         const int nBufTypeSize = GDALGetDataTypeSizeBytes(eBufType);
-        const bool bIsBIPLike =
-            nBandSpace == nBufTypeSize && nPixelSpace == nBandSpace * nBands &&
-            nLineSpace >= nPixelSpace * nBufXSize && IsSequentialBandMap();
+        const bool bIsBIPLike = nBandSpace == nBufTypeSize &&
+                                nPixelSpace == nBandSpace * nBands &&
+                                nLineSpace >= nPixelSpace * nBufXSize &&
+                                IsAllBands(nBandCount, panBandMap);
         const bool bIsBSQLike = nPixelSpace == nBufTypeSize &&
                                 nLineSpace >= nPixelSpace * nBufXSize &&
                                 nBandSpace >= nLineSpace * nBufYSize &&
-                                IsSequentialBandMap();
+                                IsAllBands(nBandCount, panBandMap);
         if (bIsBIPLike || bIsBSQLike)
         {
             GByte *pabyData = static_cast<GByte *>(pData);

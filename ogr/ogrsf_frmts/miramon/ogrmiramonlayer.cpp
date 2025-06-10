@@ -2125,6 +2125,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
             }
             else
             {
+                // NOTE_3812_20250527:
                 // As https://gdal.org/api/ogrfeature_cpp.html indicates that
                 // precision (number of digits after decimal point) is optional,
                 // and a 0 is probably the default value, in that case we prefer

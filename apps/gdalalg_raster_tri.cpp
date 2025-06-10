@@ -47,7 +47,7 @@ GDALRasterTRIAlgorithm::GDALRasterTRIAlgorithm(bool standaloneStep)
 /*                  GDALRasterTRIAlgorithm::RunStep()                   */
 /************************************************************************/
 
-bool GDALRasterTRIAlgorithm::RunStep(GDALProgressFunc, void *)
+bool GDALRasterTRIAlgorithm::RunStep(GDALRasterPipelineStepRunContext &)
 {
     CPLAssert(m_inputDataset.GetDatasetRef());
     CPLAssert(m_outputDataset.GetName().empty());
@@ -79,5 +79,7 @@ bool GDALRasterTRIAlgorithm::RunStep(GDALProgressFunc, void *)
 
     return bRet;
 }
+
+GDALRasterTRIAlgorithmStandalone::~GDALRasterTRIAlgorithmStandalone() = default;
 
 //! @endcond

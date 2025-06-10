@@ -15,10 +15,12 @@
 
 #include <algorithm>
 #include <map>
+#include <mutex>
 #include <tuple>
 
 #include "ogr_parquet.h"
 #include "ogrparquetdrivercore.h"
+#include "memdataset.h"
 
 #include "../arrow_common/ograrrowrandomaccessfile.h"
 #include "../arrow_common/vsiarrowfilesystem.hpp"
@@ -113,7 +115,6 @@ static GDALDataset *OpenParquetDatasetWithMetadata(
         arrow::dataset::PartitioningOrFactory(std::move(partitioningFactory));
 
     std::shared_ptr<arrow::dataset::DatasetFactory> factory;
-    // coverity[copy_constructor_call]
     PARQUET_ASSIGN_OR_THROW(
         factory, arrow::dataset::ParquetDatasetFactory::Make(
                      osFSFilename + '/' + pszMetadataFile, fs,
@@ -142,7 +143,6 @@ OpenParquetDatasetWithoutMetadata(const std::string &osBasePathIn,
     const auto fileInfo = fs->GetFileInfo(osFSFilename);
     if (fileInfo->IsFile())
     {
-        // coverity[copy_constructor_call]
         PARQUET_ASSIGN_OR_THROW(
             factory, arrow::dataset::FileSystemDatasetFactory::Make(
                          fs, {std::move(osFSFilename)},
@@ -160,7 +160,6 @@ OpenParquetDatasetWithoutMetadata(const std::string &osBasePathIn,
         selector.base_dir = std::move(osFSFilename);
         selector.recursive = true;
 
-        // coverity[copy_constructor_call]
         PARQUET_ASSIGN_OR_THROW(
             factory, arrow::dataset::FileSystemDatasetFactory::Make(
                          fs, std::move(selector),
@@ -193,11 +192,8 @@ static GDALDataset *BuildMemDatasetWithRowGroupExtents(OGRParquetLayer *poLayer)
     if (poLayer->GeomColsBBOXParquet(0, iParquetXMin, iParquetYMin,
                                      iParquetXMax, iParquetYMax))
     {
-        auto poMemDrv = GetGDALDriverManager()->GetDriverByName("MEM");
-        if (!poMemDrv)
-            return nullptr;
         auto poMemDS = std::unique_ptr<GDALDataset>(
-            poMemDrv->Create("", 0, 0, 0, GDT_Unknown, nullptr));
+            MEMDataset::Create("", 0, 0, 0, GDT_Unknown, nullptr));
         if (!poMemDS)
             return nullptr;
         OGRSpatialReference *poTmpSRS = nullptr;
@@ -535,26 +531,32 @@ static GDALDataset *OGRParquetDriverCreate(const char *pszName, int nXSize,
 
 class OGRParquetDriver final : public GDALDriver
 {
+    std::mutex m_oMutex{};
     bool m_bMetadataInitialized = false;
     void InitMetadata();
 
   public:
     const char *GetMetadataItem(const char *pszName,
-                                const char *pszDomain) override
-    {
-        if (EQUAL(pszName, GDAL_DS_LAYER_CREATIONOPTIONLIST))
-        {
-            InitMetadata();
-        }
-        return GDALDriver::GetMetadataItem(pszName, pszDomain);
-    }
+                                const char *pszDomain) override;
 
     char **GetMetadata(const char *pszDomain) override
     {
+        std::lock_guard oLock(m_oMutex);
         InitMetadata();
         return GDALDriver::GetMetadata(pszDomain);
     }
 };
+
+const char *OGRParquetDriver::GetMetadataItem(const char *pszName,
+                                              const char *pszDomain)
+{
+    std::lock_guard oLock(m_oMutex);
+    if (EQUAL(pszName, GDAL_DS_LAYER_CREATIONOPTIONLIST))
+    {
+        InitMetadata();
+    }
+    return GDALDriver::GetMetadataItem(pszName, pszDomain);
+}
 
 void OGRParquetDriver::InitMetadata()
 {

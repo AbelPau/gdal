@@ -5119,7 +5119,7 @@ int MMResizeStringToOperateIfNeeded(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
 #define LineReturn "\r\n"
 
-// Generates an idientifier that REL 4 MiraMon metadata needs.
+// Generates an identifier that REL 4 MiraMon metadata needs.
 static void MMGenerateFileIdentifierFromMetadataFileName(char *pMMFN,
                                                          char *aFileIdentifier)
 {
@@ -5134,8 +5134,11 @@ static void MMGenerateFileIdentifierFromMetadataFileName(char *pMMFN,
     len_charset = (int)strlen(aCharset);
     for (i = 1; i < 7; i++)
     {
-        // coverity[dont_call]
+#ifndef __COVERITY__
         aCharRand[i] = aCharset[rand() % (len_charset - 1)];
+#else
+        aCharRand[i] = aCharset[i % (len_charset - 1)];
+#endif
     }
     aCharRand[7] = '\0';
     CPLStrlcpy(aFileIdentifier, pMMFN, MM_MAX_LEN_LAYER_IDENTIFIER - 7);

@@ -361,13 +361,15 @@ GDALDataset::~GDALDataset()
         if (m_poPrivate->hMutex != nullptr)
             CPLDestroyMutex(m_poPrivate->hMutex);
 
-        // coverity[missing_lock]
+#if defined(__COVERITY__) || defined(DEBUG)
+        // Not needed since at destruction there is no risk of concurrent use.
+        std::lock_guard oLock(m_poPrivate->m_oMutexWKT);
+#endif
         CPLFree(m_poPrivate->m_pszWKTCached);
         if (m_poPrivate->m_poSRSCached)
         {
             m_poPrivate->m_poSRSCached->Release();
         }
-        // coverity[missing_lock]
         CPLFree(m_poPrivate->m_pszWKTGCPCached);
         if (m_poPrivate->m_poSRSGCPCached)
         {
@@ -2739,7 +2741,7 @@ CPLErr GDALDataset::RasterIO(GDALRWFlag eRWFlag, int nXOff, int nYOff,
 
         psExtraArg = &sExtraArg;
     }
-    else if (CPL_UNLIKELY(psExtraArg->nVersion !=
+    else if (CPL_UNLIKELY(psExtraArg->nVersion >
                           RASTERIO_EXTRA_ARG_CURRENT_VERSION))
     {
         ReportError(CE_Failure, CPLE_AppDefined,
@@ -3257,8 +3259,8 @@ char **GDALDataset::GetFileList()
     VSIStatBufL sStat;
 
     GDALAntiRecursionStruct &sAntiRecursion = GetAntiRecursionOpen();
-    const GDALAntiRecursionStruct::DatasetContext datasetCtxt(osMainFilename, 0,
-                                                              std::string());
+    GDALAntiRecursionStruct::DatasetContext datasetCtxt(osMainFilename, 0,
+                                                        std::string());
     auto &aosDatasetList = sAntiRecursion.aosDatasetNamesWithFlags;
     if (cpl::contains(aosDatasetList, datasetCtxt))
         return nullptr;
@@ -3302,7 +3304,7 @@ char **GDALDataset::GetFileList()
     /* -------------------------------------------------------------------- */
     if (oOvManager.HaveMaskFile())
     {
-        auto iter = aosDatasetList.insert(datasetCtxt).first;
+        auto iter = aosDatasetList.insert(std::move(datasetCtxt)).first;
         for (const char *pszFile :
              CPLStringList(oOvManager.poMaskDS->GetFileList()))
         {
@@ -4057,37 +4059,33 @@ retry:
 
     if (nOpenFlags & GDAL_OF_VERBOSE_ERROR)
     {
+        if (nDriverCount == 0)
+        {
+            CPLError(CE_Failure, CPLE_OpenFailed, "No driver registered.");
+        }
+        else if (poMissingPluginDriver)
+        {
+            std::string osMsg("`");
+            osMsg += pszFilename;
+            osMsg += "' not recognized as being in a supported file format. "
+                     "It could have been recognized by driver ";
+            osMsg += poMissingPluginDriver->GetDescription();
+            osMsg += ", but plugin ";
+            osMsg +=
+                GDALGetMessageAboutMissingPluginDriver(poMissingPluginDriver);
+
+            CPLError(CE_Failure, CPLE_OpenFailed, "%s", osMsg.c_str());
+        }
         // Check to see if there was a filesystem error, and report it if so.
         // If not, return a more generic error.
-        if (!VSIToCPLError(CE_Failure, CPLE_OpenFailed))
+        else if (!VSIToCPLError(CE_Failure, CPLE_OpenFailed))
         {
-            if (nDriverCount == 0)
+            if (oOpenInfo.bStatOK)
             {
-                CPLError(CE_Failure, CPLE_OpenFailed, "No driver registered.");
-            }
-            else if (oOpenInfo.bStatOK)
-            {
-                if (!poMissingPluginDriver)
-                {
-                    CPLError(CE_Failure, CPLE_OpenFailed,
-                             "`%s' not recognized as being in a supported file "
-                             "format.",
-                             pszFilename);
-                }
-                else
-                {
-                    std::string osMsg("`");
-                    osMsg += pszFilename;
-                    osMsg +=
-                        "' not recognized as being in a supported file format. "
-                        "It could have been recognized by driver ";
-                    osMsg += poMissingPluginDriver->GetDescription();
-                    osMsg += ", but plugin ";
-                    osMsg += GDALGetMessageAboutMissingPluginDriver(
-                        poMissingPluginDriver);
-
-                    CPLError(CE_Failure, CPLE_OpenFailed, "%s", osMsg.c_str());
-                }
+                CPLError(CE_Failure, CPLE_OpenFailed,
+                         "`%s' not recognized as being in a supported file "
+                         "format.",
+                         pszFilename);
             }
             else
             {
@@ -4940,6 +4938,43 @@ int GDALDatasetIsLayerPrivate(GDALDatasetH hDS, int iLayer)
     const bool res = GDALDataset::FromHandle(hDS)->IsLayerPrivate(iLayer);
 
     return res ? 1 : 0;
+}
+
+/************************************************************************/
+/*                            GetLayerIndex()                           */
+/************************************************************************/
+
+/**
+ \brief Returns the index of the layer specified by name.
+
+ @since GDAL 3.12
+
+ @param pszName layer name (not NULL)
+
+ @return an index >= 0, or -1 if not found.
+*/
+
+int GDALDataset::GetLayerIndex(const char *pszName)
+{
+    const int nLayerCount = GetLayerCount();
+    int iMatch = -1;
+    for (int i = 0; i < nLayerCount; ++i)
+    {
+        if (const auto poLayer = GetLayer(i))
+        {
+            const char *pszLayerName = poLayer->GetDescription();
+            if (strcmp(pszName, pszLayerName) == 0)
+            {
+                iMatch = i;
+                break;
+            }
+            else if (EQUAL(pszName, pszLayerName))
+            {
+                iMatch = i;
+            }
+        }
+    }
+    return iMatch;
 }
 
 /************************************************************************/
@@ -8391,12 +8426,13 @@ void GDALDataset::TemporarilyDropReadWriteLock()
 #ifdef DEBUG_EXTRA
         m_poPrivate->oMapThreadToMutexTakenCountSaved[CPLGetPID()] = nCount;
 #endif
+#ifndef __COVERITY__
         for (int i = 0; i < nCount + 1; i++)
         {
             // The mutex is recursive
-            // coverity[double_unlock]
             CPLReleaseMutex(m_poPrivate->hMutex);
         }
+#endif
     }
 }
 
@@ -8432,12 +8468,13 @@ void GDALDataset::ReacquireReadWriteLock()
 #endif
         if (nCount == 0)
             CPLReleaseMutex(m_poPrivate->hMutex);
+#ifndef __COVERITY__
         for (int i = 0; i < nCount - 1; i++)
         {
             // The mutex is recursive
-            // coverity[double_lock]
             CPLAcquireMutex(m_poPrivate->hMutex, 1000.0);
         }
+#endif
     }
 }
 

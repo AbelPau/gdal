@@ -29,6 +29,7 @@
 #include "gdal_priv.h"
 #include "gdaljp2metadata.h"
 #include "ogrsf_frmts.h"
+#include "memdataset.h"
 
 /*! @cond Doxygen_Suppress */
 
@@ -88,7 +89,6 @@ void GDALJP2AbstractDataset::LoadJP2Metadata(GDALOpenInfo *poOpenInfo,
                                  : CPLGetConfigOption("GDAL_GEOREF_SOURCES",
                                                       "PAM,INTERNAL,WORLDFILE");
     size_t nInternalIdx = osGeorefSources.ifind("INTERNAL");
-    // coverity[tainted_data]
     if (nInternalIdx != std::string::npos &&
         (nInternalIdx == 0 || osGeorefSources[nInternalIdx - 1] == ',') &&
         (nInternalIdx + strlen("INTERNAL") == osGeorefSources.size() ||
@@ -330,10 +330,6 @@ void GDALJP2AbstractDataset::LoadVectorLayers(int bOpenRemoteResources)
     char **papszGMLJP2 = GetMetadata("xml:gml.root-instance");
     if (papszGMLJP2 == nullptr)
         return;
-    GDALDriver *const poMemDriver =
-        GDALDriver::FromHandle(GDALGetDriverByName("MEM"));
-    if (poMemDriver == nullptr)
-        return;
 
     CPLErr eLastErr = CPLGetLastErrorType();
     int nLastErrNo = CPLGetLastErrorNo();
@@ -518,8 +514,8 @@ void GDALJP2AbstractDataset::LoadVectorLayers(int bOpenRemoteResources)
                     for (int i = 0; i < nLayers; ++i)
                     {
                         if (poMemDS == nullptr)
-                            poMemDS = poMemDriver->Create("", 0, 0, 0,
-                                                          GDT_Unknown, nullptr);
+                            poMemDS = MEMDataset::Create("", 0, 0, 0,
+                                                         GDT_Unknown, nullptr);
                         OGRLayer *poSrcLyr = poTmpDS->GetLayer(i);
                         const char *const pszLayerName =
                             bIsGC
@@ -588,8 +584,8 @@ void GDALJP2AbstractDataset::LoadVectorLayers(int bOpenRemoteResources)
                 for (int i = 0; i < nLayers; ++i)
                 {
                     if (poMemDS == nullptr)
-                        poMemDS = poMemDriver->Create("", 0, 0, 0, GDT_Unknown,
-                                                      nullptr);
+                        poMemDS = MEMDataset::Create("", 0, 0, 0, GDT_Unknown,
+                                                     nullptr);
                     OGRLayer *const poSrcLyr = poTmpDS->GetLayer(i);
                     const char *pszLayerName =
                         CPLSPrintf("Annotation_%d_%s", ++nAnnotations,
