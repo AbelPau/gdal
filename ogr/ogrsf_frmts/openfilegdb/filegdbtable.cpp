@@ -61,6 +61,10 @@ constexpr GUInt32 EXT_SHAPE_SEGMENT_ELLIPSE = 5;
 namespace OpenFileGDB
 {
 
+FileGDBGeomField::~FileGDBGeomField() = default;
+
+FileGDBRasterField::~FileGDBRasterField() = default;
+
 /************************************************************************/
 /*                           SanitizeScale()                            */
 /************************************************************************/
@@ -3202,6 +3206,8 @@ void FileGDBGeomField::SetMOriginScaleTolerance(double dfMOrigin,
     m_dfMTolerance = dfMTolerance;
 }
 
+FileGDBOGRGeometryConverter::~FileGDBOGRGeometryConverter() = default;
+
 /************************************************************************/
 /*                      FileGDBOGRGeometryConverterImpl                 */
 /************************************************************************/
@@ -3332,28 +3338,32 @@ bool FileGDBOGRGeometryConverterImpl::ReadPartDefs(
 class FileGDBOGRLineString : public OGRLineString
 {
   public:
-    FileGDBOGRLineString()
-    {
-    }
+    FileGDBOGRLineString() = default;
+
+    ~FileGDBOGRLineString() override;
 
     OGRRawPoint *GetPoints() const
     {
         return paoPoints;
     }
 };
+
+FileGDBOGRLineString::~FileGDBOGRLineString() = default;
 
 class FileGDBOGRLinearRing : public OGRLinearRing
 {
   public:
-    FileGDBOGRLinearRing()
-    {
-    }
+    FileGDBOGRLinearRing() = default;
+
+    ~FileGDBOGRLinearRing() override;
 
     OGRRawPoint *GetPoints() const
     {
         return paoPoints;
     }
 };
+
+FileGDBOGRLinearRing::~FileGDBOGRLinearRing() = default;
 
 class XYLineStringSetter
 {
@@ -3649,7 +3659,7 @@ OGRGeometry *FileGDBOGRGeometryConverterImpl::CreateCurveGeometry(
     {
         returnError();
     }
-    const int nMaxSize = static_cast<int>(nMaxSize64);
+    const int nMaxSize = static_cast<int>(nMaxSize64 & INT_MAX);
     // coverity[overflow_sink]
     GByte *pabyExtShapeBuffer =
         static_cast<GByte *>(VSI_MALLOC_VERBOSE(nMaxSize));
