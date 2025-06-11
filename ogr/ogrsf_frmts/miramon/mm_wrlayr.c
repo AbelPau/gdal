@@ -30,11 +30,129 @@
 
 CPL_C_START  // Necessary for compiling in GDAL project
 
-    /* -------------------------------------------------------------------- */
-    /*      Header Functions                                                */
-    /* -------------------------------------------------------------------- */
-    int
-    MMAppendBlockToBuffer(struct MM_FLUSH_INFO *FlushInfo);
+/* -------------------------------------------------------------------- */
+/*      COMING FROM mm_gdal_functions.c/h but only used here            */
+/* -------------------------------------------------------------------- */
+// MiraMon feature table descriptors
+#define MM_MAX_IDENTIFIER_SIZE 50
+#define MM_a_WITH_GRAVE 224
+#define MM_a_WITH_ACUTE 225
+#define MM_e_WITH_GRAVE 232
+#define MM_e_WITH_ACUTE 233
+#define MM_i_WITH_ACUTE 237
+#define MM_o_WITH_GRAVE 242
+#define MM_o_WITH_ACUTE 243
+#define MM_u_WITH_ACUTE 250
+
+#define MM_A_WITH_GRAVE 192
+#define MM_A_WITH_ACUTE 193
+#define MM_E_WITH_GRAVE 200
+#define MM_E_WITH_ACUTE 201
+#define MM_I_WITH_ACUTE 205
+#define MM_O_WITH_GRAVE 210
+#define MM_O_WITH_ACUTE 211
+#define MM_U_WITH_ACUTE 218
+
+    // In case of diaeresis use "_WITH_DIAERESIS"
+    // In case of cedilla use "_WITH_CEDILLA"
+    // In case of tilde use "_WITH_TILDE"
+    // In case of middle dot use "_MIDDLE_DOT"
+
+    /*
+extern char szInternalGraphicIdentifierEng[];
+extern char szInternalGraphicIdentifierCat[];
+extern char szInternalGraphicIdentifierSpa[];
+
+extern char szNumberOfVerticesEng[];
+extern char szNumberOfVerticesCat[];
+extern char szNumberOfVerticesSpa[];
+
+extern char szLengthOfAarcEng[];
+extern char szLengthOfAarcCat[];
+extern char szLengthOfAarcSpa[];
+
+extern char szInitialNodeEng[];
+extern char szInitialNodeCat[];
+extern char szInitialNodeSpa[];
+
+extern char szFinalNodeEng[];
+extern char szFinalNodeCat[];
+extern char szFinalNodeSpa[];
+
+extern char szNumberOfArcsToNodeEng[];
+extern char szNumberOfArcsToNodeCat[];
+extern char szNumberOfArcsToNodeSpa[];
+
+extern char szNodeTypeEng[];
+extern char szNodeTypeCat[];
+extern char szNodeTypeSpa[];
+
+extern char szPerimeterOfThePolygonEng[];
+extern char szPerimeterOfThePolygonCat[];
+extern char szPerimeterOfThePolygonSpa[];
+
+extern char szAreaOfThePolygonEng[];
+extern char szAreaOfThePolygonCat[];
+extern char szAreaOfThePolygonSpa[];
+
+extern char szNumberOfArcsEng[];
+extern char szNumberOfArcsCat[];
+extern char szNumberOfArcsSpa[];
+
+extern char szNumberOfElementaryPolygonsEng[];
+extern char szNumberOfElementaryPolygonsCat[];
+extern char szNumberOfElementaryPolygonsSpa[];
+*/
+    char szInternalGraphicIdentifierEng[MM_MAX_IDENTIFIER_SIZE];
+char szInternalGraphicIdentifierCat[MM_MAX_IDENTIFIER_SIZE];
+char szInternalGraphicIdentifierSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szNumberOfVerticesEng[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfVerticesCat[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfVerticesSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szLengthOfAarcEng[MM_MAX_IDENTIFIER_SIZE];
+char szLengthOfAarcCat[MM_MAX_IDENTIFIER_SIZE];
+char szLengthOfAarcSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szInitialNodeEng[MM_MAX_IDENTIFIER_SIZE];
+char szInitialNodeCat[MM_MAX_IDENTIFIER_SIZE];
+char szInitialNodeSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szFinalNodeEng[MM_MAX_IDENTIFIER_SIZE];
+char szFinalNodeCat[MM_MAX_IDENTIFIER_SIZE];
+char szFinalNodeSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szNumberOfArcsToNodeEng[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfArcsToNodeCat[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfArcsToNodeSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szNodeTypeEng[MM_MAX_IDENTIFIER_SIZE];
+char szNodeTypeCat[MM_MAX_IDENTIFIER_SIZE];
+char szNodeTypeSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szPerimeterOfThePolygonEng[MM_MAX_IDENTIFIER_SIZE];
+char szPerimeterOfThePolygonCat[MM_MAX_IDENTIFIER_SIZE];
+char szPerimeterOfThePolygonSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szAreaOfThePolygonEng[MM_MAX_IDENTIFIER_SIZE];
+char szAreaOfThePolygonCat[MM_MAX_IDENTIFIER_SIZE];
+char szAreaOfThePolygonSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szNumberOfArcsEng[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfArcsCat[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfArcsSpa[MM_MAX_IDENTIFIER_SIZE];
+
+char szNumberOfElementaryPolygonsEng[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfElementaryPolygonsCat[MM_MAX_IDENTIFIER_SIZE];
+char szNumberOfElementaryPolygonsSpa[MM_MAX_IDENTIFIER_SIZE];
+
+void MM_FillFieldDescriptorByLanguage(void);
+
+/* -------------------------------------------------------------------- */
+/*      Header Functions                                                */
+/* -------------------------------------------------------------------- */
+int MMAppendBlockToBuffer(struct MM_FLUSH_INFO *FlushInfo);
 void MMInitBoundingBox(struct MMBoundingBox *dfBB);
 int MMWriteAHArcSection(struct MiraMonVectLayerInfo *hMiraMonLayer,
                         MM_FILE_OFFSET DiskOffset);
@@ -6936,6 +7054,94 @@ void MMDestroyMMDB(struct MiraMonVectLayerInfo *hMiraMonLayer)
     }
     if (hMiraMonLayer->bIsDBF)
         MMDestroyMMDBFile(hMiraMonLayer, &hMiraMonLayer->MMAdmDBWriting);
+}
+
+// COMING FROM mm_gdal_functions.c/h but only used here
+void MM_FillFieldDescriptorByLanguage(void)
+{
+    CPLStrlcpy(szInternalGraphicIdentifierEng, "Internal Graphic identifier",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szInternalGraphicIdentifierCat, "Identificador Grafic intern",
+               MM_MAX_IDENTIFIER_SIZE);
+    *(unsigned char *)&szInternalGraphicIdentifierCat[16] = MM_a_WITH_GRAVE;
+    CPLStrlcpy(szInternalGraphicIdentifierSpa, "Identificador Grafico interno",
+               MM_MAX_IDENTIFIER_SIZE);
+    *(unsigned char *)&szInternalGraphicIdentifierSpa[16] = MM_a_WITH_ACUTE;
+
+    CPLStrlcpy(szNumberOfVerticesEng, "Number of vertices",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNumberOfVerticesCat, "Nombre de vertexs",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNumberOfVerticesSpa, "Numero de vertices",
+               MM_MAX_IDENTIFIER_SIZE);
+    *(unsigned char *)&szNumberOfVerticesCat[11] = MM_e_WITH_GRAVE;
+    *(unsigned char *)&szNumberOfVerticesSpa[1] = MM_u_WITH_ACUTE;
+    *(unsigned char *)&szNumberOfVerticesSpa[11] = MM_e_WITH_ACUTE;
+
+    CPLStrlcpy(szLengthOfAarcEng, "Length of arc", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szLengthOfAarcCat, "Longitud de l'arc", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szLengthOfAarcSpa, "Longitud del arco", MM_MAX_IDENTIFIER_SIZE);
+
+    CPLStrlcpy(szInitialNodeEng, "Initial node", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szInitialNodeCat, "Node inicial", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szInitialNodeSpa, "Nodo inicial", MM_MAX_IDENTIFIER_SIZE);
+
+    CPLStrlcpy(szFinalNodeEng, "Final node", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szFinalNodeCat, "Node final", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szFinalNodeSpa, "Nodo final", MM_MAX_IDENTIFIER_SIZE);
+
+    CPLStrlcpy(szNumberOfArcsToNodeEng, "Number of arcs to node",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNumberOfArcsToNodeCat, "Nombre d'arcs al node",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNumberOfArcsToNodeSpa, "Numero de arcos al nodo",
+               MM_MAX_IDENTIFIER_SIZE);
+    *(unsigned char *)&szNumberOfArcsToNodeSpa[1] = MM_u_WITH_ACUTE;
+
+    CPLStrlcpy(szNodeTypeEng, "Node type", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNodeTypeCat, "Tipus de node", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNodeTypeSpa, "Tipo de nodo", MM_MAX_IDENTIFIER_SIZE);
+
+    CPLStrlcpy(szPerimeterOfThePolygonEng, "Perimeter of the polygon",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szPerimeterOfThePolygonCat, "Perimetre del poligon",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szPerimeterOfThePolygonSpa, "Perimetro del poligono",
+               MM_MAX_IDENTIFIER_SIZE);
+
+    *(unsigned char *)&szPerimeterOfThePolygonCat[3] = MM_i_WITH_ACUTE;
+    *(unsigned char *)&szPerimeterOfThePolygonSpa[3] = MM_i_WITH_ACUTE;
+    *(unsigned char *)&szPerimeterOfThePolygonCat[17] = MM_i_WITH_ACUTE;
+    *(unsigned char *)&szPerimeterOfThePolygonSpa[17] = MM_i_WITH_ACUTE;
+
+    CPLStrlcpy(szAreaOfThePolygonEng, "Area of the polygon",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szAreaOfThePolygonCat, "Area del poligon",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szAreaOfThePolygonSpa, "Area del poligono",
+               MM_MAX_IDENTIFIER_SIZE);
+
+    *(unsigned char *)&szAreaOfThePolygonCat[0] = MM_A_WITH_GRAVE;
+    *(unsigned char *)&szAreaOfThePolygonSpa[0] = MM_A_WITH_ACUTE;
+    *(unsigned char *)&szAreaOfThePolygonCat[12] = MM_i_WITH_ACUTE;
+    *(unsigned char *)&szAreaOfThePolygonSpa[12] = MM_i_WITH_ACUTE;
+
+    CPLStrlcpy(szNumberOfArcsEng, "Number of arcs", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNumberOfArcsCat, "Nombre d'arcs", MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNumberOfArcsSpa, "Numero de arcos", MM_MAX_IDENTIFIER_SIZE);
+
+    *(unsigned char *)&szNumberOfArcsSpa[1] = MM_u_WITH_ACUTE;
+
+    CPLStrlcpy(szNumberOfElementaryPolygonsEng, "Number of elementary polygons",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNumberOfElementaryPolygonsCat, "Nombre de poligons elementals",
+               MM_MAX_IDENTIFIER_SIZE);
+    CPLStrlcpy(szNumberOfElementaryPolygonsSpa,
+               "Numero de poligonos elementales", MM_MAX_IDENTIFIER_SIZE);
+
+    *(unsigned char *)&szNumberOfElementaryPolygonsSpa[1] = MM_u_WITH_ACUTE;
+    *(unsigned char *)&szNumberOfElementaryPolygonsCat[13] = MM_i_WITH_ACUTE;
+    *(unsigned char *)&szNumberOfElementaryPolygonsSpa[13] = MM_i_WITH_ACUTE;
 }
 
 CPL_C_END  // Necessary for compiling in GDAL project
