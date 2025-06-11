@@ -44,7 +44,6 @@ void MMResetFeatureRecord(struct MiraMonFeature *hMMFeature);
 void MMDestroyFeature(struct MiraMonFeature *MMFeature);
 int MMAddFeature(struct MiraMonVectLayerInfo *hMiraMonLayer,
                  struct MiraMonFeature *hMiraMonFeature);
-int MMCheckSize_t(GUInt64 nCount, GUInt64 nSize);
 int MMGetVectorVersion(struct MM_TH *pTopHeader);
 int MMInitFlush(struct MM_FLUSH_INFO *pFlush, VSILFILE *pF, GUInt64 nBlockSize,
                 char **pBuffer, MM_FILE_OFFSET DiskOffsetWhereToFlush,
