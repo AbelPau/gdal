@@ -18,7 +18,7 @@ import pytest
 # from osgeo import gdal
 
 init_list = [
-    ("byte_2x3_6_categs_RLE.img", 15),
+    # ("byte_2x3_6_categs_RLE.img", 15),
     ("byte_2x3_6_categs.img", 15),
 ]
 

@@ -1,4 +1,4 @@
-.. _vector.miramon:
+.. _raster.miramon:
 
 MiraMon Raster
 ==============
@@ -46,11 +46,11 @@ These are the maim characteristics of MiraMon rasters dataset:
 
 - **img file**: This is the main file containing only the data. The data can be of various types:
 
-    - *Byte*: 1 byte numbers. POSARHO COM AL DOCUMENT.
-    - *Short*: 2 bytes signed short integer numbers.
-    - *UShort*: 2 bytes unsigned short integer numbers.
-    - *Int32*: 4 bytes signed integer numbers.
-    - *UInt32*: 4 bytes unsigned integer numbers.
+    - *Byte*: 1 byte numbers. Range: 0 to 255
+    - *Short*: 2 bytes signed short integer numbers. Range: -32,768 to 32,767
+    - *UShort*: 2 bytes unsigned short integer numbers. Range: 0 to 65,535
+    - *Int32*: 4 bytes signed integer numbers. Range: -2,147,483,648 to 2,147,483,647
+    - *UInt32*: 4 bytes unsigned integer numbers. Range: 0 to 4,294,967,295
     - *Int64*: 8 bytes signed integer numbers.
     - *UInt64*: 8 bytes unsigned integer numbers.
     - *Real*: 4 bytes real numbers.
