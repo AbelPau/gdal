@@ -21,6 +21,9 @@ CPL_DLL char *MM_oemansi_n(char *szcadena, size_t n_bytes);
 CPL_DLL char *MM_stristr(const char *haystack, const char *needle);
 CPL_DLL void MM_InitializeField(struct MM_FIELD *camp);
 CPL_DLL struct MM_FIELD *MM_CreateAllFields(MM_EXT_DBF_N_FIELDS ncamps);
+CPL_DLL int MM_ISExtendedNameBD_XP(const char *nom_camp);
+CPL_DLL MM_BYTE MM_CalculateBytesExtendedFieldName(struct MM_FIELD *camp);
+CPL_DLL short int MM_ReturnValidClassicDBFFieldName(char *szChain);
 CPL_DLL MM_FIRST_RECORD_OFFSET_TYPE
 MM_GiveOffsetExtendedFieldName(const struct MM_FIELD *camp);
 CPL_DLL struct MM_DATA_BASE_XP *MM_CreateDBFHeader(MM_EXT_DBF_N_FIELDS n_camps,
@@ -32,14 +35,6 @@ CPL_DLL MM_BOOLEAN MM_CreateAndOpenDBFFile(struct MM_DATA_BASE_XP *bd_xp,
 CPL_DLL int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
                                   const struct MM_FIELD *camp_inicial);
 CPL_DLL int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB);
-
-CPL_DLL size_t MM_DefineFirstPolygonFieldsDB_XP(
-    struct MM_DATA_BASE_XP *bd_xp, MM_BYTE n_perimeter_decimals,
-    MM_BYTE n_area_decimals_decimals);
-CPL_DLL size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
-                                            MM_BYTE n_decimals);
-CPL_DLL size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
-CPL_DLL size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
 
 CPL_DLL int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
     struct MM_FIELD *camp, struct MM_DATA_BASE_XP *bd_xp,

@@ -19,6 +19,14 @@ bool MM_IsDoubleInfinite(double x);
 /* -------------------------------------------------------------------- */
 /*      Functions                                                       */
 /* -------------------------------------------------------------------- */
+// COMING FROM mm_gdal_functions.c/h but only used here
+size_t MM_DefineFirstPolygonFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
+                                        MM_BYTE n_perimeter_decimals,
+                                        MM_BYTE n_area_decimals_decimals);
+size_t MM_DefineFirstArcFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp,
+                                    MM_BYTE n_decimals);
+size_t MM_DefineFirstNodeFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
+size_t MM_DefineFirstPointFieldsDB_XP(struct MM_DATA_BASE_XP *bd_xp);
 
 // Layer functions
 int MMInitLayer(struct MiraMonVectLayerInfo *hMiraMonLayer,
