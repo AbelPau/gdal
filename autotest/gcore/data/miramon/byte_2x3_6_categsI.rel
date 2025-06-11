@@ -159,7 +159,7 @@ IndexsJoinTaula=G1_1_BYTE_2X3_6_CATEGS_DBF
 JoinTaula_G1_1_BYTE_2X3_6_CATEGS_DBF=G1_1_BYTE_2X3_6_CATEGS_DBF
 
 [TAULA_G1_1_BYTE_2X3_6_CATEGS_DBF]
-NomFitxer=byte_2x3_6_categs.rel
+NomFitxer=2x3_6_categs.rel
 
 [COLOR_TEXT]
 Simb_Vers=5

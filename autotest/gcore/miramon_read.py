@@ -20,6 +20,11 @@ from osgeo import gdal
 init_list = [
     # ("data/miramon/byte_2x3_6_categs_RLE.img", 1, 15),
     ("data/miramon/byte_2x3_6_categs.img", 1, 15),
+    ("data/miramon/integer_2x3_6_categs.img", 1, 15),
+    ("data/miramon/uinteger_2x3_6_categs.img", 1, 15),
+    ("data/miramon/long_2x3_6_categs.img", 1, 15),
+    ("data/miramon/real_2x3_6_categs.img", 1, 15),
+    ("data/miramon/double_2x3_6_categs.img", 1, 15),
 ]
 
 
