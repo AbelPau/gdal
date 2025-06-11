@@ -171,7 +171,7 @@ CPL_DLL int MMReturnCodeFromMM_m_idofic(const char *pMMSRS_or_pSRS,
 
 CPL_DLL int MMCheck_REL_FILE(const char *szREL_file);
 
-int MMCheckSize_t(GUInt64 nCount, GUInt64 nSize);
+CPL_DLL int MMCheckSize_t(GUInt64 nCount, GUInt64 nSize);
 
 CPL_C_END  // Necessary for compiling in GDAL project
 #endif     //__MM_GDAL_FUNCTIONS_H
