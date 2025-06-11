@@ -2348,12 +2348,11 @@ int OGRMiraMonLayer::MM_SprintfDoubleSignifFigures(char *szChain,
     if (!ptr)
         return 0;
     exponent = atoi(ptr + 1);
-
-    return sprintf(szChain, "%.*f",
-                   (nSignifFigures - exponent - 1) > 0
-                       ? (nSignifFigures - exponent - 1)
-                       : 0,
-                   dfRealValue);
+    return CPLsnprintf(szChain, size_szChain, "%.*f",
+                       (nSignifFigures - exponent - 1) > 0
+                           ? (nSignifFigures - exponent - 1)
+                           : 0,
+                       dfRealValue);
 #undef N_POWERS
 }  // End of SprintfDoubleXifSignif()
 

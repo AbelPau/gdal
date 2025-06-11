@@ -3228,7 +3228,7 @@ CPL_DLL int MMCheck_REL_FILE(const char *szREL_file)
 // Checks for potential arithmetic overflow when performing multiplication
 // operations between two GUInt64 values and converting the result to size_t.
 // Important for 32 vs. 64 bit compiling compatibility.
-int MMCheckSize_t(GUInt64 nCount, GUInt64 nSize)
+CPL_DLL int MMCheckSize_t(GUInt64 nCount, GUInt64 nSize)
 {
     if ((size_t)nCount != nCount)
         return 1;
