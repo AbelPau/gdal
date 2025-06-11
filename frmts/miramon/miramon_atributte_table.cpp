@@ -384,31 +384,31 @@ double MMRRasterAttributeTable::GetValueAsDouble(int iRow, int iField) const
 /*                          SetValue()                                  */
 /************************************************************************/
 
-void MMRRasterAttributeTable::SetValue(int iRow, int iField,
-                                       const char *pszValue)
+CPLErr MMRRasterAttributeTable::SetValue(int iRow, int iField,
+                                         const char *pszValue)
 {
     // Get ValuesIO do do the work.
-    ValuesIO(GF_Write, iField, iRow, 1, (char **)&pszValue);
+    return ValuesIO(GF_Write, iField, iRow, 1, (char **)&pszValue);
 }
 
 /************************************************************************/
 /*                          SetValue()                                  */
 /************************************************************************/
 
-void MMRRasterAttributeTable::SetValue(int iRow, int iField, double dfValue)
+CPLErr MMRRasterAttributeTable::SetValue(int iRow, int iField, double dfValue)
 {
     // Get ValuesIO do do the work.
-    ValuesIO(GF_Write, iField, iRow, 1, &dfValue);
+    return ValuesIO(GF_Write, iField, iRow, 1, &dfValue);
 }
 
 /************************************************************************/
 /*                          SetValue()                                  */
 /************************************************************************/
 
-void MMRRasterAttributeTable::SetValue(int iRow, int iField, int nValue)
+CPLErr MMRRasterAttributeTable::SetValue(int iRow, int iField, int nValue)
 {
     // Get ValuesIO do do the work.
-    ValuesIO(GF_Write, iField, iRow, 1, &nValue);
+    return ValuesIO(GF_Write, iField, iRow, 1, &nValue);
 }
 
 /************************************************************************/
