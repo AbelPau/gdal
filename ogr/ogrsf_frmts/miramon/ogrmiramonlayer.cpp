@@ -2619,6 +2619,7 @@ OGRErr OGRMiraMonLayer::TranslateFieldsValuesToMM(OGRFeature *poFeature)
                 }
 
                 char szChain[MAX_SIZE_OF_FIELD_NUMBER_WITH_MINUS];
+
                 // According to NOTE_3812_20250527
                 if (phMiraMonLayer->pLayerDB->pFields[iField]
                             .nNumberOfDecimals > 0 &&
