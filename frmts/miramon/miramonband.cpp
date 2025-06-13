@@ -16,10 +16,10 @@
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-//#include "..\miramon_common\mm_gdal_constants.h"
+#include "..\miramon_common\mm_gdal_constants.h"
 #else
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-//#include "../miramon_common/mm_gdal_constants.h"
+#include "../miramon_common/mm_gdal_constants.h"
 #endif
 
 #include "miramonrel.h"
@@ -1462,6 +1462,42 @@ double *MMRReadBFUniqueBins(MMREntry *poBinFunc, int nPCTColors)
 }
 
 // Colors in a DBF format file
+CPLErr MMRBand::GetPaletteColors_DBF_Indexs(struct MM_DATA_BASE_XP &oColorTable,
+                                            MM_EXT_DBF_N_FIELDS &nClauSimbol,
+                                            MM_EXT_DBF_N_FIELDS &nRIndex,
+                                            MM_EXT_DBF_N_FIELDS &nGIndex,
+                                            MM_EXT_DBF_N_FIELDS &nBIndex)
+{
+    nClauSimbol = oColorTable.nFields;
+    nRIndex = oColorTable.nFields;
+    nGIndex = oColorTable.nFields;
+    nBIndex = oColorTable.nFields;
+
+    for (MM_EXT_DBF_N_FIELDS nIField = 0; nIField < oColorTable.nFields;
+         nIField++)
+    {
+        if (EQUAL(oColorTable.pField[nIField].FieldName, "CLAUSIMBOL"))
+            nClauSimbol = nIField;
+        else if (EQUAL(oColorTable.pField[nIField].FieldName, "R_COLOR"))
+            nRIndex = nIField;
+        else if (EQUAL(oColorTable.pField[nIField].FieldName, "G_COLOR"))
+            nGIndex = nIField;
+        else if (EQUAL(oColorTable.pField[nIField].FieldName, "B_COLOR"))
+            nBIndex = nIField;
+    }
+
+    if (nClauSimbol == oColorTable.nFields || nRIndex == oColorTable.nFields ||
+        nGIndex == oColorTable.nFields || nBIndex == oColorTable.nFields)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: \"%s\"",
+                 oColorTable.szFileName);
+        return CE_Failure;
+    }
+
+    return CE_None;
+}
+
+// Colors in a DBF format file
 CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
 {
@@ -1469,9 +1505,8 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     CPLString osColorTableFileName =
         CPLFormFilenameSafe(osAux.c_str(), os_Color_Paleta_DBF.c_str(), "");
 
-    struct MM_DATA_BASE_XP oColorTable
-    {
-    };
+    struct MM_DATA_BASE_XP oColorTable;
+    memset(&oColorTable, 0, sizeof(oColorTable));
 
     if (MM_ReadExtendedDBFHeaderFromFile(osColorTableFileName.c_str(),
                                          &oColorTable,
@@ -1490,19 +1525,21 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         return CE_Failure;
     }
 
-    if (oColorTable.nFields != 4 ||
-        strcmp(oColorTable.pField[0].FieldName, "CLAUSIMBOL") ||
-        strcmp(oColorTable.pField[1].FieldName, "R_COLOR") ||
-        strcmp(oColorTable.pField[2].FieldName, "G_COLOR") ||
-        strcmp(oColorTable.pField[3].FieldName, "B_COLOR") ||
-        oColorTable.pField[0].BytesPerField == 0 ||
-        oColorTable.pField[1].BytesPerField == 0 ||
-        oColorTable.pField[2].BytesPerField == 0 ||
-        oColorTable.pField[3].BytesPerField == 0 ||
-        oColorTable.pField[0].FieldType != 'N' ||
-        oColorTable.pField[1].FieldType != 'N' ||
-        oColorTable.pField[2].FieldType != 'N' ||
-        oColorTable.pField[3].FieldType != 'N')
+    MM_EXT_DBF_N_FIELDS nClauSimbol, nRIndex, nGIndex, nBIndex;
+    if (CE_Failure == GetPaletteColors_DBF_Indexs(oColorTable, nClauSimbol,
+                                                  nRIndex, nGIndex, nBIndex))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Invalid name of color fields: %d", nPCTColors);
+        return CE_Failure;
+    }
+
+    if (oColorTable.pField[nRIndex].BytesPerField == 0 ||
+        oColorTable.pField[nGIndex].BytesPerField == 0 ||
+        oColorTable.pField[nBIndex].BytesPerField == 0 ||
+        oColorTable.pField[nRIndex].FieldType != 'N' ||
+        oColorTable.pField[nGIndex].FieldType != 'N' ||
+        oColorTable.pField[nBIndex].FieldType != 'N')
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: \"%s\"",
                  osColorTableFileName.c_str());
@@ -1539,10 +1576,11 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             return CE_Failure;
         }
 
-        // Index of the color
-        memcpy(pzsField, pzsBuffer + oColorTable.pField[0].AccumulatedBytes,
-               oColorTable.pField[0].BytesPerField);
-        pzsField[oColorTable.pField[0].BytesPerField] = '\0';
+        // Nodata identification
+        memcpy(pzsField,
+               pzsBuffer + oColorTable.pField[nClauSimbol].AccumulatedBytes,
+               oColorTable.pField[nClauSimbol].BytesPerField);
+        pzsField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
         CPLString osField = pzsField;
         osField.replaceAll(" ", "");
         if (osField.empty())  // Nodata value
@@ -1552,23 +1590,26 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         }
 
         // RED
-        memcpy(pzsField, pzsBuffer + oColorTable.pField[1].AccumulatedBytes,
-               oColorTable.pField[1].BytesPerField);
-        pzsField[oColorTable.pField[1].BytesPerField] = '\0';
+        memcpy(pzsField,
+               pzsBuffer + oColorTable.pField[nRIndex].AccumulatedBytes,
+               oColorTable.pField[nRIndex].BytesPerField);
+        pzsField[oColorTable.pField[nRIndex].BytesPerField] = '\0';
         osField.replaceAll(" ", "");
         aadfPaletteColors[0][nIRecord] = CPLAtof(pzsField);
 
         // GREEN
-        memcpy(pzsField, pzsBuffer + oColorTable.pField[2].AccumulatedBytes,
-               oColorTable.pField[2].BytesPerField);
-        pzsField[oColorTable.pField[2].BytesPerField] = '\0';
+        memcpy(pzsField,
+               pzsBuffer + oColorTable.pField[nGIndex].AccumulatedBytes,
+               oColorTable.pField[nGIndex].BytesPerField);
+        pzsField[oColorTable.pField[nGIndex].BytesPerField] = '\0';
         osField.replaceAll(" ", "");
         aadfPaletteColors[1][nIRecord] = CPLAtof(pzsField);
 
         // BLUE
-        memcpy(pzsField, pzsBuffer + oColorTable.pField[3].AccumulatedBytes,
-               oColorTable.pField[3].BytesPerField);
-        pzsField[oColorTable.pField[3].BytesPerField] = '\0';
+        memcpy(pzsField,
+               pzsBuffer + oColorTable.pField[nBIndex].AccumulatedBytes,
+               oColorTable.pField[nBIndex].BytesPerField);
+        pzsField[oColorTable.pField[nBIndex].BytesPerField] = '\0';
         osField.replaceAll(" ", "");
         aadfPaletteColors[2][nIRecord] = CPLAtof(pzsField);
 
@@ -1811,7 +1852,13 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
                 if (bPaletteHasNodata)
                     AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
                 else
-                    AssignRGBColorDirectly(nIPaletteColor, 65535);
+                {
+                    if (eMMBytesPerPixel ==
+                        MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE)
+                        AssignRGBColorDirectly(nIPaletteColor, 255);
+                    else
+                        AssignRGBColorDirectly(nIPaletteColor, 65535);
+                }
             }
             else
             {

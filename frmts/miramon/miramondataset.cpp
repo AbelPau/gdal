@@ -148,14 +148,32 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
                 (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Blue()[iColor]),
                 (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Alpha()[iColor])};
 
-            if ((sEntry.c1 < 0 || sEntry.c1 > 255) ||
-                (sEntry.c2 < 0 || sEntry.c2 > 255) ||
-                (sEntry.c3 < 0 || sEntry.c3 > 255))
+            if (hMMR->papoBand[nBand - 1]->GeteMMDataType() ==
+                MMDataType::DATATYPE_AND_COMPR_BYTE_RLE)
             {
-                CPLError(CE_Failure, CPLE_AppDefined,
-                         "Color table entry appears to be corrupt, skipping "
-                         "the rest. ");
-                break;
+                if ((sEntry.c1 < 0 || sEntry.c1 > 255) ||
+                    (sEntry.c2 < 0 || sEntry.c2 > 255) ||
+                    (sEntry.c3 < 0 || sEntry.c3 > 255))
+                {
+                    CPLError(
+                        CE_Failure, CPLE_AppDefined,
+                        "Color table entry appears to be corrupt, skipping "
+                        "the rest. ");
+                    break;
+                }
+            }
+            else
+            {
+                if ((sEntry.c1 < 0 || sEntry.c1 > 65535) ||
+                    (sEntry.c2 < 0 || sEntry.c2 > 65535) ||
+                    (sEntry.c3 < 0 || sEntry.c3 > 65535))
+                {
+                    CPLError(
+                        CE_Failure, CPLE_AppDefined,
+                        "Color table entry appears to be corrupt, skipping "
+                        "the rest. ");
+                    break;
+                }
             }
 
             poCT->SetColorEntry(iColor, &sEntry);

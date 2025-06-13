@@ -39,6 +39,12 @@ void MMRStandard(int, void *);
 #include "miramon.h"
 #include "miramonrel.h"
 
+#ifdef MSVC
+#include "..\miramon_common\mm_gdal_constants.h"
+#else
+#include "../miramon_common/mm_gdal_constants.h"
+#endif
+
 class MMRBand;
 class MMRDictionary;
 class MMREntry;
@@ -373,6 +379,11 @@ class MMRBand
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
     CPLErr ConvertPaletteColors(int &nIPaletteColor);
     CPLErr GetPCT();
+    CPLErr GetPaletteColors_DBF_Indexs(struct MM_DATA_BASE_XP &oColorTable,
+                                       MM_EXT_DBF_N_FIELDS &nClauSimbol,
+                                       MM_EXT_DBF_N_FIELDS &nRIndex,
+                                       MM_EXT_DBF_N_FIELDS &nGIndex,
+                                       MM_EXT_DBF_N_FIELDS &nBIndex);
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
     CPLErr SetPCT(int, const double *, const double *, const double *,
