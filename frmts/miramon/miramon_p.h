@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <memory>
 #include <vector>
+#include <array>
 #include <set>
 
 #include "cpl_error.h"
@@ -144,19 +145,18 @@ class MMRBand
     int nLayerStackIndex;
 
     // indexed-RLE format
-    vsi_l_offset *pFileOffsets;
+    std::vector<vsi_l_offset> aFileOffsets;
 
 #define BFLG_VALID 0x01
 #define BFLG_COMPRESSED 0x02
 
     // Palette info
-    int nNPaletteColors;
-    double *apadfPaletteColors[4];
+    std::array<std::vector<double>, 4> aadfPaletteColors;
+
     int nNoDataOriginalIndex;
     bool bPaletteHasNodata;
 
-    int nPCTColors;
-    double *apadfPCT[4];
+    std::array<std::vector<double>, 4> aadfPCT;
     int nNoDataPaletteIndex;
 
     // Assigned Subdataset for this band.
@@ -228,6 +228,26 @@ class MMRBand
     void GetMinMaxValuesFromREL(const char *pszSection);
     void GetMinMaxVisuValuesFromREL(const char *pszSection);
     void GetFriendlyDescriptionFromREL(const char *pszSection);
+
+    std::vector<double> GetPCT_Red()
+    {
+        return aadfPCT[0];
+    }
+
+    std::vector<double> GetPCT_Green()
+    {
+        return aadfPCT[1];
+    }
+
+    std::vector<double> GetPCT_Blue()
+    {
+        return aadfPCT[2];
+    }
+
+    std::vector<double> GetPCT_Alpha()
+    {
+        return aadfPCT[3];
+    }
 
     int GetAssignedSubDataSet()
     {
@@ -342,7 +362,7 @@ class MMRBand
     template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
     CPLErr FillRowFromExtendedParam(void *rowBuffer);
     int PositionAtStartOfRowOffsetsInFile();
-    void GetRowOffsets();
+    void FillRowOffsets();
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
     CPLErr SetRasterBlock(int nXBlock, int nYBlock, void *pData);
 
@@ -352,7 +372,7 @@ class MMRBand
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
     CPLErr ConvertPaletteColors(int &nIPaletteColor);
-    CPLErr GetPCT(int *, double **, double **, double **, double **);
+    CPLErr GetPCT();
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
     CPLErr SetPCT(int, const double *, const double *, const double *,

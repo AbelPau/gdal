@@ -133,22 +133,20 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     }*/
 
     // Collect color table if present.
-    double *padfRed = nullptr;
-    double *padfGreen = nullptr;
-    double *padfBlue = nullptr;
-    double *padfAlpha = nullptr;
-    int nColors = 0;
+    CPLErr eErr = MMRGetPCT(hMMR, nBand);
+    int nColors =
+        static_cast<int>(hMMR->papoBand[nBand - 1]->GetPCT_Red().size());
 
-    if (MMRGetPCT(hMMR, nBand, &nColors, &padfRed, &padfGreen, &padfBlue,
-                  &padfAlpha) == CE_None &&
-        nColors > 0)
+    if (eErr == CE_None && nColors > 0)
     {
         poCT = new GDALColorTable(GPI_RGB);
         for (int iColor = 0; iColor < nColors; iColor++)
         {
             GDALColorEntry sEntry = {
-                (short int)(padfRed[iColor]), (short int)(padfGreen[iColor]),
-                (short int)(padfBlue[iColor]), (short int)(padfAlpha[iColor])};
+                (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Red()[iColor]),
+                (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Green()[iColor]),
+                (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Blue()[iColor]),
+                (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Alpha()[iColor])};
 
             if ((sEntry.c1 < 0 || sEntry.c1 > 255) ||
                 (sEntry.c2 < 0 || sEntry.c2 > 255) ||

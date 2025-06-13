@@ -280,8 +280,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : pfIMG(nullptr), pfRel(psInfoIn->fRel), nBlocks(0), panBlockStart(nullptr),
       panBlockSize(nullptr), panBlockFlag(nullptr), nBlockStart(0),
       nBlockSize(0), nLayerStackCount(0), nLayerStackIndex(0),
-      pFileOffsets(nullptr), nNPaletteColors(0), nNoDataOriginalIndex(0),
-      bPaletteHasNodata(false), nPCTColors(-1), nNoDataPaletteIndex(0),
+      nNoDataOriginalIndex(0), bPaletteHasNodata(false), nNoDataPaletteIndex(0),
       nAssignedSDS(0), osBandSection(pszSection), osRELFileName(""),
       osRawBandFileName(""), osBandFileName(""), osBandName(""),
       osFriendlyDescription(""), eMMDataType(static_cast<MMDataType>(
@@ -297,16 +296,6 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false),
       pszNodataDef(""), dfNoData(0.0)
 {
-    apadfPCT[0] = nullptr;
-    apadfPCT[1] = nullptr;
-    apadfPCT[2] = nullptr;
-    apadfPCT[3] = nullptr;
-
-    apadfPaletteColors[0] = nullptr;
-    apadfPaletteColors[1] = nullptr;
-    apadfPaletteColors[2] = nullptr;
-    apadfPaletteColors[3] = nullptr;
-
     // Getting band and band file name from metadata
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, KEY_NomFitxer);
@@ -463,18 +452,6 @@ MMRBand::~MMRBand()
     CPLFree(panBlockStart);
     CPLFree(panBlockSize);
     CPLFree(panBlockFlag);
-
-    CPLFree(apadfPaletteColors[0]);
-    CPLFree(apadfPaletteColors[1]);
-    CPLFree(apadfPaletteColors[2]);
-    CPLFree(apadfPaletteColors[3]);
-
-    CPLFree(apadfPCT[0]);
-    CPLFree(apadfPCT[1]);
-    CPLFree(apadfPCT[2]);
-    CPLFree(apadfPCT[3]);
-
-    CPLFree(pFileOffsets);
 
     if (pfIMG != nullptr)
         CPL_IGNORE_RET_VAL(VSIFCloseL(pfIMG));
@@ -882,9 +859,9 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
 }  // Fi de PositionAtStartOfRowOffsetsInFile()
 
 /************************************************************************/
-/*                              GetRowOffsets()                         */
+/*                              FillRowOffsets()                         */
 /************************************************************************/
-void MMRBand::GetRowOffsets()
+void MMRBand::FillRowOffsets()
 {
     vsi_l_offset nStartOffset;
     int nIRow;
@@ -894,16 +871,17 @@ void MMRBand::GetRowOffsets()
     vsi_l_offset i_byte_fitxer;
     size_t nMaxBytesPerCompressedRow;
 
-    // If it's filled, there no need to fill it again
-    if (pFileOffsets)
+    // If it's filled, there is no need to fill it again
+    if (aFileOffsets.size() > 0)
         return;
 
-    pFileOffsets = static_cast<vsi_l_offset *>(
-        VSI_CALLOC_VERBOSE((nHeight + 1), sizeof(vsi_l_offset)));
-    if (!pFileOffsets)
+    try
     {
-        CPLError(CE_Failure, CPLE_OutOfMemory, "Out of memory");
-        pFileOffsets = nullptr;
+        aFileOffsets.resize(static_cast<size_t>(nHeight) + 1);
+    }
+    catch (const std::bad_alloc &e)
+    {
+        CPLError(CE_Failure, CPLE_OutOfMemory, "%s", e.what());
         return;
     }
 
@@ -913,15 +891,12 @@ void MMRBand::GetRowOffsets()
     switch (eMMDataType)
     {
         case MMDataType::DATATYPE_AND_COMPR_BIT_VELL:
-            VSIFree(pFileOffsets);
-            pFileOffsets = nullptr;
             return;
 
         case MMDataType::DATATYPE_AND_COMPR_BIT:
-            for (
-                nIRow = 0; nIRow <= nHeight;
-                nIRow++)  // "<=" it's ok. There is space and it's to make easier the programming
-                pFileOffsets[nIRow] = (vsi_l_offset)nIRow * nGDALBlockSize;
+            // "<=" it's ok. There is space and it's to make easier the programming
+            for (nIRow = 0; nIRow <= nHeight; nIRow++)
+                aFileOffsets[nIRow] = (vsi_l_offset)nIRow * nGDALBlockSize;
             break;
 
         case MMDataType::DATATYPE_AND_COMPR_BYTE:
@@ -931,8 +906,9 @@ void MMRBand::GetRowOffsets()
         case MMDataType::DATATYPE_AND_COMPR_REAL:
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
             BytesPerPixel_per_ncol = nDataTypeSizeBytes * (vsi_l_offset)nWidth;
+            // "<=" it's ok. There is space and it's to make easier the programming
             for (nIRow = 0; nIRow <= nHeight; nIRow++)
-                pFileOffsets[nIRow] =
+                aFileOffsets[nIRow] =
                     (vsi_l_offset)nIRow * BytesPerPixel_per_ncol;
             break;
 
@@ -953,14 +929,11 @@ void MMRBand::GetRowOffsets()
                 for (nIRow = 0; nIRow < nHeight; nIRow++)
                 {
                     if (VSIFReadL(&i_byte_fitxer, nSizeToRead, 1, pfIMG) != 1)
-                    {
-                        VSIFree(pFileOffsets);
-                        pFileOffsets = nullptr;
                         return;
-                    }
-                    pFileOffsets[nIRow] = i_byte_fitxer;
+
+                    aFileOffsets[nIRow] = i_byte_fitxer;
                 }
-                pFileOffsets[nIRow] = 0;  // Not reliable
+                aFileOffsets[nIRow] = 0;  // Not reliable
                 VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
                 break;
             }
@@ -975,28 +948,24 @@ void MMRBand::GetRowOffsets()
                                 VSI_MALLOC_VERBOSE(nMaxBytesPerCompressedRow))))
             {
                 VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
-                VSIFree(pFileOffsets);
-                pFileOffsets = nullptr;
                 return;
             }
 
             VSIFSeekL(pfIMG, 0, SEEK_SET);
-            pFileOffsets[0] = 0;
+            aFileOffsets[0] = 0;
             for (nIRow = 0; nIRow < nHeight; nIRow++)
             {
                 FillRowFromExtendedParam(pBuffer);
-                pFileOffsets[nIRow + 1] = VSIFTellL(pfIMG);
+                aFileOffsets[nIRow + 1] = VSIFTellL(pfIMG);
             }
             VSIFree(pBuffer);
             VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
             break;
 
         default:
-            VSIFree(pFileOffsets);
-            pFileOffsets = nullptr;
             return;
     }  // End of switch (eMMDataType)
-}  // End of GetRowOffsets()
+}  // End of FillRowOffsets()
 
 /************************************************************************/
 /*                           GetRasterBlock()                           */
@@ -1028,10 +997,9 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
     }
 
     // Getting the row offsets to optimize access. If they don't exist, it'll be slower.
-    // vsi_l_offset *pFileOffsets;
-    GetRowOffsets();
+    FillRowOffsets();
 
-    if (!pFileOffsets)
+    if (aFileOffsets.size() == 0)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Some error in offsets calculation");
@@ -1046,7 +1014,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         VSIFSeekL(pfIMG, 0, SEEK_SET);
     }
     else
-        VSIFSeekL(pfIMG, pFileOffsets[iBlock], SEEK_SET);
+        VSIFSeekL(pfIMG, aFileOffsets[iBlock], SEEK_SET);
 
     return FillRowFromExtendedParam(pData);
 }
@@ -1501,13 +1469,12 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     CPLString osColorTableFileName =
         CPLFormFilenameSafe(osAux.c_str(), os_Color_Paleta_DBF.c_str(), "");
 
-    struct MM_DATA_BASE_XP *pColorTable;
-    pColorTable = static_cast<struct MM_DATA_BASE_XP *>(
-        VSICalloc(1, sizeof(*pColorTable)));
-    if (!pColorTable)
-        return CE_Failure;
+    struct MM_DATA_BASE_XP oColorTable
+    {
+    };
+
     if (MM_ReadExtendedDBFHeaderFromFile(osColorTableFileName.c_str(),
-                                         pColorTable,
+                                         &oColorTable,
                                          (const char *)pfRel->GetRELNameChar()))
     {
         CPLError(CE_Failure, CPLE_NotSupported,
@@ -1515,7 +1482,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                  osColorTableFileName.c_str());
         return CE_None;
     }
-    nPCTColors = (int)pColorTable->nRecords;
+    int nPCTColors = static_cast<int>(oColorTable.nRecords);  // Safe cast
     if (nPCTColors < 0 || nPCTColors > 65536)
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Invalid number of colors: %d",
@@ -1523,46 +1490,49 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         return CE_Failure;
     }
 
-    if (pColorTable->nFields != 4 ||
-        strcmp(pColorTable->pField[0].FieldName, "CLAUSIMBOL") ||
-        strcmp(pColorTable->pField[1].FieldName, "R_COLOR") ||
-        strcmp(pColorTable->pField[2].FieldName, "G_COLOR") ||
-        strcmp(pColorTable->pField[3].FieldName, "B_COLOR") ||
-        pColorTable->pField[0].BytesPerField == 0 ||
-        pColorTable->pField[1].BytesPerField == 0 ||
-        pColorTable->pField[2].BytesPerField == 0 ||
-        pColorTable->pField[3].BytesPerField == 0 ||
-        pColorTable->pField[0].FieldType != 'N' ||
-        pColorTable->pField[1].FieldType != 'N' ||
-        pColorTable->pField[2].FieldType != 'N' ||
-        pColorTable->pField[3].FieldType != 'N')
+    if (oColorTable.nFields != 4 ||
+        strcmp(oColorTable.pField[0].FieldName, "CLAUSIMBOL") ||
+        strcmp(oColorTable.pField[1].FieldName, "R_COLOR") ||
+        strcmp(oColorTable.pField[2].FieldName, "G_COLOR") ||
+        strcmp(oColorTable.pField[3].FieldName, "B_COLOR") ||
+        oColorTable.pField[0].BytesPerField == 0 ||
+        oColorTable.pField[1].BytesPerField == 0 ||
+        oColorTable.pField[2].BytesPerField == 0 ||
+        oColorTable.pField[3].BytesPerField == 0 ||
+        oColorTable.pField[0].FieldType != 'N' ||
+        oColorTable.pField[1].FieldType != 'N' ||
+        oColorTable.pField[2].FieldType != 'N' ||
+        oColorTable.pField[3].FieldType != 'N')
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: \"%s\"",
                  osColorTableFileName.c_str());
         return CE_Failure;
     }
 
-    VSIFSeekL(pColorTable->pfDataBase, pColorTable->FirstRecordOffset,
-              SEEK_SET);
+    VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset, SEEK_SET);
 
-    MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = pColorTable->BytesPerRecord + 1;
+    MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = oColorTable.BytesPerRecord + 1;
     char *pzsBuffer = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
     char *pzsField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
 
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
-        apadfPaletteColors[iColumn] = static_cast<double *>(
-            VSI_MALLOC2_VERBOSE(sizeof(double), nPCTColors));
-        if (apadfPaletteColors[iColumn] == nullptr)
+        try
+        {
+            aadfPaletteColors[iColumn].resize(nPCTColors, 0);
+        }
+        catch (std::bad_alloc &e)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "%s", e.what());
             return CE_Failure;
+        }
     }
 
-    nNPaletteColors = 0;
     for (int nIRecord = 0; nIRecord < nPCTColors; nIRecord++)
     {
-        if (pColorTable->BytesPerRecord !=
+        if (oColorTable.BytesPerRecord !=
             VSIFReadL(pzsBuffer, sizeof(unsigned char),
-                      pColorTable->BytesPerRecord, pColorTable->pfDataBase))
+                      oColorTable.BytesPerRecord, oColorTable.pfDataBase))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: \"%s\"",
                      osColorTableFileName.c_str());
@@ -1570,9 +1540,9 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         }
 
         // Index of the color
-        memcpy(pzsField, pzsBuffer + pColorTable->pField[0].AccumulatedBytes,
-               pColorTable->pField[0].BytesPerField);
-        pzsField[pColorTable->pField[0].BytesPerField] = '\0';
+        memcpy(pzsField, pzsBuffer + oColorTable.pField[0].AccumulatedBytes,
+               oColorTable.pField[0].BytesPerField);
+        pzsField[oColorTable.pField[0].BytesPerField] = '\0';
         CPLString osField = pzsField;
         osField.replaceAll(" ", "");
         if (osField.empty())  // Nodata value
@@ -1582,51 +1552,51 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         }
 
         // RED
-        memcpy(pzsField, pzsBuffer + pColorTable->pField[1].AccumulatedBytes,
-               pColorTable->pField[1].BytesPerField);
-        pzsField[pColorTable->pField[1].BytesPerField] = '\0';
+        memcpy(pzsField, pzsBuffer + oColorTable.pField[1].AccumulatedBytes,
+               oColorTable.pField[1].BytesPerField);
+        pzsField[oColorTable.pField[1].BytesPerField] = '\0';
         osField.replaceAll(" ", "");
-        apadfPaletteColors[0][nIRecord] = CPLAtof(pzsField);
+        aadfPaletteColors[0][nIRecord] = CPLAtof(pzsField);
 
         // GREEN
-        memcpy(pzsField, pzsBuffer + pColorTable->pField[2].AccumulatedBytes,
-               pColorTable->pField[2].BytesPerField);
-        pzsField[pColorTable->pField[2].BytesPerField] = '\0';
+        memcpy(pzsField, pzsBuffer + oColorTable.pField[2].AccumulatedBytes,
+               oColorTable.pField[2].BytesPerField);
+        pzsField[oColorTable.pField[2].BytesPerField] = '\0';
         osField.replaceAll(" ", "");
-        apadfPaletteColors[1][nIRecord] = CPLAtof(pzsField);
+        aadfPaletteColors[1][nIRecord] = CPLAtof(pzsField);
 
         // BLUE
-        memcpy(pzsField, pzsBuffer + pColorTable->pField[3].AccumulatedBytes,
-               pColorTable->pField[3].BytesPerField);
-        pzsField[pColorTable->pField[3].BytesPerField] = '\0';
+        memcpy(pzsField, pzsBuffer + oColorTable.pField[3].AccumulatedBytes,
+               oColorTable.pField[3].BytesPerField);
+        pzsField[oColorTable.pField[3].BytesPerField] = '\0';
         osField.replaceAll(" ", "");
-        apadfPaletteColors[2][nIRecord] = CPLAtof(pzsField);
+        aadfPaletteColors[2][nIRecord] = CPLAtof(pzsField);
 
         // ALPHA
-        if (apadfPaletteColors[0][nIRecord] == -1 &&
-            apadfPaletteColors[1][nIRecord] == -1 &&
-            apadfPaletteColors[2][nIRecord] == -1)
+        if (aadfPaletteColors[0][nIRecord] == -1 &&
+            aadfPaletteColors[1][nIRecord] == -1 &&
+            aadfPaletteColors[2][nIRecord] == -1)
         {
             // Transparent (white or whatever color)
-            apadfPaletteColors[0][nIRecord] = 0;
-            apadfPaletteColors[1][nIRecord] = 0;
-            apadfPaletteColors[2][nIRecord] = 0;
-            apadfPaletteColors[3][nIRecord] = 0;
+            aadfPaletteColors[0][nIRecord] = 0;
+            aadfPaletteColors[1][nIRecord] = 0;
+            aadfPaletteColors[2][nIRecord] = 0;
+            aadfPaletteColors[3][nIRecord] = 0;
         }
         else
         {
-            if ((int)eMMBytesPerPixel == 1)
-                apadfPaletteColors[3][nIRecord] = 255;
+            if (eMMBytesPerPixel ==
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE)
+                aadfPaletteColors[3][nIRecord] = 255;
             else
-                apadfPaletteColors[3][nIRecord] = 65535;
+                aadfPaletteColors[3][nIRecord] = 65535;
         }
-        nNPaletteColors++;
     }
+
     VSIFree(pzsField);
     VSIFree(pzsBuffer);
-    VSIFCloseL(pColorTable->pfDataBase);
-    MM_ReleaseDBFHeader(&pColorTable);
-    VSIFree(pColorTable);
+    VSIFCloseL(oColorTable.pfDataBase);
+    MM_ReleaseMainFields(&oColorTable);
 
     return CE_None;
 }
@@ -1644,22 +1614,26 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
     CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta_DBF);
     int nNReadPaletteColors = 0;
+    int nNPaletteColors = 0;
+
     if (osExtension.tolower() == "pal")
         nNPaletteColors = 64;
     else if (osExtension.tolower() == "p25")
         nNPaletteColors = 256;
     else if (osExtension.tolower() == "p65")
         nNPaletteColors = 65536;
+    else
+        return CE_None;
 
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
-        apadfPaletteColors[iColumn] = static_cast<double *>(
-            VSI_MALLOC2_VERBOSE(sizeof(double), nNPaletteColors));
-        if (apadfPaletteColors[iColumn] == nullptr)
+        try
         {
-            CPLError(CE_Failure, CPLE_OutOfMemory,
-                     "It has been not possible to load color table: \"%s\"",
-                     osColorTableFileName.c_str());
+            aadfPaletteColors[iColumn].resize(nNPaletteColors, 0);
+        }
+        catch (std::bad_alloc &e)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "%s", e.what());
             return CE_Failure;
         }
     }
@@ -1694,19 +1668,20 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
         // papszTokens[0] is ignoded;
 
         // RED
-        apadfPaletteColors[0][nNReadPaletteColors] = CPLAtof(papszTokens[1]);
+        aadfPaletteColors[0][nNReadPaletteColors] = CPLAtof(papszTokens[1]);
 
         // GREEN
-        apadfPaletteColors[1][nNReadPaletteColors] = CPLAtof(papszTokens[2]);
+        aadfPaletteColors[1][nNReadPaletteColors] = CPLAtof(papszTokens[2]);
 
         // BLUE
-        apadfPaletteColors[2][nNReadPaletteColors] = CPLAtof(papszTokens[3]);
+        aadfPaletteColors[2][nNReadPaletteColors] = CPLAtof(papszTokens[3]);
 
         // ALPHA
-        if ((int)eMMBytesPerPixel == 1)
-            apadfPaletteColors[3][nNReadPaletteColors] = 255;
+        if (eMMBytesPerPixel ==
+            MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE)
+            aadfPaletteColors[3][nNReadPaletteColors] = 255;
         else
-            apadfPaletteColors[3][nNReadPaletteColors] = 65535;
+            aadfPaletteColors[3][nNReadPaletteColors] = 65535;
 
         CSLDestroy(papszTokens);
         nNReadPaletteColors++;
@@ -1732,18 +1707,18 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 /************************************************************************/
 void MMRBand::AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete)
 {
-    apadfPCT[0][nIndexDstPalete] = apadfPaletteColors[0][nIndexSrcPalete];
-    apadfPCT[1][nIndexDstPalete] = apadfPaletteColors[1][nIndexSrcPalete];
-    apadfPCT[2][nIndexDstPalete] = apadfPaletteColors[2][nIndexSrcPalete];
-    apadfPCT[3][nIndexDstPalete] = apadfPaletteColors[3][nIndexSrcPalete];
+    aadfPCT[0][nIndexDstPalete] = aadfPaletteColors[0][nIndexSrcPalete];
+    aadfPCT[1][nIndexDstPalete] = aadfPaletteColors[1][nIndexSrcPalete];
+    aadfPCT[2][nIndexDstPalete] = aadfPaletteColors[2][nIndexSrcPalete];
+    aadfPCT[3][nIndexDstPalete] = aadfPaletteColors[3][nIndexSrcPalete];
 }
 
 void MMRBand::AssignRGBColorDirectly(int nIndexDstPalete, double dfValue)
 {
-    apadfPCT[0][nIndexDstPalete] = dfValue;
-    apadfPCT[1][nIndexDstPalete] = dfValue;
-    apadfPCT[2][nIndexDstPalete] = dfValue;
-    apadfPCT[3][nIndexDstPalete] = dfValue;
+    aadfPCT[0][nIndexDstPalete] = dfValue;
+    aadfPCT[1][nIndexDstPalete] = dfValue;
+    aadfPCT[2][nIndexDstPalete] = dfValue;
+    aadfPCT[3][nIndexDstPalete] = dfValue;
 }
 
 // Converts palleteColors to Colors of pixels
@@ -1761,8 +1736,10 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
     // Alguns tenen mes de 255 categories (colors).
     //
 
+    // ·$·TODO
     // Only for 1 or 2 bytes images
-    if ((int)eMMBytesPerPixel > 2)
+    if (eMMBytesPerPixel != MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE &&
+        eMMBytesPerPixel != MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE)
     {
         nIPaletteColor = 0;
         return CE_None;
@@ -1778,10 +1755,15 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
     int nNPossibleValues = (int)pow(2, (double)8 * (int)eMMBytesPerPixel) * 3L;
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
-        apadfPCT[iColumn] = static_cast<double *>(
-            VSI_MALLOC2_VERBOSE(sizeof(double), nNPossibleValues / 3));
-        if (apadfPCT[iColumn] == nullptr)
+        try
+        {
+            aadfPCT[iColumn].resize(nNPossibleValues);
+        }
+        catch (std::bad_alloc &e)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "%s", e.what());
             return CE_Failure;
+        }
     }
 
     // Getting nNoDataPaletteIndex
@@ -1789,16 +1771,16 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
     {
         if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER ||
             eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE)
-            nNoDataPaletteIndex = (int)dfNoData + 32768L;
+            nNoDataPaletteIndex = static_cast<int>(dfNoData) + 32768L;
         else
-            nNoDataPaletteIndex = (int)dfNoData;
+            nNoDataPaletteIndex = static_cast<int>(dfNoData);
     }
 
     // Number of real colors (appart from NoData)
+    int nNPaletteColors = static_cast<int>(aadfPaletteColors[0].size());
     if (bPaletteHasNodata)
         nNPaletteColors--;
 
-    nPCTColors = 0;
     if ((int)eMMBytesPerPixel <= 2 || nNPaletteColors >= nNPossibleValues)
     {
         int nFirstValidPaletteIndex;
@@ -1871,18 +1853,11 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
     return CE_None;
 }
 
-CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
-                       double **ppadfBlue, double **ppadfAlpha)
+CPLErr MMRBand::GetPCT()
 
 {
-    *pnColors = 0;
-    *ppadfRed = nullptr;
-    *ppadfGreen = nullptr;
-    *ppadfBlue = nullptr;
-    *ppadfAlpha = nullptr;
-
     // If we haven't already tried to load the colors, do so now.
-    if (nPCTColors != -1)
+    if (aadfPCT[0].size() > 0)
         return CE_None;
 
     CPLString os_Color_Paleta_DBF = pfRel->GetMetadataValue(
@@ -1912,12 +1887,6 @@ CPLErr MMRBand::GetPCT(int *pnColors, double **ppadfRed, double **ppadfGreen,
     CPLErr peErr = ConvertPaletteColors(nIPaletteColor);
     if (peErr != CE_None)
         return peErr;
-
-    *pnColors = nPCTColors = nIPaletteColor;
-    *ppadfRed = apadfPCT[0];
-    *ppadfGreen = apadfPCT[1];
-    *ppadfBlue = apadfPCT[2];
-    *ppadfAlpha = apadfPCT[3];
 
     return CE_None;
 }
