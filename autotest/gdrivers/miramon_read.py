@@ -24,13 +24,13 @@ init_list = [
     ("data/miramon/normal/long_2x3_6_categs.img", 1),
     ("data/miramon/normal/real_2x3_6_categs.img", 1),
     ("data/miramon/normal/double_2x3_6_categs.img", 1),
-    # ("data/miramon/normal/byte_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/byte_2x3_6_categs_RLE.img", 1),
     # ("data/miramon/normal/byte_2x3_6_categs_RLE_no_ind.img", 1),
-    # ("data/miramon/normal/integer_2x3_6_categs_RLE.img", 1),
-    # ("data/miramon/normal/uinteger_2x3_6_categs_RLE.img", 1),
-    # ("data/miramon/normal/long_2x3_6_categs_RLE.img", 1),
-    # ("data/miramon/normal/real_2x3_6_categs_RLE.img", 1),
-    # ("data/miramon/normal/double_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/integer_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/uinteger_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/long_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/real_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/double_2x3_6_categs_RLE.img", 1),
 ]
 
 

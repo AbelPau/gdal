@@ -87,7 +87,7 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
 }
 
 // Getting data type from metadata
-int MMRBand::GetDataType(const char *pszSection)
+int MMRBand::GetDataTypeFromREL(const char *pszSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, "TipusCompressio");
@@ -119,7 +119,7 @@ int MMRBand::GetDataType(const char *pszSection)
 }
 
 // Getting number of columns from metadata
-int MMRBand::GetResolution(const char *pszSection)
+int MMRBand::GetResolutionFromREL(const char *pszSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, "resolution");
@@ -141,14 +141,14 @@ int MMRBand::GetResolution(const char *pszSection)
 }
 
 // Getting number of columns from metadata
-int MMRBand::GetColumnsNumber(const char *pszSection)
+int MMRBand::GetColumnsNumberFromREL(const char *pszSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         pszSection, "columns", &nWidth,
         "MMRBand::MMRBand : No number of columns documented");
 }
 
-int MMRBand::GetRowsNumber(const char *pszSection)
+int MMRBand::GetRowsNumberFromREL(const char *pszSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         pszSection, "rows", &nHeight,
@@ -173,7 +173,7 @@ void MMRBand::GetNoDataValue(const char *pszSection)
 }
 
 // Getting nodata value from metadata
-void MMRBand::GetNoDataDefinition(const char *pszSection)
+void MMRBand::GetNoDataDefinitionFromREL(const char *pszSection)
 {
     if (!bNoDataSet)
         return;
@@ -182,7 +182,7 @@ void MMRBand::GetNoDataDefinition(const char *pszSection)
                                            "NODATADef");
 }
 
-void MMRBand::GetMinMaxValues(const char *pszSection)
+void MMRBand::GetMinMaxValuesFromREL(const char *pszSection)
 {
     bMinSet = false;
 
@@ -205,7 +205,7 @@ void MMRBand::GetMinMaxValues(const char *pszSection)
     }
 }
 
-void MMRBand::GetMinMaxVisuValues(const char *pszSection)
+void MMRBand::GetMinMaxVisuValuesFromREL(const char *pszSection)
 {
     bMinVisuSet = false;
     dfVisuMin = 1;
@@ -231,19 +231,21 @@ void MMRBand::GetMinMaxVisuValues(const char *pszSection)
     }
 }
 
-void MMRBand::GetFriendlyDescription(const char *pszSection)
+void MMRBand::GetFriendlyDescriptionFromREL(const char *pszSection)
 {
     osFriendlyDescription = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                     pszSection, "descriptor");
+    if (osFriendlyDescription.empty())
+        osFriendlyDescription = osRawBandFileName;
 }
 
-void MMRBand::GetReferenceSystem()
+void MMRBand::GetReferenceSystemFromREL()
 {
     pszRefSystem = pfRel->GetMetadataValue(
         "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
 }
 
-int MMRBand::GetBoundingBox(const char *pszSection)
+int MMRBand::GetBoundingBoxFromREL(const char *pszSection)
 {
     // Bounding box of the band
     // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]
@@ -274,86 +276,16 @@ int MMRBand::GetBoundingBox(const char *pszSection)
     return 0;
 }
 
-int MMRBand::GetAssignedSubDataSet()
-{
-    return nAssignedSDS;
-}
-
-void MMRBand::AssignSubDataSet(int nAssignedSDSIn)
-{
-    nAssignedSDS = nAssignedSDSIn;
-}
-
-CPLString MMRBand::GetBandName()
-{
-    return osBandName;
-}
-
-CPLString MMRBand::GetRELFileName()
-{
-    return osRELFileName;
-}
-
-void MMRBand::SetRELFileName(CPLString osRELFileNameIn)
-{
-    osRELFileName = osRELFileNameIn;
-}
-
-CPLString MMRBand::GetRawBandFileName()
-{
-    return osRawBandFileName;
-}
-
-CPLString MMRBand::GetFriendlyDescription()
-{
-    return osFriendlyDescription;
-}
-
-MMDataType MMRBand::GeteMMDataType()
-{
-    return eMMDataType;
-}
-
-MMBytesPerPixel MMRBand::GeteMMBytesPerPixel()
-{
-    return eMMBytesPerPixel;
-}
-
-double MMRBand::GetBoundingBoxMinX()
-{
-    return dfBBMinX;
-}
-
-double MMRBand::GetBoundingBoxMaxX()
-{
-    return dfBBMaxX;
-}
-
-double MMRBand::GetBoundingBoxMinY()
-{
-    return dfBBMinY;
-}
-
-double MMRBand::GetBoundingBoxMaxY()
-{
-    return dfBBMaxY;
-}
-
-double MMRBand::GetPixelResolution()
-{
-    return nResolution;
-}
-
 MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     : pfIMG(nullptr), pfRel(psInfoIn->fRel), nBlocks(0), panBlockStart(nullptr),
       panBlockSize(nullptr), panBlockFlag(nullptr), nBlockStart(0),
       nBlockSize(0), nLayerStackCount(0), nLayerStackIndex(0),
-      nNPaletteColors(0), nNoDataOriginalIndex(0), bPaletteHasNodata(false),
-      nPCTColors(-1), nNoDataPaletteIndex(0), nAssignedSDS(0),
-      osBandSection(pszSection), osRELFileName(""), osRawBandFileName(""),
-      osBandFileName(""), osBandName(""), osFriendlyDescription(""),
-      eMMDataType(
-          static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
+      pFileOffsets(nullptr), nNPaletteColors(0), nNoDataOriginalIndex(0),
+      bPaletteHasNodata(false), nPCTColors(-1), nNoDataPaletteIndex(0),
+      nAssignedSDS(0), osBandSection(pszSection), osRELFileName(""),
+      osRawBandFileName(""), osBandFileName(""), osBandName(""),
+      osFriendlyDescription(""), eMMDataType(static_cast<MMDataType>(
+                                     MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
       eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
@@ -421,14 +353,14 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
 
     // Getting number of columns and rows
-    if (GetColumnsNumber(pszSection))
+    if (GetColumnsNumberFromREL(pszSection))
     {
         nWidth = 0;
         nHeight = 0;
         return;
     }
 
-    if (GetRowsNumber(pszSection))
+    if (GetRowsNumberFromREL(pszSection))
     {
         nWidth = 0;
         nHeight = 0;
@@ -450,11 +382,11 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     }
 
     // Getting data type and compression
-    if (GetDataType(pszSection))
+    if (GetDataTypeFromREL(pszSection))
         return;
 
     // Getting resolution
-    if (GetResolution(pszSection))
+    if (GetResolutionFromREL(pszSection))
         return;
 
     // Let's see if there is RLE compression
@@ -464,10 +396,10 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
          eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
 
     // Getting min and max values
-    GetMinMaxValues(pszSection);
+    GetMinMaxValuesFromREL(pszSection);
 
     // Getting min and max values for simbolization
-    GetMinMaxVisuValues(pszSection);
+    GetMinMaxVisuValuesFromREL(pszSection);
     if (!bMinVisuSet)
     {
         if (bMinSet)
@@ -480,18 +412,18 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     }
 
     // Getting the friendly description of the band
-    GetFriendlyDescription(pszSection);
+    GetFriendlyDescriptionFromREL(pszSection);
 
     // Getting NoData value and definition
     GetNoDataValue(pszSection);
-    GetNoDataDefinition(
+    GetNoDataDefinitionFromREL(
         pszSection);  // ·$·TODO put it in metadata MIRAMON subdomain?
 
     // Getting reference system and coordinates of the geographic bounding box
-    GetReferenceSystem();
+    GetReferenceSystemFromREL();
 
     // Getting the bounding box: coordinates in the terrain
-    if (GetBoundingBox(pszSection))
+    if (GetBoundingBoxFromREL(pszSection))
     {
         nWidth = 0;
         nHeight = 0;
@@ -541,6 +473,8 @@ MMRBand::~MMRBand()
     CPLFree(apadfPCT[1]);
     CPLFree(apadfPCT[2]);
     CPLFree(apadfPCT[3]);
+
+    CPLFree(pFileOffsets);
 
     if (pfIMG != nullptr)
         CPL_IGNORE_RET_VAL(VSIFCloseL(pfIMG));
@@ -688,480 +622,381 @@ CPLErr MMRBand::LoadBlockInfo()
     return CE_None;
 }
 
-/************************************************************************/
-/*                          UncompressBlock()                           */
-/*                                                                      */
-/*      Uncompress ESRI Grid compression format block.                  */
-/************************************************************************/
-
-// TODO(schwehr): Get rid of this macro without a goto.
-#define CHECK_ENOUGH_BYTES(n)                                                  \
-    if (nSrcBytes < (n))                                                       \
-    {                                                                          \
-        CPLError(CE_Failure, CPLE_AppDefined,                                  \
-                 "Not enough bytes in compressed block");                      \
-        return CE_Failure;                                                     \
-    }
-
-static CPLErr UncompressBlock(GByte *pabyCData, int nSrcBytes, GByte *pabyDest,
-                              int nMaxPixels, EPTType eDataType)
-
+template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
 {
-    CHECK_ENOUGH_BYTES(13);
+    int acumulat = 0L, ii = 0L;
+    unsigned char comptador;
 
-    const GUInt32 nDataMin = CPL_LSBUINT32PTR(pabyCData);
-    const GInt32 nNumRuns = CPL_LSBSINT32PTR(pabyCData + 4);
-    const GInt32 nDataOffset = CPL_LSBSINT32PTR(pabyCData + 8);
-
-    const int nNumBits = pabyCData[12];
-
-    // If this is not run length encoded, but just reduced
-    // precision, handle it now.
-
-    int nPixelsOutput = 0;
-    GByte *pabyValues = nullptr;
-    int nValueBitOffset = 0;
-
-    if (nNumRuns == -1)
+    TYPE valor_rle;
+    while (acumulat < nWidth)
     {
-        pabyValues = pabyCData + 13;
-        nValueBitOffset = 0;
-
-        if (nNumBits > INT_MAX / nMaxPixels ||
-            nNumBits * nMaxPixels > INT_MAX - 7 ||
-            (nNumBits * nMaxPixels + 7) / 8 > INT_MAX - 13)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Integer overflow : nNumBits * nMaxPixels + 7");
+        if (VSIFReadL(&comptador, sizeof(comptador), 1, pfIMG) != 1)
             return CE_Failure;
-        }
-        CHECK_ENOUGH_BYTES(13 + (nNumBits * nMaxPixels + 7) / 8);
 
-        // Loop over block pixels.
-        for (nPixelsOutput = 0; nPixelsOutput < nMaxPixels; nPixelsOutput++)
-        {
-            // Extract the data value in a way that depends on the number
-            // of bits in it.
-
-            int nRawValue = 0;
-
-            if (nNumBits == 0)
-            {
-                // nRawValue = 0;
-            }
-            else if (nNumBits == 1)
-            {
-                nRawValue = (pabyValues[nValueBitOffset >> 3] >>
-                             (nValueBitOffset & 7)) &
-                            0x1;
-                nValueBitOffset++;
-            }
-            else if (nNumBits == 2)
-            {
-                nRawValue = (pabyValues[nValueBitOffset >> 3] >>
-                             (nValueBitOffset & 7)) &
-                            0x3;
-                nValueBitOffset += 2;
-            }
-            else if (nNumBits == 4)
-            {
-                nRawValue = (pabyValues[nValueBitOffset >> 3] >>
-                             (nValueBitOffset & 7)) &
-                            0xf;
-                nValueBitOffset += 4;
-            }
-            else if (nNumBits == 8)
-            {
-                nRawValue = *pabyValues;
-                pabyValues++;
-            }
-            else if (nNumBits == 16)
-            {
-                nRawValue = 256 * *(pabyValues++);
-                nRawValue += *(pabyValues++);
-            }
-            else if (nNumBits == 32)
-            {
-                memcpy(&nRawValue, pabyValues, 4);
-                CPL_MSBPTR32(&nRawValue);
-                pabyValues += 4;
-            }
-            else
-            {
-                CPLError(CE_Failure, CPLE_NotSupported,
-                         "Unsupported nNumBits value: %d", nNumBits);
+        if (comptador == 0) /* Tros sense comprimir */
+        { /* La següent lectura de comptador no diu "quants de
+				repetits vénen a continuació" sinó "quants de
+				descomprimits en format ràster típic" */
+            if (VSIFReadL(&comptador, sizeof(comptador), 1, pfIMG) != 1)
                 return CE_Failure;
-            }
+            acumulat += comptador;
 
-            // Offset by the minimum value.
-            const int nDataValue = CPLUnsanitizedAdd<int>(nRawValue, nDataMin);
-
-            // Now apply to the output buffer in a type specific way.
-            if (eDataType == EPT_u8)
-            {
-                ((GByte *)pabyDest)[nPixelsOutput] =
-                    static_cast<GByte>(nDataValue);
-            }
-            else if (eDataType == EPT_u1)
-            {
-                if (nDataValue == 1)
-                    pabyDest[nPixelsOutput >> 3] |=
-                        (1 << (nPixelsOutput & 0x7));
-                else
-                    pabyDest[nPixelsOutput >> 3] &=
-                        ~(1 << (nPixelsOutput & 0x7));
-            }
-            else if (eDataType == EPT_u2)
-            {
-                // nDataValue & 0x3 is just to avoid UBSAN warning on shifting
-                // negative values
-                if ((nPixelsOutput & 0x3) == 0)
-                    pabyDest[nPixelsOutput >> 2] =
-                        static_cast<GByte>(nDataValue);
-                else if ((nPixelsOutput & 0x3) == 1)
-                    pabyDest[nPixelsOutput >> 2] |=
-                        static_cast<GByte>((nDataValue & 0x3) << 2);
-                else if ((nPixelsOutput & 0x3) == 2)
-                    pabyDest[nPixelsOutput >> 2] |=
-                        static_cast<GByte>((nDataValue & 0x3) << 4);
-                else
-                    pabyDest[nPixelsOutput >> 2] |=
-                        static_cast<GByte>((nDataValue & 0x3) << 6);
-            }
-            else if (eDataType == EPT_u4)
-            {
-                // nDataValue & 0xF is just to avoid UBSAN warning on shifting
-                // negative values
-                if ((nPixelsOutput & 0x1) == 0)
-                    pabyDest[nPixelsOutput >> 1] =
-                        static_cast<GByte>(nDataValue);
-                else
-                    pabyDest[nPixelsOutput >> 1] |=
-                        static_cast<GByte>((nDataValue & 0xF) << 4);
-            }
-            else if (eDataType == EPT_s8)
-            {
-                ((GInt8 *)pabyDest)[nPixelsOutput] =
-                    static_cast<GInt8>(nDataValue);
-            }
-            else if (eDataType == EPT_u16)
-            {
-                ((GUInt16 *)pabyDest)[nPixelsOutput] =
-                    static_cast<GUInt16>(nDataValue);
-            }
-            else if (eDataType == EPT_s16)
-            {
-                ((GInt16 *)pabyDest)[nPixelsOutput] =
-                    static_cast<GInt16>(nDataValue);
-            }
-            else if (eDataType == EPT_s32)
-            {
-                ((GInt32 *)pabyDest)[nPixelsOutput] = nDataValue;
-            }
-            else if (eDataType == EPT_u32)
-            {
-                ((GUInt32 *)pabyDest)[nPixelsOutput] = nDataValue;
-            }
-            else if (eDataType == EPT_f32)
-            {
-                // Note, floating point values are handled as if they were
-                // signed 32-bit integers (bug #1000).
-                memcpy(&(((float *)pabyDest)[nPixelsOutput]), &nDataValue,
-                       sizeof(float));
-            }
-            else
-            {
-                CPLError(
-                    CE_Failure, CPLE_AppDefined,
-                    "Attempt to uncompress an unsupported pixel data type.");
+            if (acumulat > nWidth) /* Això no hauria de passar si el
+                    fitxer és RLE que no comparteix comptadors entre files */
                 return CE_Failure;
-            }
-        }
 
-        return CE_None;
-    }
-
-    // Establish data pointers for runs.
-    if (nNumRuns < 0 || nDataOffset < 0)
-    {
-        CPLError(CE_Failure, CPLE_AppDefined, "nNumRuns=%d, nDataOffset=%d",
-                 nNumRuns, nDataOffset);
-        return CE_Failure;
-    }
-
-    if (nNumRuns != 0 &&
-        (nNumBits > INT_MAX / nNumRuns || nNumBits * nNumRuns > INT_MAX - 7 ||
-         (nNumBits * nNumRuns + 7) / 8 > INT_MAX - nDataOffset))
-    {
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Integer overflow: nDataOffset + (nNumBits * nNumRuns + 7)/8");
-        return CE_Failure;
-    }
-    CHECK_ENOUGH_BYTES(nDataOffset + (nNumBits * nNumRuns + 7) / 8);
-
-    GByte *pabyCounter = pabyCData + 13;
-    int nCounterOffset = 13;
-    pabyValues = pabyCData + nDataOffset;
-    nValueBitOffset = 0;
-
-    // Loop over runs.
-    for (int iRun = 0; iRun < nNumRuns; iRun++)
-    {
-        int nRepeatCount = 0;
-
-        // Get the repeat count.  This can be stored as one, two, three
-        // or four bytes depending on the low order two bits of the
-        // first byte.
-        CHECK_ENOUGH_BYTES(nCounterOffset + 1);
-        if ((*pabyCounter & 0xc0) == 0x00)
-        {
-            nRepeatCount = (*(pabyCounter++)) & 0x3f;
-            nCounterOffset++;
-        }
-        else if (((*pabyCounter) & 0xc0) == 0x40)
-        {
-            CHECK_ENOUGH_BYTES(nCounterOffset + 2);
-            nRepeatCount = (*(pabyCounter++)) & 0x3f;
-            nRepeatCount = nRepeatCount * 256 + (*(pabyCounter++));
-            nCounterOffset += 2;
-        }
-        else if (((*pabyCounter) & 0xc0) == 0x80)
-        {
-            CHECK_ENOUGH_BYTES(nCounterOffset + 3);
-            nRepeatCount = (*(pabyCounter++)) & 0x3f;
-            nRepeatCount = nRepeatCount * 256 + (*(pabyCounter++));
-            nRepeatCount = nRepeatCount * 256 + (*(pabyCounter++));
-            nCounterOffset += 3;
-        }
-        else if (((*pabyCounter) & 0xc0) == 0xc0)
-        {
-            CHECK_ENOUGH_BYTES(nCounterOffset + 4);
-            nRepeatCount = (*(pabyCounter++)) & 0x3f;
-            nRepeatCount = nRepeatCount * 256 + (*(pabyCounter++));
-            nRepeatCount = nRepeatCount * 256 + (*(pabyCounter++));
-            nRepeatCount = nRepeatCount * 256 + (*(pabyCounter++));
-            nCounterOffset += 4;
-        }
-
-        // Extract the data value in a way that depends on the number
-        // of bits in it.
-        int nDataValue = 0;
-
-        if (nNumBits == 0)
-        {
-            // nDataValue = 0;
-        }
-        else if (nNumBits == 1)
-        {
-            nDataValue =
-                (pabyValues[nValueBitOffset >> 3] >> (nValueBitOffset & 7)) &
-                0x1;
-            nValueBitOffset++;
-        }
-        else if (nNumBits == 2)
-        {
-            nDataValue =
-                (pabyValues[nValueBitOffset >> 3] >> (nValueBitOffset & 7)) &
-                0x3;
-            nValueBitOffset += 2;
-        }
-        else if (nNumBits == 4)
-        {
-            nDataValue =
-                (pabyValues[nValueBitOffset >> 3] >> (nValueBitOffset & 7)) &
-                0xf;
-            nValueBitOffset += 4;
-        }
-        else if (nNumBits == 8)
-        {
-            nDataValue = *pabyValues;
-            pabyValues++;
-        }
-        else if (nNumBits == 16)
-        {
-            nDataValue = 256 * *(pabyValues++);
-            nDataValue += *(pabyValues++);
-        }
-        else if (nNumBits == 32)
-        {
-            memcpy(&nDataValue, pabyValues, 4);
-            CPL_MSBPTR32(&nDataValue);
-            pabyValues += 4;
-        }
-        else
-        {
-            CPLError(CE_Failure, CPLE_NotSupported, "nNumBits = %d", nNumBits);
-            return CE_Failure;
-        }
-
-        // Offset by the minimum value.
-        nDataValue = CPLUnsanitizedAdd<int>(nDataValue, nDataMin);
-
-        // Now apply to the output buffer in a type specific way.
-        if (nRepeatCount > INT_MAX - nPixelsOutput ||
-            nPixelsOutput + nRepeatCount > nMaxPixels)
-        {
-            CPLDebug("MiraMonRaster", "Repeat count too big: %d", nRepeatCount);
-            nRepeatCount = nMaxPixels - nPixelsOutput;
-        }
-
-        if (eDataType == EPT_u8)
-        {
-            for (int i = 0; i < nRepeatCount; i++)
+            for (; ii < acumulat; ii++)
             {
-#if DEBUG_VERBOSE
-                // TODO(schwehr): Do something smarter with out-of-range data.
-                // Bad data can trigger this assert.  r23498
-                CPLAssert(nDataValue < 256);
-#endif
-                ((GByte *)pabyDest)[nPixelsOutput++] =
-                    static_cast<GByte>(nDataValue);
-            }
-        }
-        else if (eDataType == EPT_u16)
-        {
-            for (int i = 0; i < nRepeatCount; i++)
-            {
-#if DEBUG_VERBOSE
-                CPLAssert(nDataValue >= 0);
-                CPLAssert(nDataValue < 65536);
-#endif
-                ((GUInt16 *)pabyDest)[nPixelsOutput++] =
-                    static_cast<GUInt16>(nDataValue);
-            }
-        }
-        else if (eDataType == EPT_s8)
-        {
-            for (int i = 0; i < nRepeatCount; i++)
-            {
-#if DEBUG_VERBOSE
-                // TODO(schwehr): Do something smarter with out-of-range data.
-                // Bad data can trigger this assert.  r23498
-                CPLAssert(nDataValue >= -127);
-                CPLAssert(nDataValue < 128);
-#endif
-                ((GByte *)pabyDest)[nPixelsOutput++] =
-                    static_cast<GByte>(nDataValue);
-            }
-        }
-        else if (eDataType == EPT_s16)
-        {
-            for (int i = 0; i < nRepeatCount; i++)
-            {
-#if DEBUG_VERBOSE
-                // TODO(schwehr): Do something smarter with out-of-range data.
-                // Bad data can trigger this assert.  r23498
-                CPLAssert(nDataValue >= -32768);
-                CPLAssert(nDataValue < 32768);
-#endif
-                ((GInt16 *)pabyDest)[nPixelsOutput++] =
-                    static_cast<GInt16>(nDataValue);
-            }
-        }
-        else if (eDataType == EPT_u32)
-        {
-            for (int i = 0; i < nRepeatCount; i++)
-            {
-#if DEBUG_VERBOSE
-                // TODO(schwehr): Do something smarter with out-of-range data.
-                // Bad data can trigger this assert.  r23498
-                CPLAssert(nDataValue >= 0);
-#endif
-                ((GUInt32 *)pabyDest)[nPixelsOutput++] =
-                    static_cast<GUInt32>(nDataValue);
-            }
-        }
-        else if (eDataType == EPT_s32)
-        {
-            for (int i = 0; i < nRepeatCount; i++)
-            {
-                ((GInt32 *)pabyDest)[nPixelsOutput++] =
-                    static_cast<GInt32>(nDataValue);
-            }
-        }
-        else if (eDataType == EPT_f32)
-        {
-            float fDataValue = 0.0f;
-
-            memcpy(&fDataValue, &nDataValue, 4);
-            for (int i = 0; i < nRepeatCount; i++)
-            {
-                ((float *)pabyDest)[nPixelsOutput++] = fDataValue;
-            }
-        }
-        else if (eDataType == EPT_u1)
-        {
-#ifdef DEBUG_VERBOSE
-            CPLAssert(nDataValue == 0 || nDataValue == 1);
-#endif
-            if (nDataValue == 1)
-            {
-                for (int i = 0; i < nRepeatCount; i++)
-                {
-                    pabyDest[nPixelsOutput >> 3] |=
-                        (1 << (nPixelsOutput & 0x7));
-                    nPixelsOutput++;
-                }
-            }
-            else
-            {
-                for (int i = 0; i < nRepeatCount; i++)
-                {
-                    pabyDest[nPixelsOutput >> 3] &=
-                        ~(1 << (nPixelsOutput & 0x7));
-                    nPixelsOutput++;
-                }
-            }
-        }
-        else if (eDataType == EPT_u2)
-        {
-#ifdef DEBUG_VERBOSE
-            CPLAssert(nDataValue >= 0 && nDataValue < 4);
-#endif
-            for (int i = 0; i < nRepeatCount; i++)
-            {
-                if ((nPixelsOutput & 0x3) == 0)
-                    pabyDest[nPixelsOutput >> 2] =
-                        static_cast<GByte>(nDataValue);
-                else if ((nPixelsOutput & 0x3) == 1)
-                    pabyDest[nPixelsOutput >> 2] |=
-                        static_cast<GByte>((nDataValue & 0x3) << 2);
-                else if ((nPixelsOutput & 0x3) == 2)
-                    pabyDest[nPixelsOutput >> 2] |=
-                        static_cast<GByte>((nDataValue & 0x3) << 4);
-                else
-                    pabyDest[nPixelsOutput >> 2] |=
-                        static_cast<GByte>((nDataValue & 0x3) << 6);
-                nPixelsOutput++;
-            }
-        }
-        else if (eDataType == EPT_u4)
-        {
-#ifdef DEBUG_VERBOSE
-            CPLAssert(nDataValue >= 0 && nDataValue < 16);
-#endif
-            for (int i = 0; i < nRepeatCount; i++)
-            {
-                if ((nPixelsOutput & 0x1) == 0)
-                    pabyDest[nPixelsOutput >> 1] =
-                        static_cast<GByte>(nDataValue);
-                else
-                    pabyDest[nPixelsOutput >> 1] |=
-                        static_cast<GByte>((nDataValue & 0xF) << 4);
-
-                nPixelsOutput++;
+                VSIFReadL(&valor_rle, sizeof(TYPE), 1, pfIMG);
+                memcpy(((TYPE *)rowBuffer) + ii, &valor_rle, sizeof(TYPE));
+                //fila_double[(size_t)ii]=*((TYPE*)&valor_rle);
             }
         }
         else
         {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Attempt to uncompress an unsupported pixel data type.");
-            return CE_Failure;
+            acumulat += comptador;
+
+            if (acumulat > nWidth) /* Això no hauria de passar si el
+                    fitxer és RLE que no comparteix comptadors entre files */
+                return CE_Failure;
+
+            if (VSIFReadL(&valor_rle, sizeof(TYPE), 1, pfIMG) != 1)
+                return CE_Failure;
+            for (; ii < acumulat; ii++)
+                memcpy(((TYPE *)rowBuffer) + ii, &valor_rle, sizeof(TYPE));
+            //fila_double[(size_t)ii]=*((TYPE*)&valor_rle);
         }
     }
 
     return CE_None;
 }
+
+/************************************************************************/
+/*                 FillRowFromExtendedParam                             */
+/************************************************************************/
+CPLErr MMRBand::FillRowFromExtendedParam(void *rowBuffer)
+{
+    //size_t ii = 0;
+
+    const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
+    const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
+
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
+    {
+        if (VSIFReadL(rowBuffer, nGDALBlockSize, 1, pfIMG) != 1)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Error while reading band");
+            return CE_Failure;
+        }
+        return CE_None;
+    }
+
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE ||
+        eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER ||
+        eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER ||
+        eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG ||
+        eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL ||
+        eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE)
+    {
+        if (VSIFReadL(rowBuffer, nDataTypeSizeBytes, nWidth, pfIMG) !=
+            (size_t)nWidth)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Error while reading band");
+            return CE_Failure;
+        }
+        return CE_None;
+    }
+
+    CPLErr peErr;
+    switch (eMMDataType)
+    {
+        case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
+            peErr = UncompressRow<GByte>(rowBuffer);
+            break;
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
+            peErr = UncompressRow<GInt16>(rowBuffer);
+            break;
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
+            peErr = UncompressRow<GUInt16>(rowBuffer);
+            break;
+        case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
+            peErr = UncompressRow<GInt32>(rowBuffer);
+            break;
+        case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
+            peErr = UncompressRow<float>(rowBuffer);
+            break;
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
+            peErr = UncompressRow<double>(rowBuffer);
+            break;
+
+        default:
+            CPLError(CE_Failure, CPLE_AppDefined, "Error in datatype");
+            peErr = CE_Failure;
+    }
+
+    return peErr;
+}  // End of FillRowFromExtendedParam()
+
+/************************************************************************/
+/*                 PositionAtStartOfRowOffsetsInFile                */
+/************************************************************************/
+int MMRBand::PositionAtStartOfRowOffsetsInFile()
+{
+    vsi_l_offset nFileSize, nHeaderOffset;
+    char szChain[16];
+    short int nVersion, nSubVersion;
+    int nOffsetSize, nOffsetsSectionType;
+
+    if (VSIFSeekL(pfIMG, 0, SEEK_END))
+        return 0;
+
+    if ((vsi_l_offset)(-1) == (nFileSize = VSIFTellL(pfIMG)))
+        return 0;
+
+    if (nHeight)
+    {
+        if (nFileSize < (vsi_l_offset)32 + nHeight + 32)
+            return 0;
+    }
+
+    if (VSIFSeekL(pfIMG, -32, SEEK_CUR))  // Reading final header.
+        return 0;
+    if (VSIFReadL(szChain, 16, 1, pfIMG) != 1)
+        return 0;
+    for (int nIndex = 0; nIndex < 16; nIndex++)
+    {
+        if (szChain[nIndex] != '\0')
+            return 0;  // Supposed 0's are not 0.
+    }
+
+    if (VSIFReadL(szChain, 8, 1, pfIMG) != 1)
+        return 0;
+
+    if (strncmp(szChain, "IMG ", 4) || szChain[5] != '.')
+        return 0;
+
+    // Some version checks
+    szChain[7] = 0;
+    if (sscanf(szChain + 6, "%hu", &nSubVersion) != 1 || nSubVersion < 0)
+        return 0;
+
+    szChain[5] = 0;
+    if (sscanf(szChain + 4, "%hu", &nVersion) != 1 || nVersion != 1)
+        return 0;
+
+    // Next header to be read
+    if (VSIFReadL(&nHeaderOffset, sizeof(vsi_l_offset), 1, pfIMG) != 1)
+        return 0;
+
+    int bRepeat;
+    do
+    {
+        bRepeat = FALSE;
+
+        if (VSIFSeekL(pfIMG, nHeaderOffset, SEEK_SET))
+            return 0;
+
+        if (VSIFReadL(szChain, 8, 1, pfIMG) != 1)
+            return 0;
+
+        if (strncmp(szChain, "IMG ", 4) || szChain[5] != '.')
+            return 0;
+
+        if (VSIFReadL(&nOffsetsSectionType, 4, 1, pfIMG) != 1)
+            return 0;
+
+        if (nOffsetsSectionType != 2)  // 2 = row offsets section
+        {
+            // This is not the section I am looking for
+            if (VSIFSeekL(pfIMG, 8 + 4, SEEK_CUR))
+                return 0;
+
+            if (VSIFReadL(&nHeaderOffset, sizeof(vsi_l_offset), 1, pfIMG) != 1)
+                return 0;
+
+            if (nHeaderOffset == 0)
+                return 0;
+
+            bRepeat = TRUE;
+        }
+
+    } while (bRepeat);
+
+    szChain[7] = 0;
+    if (sscanf(szChain + 6, "%hu", &nSubVersion) != 1 || nSubVersion < 0)
+        return 0;
+    szChain[5] = 0;
+    if (sscanf(szChain + 4, "%hu", &nVersion) != 1 || nVersion != 1)
+        return 0;
+
+    /*
+        Now I'm in the correct section
+        -------------------------------
+        Info about this section:
+        RasterRLE: minumum size: nHeight*2
+        Offsets:   minimum size: 32+nHeight*4
+        Final:     size: 32
+    */
+
+    if (nHeight)
+    {
+        if (nHeaderOffset <
+                (vsi_l_offset)nHeight * 2 ||  // Minumum size of an RLE
+            nFileSize - nHeaderOffset <
+                (vsi_l_offset)32 + nHeight +
+                    32)  // Minumum size of the section in version 1.0
+            return 0;
+    }
+
+    if (VSIFReadL(&nOffsetSize, 4, 1, pfIMG) != 1 ||
+        (nOffsetSize != 8 && nOffsetSize != 4 && nOffsetSize != 2 &&
+         nOffsetSize != 1))
+        return 0;
+
+    if (nHeight)
+    {
+        if (nFileSize - nHeaderOffset <
+            32 + (vsi_l_offset)nOffsetSize * nHeight +
+                32)  // No space for this section in this file
+            return 0;
+
+        // I leave the file prepared to read offsets
+        if (VSIFSeekL(pfIMG, 16, SEEK_CUR))
+            return 0;
+    }
+    else
+    {
+        if (VSIFSeekL(pfIMG, 4, SEEK_CUR))
+            return 0;
+
+        if (VSIFSeekL(pfIMG, 4, SEEK_CUR))
+            return 0;
+
+        // I leave the file prepared to read offsets
+        if (VSIFSeekL(pfIMG, 8, SEEK_CUR))
+            return 0;
+    }
+
+    // There are offsets!
+    return nOffsetSize;
+}  // Fi de PositionAtStartOfRowOffsetsInFile()
+
+/************************************************************************/
+/*                              GetRowOffsets()                         */
+/************************************************************************/
+void MMRBand::GetRowOffsets()
+{
+    vsi_l_offset nStartOffset;
+    int nIRow;
+    vsi_l_offset BytesPerPixel_per_ncol;
+    int nSizeToRead;  // nSizeToRead is not an offset, but the size of the offsets being read
+                      // directly from the IMG file (can be 1, 2, 4, or 8).
+    vsi_l_offset i_byte_fitxer;
+    size_t nMaxBytesPerCompressedRow;
+
+    // If it's filled, there no need to fill it again
+    if (pFileOffsets)
+        return;
+
+    pFileOffsets = static_cast<vsi_l_offset *>(
+        VSI_CALLOC_VERBOSE((nHeight + 1), sizeof(vsi_l_offset)));
+    if (!pFileOffsets)
+    {
+        CPLError(CE_Failure, CPLE_OutOfMemory, "Out of memory");
+        pFileOffsets = nullptr;
+        return;
+    }
+
+    const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
+    const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
+
+    switch (eMMDataType)
+    {
+        case MMDataType::DATATYPE_AND_COMPR_BIT_VELL:
+            VSIFree(pFileOffsets);
+            pFileOffsets = nullptr;
+            return;
+
+        case MMDataType::DATATYPE_AND_COMPR_BIT:
+            for (
+                nIRow = 0; nIRow <= nHeight;
+                nIRow++)  // "<=" it's ok. There is space and it's to make easier the programming
+                pFileOffsets[nIRow] = (vsi_l_offset)nIRow * nGDALBlockSize;
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_BYTE:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER:
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
+        case MMDataType::DATATYPE_AND_COMPR_LONG:
+        case MMDataType::DATATYPE_AND_COMPR_REAL:
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
+            BytesPerPixel_per_ncol = nDataTypeSizeBytes * (vsi_l_offset)nWidth;
+            for (nIRow = 0; nIRow <= nHeight; nIRow++)
+                pFileOffsets[nIRow] =
+                    (vsi_l_offset)nIRow * BytesPerPixel_per_ncol;
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
+
+            nStartOffset = VSIFTellL(pfIMG);
+
+            // Let's determine if are there offsets in the file
+            if (0 < (nSizeToRead = PositionAtStartOfRowOffsetsInFile()))
+            {
+                // I have offsets!!
+                i_byte_fitxer = 0L;  // all bits to 0
+                for (nIRow = 0; nIRow < nHeight; nIRow++)
+                {
+                    if (VSIFReadL(&i_byte_fitxer, nSizeToRead, 1, pfIMG) != 1)
+                    {
+                        VSIFree(pFileOffsets);
+                        pFileOffsets = nullptr;
+                        return;
+                    }
+                    pFileOffsets[nIRow] = i_byte_fitxer;
+                }
+                pFileOffsets[nIRow] = 0;  // Not reliable
+                VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
+                break;
+            }
+
+            // Not indexed RLE. We create a dynamic indexation
+            nMaxBytesPerCompressedRow =
+                (int)eMMBytesPerPixel ? (nWidth * ((int)eMMBytesPerPixel + 1))
+                                      : (nWidth * (1 + 1));
+            unsigned char *pBuffer;
+
+            if (nullptr == (pBuffer = static_cast<unsigned char *>(
+                                VSI_MALLOC_VERBOSE(nMaxBytesPerCompressedRow))))
+            {
+                VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
+                VSIFree(pFileOffsets);
+                pFileOffsets = nullptr;
+                return;
+            }
+
+            VSIFSeekL(pfIMG, 0, SEEK_SET);
+            pFileOffsets[0] = 0;
+            for (nIRow = 0; nIRow < nHeight; nIRow++)
+            {
+                FillRowFromExtendedParam(pBuffer);
+                pFileOffsets[nIRow + 1] = VSIFTellL(pfIMG);
+            }
+            VSIFree(pBuffer);
+            VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
+            break;
+
+        default:
+            VSIFree(pFileOffsets);
+            pFileOffsets = nullptr;
+            return;
+    }  // End of switch (eMMDataType)
+}  // End of GetRowOffsets()
 
 /************************************************************************/
 /*                           GetRasterBlock()                           */
@@ -1171,20 +1006,9 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
                                int nDataSize)
 
 {
-    // No se si hi necessito. Aquñí podria llegir els indexs
-    //if (LoadBlockInfo() != CE_None)
-    //    return CE_Failure;
-
     const int iBlock = nXBlock + nYBlock * nBlocksPerRow;
     const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
     const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
-
-    // We really read the data.
-    vsi_l_offset nBlockOffset;
-    if (bIsCompressed)
-        nBlockOffset = 0;
-    else
-        nBlockOffset = (vsi_l_offset)nGDALBlockSize * iBlock;
 
     // Calculate block offset in case we have spill file. Use predefined
     // block map otherwise.
@@ -1195,120 +1019,36 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         return CE_Failure;
     }
 
-    if (VSIFSeekL(pfIMG, nBlockOffset, SEEK_SET) != 0)
+    if (nDataSize != -1 && (nGDALBlockSize > INT_MAX ||
+                            static_cast<int>(nGDALBlockSize) > nDataSize))
     {
-        CPLError(CE_Failure, CPLE_FileIO, "Seek to %x:%08x on %p failed\n%s",
-                 static_cast<int>(nBlockOffset >> 32),
-                 static_cast<int>(nBlockOffset & 0xffffffff), pfIMG,
-                 VSIStrerror(errno));
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid block size: %d",
+                 static_cast<int>(nGDALBlockSize));
+        return CE_Failure;
+    }
+
+    // Getting the row offsets to optimize access. If they don't exist, it'll be slower.
+    // vsi_l_offset *pFileOffsets;
+    GetRowOffsets();
+
+    if (!pFileOffsets)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Some error in offsets calculation");
         return CE_Failure;
     }
 
     // If the block is compressed, read into an intermediate buffer
     // and convert.
-    if (bIsCompressed)
-    //if(panBlockFlag && panBlockFlag[iBlock] & BFLG_COMPRESSED)
+    if (iBlock == 0)
     {
-        GByte *pabyCData = static_cast<GByte *>(
-            VSI_MALLOC_VERBOSE(static_cast<size_t>(nBlockSize)));
-        if (pabyCData == nullptr)
-        {
-            return CE_Failure;
-        }
-
-        //__int32 nBytesPerRow = nWidth * (__int32)eMMBytesPerPixel;
-
-        if (VSIFReadL(pabyCData, static_cast<size_t>(nBlockSize), 1, pfIMG) !=
-            1)
-        {
-
-            CPLFree(pabyCData);
-
-            // XXX: Suppose that file in update state
-            if (psInfo->eAccess == MMRAccess::MMR_Update)
-            {
-                memset(pData, 0, nGDALBlockSize);
-                return CE_None;
-            }
-            else
-            {
-                CPLError(CE_Failure, CPLE_FileIO,
-                         "Read of %d bytes at %x:%08x on %p failed.\n%s",
-                         static_cast<int>(nBlockSize),
-                         static_cast<int>(nBlockOffset >> 32),
-                         static_cast<int>(nBlockOffset & 0xffffffff), pfIMG,
-                         VSIStrerror(errno));
-                return CE_Failure;
-            }
-        }
-
-        CPLErr eErr = UncompressBlock(pabyCData, static_cast<int>(nBlockSize),
-                                      static_cast<GByte *>(pData),
-                                      nBlockXSize * nBlockYSize, eDataType);
-
-        CPLFree(pabyCData);
-
-        return eErr;
+        // Singular case
+        VSIFSeekL(pfIMG, 0, SEEK_SET);
     }
+    else
+        VSIFSeekL(pfIMG, pFileOffsets[iBlock], SEEK_SET);
 
-    // If no compressed, as we are reading a row, we have this nBlockSize
-    nBlockSize = nGDALBlockSize;  //nWidth * (vsi_l_offset)eMMBytesPerPixel;
-
-    // Read uncompressed data directly into the return buffer.
-    if (nDataSize != -1 &&
-        (nBlockSize > INT_MAX || static_cast<int>(nBlockSize) > nDataSize))
-    {
-        CPLError(CE_Failure, CPLE_AppDefined, "Invalid block size: %d",
-                 static_cast<int>(nBlockSize));
-        return CE_Failure;
-    }
-
-    if (VSIFReadL(pData, static_cast<size_t>(nBlockSize), 1, pfIMG) != 1)
-    {
-        memset(pData, 0, nGDALBlockSize);
-
-        CPLDebug("MMRBand", "Read of %x:%08x bytes at %d on %p failed.\n%s",
-                 static_cast<int>(nBlockSize),
-                 static_cast<int>(nBlockOffset >> 32),
-                 static_cast<int>(nBlockOffset & 0xffffffff), pfIMG,
-                 VSIStrerror(errno));
-
-        return CE_None;
-    }
-
-    // Byte swap to local byte order if required.  It appears that
-    // raster data is always stored in Intel byte order in Imagine
-    // files.
-
-#ifdef CPL_MSB
-    if (MMRGetDataTypeBits(eDataType) == 16)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-            CPL_SWAP16PTR(((unsigned char *)pData) + ii * 2);
-    }
-    else if (MMRGetDataTypeBits(eDataType) == 32)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-            CPL_SWAP32PTR(((unsigned char *)pData) + ii * 4);
-    }
-    else if (eDataType == EPT_f64)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-            CPL_SWAP64PTR(((unsigned char *)pData) + ii * 8);
-    }
-    else if (eDataType == EPT_c64)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize * 2; ii++)
-            CPL_SWAP32PTR(((unsigned char *)pData) + ii * 4);
-    }
-    else if (eDataType == EPT_c128)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize * 2; ii++)
-            CPL_SWAP64PTR(((unsigned char *)pData) + ii * 8);
-    }
-#endif  // def CPL_MSB
-
-    return CE_None;
+    return FillRowFromExtendedParam(pData);
 }
 
 /************************************************************************/

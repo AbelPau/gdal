@@ -53,9 +53,9 @@ class MMRDataset final : public GDALPamDataset
 
     std::vector<gdal::GCP> m_aoGCPs{};
 
-    int GetBoundingBox();
-    int GetColumnsNumber(int *nNCols);
-    int GetRowsNumber(int *nNRows);
+    int GetBoundingBoxFromREL();
+    int GetColumnsNumberFromREL(int *nNCols);
+    int GetRowsNumberFromREL(int *nNRows);
 
   public:
     MMRDataset();

@@ -1026,11 +1026,11 @@ CPLErr MMRDataset::SetMetadataItem(const char *pszTag, const char *pszValue,
 }
 
 /************************************************************************/
-/*                          GetColumnsNumber()                          */
+/*                          GetColumnsNumberFromREL()                          */
 /*                          GetDataSetBoundingBox()                     */
 /*                          GetGeoTransform()                           */
 /************************************************************************/
-int MMRDataset::GetColumnsNumber(int *nNCols)
+int MMRDataset::GetColumnsNumberFromREL(int *nNCols)
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
@@ -1047,7 +1047,7 @@ int MMRDataset::GetColumnsNumber(int *nNCols)
     return 0;
 }
 
-int MMRDataset::GetRowsNumber(int *nNRows)
+int MMRDataset::GetRowsNumberFromREL(int *nNRows)
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
@@ -1086,7 +1086,7 @@ int MMRDataset::GetDataSetBoundingBox()
     adfGeoTransform[0] = atof(osMinX);
 
     int nNCols;
-    if (1 == GetColumnsNumber(&nNCols) || nNCols <= 0)
+    if (1 == GetColumnsNumberFromREL(&nNCols) || nNCols <= 0)
         return 1;
 
     CPLString osMaxX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
@@ -1105,7 +1105,7 @@ int MMRDataset::GetDataSetBoundingBox()
         return 1;
 
     int nNRows;
-    if (1 == GetRowsNumber(&nNRows) || nNRows <= 0)
+    if (1 == GetRowsNumberFromREL(&nNRows) || nNRows <= 0)
         return 1;
 
     adfGeoTransform[3] = atof(osMaxY);
@@ -1836,7 +1836,8 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
         poBand->SetMetadataItem(
-            "DESCRIPTION", hMMR->papoBand[nIBand]->GetFriendlyDescription());
+            "DESCRIPTION",
+            hMMR->papoBand[nIBand]->GetFriendlyDescriptionFromREL());
 
         // Collect GDAL custom Metadata, and "auxiliary" metadata from
         // well known MMR structures for the bands.  We defer this till

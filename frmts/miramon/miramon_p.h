@@ -143,6 +143,9 @@ class MMRBand
     int nLayerStackCount;
     int nLayerStackIndex;
 
+    // indexed-RLE format
+    vsi_l_offset *pFileOffsets;
+
 #define BFLG_VALID 0x01
 #define BFLG_COMPRESSED 0x02
 
@@ -214,34 +217,132 @@ class MMRBand
     int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         const char *pszSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
-    int GetDataType(const char *pszSection);
-    int GetResolution(const char *pszSection);
-    int GetColumnsNumber(const char *pszSection);
-    int GetRowsNumber(const char *pszSection);
+    int GetDataTypeFromREL(const char *pszSection);
+    int GetResolutionFromREL(const char *pszSection);
+    int GetColumnsNumberFromREL(const char *pszSection);
+    int GetRowsNumberFromREL(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
-    void GetNoDataDefinition(const char *pszSection);
-    int GetBoundingBox(const char *pszSection);
-    void GetReferenceSystem();
-    void GetMinMaxValues(const char *pszSection);
-    void GetMinMaxVisuValues(const char *pszSection);
-    void GetFriendlyDescription(const char *pszSection);
+    void GetNoDataDefinitionFromREL(const char *pszSection);
+    int GetBoundingBoxFromREL(const char *pszSection);
+    void GetReferenceSystemFromREL();
+    void GetMinMaxValuesFromREL(const char *pszSection);
+    void GetMinMaxVisuValuesFromREL(const char *pszSection);
+    void GetFriendlyDescriptionFromREL(const char *pszSection);
 
-    int GetAssignedSubDataSet();
-    void AssignSubDataSet(int nAssignedSDSIn);
-    CPLString GetBandName();
-    CPLString GetRELFileName();
-    void SetRELFileName(CPLString osRELFileNameIn);
-    CPLString GetRawBandFileName();
-    CPLString GetFriendlyDescription();
-    MMDataType GeteMMDataType();
-    MMBytesPerPixel GeteMMBytesPerPixel();
+    int GetAssignedSubDataSet()
+    {
+        return nAssignedSDS;
+    }
 
-    double GetBoundingBoxMinX();
-    double GetBoundingBoxMaxX();
-    double GetBoundingBoxMinY();
-    double GetBoundingBoxMaxY();
-    double GetPixelResolution();
+    void AssignSubDataSet(int nAssignedSDSIn)
+    {
+        nAssignedSDS = nAssignedSDSIn;
+    }
 
+    CPLString GetBandName()
+    {
+        return osBandName;
+    }
+
+    CPLString GetRELFileName()
+    {
+        return osRELFileName;
+    }
+
+    void SetRELFileName(CPLString osRELFileNameIn)
+    {
+        osRELFileName = osRELFileNameIn;
+    }
+
+    CPLString GetRawBandFileName()
+    {
+        return osRawBandFileName;
+    }
+
+    CPLString GetFriendlyDescriptionFromREL()
+    {
+        return osFriendlyDescription;
+    }
+
+    MMDataType GeteMMDataType()
+    {
+        return eMMDataType;
+    }
+
+    MMBytesPerPixel GeteMMBytesPerPixel()
+    {
+        return eMMBytesPerPixel;
+    }
+
+    bool GetMinSet()
+    {
+        return bMinSet;
+    }
+
+    double GetMin()
+    {
+        return dfMin;
+    }
+
+    bool GetMaxSet()
+    {
+        return bMaxSet;
+    }
+
+    double GetMax()
+    {
+        return dfMax;
+    }
+
+    bool GetMinVisuSet()
+    {
+        return bMinVisuSet;
+    }
+
+    double GetVisuMin()
+    {
+        return dfVisuMin;
+    }
+
+    bool GetMaxVisuSet()
+    {
+        return bMaxVisuSet;
+    }
+
+    double GetVisuMax()
+    {
+        return dfVisuMax;
+    }
+
+    double GetBoundingBoxMinX()
+    {
+        return dfBBMinX;
+    }
+
+    double GetBoundingBoxMaxX()
+    {
+        return dfBBMaxX;
+    }
+
+    double GetBoundingBoxMinY()
+    {
+        return dfBBMinY;
+    }
+
+    double GetBoundingBoxMaxY()
+    {
+        return dfBBMaxY;
+    }
+
+    double GetPixelResolution()
+    {
+        return nResolution;
+    }
+
+    template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
+    CPLErr FillRowFromExtendedParam(void *rowBuffer);
+    int PositionAtStartOfRowOffsetsInFile();
+    void GetRowOffsets();
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
     CPLErr SetRasterBlock(int nXBlock, int nYBlock, void *pData);
 
@@ -266,8 +367,8 @@ class MMRBand
     int nBlockXSize;
     int nBlockYSize;
 
-    int nWidth;
-    int nHeight;
+    int nWidth;   // Number of columns
+    int nHeight;  // Number of rows
 
     int nBlocksPerRow;
     int nBlocksPerColumn;
