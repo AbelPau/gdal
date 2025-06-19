@@ -1620,13 +1620,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             aadfPaletteColors[3][nIRecord] = 0;
         }
         else
-        {
-            if (eMMBytesPerPixel ==
-                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE)
-                aadfPaletteColors[3][nIRecord] = 255;
-            else
-                aadfPaletteColors[3][nIRecord] = 65535;
-        }
+            aadfPaletteColors[3][nIRecord] = 255;
     }
 
     VSIFree(pzsField);
@@ -1713,11 +1707,7 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
         aadfPaletteColors[2][nNReadPaletteColors] = CPLAtof(papszTokens[3]);
 
         // ALPHA
-        if (eMMBytesPerPixel ==
-            MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE)
-            aadfPaletteColors[3][nNReadPaletteColors] = 255;
-        else
-            aadfPaletteColors[3][nNReadPaletteColors] = 65535;
+        aadfPaletteColors[3][nNReadPaletteColors] = 255;
 
         CSLDestroy(papszTokens);
         nNReadPaletteColors++;
@@ -1847,13 +1837,7 @@ CPLErr MMRBand::ConvertPaletteColors()
             if (bPaletteHasNodata)
                 AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
             else
-            {
-                if (eMMBytesPerPixel ==
-                    MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE)
-                    AssignRGBColorDirectly(nIPaletteColor, 255);
-                else
-                    AssignRGBColorDirectly(nIPaletteColor, 65535);
-            }
+                AssignRGBColorDirectly(nIPaletteColor, 255);
         }
         else
         {
