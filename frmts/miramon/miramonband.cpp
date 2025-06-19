@@ -245,35 +245,37 @@ void MMRBand::GetReferenceSystemFromREL()
         "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
 }
 
-int MMRBand::GetBoundingBoxFromREL(const char *pszSection)
+void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
 {
     // Bounding box of the band
     // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]
     CPLString osValue = pfRel->GetMetadataValue(
         SECTION_ATTRIBUTE_DATA, pszSection, SECTION_EXTENT, "MinX");
     if (osValue.empty())
-        return 1;
-    dfBBMinX = atof(osValue);
+        dfBBMinX = 0;
+    else
+        dfBBMinX = atof(osValue);
 
     osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
                                       SECTION_EXTENT, "MaxX");
     if (osValue.empty())
-        return 1;
-    dfBBMaxX = atof(osValue);
+        dfBBMaxX = nWidth;
+    else
+        dfBBMaxX = atof(osValue);
 
     osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
                                       SECTION_EXTENT, "MinY");
     if (osValue.empty())
-        return 1;
-    dfBBMinY = atof(osValue);
+        dfBBMinY = 0;
+    else
+        dfBBMinY = atof(osValue);
 
     osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
                                       SECTION_EXTENT, "MaxY");
     if (osValue.empty())
-        return 1;
-    dfBBMaxY = atof(osValue);
-
-    return 0;
+        dfBBMaxY = nHeight;
+    else
+        dfBBMaxY = atof(osValue);
 }
 
 MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
@@ -412,14 +414,7 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     GetReferenceSystemFromREL();
 
     // Getting the bounding box: coordinates in the terrain
-    if (GetBoundingBoxFromREL(pszSection))
-    {
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : bounding box not found");
-        return;
-    }
+    GetBoundingBoxFromREL(pszSection);
 
     // MiraMon IMG files are efficient in going to an specified row.
     // So le'ts configurate the blocks as line blocks.
@@ -610,38 +605,37 @@ template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
         if (VSIFReadL(&comptador, sizeof(comptador), 1, pfIMG) != 1)
             return CE_Failure;
 
-        if (comptador == 0) /* Tros sense comprimir */
-        { /* La següent lectura de comptador no diu "quants de
-				repetits vénen a continuació" sinó "quants de
-				descomprimits en format ràster típic" */
+        if (comptador == 0) /* Not compressed part */
+        {
+            /* The following counter read does not indicate
+            "how many repeated values follow" but rather
+            "how many are decompressed in standard raster format" */
             if (VSIFReadL(&comptador, sizeof(comptador), 1, pfIMG) != 1)
                 return CE_Failure;
             acumulat += comptador;
 
-            if (acumulat > nWidth) /* Això no hauria de passar si el
-                    fitxer és RLE que no comparteix comptadors entre files */
+            if (acumulat > nWidth) /* This should not happen if the file
+                                  is RLE and does not share counters across rows */
                 return CE_Failure;
 
             for (; ii < acumulat; ii++)
             {
                 VSIFReadL(&valor_rle, sizeof(TYPE), 1, pfIMG);
                 memcpy(((TYPE *)rowBuffer) + ii, &valor_rle, sizeof(TYPE));
-                //fila_double[(size_t)ii]=*((TYPE*)&valor_rle);
             }
         }
         else
         {
             acumulat += comptador;
 
-            if (acumulat > nWidth) /* Això no hauria de passar si el
-                    fitxer és RLE que no comparteix comptadors entre files */
+            if (acumulat > nWidth) /* This should not happen if the file
+                                  is RLE and does not share counters across rows */
                 return CE_Failure;
 
             if (VSIFReadL(&valor_rle, sizeof(TYPE), 1, pfIMG) != 1)
                 return CE_Failure;
             for (; ii < acumulat; ii++)
                 memcpy(((TYPE *)rowBuffer) + ii, &valor_rle, sizeof(TYPE));
-            //fila_double[(size_t)ii]=*((TYPE*)&valor_rle);
         }
     }
 
@@ -653,16 +647,16 @@ template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
 /************************************************************************/
 CPLErr MMRBand::FillRowFromExtendedParam(void *rowBuffer)
 {
-    //size_t ii = 0;
-
     const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
-    const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
+    int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
 
     if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
     {
+        nGDALBlockSize = static_cast<int>(ceil(nBlockXSize / 8.0));
+
         if (VSIFReadL(rowBuffer, nGDALBlockSize, 1, pfIMG) != 1)
         {
-            CPLError(CE_Failure, CPLE_AppDefined, "Error while reading band");
+            CPLError(CE_Failure, CPLE_AppDefined, "\nError while reading band");
             return CE_Failure;
         }
         return CE_None;
@@ -678,7 +672,7 @@ CPLErr MMRBand::FillRowFromExtendedParam(void *rowBuffer)
         if (VSIFReadL(rowBuffer, nDataTypeSizeBytes, nWidth, pfIMG) !=
             (size_t)nWidth)
         {
-            CPLError(CE_Failure, CPLE_AppDefined, "Error while reading band");
+            CPLError(CE_Failure, CPLE_AppDefined, "\nError while reading band");
             return CE_Failure;
         }
         return CE_None;
@@ -707,7 +701,7 @@ CPLErr MMRBand::FillRowFromExtendedParam(void *rowBuffer)
             break;
 
         default:
-            CPLError(CE_Failure, CPLE_AppDefined, "Error in datatype");
+            CPLError(CE_Failure, CPLE_AppDefined, "\nError in datatype");
             peErr = CE_Failure;
     }
 
@@ -886,7 +880,7 @@ void MMRBand::FillRowOffsets()
     }
 
     const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
-    const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
+    int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
 
     switch (eMMDataType)
     {
@@ -894,6 +888,7 @@ void MMRBand::FillRowOffsets()
             return;
 
         case MMDataType::DATATYPE_AND_COMPR_BIT:
+            nGDALBlockSize = static_cast<int>(ceil(nBlockXSize / 8.0));
             // "<=" it's ok. There is space and it's to make easier the programming
             for (nIRow = 0; nIRow <= nHeight; nIRow++)
                 aFileOffsets[nIRow] = (vsi_l_offset)nIRow * nGDALBlockSize;
@@ -956,7 +951,7 @@ void MMRBand::FillRowOffsets()
             for (nIRow = 0; nIRow < nHeight; nIRow++)
             {
                 FillRowFromExtendedParam(pBuffer);
-                aFileOffsets[nIRow + 1] = VSIFTellL(pfIMG);
+                aFileOffsets[static_cast<int>(nIRow) + 1] = VSIFTellL(pfIMG);
             }
             VSIFree(pBuffer);
             VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
@@ -1763,7 +1758,7 @@ void MMRBand::AssignRGBColorDirectly(int nIndexDstPalete, double dfValue)
 }
 
 // Converts palleteColors to Colors of pixels
-CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
+CPLErr MMRBand::ConvertPaletteColors()
 
 {
     //·$·TODO!!
@@ -1782,7 +1777,6 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
     if (eMMBytesPerPixel != MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE &&
         eMMBytesPerPixel != MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE)
     {
-        nIPaletteColor = 0;
         return CE_None;
     }
 
@@ -1822,77 +1816,76 @@ CPLErr MMRBand::ConvertPaletteColors(int &nIPaletteColor)
     if (bPaletteHasNodata)
         nNPaletteColors--;
 
-    if ((int)eMMBytesPerPixel <= 2 || nNPaletteColors >= nNPossibleValues)
+    if ((int)eMMBytesPerPixel > 2 && nNPaletteColors < nNPossibleValues)
+        return CE_None;
+
+    int nFirstValidPaletteIndex;
+    unsigned short nIndexColor;
+    double dfSlope = 1, dfIntercept = 0;
+
+    if (bPaletteHasNodata && nNoDataPaletteIndex == 0)
+        nFirstValidPaletteIndex = 1;
+    else
+        nFirstValidPaletteIndex = 0;
+
+    if ((int)eMMBytesPerPixel == 2)
     {
-        int nFirstValidPaletteIndex;
-        unsigned short nIndexColor;
-        double dfSlope = 1, dfIntercept = 0;
+        // A scaling is applied between the minimum and maximum display values.
+        dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
 
-        if (nNoDataPaletteIndex == 0)
-            nFirstValidPaletteIndex = 1;
+        if (nNoDataPaletteIndex != 0)  // nodata at the end of the list
+            dfIntercept = -dfSlope * dfMin;
         else
-            nFirstValidPaletteIndex = 0;
+            dfIntercept = -dfSlope * dfMin + 1;
+    }
 
-        if ((int)eMMBytesPerPixel == 2)
+    for (int nIPaletteColor = 0; nIPaletteColor < nNPossibleValues / 3;
+         nIPaletteColor++)
+    {
+        if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
         {
-            // A scaling is applied between the minimum and maximum display values.
-            dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
-
-            if (nNoDataPaletteIndex != 0)  // nodata at the end of the list
-                dfIntercept = -dfSlope * dfMin;
+            if (bPaletteHasNodata)
+                AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
             else
-                dfIntercept = -dfSlope * dfMin + 1;
-        }
-
-        for (nIPaletteColor = 0; nIPaletteColor < nNPossibleValues / 3;
-             nIPaletteColor++)
-        {
-            if (bNoDataSet && nIPaletteColor == nNoDataPaletteIndex)
             {
-                if (bPaletteHasNodata)
-                    AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
+                if (eMMBytesPerPixel ==
+                    MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE)
+                    AssignRGBColorDirectly(nIPaletteColor, 255);
+                else
+                    AssignRGBColorDirectly(nIPaletteColor, 65535);
+            }
+        }
+        else
+        {
+            if (nIPaletteColor < (int)dfMin)
+            {
+                // Before the minimum, we apply the color of the first
+                // element (as a placeholder).
+                AssignRGBColor(nIPaletteColor, 0);
+            }
+            else if (nIPaletteColor <= (int)dfMax)
+            {
+                // Between the minimum and maximum, we apply the value
+                // read from the table.
+                if ((int)eMMBytesPerPixel < 2)
+                {
+                    // The value is applied directly.
+                    AssignRGBColor(nIPaletteColor, nFirstValidPaletteIndex);
+                    nFirstValidPaletteIndex++;
+                }
                 else
                 {
-                    if (eMMBytesPerPixel ==
-                        MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE)
-                        AssignRGBColorDirectly(nIPaletteColor, 255);
-                    else
-                        AssignRGBColorDirectly(nIPaletteColor, 65535);
+                    // The value is applied according to the scaling.
+                    nIndexColor = (unsigned short)(dfSlope * nIPaletteColor +
+                                                   dfIntercept);
+                    AssignRGBColor(nIPaletteColor, nIndexColor);
                 }
             }
             else
             {
-                if (nIPaletteColor < (int)dfMin)
-                {
-                    // Before the minimum, we apply the color of the first
-                    // element (as a placeholder).
-                    AssignRGBColor(nIPaletteColor, 0);
-                }
-                else if (nIPaletteColor <= (int)dfMax)
-                {
-                    // Between the minimum and maximum, we apply the value
-                    // read from the table.
-                    if ((int)eMMBytesPerPixel < 2)
-                    {
-                        // The value is applied directly.
-                        AssignRGBColor(nIPaletteColor, nFirstValidPaletteIndex);
-                        nFirstValidPaletteIndex++;
-                    }
-                    else
-                    {
-                        // The value is applied according to the scaling.
-                        nIndexColor =
-                            (unsigned short)(dfSlope * nIPaletteColor +
-                                             dfIntercept);
-                        AssignRGBColor(nIPaletteColor, nIndexColor);
-                    }
-                }
-                else
-                {
-                    // After the maximum, we apply the value of the last
-                    // element(as a placeholder).
-                    AssignRGBColor(nIPaletteColor, nNPaletteColors - 1);
-                }
+                // After the maximum, we apply the value of the last
+                // element(as a placeholder).
+                AssignRGBColor(nIPaletteColor, nNPaletteColors - 1);
             }
         }
     }
@@ -1930,8 +1923,7 @@ CPLErr MMRBand::GetPCT()
     else
         return CE_None;
 
-    int nIPaletteColor;
-    CPLErr peErr = ConvertPaletteColors(nIPaletteColor);
+    CPLErr peErr = ConvertPaletteColors();
     if (peErr != CE_None)
         return peErr;
 

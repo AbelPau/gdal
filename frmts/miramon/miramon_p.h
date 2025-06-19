@@ -229,7 +229,7 @@ class MMRBand
     int GetRowsNumberFromREL(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
     void GetNoDataDefinitionFromREL(const char *pszSection);
-    int GetBoundingBoxFromREL(const char *pszSection);
+    void GetBoundingBoxFromREL(const char *pszSection);
     void GetReferenceSystemFromREL();
     void GetMinMaxValuesFromREL(const char *pszSection);
     void GetMinMaxVisuValuesFromREL(const char *pszSection);
@@ -377,7 +377,7 @@ class MMRBand
 
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
-    CPLErr ConvertPaletteColors(int &nIPaletteColor);
+    CPLErr ConvertPaletteColors();
     CPLErr GetPCT();
     CPLErr GetPaletteColors_DBF_Indexs(struct MM_DATA_BASE_XP &oColorTable,
                                        MM_EXT_DBF_N_FIELDS &nClauSimbol,

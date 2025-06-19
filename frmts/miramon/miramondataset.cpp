@@ -84,6 +84,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
 
     switch (eMMRDataTypeMiraMon)
     {
+        case MMDataType::DATATYPE_AND_COMPR_BIT:
         case MMDataType::DATATYPE_AND_COMPR_BYTE:
         case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
             eDataType = GDT_Byte;
