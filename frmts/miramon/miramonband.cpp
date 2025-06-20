@@ -61,7 +61,7 @@
 }*/
 
 // [ATTRIBUTE_DATA:xxxx] or [OVERVIEW:ASPECTES_TECNICS]
-int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+const int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
     const char *pszSection, const char *pszKey, int *nValue,
     const char *pszErrorMessage)
 {
@@ -87,7 +87,7 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
 }
 
 // Getting data type from metadata
-int MMRBand::GetDataTypeFromREL(const char *pszSection)
+const int MMRBand::GetDataTypeFromREL(const char *pszSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, "TipusCompressio");
@@ -106,20 +106,19 @@ int MMRBand::GetDataTypeFromREL(const char *pszSection)
         return 1;
     }
 
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT_VELL ||
-        eMMDataType == MMDataType::DATATYPE_AND_COMPR_UNDEFINED)
+    if (!AcceptedDataType())
     {
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : nCompressionType unhandled");
+                 "MMRBand::GetDataTypeFromREL data type unhandled");
         return 1;
     }
     return 0;
 }
 
 // Getting number of columns from metadata
-int MMRBand::GetResolutionFromREL(const char *pszSection)
+const int MMRBand::GetResolutionFromREL(const char *pszSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, "resolution");
@@ -141,14 +140,14 @@ int MMRBand::GetResolutionFromREL(const char *pszSection)
 }
 
 // Getting number of columns from metadata
-int MMRBand::GetColumnsNumberFromREL(const char *pszSection)
+const int MMRBand::GetColumnsNumberFromREL(const char *pszSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         pszSection, "columns", &nWidth,
         "MMRBand::MMRBand : No number of columns documented");
 }
 
-int MMRBand::GetRowsNumberFromREL(const char *pszSection)
+const int MMRBand::GetRowsNumberFromREL(const char *pszSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         pszSection, "rows", &nHeight,
@@ -235,8 +234,6 @@ void MMRBand::GetFriendlyDescriptionFromREL(const char *pszSection)
 {
     osFriendlyDescription = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                     pszSection, "descriptor");
-    if (osFriendlyDescription.empty())
-        osFriendlyDescription = osRawBandFileName;
 }
 
 void MMRBand::GetReferenceSystemFromREL()
@@ -376,15 +373,15 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     if (GetDataTypeFromREL(pszSection))
         return;
 
-    // Getting resolution
-    if (GetResolutionFromREL(pszSection))
-        return;
-
     // Let's see if there is RLE compression
     bIsCompressed =
         (((eMMDataType >= MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
           (eMMDataType <= MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
          eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
+
+    // Getting resolution
+    if (GetResolutionFromREL(pszSection))
+        return;
 
     // Getting min and max values
     GetMinMaxValuesFromREL(pszSection);
@@ -642,17 +639,47 @@ template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
     return CE_None;
 }
 
+bool MMRBand::AcceptedDataType()
+{
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG_RLE)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL_RLE)
+        return true;
+    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)
+        return true;
+
+    return false;
+}
+
 /************************************************************************/
 /*                 FillRowFromExtendedParam                             */
 /************************************************************************/
 CPLErr MMRBand::FillRowFromExtendedParam(void *rowBuffer)
 {
     const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
-    int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
-
     if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
     {
-        nGDALBlockSize = static_cast<int>(ceil(nBlockXSize / 8.0));
+        const int nGDALBlockSize = static_cast<int>(ceil(nBlockXSize / 8.0));
 
         if (VSIFReadL(rowBuffer, nGDALBlockSize, 1, pfIMG) != 1)
         {
@@ -855,19 +882,19 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
 /************************************************************************/
 /*                              FillRowOffsets()                         */
 /************************************************************************/
-void MMRBand::FillRowOffsets()
+bool MMRBand::FillRowOffsets()
 {
     vsi_l_offset nStartOffset;
     int nIRow;
-    vsi_l_offset BytesPerPixel_per_ncol;
+    vsi_l_offset nBytesPerPixelPerNCol;
     int nSizeToRead;  // nSizeToRead is not an offset, but the size of the offsets being read
                       // directly from the IMG file (can be 1, 2, 4, or 8).
-    vsi_l_offset i_byte_fitxer;
+    vsi_l_offset nFileByte;
     size_t nMaxBytesPerCompressedRow;
 
     // If it's filled, there is no need to fill it again
     if (aFileOffsets.size() > 0)
-        return;
+        return true;
 
     try
     {
@@ -876,19 +903,15 @@ void MMRBand::FillRowOffsets()
     catch (const std::bad_alloc &e)
     {
         CPLError(CE_Failure, CPLE_OutOfMemory, "%s", e.what());
-        return;
+        return false;
     }
 
     const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
-    int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
-
     switch (eMMDataType)
     {
-        case MMDataType::DATATYPE_AND_COMPR_BIT_VELL:
-            return;
-
         case MMDataType::DATATYPE_AND_COMPR_BIT:
-            nGDALBlockSize = static_cast<int>(ceil(nBlockXSize / 8.0));
+            const int nGDALBlockSize =
+                static_cast<int>(ceil(nBlockXSize / 8.0));
             // "<=" it's ok. There is space and it's to make easier the programming
             for (nIRow = 0; nIRow <= nHeight; nIRow++)
                 aFileOffsets[nIRow] = (vsi_l_offset)nIRow * nGDALBlockSize;
@@ -900,11 +923,11 @@ void MMRBand::FillRowOffsets()
         case MMDataType::DATATYPE_AND_COMPR_LONG:
         case MMDataType::DATATYPE_AND_COMPR_REAL:
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
-            BytesPerPixel_per_ncol = nDataTypeSizeBytes * (vsi_l_offset)nWidth;
+            nBytesPerPixelPerNCol = nDataTypeSizeBytes * (vsi_l_offset)nWidth;
             // "<=" it's ok. There is space and it's to make easier the programming
             for (nIRow = 0; nIRow <= nHeight; nIRow++)
                 aFileOffsets[nIRow] =
-                    (vsi_l_offset)nIRow * BytesPerPixel_per_ncol;
+                    (vsi_l_offset)nIRow * nBytesPerPixelPerNCol;
             break;
 
         case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
@@ -920,13 +943,13 @@ void MMRBand::FillRowOffsets()
             if (0 < (nSizeToRead = PositionAtStartOfRowOffsetsInFile()))
             {
                 // I have offsets!!
-                i_byte_fitxer = 0L;  // all bits to 0
+                nFileByte = 0L;  // all bits to 0
                 for (nIRow = 0; nIRow < nHeight; nIRow++)
                 {
-                    if (VSIFReadL(&i_byte_fitxer, nSizeToRead, 1, pfIMG) != 1)
-                        return;
+                    if (VSIFReadL(&nFileByte, nSizeToRead, 1, pfIMG) != 1)
+                        return false;
 
-                    aFileOffsets[nIRow] = i_byte_fitxer;
+                    aFileOffsets[nIRow] = nFileByte;
                 }
                 aFileOffsets[nIRow] = 0;  // Not reliable
                 VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
@@ -943,7 +966,7 @@ void MMRBand::FillRowOffsets()
                                 VSI_MALLOC_VERBOSE(nMaxBytesPerCompressedRow))))
             {
                 VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
-                return;
+                return false;
             }
 
             VSIFSeekL(pfIMG, 0, SEEK_SET);
@@ -951,15 +974,17 @@ void MMRBand::FillRowOffsets()
             for (nIRow = 0; nIRow < nHeight; nIRow++)
             {
                 FillRowFromExtendedParam(pBuffer);
-                aFileOffsets[static_cast<int>(nIRow) + 1] = VSIFTellL(pfIMG);
+                aFileOffsets[static_cast<size_t>(nIRow) + 1] = VSIFTellL(pfIMG);
             }
             VSIFree(pBuffer);
             VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
             break;
 
         default:
-            return;
+            return false;
     }  // End of switch (eMMDataType)
+    return true;
+
 }  // End of FillRowOffsets()
 
 /************************************************************************/
@@ -991,25 +1016,21 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         return CE_Failure;
     }
 
-    // Getting the row offsets to optimize access. If they don't exist, it'll be slower.
-    FillRowOffsets();
-
-    if (aFileOffsets.size() == 0)
+    // Getting the row offsets to optimize access.
+    if (FillRowOffsets() == false || aFileOffsets.size() == 0)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Some error in offsets calculation");
         return CE_Failure;
     }
 
-    // If the block is compressed, read into an intermediate buffer
-    // and convert.
-    if (iBlock == 0)
+    // Read the block in the documented or deduced offset
+    if (VSIFSeekL(pfIMG, aFileOffsets[iBlock], SEEK_SET))
     {
-        // Singular case
-        VSIFSeekL(pfIMG, 0, SEEK_SET);
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Read from invalid offset for grid block.");
+        return CE_Failure;
     }
-    else
-        VSIFSeekL(pfIMG, aFileOffsets[iBlock], SEEK_SET);
 
     return FillRowFromExtendedParam(pData);
 }

@@ -220,13 +220,13 @@ class MMRBand
     MMRBand(MMRInfo_t *, const char *pszSection);
     ~MMRBand();
 
-    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+    const int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         const char *pszSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
-    int GetDataTypeFromREL(const char *pszSection);
-    int GetResolutionFromREL(const char *pszSection);
-    int GetColumnsNumberFromREL(const char *pszSection);
-    int GetRowsNumberFromREL(const char *pszSection);
+    const int GetDataTypeFromREL(const char *pszSection);
+    const int GetResolutionFromREL(const char *pszSection);
+    const int GetColumnsNumberFromREL(const char *pszSection);
+    const int GetRowsNumberFromREL(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
     void GetNoDataDefinitionFromREL(const char *pszSection);
     void GetBoundingBoxFromREL(const char *pszSection);
@@ -235,22 +235,22 @@ class MMRBand
     void GetMinMaxVisuValuesFromREL(const char *pszSection);
     void GetFriendlyDescriptionFromREL(const char *pszSection);
 
-    std::vector<double> GetPCT_Red()
+    const std::vector<double> &GetPCT_Red() const
     {
         return aadfPCT[0];
     }
 
-    std::vector<double> GetPCT_Green()
+    const std::vector<double> &GetPCT_Green() const
     {
         return aadfPCT[1];
     }
 
-    std::vector<double> GetPCT_Blue()
+    const std::vector<double> &GetPCT_Blue() const
     {
         return aadfPCT[2];
     }
 
-    std::vector<double> GetPCT_Alpha()
+    const std::vector<double> &GetPCT_Alpha() const
     {
         return aadfPCT[3];
     }
@@ -265,12 +265,12 @@ class MMRBand
         nAssignedSDS = nAssignedSDSIn;
     }
 
-    CPLString GetBandName()
+    const CPLString GetBandName()
     {
         return osBandName;
     }
 
-    CPLString GetRELFileName()
+    const CPLString GetRELFileName()
     {
         return osRELFileName;
     }
@@ -280,95 +280,96 @@ class MMRBand
         osRELFileName = osRELFileNameIn;
     }
 
-    CPLString GetRawBandFileName()
+    const CPLString GetRawBandFileName()
     {
         return osRawBandFileName;
     }
 
-    CPLString GetFriendlyDescriptionFromREL()
+    const CPLString GetFriendlyDescription()
     {
         return osFriendlyDescription;
     }
 
-    MMDataType GeteMMDataType()
+    const MMDataType GeteMMDataType()
     {
         return eMMDataType;
     }
 
-    MMBytesPerPixel GeteMMBytesPerPixel()
+    const MMBytesPerPixel GeteMMBytesPerPixel()
     {
         return eMMBytesPerPixel;
     }
 
-    bool GetMinSet()
+    const bool GetMinSet()
     {
         return bMinSet;
     }
 
-    double GetMin()
+    const double GetMin()
     {
         return dfMin;
     }
 
-    bool GetMaxSet()
+    const bool GetMaxSet()
     {
         return bMaxSet;
     }
 
-    double GetMax()
+    const double GetMax()
     {
         return dfMax;
     }
 
-    bool GetMinVisuSet()
+    const bool GetMinVisuSet()
     {
         return bMinVisuSet;
     }
 
-    double GetVisuMin()
+    const double GetVisuMin()
     {
         return dfVisuMin;
     }
 
-    bool GetMaxVisuSet()
+    const bool GetMaxVisuSet()
     {
         return bMaxVisuSet;
     }
 
-    double GetVisuMax()
+    const double GetVisuMax()
     {
         return dfVisuMax;
     }
 
-    double GetBoundingBoxMinX()
+    const double GetBoundingBoxMinX()
     {
         return dfBBMinX;
     }
 
-    double GetBoundingBoxMaxX()
+    const double GetBoundingBoxMaxX()
     {
         return dfBBMaxX;
     }
 
-    double GetBoundingBoxMinY()
+    const double GetBoundingBoxMinY()
     {
         return dfBBMinY;
     }
 
-    double GetBoundingBoxMaxY()
+    const double GetBoundingBoxMaxY()
     {
         return dfBBMaxY;
     }
 
-    double GetPixelResolution()
+    const double GetPixelResolution()
     {
         return nResolution;
     }
 
     template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
+    bool AcceptedDataType();
     CPLErr FillRowFromExtendedParam(void *rowBuffer);
     int PositionAtStartOfRowOffsetsInFile();
-    void FillRowOffsets();
+    bool FillRowOffsets();
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
     CPLErr SetRasterBlock(int nXBlock, int nYBlock, void *pData);
 

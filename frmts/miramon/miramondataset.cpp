@@ -76,12 +76,6 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     if (nCompression != 0)
         GDALMajorObject::SetMetadataItem("COMPRESSION", "RLE",
                                          "IMAGE_STRUCTURE");
-    /* ·$·TODO
-    DATATYPE_AND_COMPR_STRING = 0,
-    DATATYPE_AND_COMPR_BIT = 1,
-    DATATYPE_AND_COMPR_BIT_VELL = 2, // Not supported
-    */
-
     switch (eMMRDataTypeMiraMon)
     {
         case MMDataType::DATATYPE_AND_COMPR_BIT:
@@ -125,13 +119,6 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
                      (int)eMMRDataTypeMiraMon);
             break;
     }
-
-    /*if (MMRGetDataTypeBits(eMMRDataType) < 8)
-    {
-        GDALMajorObject::SetMetadataItem(
-            "NBITS", CPLString().Printf("%d", MMRGetDataTypeBits(eMMRDataType)),
-            "IMAGE_STRUCTURE");
-    }*/
 
     // Collect color table if present.
     CPLErr eErr = MMRGetPCT(hMMR, nBand);
@@ -1834,9 +1821,13 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
 
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
-        poBand->SetMetadataItem(
-            "DESCRIPTION",
-            hMMR->papoBand[nIBand]->GetFriendlyDescriptionFromREL());
+
+        if (!hMMR->papoBand[nIBand]->GetFriendlyDescription().empty())
+        {
+            poBand->SetMetadataItem(
+                "DESCRIPTION",
+                hMMR->papoBand[nIBand]->GetFriendlyDescription());
+        }
 
         // Collect GDAL custom Metadata, and "auxiliary" metadata from
         // well known MMR structures for the bands.  We defer this till
