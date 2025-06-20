@@ -265,12 +265,12 @@ class MMRBand
         nAssignedSDS = nAssignedSDSIn;
     }
 
-    const CPLString GetBandName()
+    CPLString GetBandName()
     {
         return osBandName;
     }
 
-    const CPLString GetRELFileName()
+    CPLString GetRELFileName()
     {
         return osRELFileName;
     }
@@ -280,87 +280,87 @@ class MMRBand
         osRELFileName = osRELFileNameIn;
     }
 
-    const CPLString GetRawBandFileName()
+    CPLString GetRawBandFileName()
     {
         return osRawBandFileName;
     }
 
-    const CPLString GetFriendlyDescription()
+    CPLString GetFriendlyDescription()
     {
         return osFriendlyDescription;
     }
 
-    const MMDataType GeteMMDataType()
+    MMDataType GeteMMDataType()
     {
         return eMMDataType;
     }
 
-    const MMBytesPerPixel GeteMMBytesPerPixel()
+    MMBytesPerPixel GeteMMBytesPerPixel()
     {
         return eMMBytesPerPixel;
     }
 
-    const bool GetMinSet()
+    bool GetMinSet()
     {
         return bMinSet;
     }
 
-    const double GetMin()
+    double GetMin()
     {
         return dfMin;
     }
 
-    const bool GetMaxSet()
+    bool GetMaxSet()
     {
         return bMaxSet;
     }
 
-    const double GetMax()
+    double GetMax()
     {
         return dfMax;
     }
 
-    const bool GetMinVisuSet()
+    bool GetMinVisuSet()
     {
         return bMinVisuSet;
     }
 
-    const double GetVisuMin()
+    double GetVisuMin()
     {
         return dfVisuMin;
     }
 
-    const bool GetMaxVisuSet()
+    bool GetMaxVisuSet()
     {
         return bMaxVisuSet;
     }
 
-    const double GetVisuMax()
+    double GetVisuMax()
     {
         return dfVisuMax;
     }
 
-    const double GetBoundingBoxMinX()
+    double GetBoundingBoxMinX()
     {
         return dfBBMinX;
     }
 
-    const double GetBoundingBoxMaxX()
+    double GetBoundingBoxMaxX()
     {
         return dfBBMaxX;
     }
 
-    const double GetBoundingBoxMinY()
+    double GetBoundingBoxMinY()
     {
         return dfBBMinY;
     }
 
-    const double GetBoundingBoxMaxY()
+    double GetBoundingBoxMaxY()
     {
         return dfBBMaxY;
     }
 
-    const double GetPixelResolution()
+    double GetPixelResolution()
     {
         return nResolution;
     }
