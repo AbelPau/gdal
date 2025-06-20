@@ -265,12 +265,12 @@ class MMRBand
         nAssignedSDS = nAssignedSDSIn;
     }
 
-    CPLString GetBandName()
+    const CPLString &GetBandName() const
     {
         return osBandName;
     }
 
-    CPLString GetRELFileName()
+    const CPLString &GetRELFileName() const
     {
         return osRELFileName;
     }
@@ -280,12 +280,12 @@ class MMRBand
         osRELFileName = osRELFileNameIn;
     }
 
-    CPLString GetRawBandFileName()
+    const CPLString &GetRawBandFileName() const
     {
         return osRawBandFileName;
     }
 
-    CPLString GetFriendlyDescription()
+    const CPLString &GetFriendlyDescription() const
     {
         return osFriendlyDescription;
     }
