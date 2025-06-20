@@ -1068,9 +1068,9 @@ int MMRCreateLayer(MMRHandle psInfo, MMREntry *poParent,
 
     // Work out some details about the tiling scheme.
     const int nBlocksPerRow =
-        DIV_ROUND_UP((nXSize + nBlockSize - 1), nBlockSize)
-            const int nBlocksPerColumn =
-                DIV_ROUND_UP((nYSize + nBlockSize - 1), nBlockSize);
+        DIV_ROUND_UP((nXSize + nBlockSize - 1), nBlockSize);
+    const int nBlocksPerColumn =
+        DIV_ROUND_UP((nYSize + nBlockSize - 1), nBlockSize);
     const int nBlocks = nBlocksPerRow * nBlocksPerColumn;
     const int nBytesPerBlock =
         (nBlockSize * nBlockSize * MMRGetDataTypeBits(eDataType) + 7) / 8;
