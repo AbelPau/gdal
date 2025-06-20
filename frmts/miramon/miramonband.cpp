@@ -891,6 +891,8 @@ bool MMRBand::FillRowOffsets()
                       // directly from the IMG file (can be 1, 2, 4, or 8).
     vsi_l_offset nFileByte;
     size_t nMaxBytesPerCompressedRow;
+    const int nGDALBlockSize = static_cast<int>(ceil(nBlockXSize / 8.0));
+    ;
 
     // If it's filled, there is no need to fill it again
     if (aFileOffsets.size() > 0)
@@ -910,8 +912,7 @@ bool MMRBand::FillRowOffsets()
     switch (eMMDataType)
     {
         case MMDataType::DATATYPE_AND_COMPR_BIT:
-            const int nGDALBlockSize =
-                static_cast<int>(ceil(nBlockXSize / 8.0));
+
             // "<=" it's ok. There is space and it's to make easier the programming
             for (nIRow = 0; nIRow <= nHeight; nIRow++)
                 aFileOffsets[nIRow] = (vsi_l_offset)nIRow * nGDALBlockSize;
