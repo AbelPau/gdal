@@ -61,7 +61,7 @@
 }*/
 
 // [ATTRIBUTE_DATA:xxxx] or [OVERVIEW:ASPECTES_TECNICS]
-const int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
     const char *pszSection, const char *pszKey, int *nValue,
     const char *pszErrorMessage)
 {
@@ -87,7 +87,7 @@ const int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
 }
 
 // Getting data type from metadata
-const int MMRBand::GetDataTypeFromREL(const char *pszSection)
+int MMRBand::GetDataTypeFromREL(const char *pszSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, "TipusCompressio");
@@ -118,7 +118,7 @@ const int MMRBand::GetDataTypeFromREL(const char *pszSection)
 }
 
 // Getting number of columns from metadata
-const int MMRBand::GetResolutionFromREL(const char *pszSection)
+int MMRBand::GetResolutionFromREL(const char *pszSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, "resolution");
@@ -140,14 +140,14 @@ const int MMRBand::GetResolutionFromREL(const char *pszSection)
 }
 
 // Getting number of columns from metadata
-const int MMRBand::GetColumnsNumberFromREL(const char *pszSection)
+int MMRBand::GetColumnsNumberFromREL(const char *pszSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         pszSection, "columns", &nWidth,
         "MMRBand::MMRBand : No number of columns documented");
 }
 
-const int MMRBand::GetRowsNumberFromREL(const char *pszSection)
+int MMRBand::GetRowsNumberFromREL(const char *pszSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         pszSection, "rows", &nHeight,

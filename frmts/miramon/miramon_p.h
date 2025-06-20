@@ -220,13 +220,13 @@ class MMRBand
     MMRBand(MMRInfo_t *, const char *pszSection);
     ~MMRBand();
 
-    const int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         const char *pszSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
-    const int GetDataTypeFromREL(const char *pszSection);
-    const int GetResolutionFromREL(const char *pszSection);
-    const int GetColumnsNumberFromREL(const char *pszSection);
-    const int GetRowsNumberFromREL(const char *pszSection);
+    int GetDataTypeFromREL(const char *pszSection);
+    int GetResolutionFromREL(const char *pszSection);
+    int GetColumnsNumberFromREL(const char *pszSection);
+    int GetRowsNumberFromREL(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
     void GetNoDataDefinitionFromREL(const char *pszSection);
     void GetBoundingBoxFromREL(const char *pszSection);
