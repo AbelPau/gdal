@@ -775,11 +775,11 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
 
     // Some version checks
     szChain[7] = 0;
-    if (sscanf(szChain + 6, "%hu", &nSubVersion) != 1 || nSubVersion < 0)
+    if (sscanf(szChain + 6, "%hd", &nSubVersion) != 1 || nSubVersion < 0)
         return 0;
 
     szChain[5] = 0;
-    if (sscanf(szChain + 4, "%hu", &nVersion) != 1 || nVersion != 1)
+    if (sscanf(szChain + 4, "%hd", &nVersion) != 1 || nVersion != 1)
         return 0;
 
     // Next header to be read
@@ -821,10 +821,10 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
     } while (bRepeat);
 
     szChain[7] = 0;
-    if (sscanf(szChain + 6, "%hu", &nSubVersion) != 1 || nSubVersion < 0)
+    if (sscanf(szChain + 6, "%hd", &nSubVersion) != 1 || nSubVersion < 0)
         return 0;
     szChain[5] = 0;
-    if (sscanf(szChain + 4, "%hu", &nVersion) != 1 || nVersion != 1)
+    if (sscanf(szChain + 4, "%hd", &nVersion) != 1 || nVersion != 1)
         return 0;
 
     /*

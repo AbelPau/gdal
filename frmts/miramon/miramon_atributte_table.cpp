@@ -157,7 +157,7 @@ MMRRasterAttributeTable::~MMRRasterAttributeTable()
 /************************************************************************/
 /*                              Clone()                                 */
 /************************************************************************/
-
+#ifdef TODO
 GDALRasterAttributeTable *MMRRasterAttributeTable::Clone() const
 {
     if ((GetRowCount() * GetColumnCount()) > RAT_MAX_ELEM_FOR_CLONE)
@@ -255,6 +255,7 @@ GDALRasterAttributeTable *MMRRasterAttributeTable::Clone() const
 
     return poRAT;
 }
+#endif  //TODO
 
 /************************************************************************/
 /*                          GetColumnCount()                            */

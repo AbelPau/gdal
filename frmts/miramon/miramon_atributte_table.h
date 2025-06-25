@@ -91,7 +91,7 @@ class MMRRasterAttributeTable final : public GDALRasterAttributeTable
     MMRRasterAttributeTable(MMRRasterBand *poBand, const char *pszName);
     virtual ~MMRRasterAttributeTable();
 
-    GDALRasterAttributeTable *Clone() const override;
+    //GDALRasterAttributeTable *Clone() const override;
 
     virtual int GetColumnCount() const override;
 

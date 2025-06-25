@@ -397,7 +397,7 @@ GDALColorTable *MMRRasterBand::GetColorTable()
 /************************************************************************/
 /*                           SetColorTable()                            */
 /************************************************************************/
-
+#ifdef TODO
 CPLErr MMRRasterBand::SetColorTable(GDALColorTable *poCTable)
 
 {
@@ -484,6 +484,7 @@ CPLErr MMRRasterBand::SetColorTable(GDALColorTable *poCTable)
 
     return CE_None;
 }
+#endif  //TODO
 
 /************************************************************************/
 /*                            SetMetadata()                             */
@@ -974,7 +975,7 @@ const OGRSpatialReference *MMRDataset::GetSpatialRef() const
 /************************************************************************/
 /*                           SetSpatialRef()                            */
 /************************************************************************/
-
+#ifdef TODO
 CPLErr MMRDataset::SetSpatialRef(const OGRSpatialReference *poSRS)
 
 {
@@ -985,7 +986,7 @@ CPLErr MMRDataset::SetSpatialRef(const OGRSpatialReference *poSRS)
 
     return CE_None;
 }
-
+#endif  //TODO
 /************************************************************************/
 /*                            SetMetadata()                             */
 /************************************************************************/
@@ -1148,7 +1149,7 @@ CPLErr MMRDataset::GetGeoTransform(double *padfTransform)
 /************************************************************************/
 /*                          SetGeoTransform()                           */
 /************************************************************************/
-
+#ifdef TODO
 CPLErr MMRDataset::SetGeoTransform(double *padfTransform)
 
 {
@@ -1157,6 +1158,7 @@ CPLErr MMRDataset::SetGeoTransform(double *padfTransform)
 
     return CE_None;
 }
+#endif  //TODO
 
 /************************************************************************/
 /*                            GetGCPCount()                             */
@@ -1358,7 +1360,7 @@ GDALDataset *MMRDataset::Create(const char *pszFilenameIn, int nXSize,
 /*      Custom CopyFiles() implementation that knows how to update      */
 /*      filename references in .img and .aux files.                     */
 /************************************************************************/
-
+#ifdef TODO
 CPLErr MMRDataset::CopyFiles(const char *pszNewName, const char *pszOldName)
 
 {
@@ -1388,11 +1390,12 @@ CPLErr MMRDataset::CopyFiles(const char *pszNewName, const char *pszOldName)
 
     return eErr;
 }
+#endif  //TODO
 
 /************************************************************************/
 /*                             CreateCopy()                             */
 /************************************************************************/
-
+#ifdef TODO
 GDALDataset *MMRDataset::CreateCopy(const char *pszFileName,
                                     GDALDataset *poSrcDS, int /* bStrict */,
                                     char **papszOptions,
@@ -1607,6 +1610,7 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFileName,
 
     return poDS;
 }
+#endif  //TODO
 
 /************************************************************************/
 /*                GDALRegister_MiraMonRaster()                          */
@@ -1673,9 +1677,9 @@ void GDALRegister_MiraMonRaster()
 
     poDriver->pfnOpen = MMRDataset::Open;
     poDriver->pfnCreate = MMRDataset::Create;
-    poDriver->pfnCreateCopy = MMRDataset::CreateCopy;
+    //poDriver->pfnCreateCopy = MMRDataset::CreateCopy;
     poDriver->pfnIdentify = MMRDataset::Identify;
-    poDriver->pfnCopyFiles = MMRDataset::CopyFiles;
+    //poDriver->pfnCopyFiles = MMRDataset::CopyFiles;
 
     GetGDALDriverManager()->RegisterDriver(poDriver);
 }

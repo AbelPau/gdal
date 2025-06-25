@@ -61,17 +61,17 @@ class MMRDataset final : public GDALPamDataset
     virtual ~MMRDataset();
 
     static int Identify(GDALOpenInfo *);
-    static CPLErr CopyFiles(const char *pszNewName, const char *pszOldName);
+    //static CPLErr CopyFiles(const char *pszNewName, const char *pszOldName);
     static GDALDataset *Open(GDALOpenInfo *);
     static GDALDataset *Create(const char *pszFileName, int nXSize, int nYSize,
                                int nBands, GDALDataType eType,
                                char **papszParamList);
-    static GDALDataset *CreateCopy(const char *pszFileName,
+    /*static GDALDataset *CreateCopy(const char *pszFileName,
                                    GDALDataset *poSrcDS, int bStrict,
                                    char **papszOptions,
                                    GDALProgressFunc pfnProgress,
-                                   void *pProgressData);
-    static CPLErr Delete(const char *pszFileName);
+                                   void *pProgressData);*/
+    //static CPLErr Delete(const char *pszFileName);
 
     void AssignBandsToSubdataSets();
     void CreateSubdatasetsFromBands();
@@ -80,10 +80,10 @@ class MMRDataset final : public GDALPamDataset
     //virtual char **GetFileList() override;
 
     const OGRSpatialReference *GetSpatialRef() const override;
-    CPLErr SetSpatialRef(const OGRSpatialReference *poSRS) override;
+    //CPLErr SetSpatialRef(const OGRSpatialReference *poSRS) override;
 
     virtual CPLErr GetGeoTransform(double *) override;
-    virtual CPLErr SetGeoTransform(double *) override;
+    //virtual CPLErr SetGeoTransform(double *) override;
 
     int GetDataSetBoundingBox();
     int GetBandBoundingBox(int nIBand);
@@ -141,7 +141,7 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     virtual GDALColorInterp GetColorInterpretation() override;
     virtual GDALColorTable *GetColorTable() override;
-    virtual CPLErr SetColorTable(GDALColorTable *) override;
+    //virtual CPLErr SetColorTable(GDALColorTable *) override;
 
     virtual double GetMinimum(int *pbSuccess = nullptr) override;
     virtual double GetMaximum(int *pbSuccess = nullptr) override;
