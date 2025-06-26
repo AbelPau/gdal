@@ -185,7 +185,8 @@ int MMRClose(MMRHandle hMMR)
 /*                           MMRGetBandInfo()                           */
 /************************************************************************/
 
-CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, MMDataType *eMMRDataType,
+CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, CPLString *osBandSection,
+                      MMDataType *eMMRDataType,
                       MMBytesPerPixel *eMMBytesPerPixel, int *pnBlockXSize,
                       int *pnBlockYSize, int *pnCompressionType)
 
@@ -197,6 +198,9 @@ CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, MMDataType *eMMRDataType,
     }
 
     MMRBand *poBand = hMMR->papoBand[nBand - 1];
+
+    if (osBandSection != nullptr)
+        *osBandSection = poBand->GetBandSection();
 
     if (eMMRDataType != nullptr)
         *eMMRDataType = poBand->GeteMMDataType();

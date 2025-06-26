@@ -156,6 +156,7 @@ const Eprj_Datum CPL_DLL *MMRGetDatum(MMRHandle);
 CPLErr CPL_DLL MMRSetDatum(MMRHandle, const Eprj_Datum *);
 char CPL_DLL *MMRGetPEString(MMRHandle);
 CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
+                              CPLString *osBandSection,
                               MMDataType *eMMRDataType,
                               MMBytesPerPixel *eMMBytesPerPixel,
                               int *pnBlockXSize, int *pnBlockYSize,

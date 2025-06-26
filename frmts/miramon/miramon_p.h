@@ -270,6 +270,11 @@ class MMRBand
         return osBandName;
     }
 
+    const CPLString &GetBandSection() const
+    {
+        return osBandSection;
+    }
+
     const CPLString &GetRELFileName() const
     {
         return osRELFileName;

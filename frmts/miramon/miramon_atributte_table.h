@@ -46,8 +46,10 @@ class MMRAttributeField
 class MMRRasterAttributeTable final : public GDALRasterAttributeTable
 {
   private:
+    CPLString osBandSection;
     MMRHandle hMMR;
     MMREntry *poDT;
+
     CPLString osName;
     int nBand;
     GDALAccess eAccess;
@@ -88,10 +90,16 @@ class MMRRasterAttributeTable final : public GDALRasterAttributeTable
     }
 
   public:
-    MMRRasterAttributeTable(MMRRasterBand *poBand, const char *pszName);
+    MMRRasterAttributeTable(MMRRasterBand *poBand);
     virtual ~MMRRasterAttributeTable();
 
-    //GDALRasterAttributeTable *Clone() const override;
+    CPLErr CreateAttributteTableFromDBF(CPLString osRELName,
+                                        CPLString osDBFName,
+                                        CPLString AssociateRel);
+    CPLErr GetAttributeTableName(MMRRasterBand *poBand, char *papszToken,
+                                 CPLString &osRELName, CPLString &osDBFName,
+                                 CPLString &AssociateRel);
+    GDALRasterAttributeTable *Clone() const override;
 
     virtual int GetColumnCount() const override;
 

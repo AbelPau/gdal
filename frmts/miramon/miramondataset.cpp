@@ -15,6 +15,7 @@
 #include "miramon_p.h"
 #include "miramonrel.h"
 #include "miramon_rastertools.h"
+#include "miramon_atributte_table.h"
 
 //#include <cassert>
 /*
@@ -69,8 +70,9 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     eAccess = poDSIn->GetAccess();
 
     int nCompression = 0;
-    MMRGetBandInfo(hMMR, nBand, &eMMRDataTypeMiraMon, &eMMBytesPerPixel,
-                   &nBlockXSize, &nBlockYSize, &nCompression);
+    MMRGetBandInfo(hMMR, nBand, &osBandSection, &eMMRDataTypeMiraMon,
+                   &eMMBytesPerPixel, &nBlockXSize, &nBlockYSize,
+                   &nCompression);
 
     // Set some other information.
     if (nCompression != 0)
@@ -593,13 +595,258 @@ CPLErr MMRRasterBand::SetDefaultRAT(const GDALRasterAttributeTable *poRAT)
 GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
 
 {
-    //·$·TODO de moment:
-    return nullptr;
-    /*if (poDefaultRAT == nullptr)
-        poDefaultRAT = new MMRRasterAttributeTable(this, "Descriptor_Table");
+    if (poDefaultRAT != nullptr)
+        return poDefaultRAT;
+
+    poDefaultRAT = new GDALDefaultRasterAttributeTable();
+
+    CPLString os_IndexJoin = hMMR->fRel->GetMetadataValue(
+        SECTION_ATTRIBUTE_DATA, osBandSection, "IndexsJoinTaula");
+
+    if (os_IndexJoin.empty())
+        return nullptr;  // No attribute available
+
+    char **papszTokens = CSLTokenizeString2(os_IndexJoin, ",", 0);
+    const int nTokens = CSLCount(papszTokens);
+
+    if (nTokens < 1)
+    {
+        CSLDestroy(papszTokens);
+        return nullptr;
+    }
+
+    for (int nIAttTable = 0; nIAttTable < nTokens; nIAttTable++)
+    {
+        CPLString osRELName, osDBFName, osAssociateRel;
+        if (CE_None != GetAttributeTableName(papszTokens[nIAttTable], osRELName,
+                                             osDBFName, osAssociateRel))
+        {
+            CSLDestroy(papszTokens);
+            return nullptr;
+        }
+
+        if (osDBFName.empty())
+        {
+            CSLDestroy(papszTokens);
+            return nullptr;
+        }
+
+        if (CE_None !=
+            CreateAttributteTableFromDBF(osRELName, osDBFName, osAssociateRel))
+        {
+            CSLDestroy(papszTokens);
+            return nullptr;
+        }
+    }
+    CSLDestroy(papszTokens);
 
     return poDefaultRAT;
-    */
+}
+
+CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
+                                                   CPLString osDBFName,
+                                                   CPLString osAssociateRel)
+{
+    struct MM_DATA_BASE_XP oAttributteTable;
+    memset(&oAttributteTable, 0, sizeof(oAttributteTable));
+
+    if (osRELName != "")
+    {
+        if (MM_ReadExtendedDBFHeaderFromFile(
+                osDBFName.c_str(), &oAttributteTable, (const char *)osRELName))
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "Error reading attribute table \"%s\".",
+                     osDBFName.c_str());
+            return CE_None;
+        }
+    }
+    else
+    {
+        if (MM_ReadExtendedDBFHeaderFromFile(osDBFName.c_str(),
+                                             &oAttributteTable, nullptr))
+        {
+            CPLError(CE_Failure, CPLE_NotSupported,
+                     "Error reading attribute table \"%s\".",
+                     osDBFName.c_str());
+            return CE_None;
+        }
+    }
+
+    MM_EXT_DBF_N_FIELDS nFieldIndex = oAttributteTable.nFields;
+    MM_EXT_DBF_N_FIELDS nCategIndex = oAttributteTable.nFields;
+    for (MM_EXT_DBF_N_FIELDS nIField = 0; nIField < oAttributteTable.nFields;
+         nIField++)
+    {
+        if (EQUAL(oAttributteTable.pField[nIField].FieldName, osAssociateRel))
+        {
+            nFieldIndex = nIField;
+            if (nIField + 1 < oAttributteTable.nFields)
+                nCategIndex = nIField + 1;
+            else if (nIField - 1 > 0)
+                nCategIndex = nIField - 1;
+            break;
+        }
+    }
+
+    if (nFieldIndex == oAttributteTable.nFields)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid attribute table: \"%s\"",
+                 oAttributteTable.szFileName);
+        return CE_Failure;
+    }
+
+    if (oAttributteTable.pField[nFieldIndex].FieldType != 'N')
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Invalid attribute table field: \"%s\"",
+                 oAttributteTable.szFileName);
+        return CE_Failure;
+    }
+
+    // 0 column: category value
+    if (oAttributteTable.pField[nFieldIndex].DecimalsIfFloat)
+    {
+        if (CE_None != poDefaultRAT->CreateColumn(
+                           oAttributteTable.pField[nFieldIndex].FieldName,
+                           GFT_Real, GFU_MinMax))
+            return CE_Failure;
+    }
+    else
+    {
+        if (CE_None != poDefaultRAT->CreateColumn(
+                           oAttributteTable.pField[nFieldIndex].FieldName,
+                           GFT_Integer, GFU_MinMax))
+            return CE_Failure;
+    }
+
+    // 1 column: category name
+    if (CE_None != poDefaultRAT->CreateColumn(
+                       oAttributteTable.pField[nCategIndex].FieldName,
+                       GFT_String, GFU_Name))
+        return CE_Failure;
+
+    VSIFSeekL(oAttributteTable.pfDataBase, oAttributteTable.FirstRecordOffset,
+              SEEK_SET);
+    poDefaultRAT->SetRowCount(static_cast<int>(oAttributteTable.nRecords));
+
+    MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize =
+        oAttributteTable.BytesPerRecord + 1;
+    char *pzsBuffer = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
+    char *pzsField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
+
+    for (int nIRecord = 0;
+         nIRecord < static_cast<int>(oAttributteTable.nRecords); nIRecord++)
+    {
+        if (oAttributteTable.BytesPerRecord !=
+            VSIFReadL(pzsBuffer, sizeof(unsigned char),
+                      oAttributteTable.BytesPerRecord,
+                      oAttributteTable.pfDataBase))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid attribute table: \"%s\"", osDBFName.c_str());
+            return CE_Failure;
+        }
+
+        // Category index
+        memcpy(pzsField,
+               pzsBuffer +
+                   oAttributteTable.pField[nFieldIndex].AccumulatedBytes,
+               oAttributteTable.pField[nFieldIndex].BytesPerField);
+        pzsField[oAttributteTable.pField[nFieldIndex].BytesPerField] = '\0';
+        CPLString osField = pzsField;
+        poDefaultRAT->SetValue(nIRecord, 0, osField);
+
+        // Category value
+        memcpy(pzsField,
+               pzsBuffer +
+                   oAttributteTable.pField[nCategIndex].AccumulatedBytes,
+               oAttributteTable.pField[nCategIndex].BytesPerField);
+        pzsField[oAttributteTable.pField[nCategIndex].BytesPerField] = '\0';
+        char *pszFieldRecoded =
+            CPLRecode(pzsField, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
+        poDefaultRAT->SetValue(nIRecord, 1, pszFieldRecoded);
+        CPLFree(pszFieldRecoded);
+    }
+
+    VSIFree(pzsField);
+    VSIFree(pzsBuffer);
+    VSIFCloseL(oAttributteTable.pfDataBase);
+    MM_ReleaseMainFields(&oAttributteTable);
+
+    return CE_None;
+}
+
+CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
+                                            CPLString &osRELName,
+                                            CPLString &osDBFName,
+                                            CPLString &osAssociateREL)
+{
+    CPLString os_Join = "JoinTaula";
+    os_Join.append("_");
+    os_Join.append(papszToken);
+
+    CPLString osTableNameSection_key = hMMR->fRel->GetMetadataValue(
+        SECTION_ATTRIBUTE_DATA, osBandSection, os_Join);
+
+    if (osTableNameSection_key.empty())
+        return CE_Failure;  // No attribute available
+
+    CPLString osTableNameSection = "TAULA_";
+    osTableNameSection.append(osTableNameSection_key);
+
+    CPLString osShortRELName =
+        hMMR->fRel->GetMetadataValue(osTableNameSection, "NomFitxer");
+
+    CPLString osExtension = CPLGetExtensionSafe(osShortRELName);
+    CPLString osShortDBFName;
+    if (osExtension.tolower() == "rel")
+    {
+        // Get path relative to REL file
+        osRELName = CPLFormFilenameSafe(
+            CPLGetPathSafe(hMMR->fRel->GetRELNameChar()).c_str(),
+            osShortRELName, "");
+
+        // Getting information from the associated REL
+        MMRRel *fRel = new MMRRel(osRELName);
+        osShortDBFName = fRel->GetMetadataValue("TAULA_PRINCIPAL", "NomFitxer");
+
+        if (osShortDBFName.empty())
+        {
+            osRELName = "";
+            return CE_Failure;
+        }
+
+        osAssociateREL =
+            fRel->GetMetadataValue("TAULA_PRINCIPAL", "AssociatRel");
+
+        if (osAssociateREL.empty())
+        {
+            osRELName = "";
+            return CE_Failure;
+        }
+
+        delete fRel;
+    }
+    else
+        osShortDBFName = osShortRELName;
+
+    osExtension = CPLGetExtensionSafe(osShortDBFName);
+    if (osExtension.tolower() == "dbf")
+    {
+        // Get path relative to REL file
+        osDBFName = CPLFormFilenameSafe(
+            CPLGetPathSafe(hMMR->fRel->GetRELNameChar()).c_str(),
+            osShortDBFName, "");
+        return CE_None;
+    }
+    else
+    {
+        osRELName = "";
+        osAssociateREL = "";
+    }
+
+    return CE_Failure;
 }
 
 /************************************************************************/

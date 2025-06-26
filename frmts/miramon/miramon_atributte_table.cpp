@@ -19,131 +19,15 @@
 /************************************************************************/
 /*                     MMRRasterAttributeTable()                        */
 /************************************************************************/
-
-MMRRasterAttributeTable::MMRRasterAttributeTable(MMRRasterBand *poBand,
-                                                 const char *pszName)
-    : hMMR(poBand->hMMR),
-      poDT(poBand->hMMR->papoBand[poBand->nBand - 1]->poNode->GetNamedChild(
-          pszName)),
-      osName(pszName), nBand(poBand->nBand), eAccess(poBand->GetAccess()),
-      nRows(0), bLinearBinning(false), dfRow0Min(0.0), dfBinSize(0.0),
+MMRRasterAttributeTable::MMRRasterAttributeTable(MMRRasterBand *poBand)
+    : osBandSection(poBand->osBandSection), hMMR(poBand->hMMR), poDT(nullptr),
+      osName(""), nBand(poBand->nBand), eAccess(poBand->GetAccess()), nRows(0),
+      bLinearBinning(false), dfRow0Min(0.0), dfBinSize(0.0),
       eTableType(GRTT_THEMATIC)
 {
-    if (poDT != nullptr)
-    {
-        nRows = poDT->GetIntField("numRows");
 
-        // Scan under table for columns.
-        for (MMREntry *poDTChild = poDT->GetChild(); poDTChild != nullptr;
-             poDTChild = poDTChild->GetNext())
-        {
-            if (EQUAL(poDTChild->GetType(), "Edsc_BinFunction"))
-            {
-                const double dfMax = poDTChild->GetDoubleField("maxLimit");
-                const double dfMin = poDTChild->GetDoubleField("minLimit");
-                const int nBinCount = poDTChild->GetIntField("numBins");
-
-                if (nBinCount == nRows && dfMax != dfMin && nBinCount > 1)
-                {
-                    // Can't call SetLinearBinning since it will re-write
-                    // which we might not have permission to do.
-                    bLinearBinning = true;
-                    dfRow0Min = dfMin;
-                    dfBinSize = (dfMax - dfMin) / (nBinCount - 1);
-                }
-            }
-
-            if (EQUAL(poDTChild->GetType(), "Edsc_BinFunction840"))
-            {
-                const char *pszValue =
-                    poDTChild->GetStringField("binFunction.type.string");
-                if (pszValue && EQUAL(pszValue, "BFUnique"))
-                {
-                    AddColumn("BinValues", GFT_Real, GFU_MinMax, 0, 0,
-                              poDTChild, true);
-                }
-            }
-
-            if (!EQUAL(poDTChild->GetType(), "Edsc_Column"))
-                continue;
-
-            const int nOffset = poDTChild->GetIntField("columnDataPtr");
-            const char *pszType = poDTChild->GetStringField("dataType");
-            GDALRATFieldUsage eUsage = GFU_Generic;
-            bool bConvertColors = false;
-
-            if (pszType == nullptr || nOffset == 0)
-                continue;
-
-            GDALRATFieldType eType;
-            if (EQUAL(pszType, "real"))
-                eType = GFT_Real;
-            else if (EQUAL(pszType, "string"))
-                eType = GFT_String;
-            else if (STARTS_WITH_CI(pszType, "int"))
-                eType = GFT_Integer;
-            else
-                continue;
-
-            if (EQUAL(poDTChild->GetName(), "Histogram"))
-                eUsage = GFU_PixelCount;
-            else if (EQUAL(poDTChild->GetName(), "Red"))
-            {
-                eUsage = GFU_Red;
-                // Treat color columns as ints regardless
-                // of how they are stored.
-                bConvertColors = eType == GFT_Real;
-                eType = GFT_Integer;
-            }
-            else if (EQUAL(poDTChild->GetName(), "Green"))
-            {
-                eUsage = GFU_Green;
-                bConvertColors = eType == GFT_Real;
-                eType = GFT_Integer;
-            }
-            else if (EQUAL(poDTChild->GetName(), "Blue"))
-            {
-                eUsage = GFU_Blue;
-                bConvertColors = eType == GFT_Real;
-                eType = GFT_Integer;
-            }
-            else if (EQUAL(poDTChild->GetName(), "Opacity"))
-            {
-                eUsage = GFU_Alpha;
-                bConvertColors = eType == GFT_Real;
-                eType = GFT_Integer;
-            }
-            else if (EQUAL(poDTChild->GetName(), "Class_Names"))
-                eUsage = GFU_Name;
-
-            if (eType == GFT_Real)
-            {
-                AddColumn(poDTChild->GetName(), GFT_Real, eUsage, nOffset,
-                          sizeof(double), poDTChild);
-            }
-            else if (eType == GFT_String)
-            {
-                int nMaxNumChars = poDTChild->GetIntField("maxNumChars");
-                if (nMaxNumChars <= 0)
-                {
-                    CPLError(CE_Failure, CPLE_AppDefined,
-                             "Invalid nMaxNumChars = %d for column %s",
-                             nMaxNumChars, poDTChild->GetName());
-                    nMaxNumChars = 1;
-                }
-                AddColumn(poDTChild->GetName(), GFT_String, eUsage, nOffset,
-                          nMaxNumChars, poDTChild);
-            }
-            else if (eType == GFT_Integer)
-            {
-                int nSize = sizeof(GInt32);
-                if (bConvertColors)
-                    nSize = sizeof(double);
-                AddColumn(poDTChild->GetName(), GFT_Integer, eUsage, nOffset,
-                          nSize, poDTChild, false, bConvertColors);
-            }
-        }
-    }
+    // TODO eliminate.
+    return;
 }
 
 /************************************************************************/
@@ -157,7 +41,6 @@ MMRRasterAttributeTable::~MMRRasterAttributeTable()
 /************************************************************************/
 /*                              Clone()                                 */
 /************************************************************************/
-#ifdef TODO
 GDALRasterAttributeTable *MMRRasterAttributeTable::Clone() const
 {
     if ((GetRowCount() * GetColumnCount()) > RAT_MAX_ELEM_FOR_CLONE)
@@ -255,7 +138,6 @@ GDALRasterAttributeTable *MMRRasterAttributeTable::Clone() const
 
     return poRAT;
 }
-#endif  //TODO
 
 /************************************************************************/
 /*                          GetColumnCount()                            */

@@ -1717,7 +1717,7 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
         }
 
         // Index of the color
-        // papszTokens[0] is ignoded;
+        // papszTokens[0] is ignored;
 
         // RED
         aadfPaletteColors[0][nNReadPaletteColors] = CPLAtof(papszTokens[1]);

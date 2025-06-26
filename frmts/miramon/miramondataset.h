@@ -114,6 +114,8 @@ class MMRRasterBand final : public GDALPamRasterBand
     friend class MMRDataset;
     friend class MMRRasterAttributeTable;
 
+    CPLString osBandSection;  // Name of the band
+
     GDALColorTable *poCT;
 
     EPTType eMMRDataType;
@@ -159,6 +161,14 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     virtual GDALRasterAttributeTable *GetDefaultRAT() override;
     virtual CPLErr SetDefaultRAT(const GDALRasterAttributeTable *) override;
+
+    CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
+                                 CPLString &osDBFName,
+                                 CPLString &osAssociateREL);
+
+    CPLErr CreateAttributteTableFromDBF(CPLString osRELName,
+                                        CPLString osDBFName,
+                                        CPLString osAssociateRel);
 };
 
 #endif  // MMRDATASET_H_INCLUDED
