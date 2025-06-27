@@ -39,9 +39,7 @@ class MMRDataset final : public GDALPamDataset
     MMRHandle hMMR = nullptr;
 
     bool bMetadataDirty = false;
-    bool bMonoBanda = true;  // The dataset is monobanda
 
-    bool bGeoDirty = false;
     double adfGeoTransform[6];
     OGRSpatialReference m_oSRS{};
 
@@ -112,7 +110,7 @@ class MMRDataset final : public GDALPamDataset
 class MMRRasterBand final : public GDALPamRasterBand
 {
     friend class MMRDataset;
-    friend class MMRRasterAttributeTable;
+    //friend class MMRRasterAttributeTable;
 
     CPLString osBandSection;  // Name of the band
 

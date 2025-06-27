@@ -6,7 +6,6 @@ add_gdal_driver(
           miramonrel.h
           miramondataset.h
           miramon_rastertools.h
-          miramon_atributte_table.h
           miramonband.cpp
           miramonrel.cpp
           miramoncompress.cpp
@@ -17,7 +16,6 @@ add_gdal_driver(
           miramonopen.cpp
           miramontype.cpp
           miramon_rastertools.cpp
-          miramon_atributte_table.cpp
   PLUGIN_CAPABLE
   NO_DEPS
 )
