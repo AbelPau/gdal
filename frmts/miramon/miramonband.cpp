@@ -9,6 +9,7 @@
  *
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
+#include <algorithm>
 
 #include "miramon_p.h"
 #include "miramon_rastertools.h"  // For MMRGetFileNameFromRelName()

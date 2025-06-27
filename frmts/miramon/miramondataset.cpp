@@ -751,9 +751,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
 
     // Getting the info fromthat REL
-    MMRHandle hMMR =
-        fRel->GetInfoFromREL(poOpenInfo->pszFilename,
-                             (poOpenInfo->eAccess == GA_Update ? "r+" : "r"));
+    MMRHandle hMMR = fRel->GetInfoFromREL(poOpenInfo->pszFilename);
     if (!hMMR)
     {
         delete fRel;
@@ -1081,7 +1079,7 @@ void GDALRegister_MiraMonRaster()
     poDriver->SetMetadataItem(GDAL_DMD_SUBDATASETS, "YES");
 
     poDriver->pfnOpen = MMRDataset::Open;
-    poDriver->pfnCreate = MMRDataset::Create;
+    //poDriver->pfnCreate = MMRDataset::Create;
     //poDriver->pfnCreateCopy = MMRDataset::CreateCopy;
     poDriver->pfnIdentify = MMRDataset::Identify;
     //poDriver->pfnCopyFiles = MMRDataset::CopyFiles;

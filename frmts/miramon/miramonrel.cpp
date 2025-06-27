@@ -43,7 +43,7 @@ MMRRel::~MMRRel()
 /*                              GetInfoFromREL()                        */
 /************************************************************************/
 
-MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName, const char *pszAccess)
+MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName)
 
 {
     CPLString osRELFileNameIn;
@@ -52,7 +52,7 @@ MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName, const char *pszAccess)
     MMRInfo_t *psInfo =
         new MMRInfo_t;  // ·$·TODO: fer el new a fora perque i omplir-lo aqui dins
     // ja que es el dataset el que l'alliberarà.
-    // Caldria usar MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName, const char *pszAccess, MMRInfo_t& psInfo)
+    // Caldria usar MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName, MMRInfo_t& psInfo)
 
     // Getting the name of the REL
     const CPLString osMMRPrefix = "MiraMonRaster:";

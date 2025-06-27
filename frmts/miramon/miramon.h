@@ -140,7 +140,6 @@ typedef enum
 
 CPL_C_START
 
-//MMRHandle CPL_DLL GetInfoFromREL(const char *pszFileName, const char *pszMode);
 int CPL_DLL MMRClose(MMRHandle); /* 0 = success */
 
 CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
