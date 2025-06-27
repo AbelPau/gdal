@@ -795,7 +795,7 @@ void CPL_STDCALL GDALAllRegister()
 #endif
 
 #ifdef FRMT_miramon
-    GDALRegister_MiraMonRaster();
+    GDALRegister_MiraMon();
 #endif
 
 /* -------------------------------------------------------------------- */

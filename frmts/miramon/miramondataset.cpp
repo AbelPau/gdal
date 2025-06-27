@@ -1030,10 +1030,10 @@ const GDAL_GCP *MMRDataset::GetGCPs()
 }
 
 /************************************************************************/
-/*                GDALRegister_MiraMonRaster()                          */
+/*                GDALRegister_MiraMon()                                */
 /************************************************************************/
 
-void GDALRegister_MiraMonRaster()
+void GDALRegister_MiraMon()
 
 {
     if (GDALGetDriverByName("MiraMonRaster") != nullptr)
