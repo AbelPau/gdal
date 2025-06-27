@@ -15,7 +15,6 @@
 #include "miramon_p.h"
 #include "miramonrel.h"
 #include "miramon_rastertools.h"
-#include "miramon_atributte_table.h"
 
 //#include <cassert>
 /*
