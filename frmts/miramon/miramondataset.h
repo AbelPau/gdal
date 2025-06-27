@@ -110,7 +110,6 @@ class MMRDataset final : public GDALPamDataset
 class MMRRasterBand final : public GDALPamRasterBand
 {
     friend class MMRDataset;
-    //friend class MMRRasterAttributeTable;
 
     CPLString osBandSection;  // Name of the band
 
@@ -126,27 +125,20 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     GDALRasterAttributeTable *poDefaultRAT;
 
-    CPLErr WriteNamedRAT(const char *pszName,
-                         const GDALRasterAttributeTable *poRAT);
-
   public:
     MMRRasterBand(MMRDataset *, int);
     virtual ~MMRRasterBand();
 
     virtual CPLErr IReadBlock(int, int, void *) override;
-    virtual CPLErr IWriteBlock(int, int, void *) override;
 
     virtual const char *GetDescription() const override;
-    virtual void SetDescription(const char *) override;
 
     virtual GDALColorInterp GetColorInterpretation() override;
     virtual GDALColorTable *GetColorTable() override;
-    //virtual CPLErr SetColorTable(GDALColorTable *) override;
 
     virtual double GetMinimum(int *pbSuccess = nullptr) override;
     virtual double GetMaximum(int *pbSuccess = nullptr) override;
     virtual double GetNoDataValue(int *pbSuccess = nullptr) override;
-    virtual CPLErr SetNoDataValue(double dfValue) override;
 
     virtual CPLErr SetMetadata(char **, const char * = "") override;
     virtual CPLErr SetMetadataItem(const char *, const char *,
@@ -158,7 +150,6 @@ class MMRRasterBand final : public GDALPamRasterBand
                                        void *pProgressData) override;
 
     virtual GDALRasterAttributeTable *GetDefaultRAT() override;
-    virtual CPLErr SetDefaultRAT(const GDALRasterAttributeTable *) override;
 
     CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
                                  CPLString &osDBFName,

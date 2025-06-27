@@ -10,56 +10,18 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-#include "cpl_port.h"
 #include "miramon_p.h"
-#include "miramon_rastertools.h"
+#include "miramon_rastertools.h"  // For MMRGetFileNameFromRelName()
 
 #ifdef MSVC
-#include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-#include "..\miramon_common\mm_gdal_constants.h"
+#include "..\miramon_common\mm_gdal_functions.h"  // For MM_ReadExtendedDBFHeaderFromFile()
 #else
-#include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-#include "../miramon_common/mm_gdal_constants.h"
+#include "../miramon_common/mm_gdal_functions.h"  // For MM_ReadExtendedDBFHeaderFromFile()
 #endif
-
-#include "miramonrel.h"
-
-#include <cerrno>
-#include <climits>
-#include <cstddef>
-#include <cstdio>
-#include <cstring>
-#if HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
-#include <algorithm>
-
-#include "cpl_conv.h"
-#include "cpl_error.h"
-#include "cpl_string.h"
-#include "cpl_vsi.h"
-#include "miramon.h"
-#include "gdal_priv.h"
 
 /************************************************************************/
 /*                              MMRBand()                               */
 /************************************************************************/
-// Converts FileNameI.rel to FileName
-/*CPLString MMRGetBandNameFromRelName(const char *pszRELFile)
-{
-    if (!pszRELFile)
-        return "";
-
-    CPLString pszFile =
-        CPLString(CPLResetExtensionSafe(pszRELFile, "").c_str());
-
-    if (pszFile.length() < 2)
-        return "";
-
-    pszFile.resize(pszFile.size() - 2);  // I.
-    return pszFile;
-}*/
-
 // [ATTRIBUTE_DATA:xxxx] or [OVERVIEW:ASPECTES_TECNICS]
 int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
     const char *pszSection, const char *pszKey, int *nValue,
@@ -276,9 +238,7 @@ void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
 }
 
 MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
-    : pfIMG(nullptr), pfRel(psInfoIn->fRel), nBlocks(0), panBlockStart(nullptr),
-      panBlockSize(nullptr), panBlockFlag(nullptr), nBlockStart(0),
-      nBlockSize(0), nLayerStackCount(0), nLayerStackIndex(0),
+    : pfIMG(nullptr), pfRel(psInfoIn->fRel), nBlocks(0),
       nNoDataOriginalIndex(0), bPaletteHasNodata(false), nNoDataPaletteIndex(0),
       nAssignedSDS(0), osBandSection(pszSection), osRELFileName(""),
       osRawBandFileName(""), osBandFileName(""), osBandName(""),
@@ -290,10 +250,10 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
       dfVisuMax(0.0), pszRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
       dfBBMaxY(0), nResolution(0), psInfo(psInfoIn),
-      eDataType(static_cast<EPTType>(EPT_MIN)), poNode(nullptr), nBlockXSize(0),
-      nBlockYSize(1), nWidth(psInfoIn->nXSize), nHeight(psInfo->nYSize),
-      nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false),
-      pszNodataDef(""), dfNoData(0.0)
+      /*eDataType(static_cast<EPTType>(EPT_MIN)), poNode(nullptr), */
+      nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
+      nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
+      bNoDataSet(false), pszNodataDef(""), dfNoData(0.0)
 {
     // Getting band and band file name from metadata
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
@@ -441,154 +401,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
 MMRBand::~MMRBand()
 
 {
-    CPLFree(panBlockStart);
-    CPLFree(panBlockSize);
-    CPLFree(panBlockFlag);
-
     if (pfIMG != nullptr)
         CPL_IGNORE_RET_VAL(VSIFCloseL(pfIMG));
-}
-
-/************************************************************************/
-/*                           LoadBlockInfo()                            */
-/************************************************************************/
-
-// Accés als indexs o creació d'índexs.
-//Potser ni cal.
-CPLErr MMRBand::LoadBlockInfo()
-
-{
-    if (panBlockFlag != nullptr)
-        return CE_None;
-
-    if (sizeof(vsi_l_offset) + 2 * sizeof(int) >
-        (~(size_t)0) / static_cast<unsigned int>(nBlocks))
-    {
-        CPLError(CE_Failure, CPLE_OutOfMemory, "Too many blocks");
-        return CE_Failure;
-    }
-    const int MAX_INITIAL_BLOCKS = 1000 * 1000;
-    const int nInitBlocks = std::min(nBlocks, MAX_INITIAL_BLOCKS);
-    panBlockStart = static_cast<vsi_l_offset *>(
-        VSI_MALLOC2_VERBOSE(sizeof(vsi_l_offset), nInitBlocks));
-    panBlockSize =
-        static_cast<int *>(VSI_MALLOC2_VERBOSE(sizeof(int), nInitBlocks));
-    panBlockFlag =
-        static_cast<int *>(VSI_MALLOC2_VERBOSE(sizeof(int), nInitBlocks));
-
-    if (panBlockStart == nullptr || panBlockSize == nullptr ||
-        panBlockFlag == nullptr)
-    {
-        CPLFree(panBlockStart);
-        CPLFree(panBlockSize);
-        CPLFree(panBlockFlag);
-        panBlockStart = nullptr;
-        panBlockSize = nullptr;
-        panBlockFlag = nullptr;
-        return CE_Failure;
-    }
-
-    MMREntry *poDMS = poNode->GetNamedChild("RasterDMS");
-
-    for (int iBlock = 0; iBlock < nBlocks; iBlock++)
-    {
-        CPLErr eErr = CE_None;
-
-        if (iBlock == MAX_INITIAL_BLOCKS)
-        {
-            vsi_l_offset *panBlockStartNew =
-                static_cast<vsi_l_offset *>(VSI_REALLOC_VERBOSE(
-                    panBlockStart, sizeof(vsi_l_offset) * nBlocks));
-            if (panBlockStartNew == nullptr)
-            {
-                CPLFree(panBlockStart);
-                CPLFree(panBlockSize);
-                CPLFree(panBlockFlag);
-                panBlockStart = nullptr;
-                panBlockSize = nullptr;
-                panBlockFlag = nullptr;
-                return CE_Failure;
-            }
-            panBlockStart = panBlockStartNew;
-
-            int *panBlockSizeNew = static_cast<int *>(
-                VSI_REALLOC_VERBOSE(panBlockSize, sizeof(int) * nBlocks));
-            if (panBlockSizeNew == nullptr)
-            {
-                CPLFree(panBlockStart);
-                CPLFree(panBlockSize);
-                CPLFree(panBlockFlag);
-                panBlockStart = nullptr;
-                panBlockSize = nullptr;
-                panBlockFlag = nullptr;
-                return CE_Failure;
-            }
-            panBlockSize = panBlockSizeNew;
-
-            int *panBlockFlagNew = static_cast<int *>(
-                VSI_REALLOC_VERBOSE(panBlockFlag, sizeof(int) * nBlocks));
-            if (panBlockFlagNew == nullptr)
-            {
-                CPLFree(panBlockStart);
-                CPLFree(panBlockSize);
-                CPLFree(panBlockFlag);
-                panBlockStart = nullptr;
-                panBlockSize = nullptr;
-                panBlockFlag = nullptr;
-                return CE_Failure;
-            }
-            panBlockFlag = panBlockFlagNew;
-        }
-
-        char szVarName[64] = {};
-        snprintf(szVarName, sizeof(szVarName), "blockinfo[%d].offset", iBlock);
-        panBlockStart[iBlock] =
-            static_cast<GUInt32>(poDMS->GetIntField(szVarName, &eErr));
-        if (eErr == CE_Failure)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined, "Cannot read %s", szVarName);
-            return eErr;
-        }
-
-        snprintf(szVarName, sizeof(szVarName), "blockinfo[%d].size", iBlock);
-        panBlockSize[iBlock] = poDMS->GetIntField(szVarName, &eErr);
-        if (eErr == CE_Failure)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined, "Cannot read %s", szVarName);
-            return eErr;
-        }
-        if (panBlockSize[iBlock] < 0)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined, "Invalid block size");
-            return CE_Failure;
-        }
-
-        snprintf(szVarName, sizeof(szVarName), "blockinfo[%d].logvalid",
-                 iBlock);
-        const int nLogvalid = poDMS->GetIntField(szVarName, &eErr);
-        if (eErr == CE_Failure)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined, "Cannot read %s", szVarName);
-            return eErr;
-        }
-
-        snprintf(szVarName, sizeof(szVarName), "blockinfo[%d].compressionType",
-                 iBlock);
-        const int nCompressType = poDMS->GetIntField(szVarName, &eErr);
-        if (eErr == CE_Failure)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined, "Cannot read %s", szVarName);
-            return eErr;
-        }
-
-        panBlockFlag[iBlock] = 0;
-        if (nLogvalid)
-            panBlockFlag[iBlock] |= BFLG_VALID;
-        if (nCompressType != 0)
-            panBlockFlag[iBlock] |= BFLG_COMPRESSED;
-    }
-
-    return CE_None;
 }
 
 template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
@@ -672,9 +486,9 @@ bool MMRBand::AcceptedDataType()
 }
 
 /************************************************************************/
-/*                 FillRowFromExtendedParam                             */
+/*                 GetRowData                             */
 /************************************************************************/
-CPLErr MMRBand::FillRowFromExtendedParam(void *rowBuffer)
+CPLErr MMRBand::GetRowData(void *rowBuffer)
 {
     const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
     if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
@@ -733,7 +547,7 @@ CPLErr MMRBand::FillRowFromExtendedParam(void *rowBuffer)
     }
 
     return peErr;
-}  // End of FillRowFromExtendedParam()
+}  // End of GetRowData()
 
 /************************************************************************/
 /*                 PositionAtStartOfRowOffsetsInFile                */
@@ -974,7 +788,7 @@ bool MMRBand::FillRowOffsets()
             aFileOffsets[0] = 0;
             for (nIRow = 0; nIRow < nHeight; nIRow++)
             {
-                FillRowFromExtendedParam(pBuffer);
+                GetRowData(pBuffer);
                 aFileOffsets[static_cast<size_t>(nIRow) + 1] = VSIFTellL(pfIMG);
             }
             VSIFree(pBuffer);
@@ -1033,449 +847,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         return CE_Failure;
     }
 
-    return FillRowFromExtendedParam(pData);
-}
-
-/************************************************************************/
-/*                           ReAllocBlock()                             */
-/************************************************************************/
-
-void MMRBand::ReAllocBlock(int iBlock, int nSize)
-{
-    // For compressed files - need to realloc the space for the block.
-
-    // TODO: Should check to see if panBlockStart[iBlock] is not zero then do a
-    // MMRFreeSpace() but that doesn't exist yet.
-    // Instead as in interim measure it will reuse the existing block if
-    // the new data will fit in.
-    if ((panBlockStart[iBlock] != 0) && (nSize <= panBlockSize[iBlock]))
-    {
-        panBlockSize[iBlock] = nSize;
-        // fprintf( stderr, "Reusing block %d\n", iBlock );
-        return;
-    }
-
-    panBlockStart[iBlock] = MMRAllocateSpace(psInfo, nSize);
-
-    panBlockSize[iBlock] = nSize;
-
-    // Need to rewrite this info to the RasterDMS node.
-    MMREntry *poDMS = poNode->GetNamedChild("RasterDMS");
-
-    if (!poDMS)
-    {
-        CPLError(CE_Failure, CPLE_FileIO, "Unable to load RasterDMS");
-        return;
-    }
-
-    char szVarName[64];
-    snprintf(szVarName, sizeof(szVarName), "blockinfo[%d].offset", iBlock);
-    poDMS->SetIntField(szVarName, static_cast<int>(panBlockStart[iBlock]));
-
-    snprintf(szVarName, sizeof(szVarName), "blockinfo[%d].size", iBlock);
-    poDMS->SetIntField(szVarName, panBlockSize[iBlock]);
-}
-
-/************************************************************************/
-/*                           SetRasterBlock()                           */
-/************************************************************************/
-
-CPLErr MMRBand::SetRasterBlock(int nXBlock, int nYBlock, void *pData)
-
-{
-    if (psInfo->eAccess == MMRAccess::MMR_ReadOnly)
-    {
-        CPLError(
-            CE_Failure, CPLE_NoWriteAccess,
-            "Attempt to write block to read-only MiraMonRaster file failed.");
-        return CE_Failure;
-    }
-
-    if (LoadBlockInfo() != CE_None)
-        return CE_Failure;
-
-    const int iBlock = nXBlock + nYBlock * nBlocksPerRow;
-
-    // For now we don't support write invalid uncompressed blocks.
-    // To do so we will need logic to make space at the end of the
-    // file in the right size.
-    if ((panBlockFlag[iBlock] & BFLG_VALID) == 0 &&
-        !(panBlockFlag[iBlock] & BFLG_COMPRESSED) && panBlockStart[iBlock] == 0)
-    {
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Attempt to write to invalid tile with number %d "
-                 "(X position %d, Y position %d).  This operation is "
-                 "currently unsupported by MMRBand::SetRasterBlock().",
-                 iBlock, nXBlock, nYBlock);
-
-        return CE_Failure;
-    }
-
-    // Move to the location that the data sits.
-    VSILFILE *fpData = nullptr;
-    vsi_l_offset nBlockOffset = 0;
-
-    // Calculate block offset in case we have spill file. Use predefined
-    // block map otherwise.
-    fpData = pfIMG;
-    nBlockOffset = nBlockStart + nBlockSize * iBlock * nLayerStackCount +
-                   nLayerStackIndex * nBlockSize;
-
-    // Compressed Tile Handling.
-    if (panBlockFlag[iBlock] & BFLG_COMPRESSED)
-    {
-        // Write compressed data.
-        int nInBlockSize = static_cast<int>(
-            (static_cast<GIntBig>(nBlockXSize) * nBlockYSize *
-                 static_cast<GIntBig>(MMRGetDataTypeBits(eDataType)) +
-             7) /
-            8);
-
-        // Create the compressor object.
-        MMRCompress compress(pData, nInBlockSize, eDataType);
-        if (compress.getCounts() == nullptr || compress.getValues() == nullptr)
-        {
-            return CE_Failure;
-        }
-
-        // Compress the data.
-        if (compress.compressBlock())
-        {
-            // Get the data out of the object.
-            GByte *pCounts = compress.getCounts();
-            GUInt32 nSizeCount = compress.getCountSize();
-            GByte *pValues = compress.getValues();
-            GUInt32 nSizeValues = compress.getValueSize();
-            GUInt32 nMin = compress.getMin();
-            GUInt32 nNumRuns = compress.getNumRuns();
-            GByte nNumBits = compress.getNumBits();
-
-            // Compensate for the header info.
-            GUInt32 nDataOffset = nSizeCount + 13;
-            int nTotalSize = nSizeCount + nSizeValues + 13;
-
-            // Allocate space for the compressed block and seek to it.
-            ReAllocBlock(iBlock, nTotalSize);
-
-            nBlockOffset = panBlockStart[iBlock];
-            nBlockSize = panBlockSize[iBlock];
-
-            // Seek to offset.
-            if (VSIFSeekL(fpData, nBlockOffset, SEEK_SET) != 0)
-            {
-                CPLError(CE_Failure, CPLE_FileIO,
-                         "Seek to %x:%08x on %p failed\n%s",
-                         static_cast<int>(nBlockOffset >> 32),
-                         static_cast<int>(nBlockOffset & 0xffffffff), fpData,
-                         VSIStrerror(errno));
-                return CE_Failure;
-            }
-
-            // Byte swap to local byte order if required.  It appears that
-            // raster data is always stored in Intel byte order in Imagine
-            // files.
-
-#ifdef CPL_MSB
-            CPL_SWAP32PTR(&nMin);
-            CPL_SWAP32PTR(&nNumRuns);
-            CPL_SWAP32PTR(&nDataOffset);
-#endif  // def CPL_MSB
-
-            // Write out the Minimum value.
-            bool bRet = VSIFWriteL(&nMin, sizeof(nMin), 1, fpData) > 0;
-
-            // The number of runs.
-            bRet &= VSIFWriteL(&nNumRuns, sizeof(nNumRuns), 1, fpData) > 0;
-
-            // The offset to the data.
-            bRet &=
-                VSIFWriteL(&nDataOffset, sizeof(nDataOffset), 1, fpData) > 0;
-
-            // The number of bits.
-            bRet &= VSIFWriteL(&nNumBits, sizeof(nNumBits), 1, fpData) > 0;
-
-            // The counters - MSB stuff handled in MMRCompress.
-            bRet &= VSIFWriteL(pCounts, nSizeCount, 1, fpData) > 0;
-
-            // The values - MSB stuff handled in MMRCompress.
-            bRet &= VSIFWriteL(pValues, nSizeValues, 1, fpData) > 0;
-
-            if (!bRet)
-                return CE_Failure;
-
-            // Compressed data is freed in the MMRCompress destructor.
-        }
-        else
-        {
-            // If we have actually made the block bigger - i.e. does not
-            // compress well.
-            panBlockFlag[iBlock] ^= BFLG_COMPRESSED;
-            // Alloc more space for the uncompressed block.
-            ReAllocBlock(iBlock, nInBlockSize);
-
-            nBlockOffset = panBlockStart[iBlock];
-            nBlockSize = panBlockSize[iBlock];
-
-            // Need to change the RasterDMS entry.
-            MMREntry *poDMS = poNode->GetNamedChild("RasterDMS");
-
-            if (!poDMS)
-            {
-                CPLError(CE_Failure, CPLE_FileIO, "Unable to load RasterDMS");
-                return CE_Failure;
-            }
-
-            char szVarName[64] = {};
-            snprintf(szVarName, sizeof(szVarName),
-                     "blockinfo[%d].compressionType", iBlock);
-            poDMS->SetIntField(szVarName, 0);
-        }
-
-        // If the block was previously invalid, mark it as valid now.
-        if ((panBlockFlag[iBlock] & BFLG_VALID) == 0)
-        {
-            char szVarName[64];
-            MMREntry *poDMS = poNode->GetNamedChild("RasterDMS");
-
-            if (!poDMS)
-            {
-                CPLError(CE_Failure, CPLE_FileIO, "Unable to load RasterDMS");
-                return CE_Failure;
-            }
-
-            snprintf(szVarName, sizeof(szVarName), "blockinfo[%d].logvalid",
-                     iBlock);
-            poDMS->SetStringField(szVarName, "true");
-
-            panBlockFlag[iBlock] |= BFLG_VALID;
-        }
-    }
-
-    // Uncompressed TILE handling.
-    if ((panBlockFlag[iBlock] & BFLG_COMPRESSED) == 0)
-    {
-
-        if (VSIFSeekL(fpData, nBlockOffset, SEEK_SET) != 0)
-        {
-            CPLError(CE_Failure, CPLE_FileIO,
-                     "Seek to %x:%08x on %p failed\n%s",
-                     static_cast<int>(nBlockOffset >> 32),
-                     static_cast<int>(nBlockOffset & 0xffffffff), fpData,
-                     VSIStrerror(errno));
-            return CE_Failure;
-        }
-
-        // Byte swap to local byte order if required.  It appears that
-        // raster data is always stored in Intel byte order in Imagine
-        // files.
-
-#ifdef CPL_MSB
-        if (MMRGetDataTypeBits(eDataType) == 16)
-        {
-            for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-                CPL_SWAP16PTR(((unsigned char *)pData) + ii * 2);
-        }
-        else if (MMRGetDataTypeBits(eDataType) == 32)
-        {
-            for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-                CPL_SWAP32PTR(((unsigned char *)pData) + ii * 4);
-        }
-        else if (eDataType == EPT_f64)
-        {
-            for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-                CPL_SWAP64PTR(((unsigned char *)pData) + ii * 8);
-        }
-        else if (eDataType == EPT_c64)
-        {
-            for (int ii = 0; ii < nBlockXSize * nBlockYSize * 2; ii++)
-                CPL_SWAP32PTR(((unsigned char *)pData) + ii * 4);
-        }
-        else if (eDataType == EPT_c128)
-        {
-            for (int ii = 0; ii < nBlockXSize * nBlockYSize * 2; ii++)
-                CPL_SWAP64PTR(((unsigned char *)pData) + ii * 8);
-        }
-#endif  // def CPL_MSB
-
-        // Write uncompressed data.
-        if (VSIFWriteL(pData, static_cast<size_t>(nBlockSize), 1, fpData) != 1)
-        {
-            CPLError(CE_Failure, CPLE_FileIO,
-                     "Write of %d bytes at %x:%08x on %p failed.\n%s",
-                     static_cast<int>(nBlockSize),
-                     static_cast<int>(nBlockOffset >> 32),
-                     static_cast<int>(nBlockOffset & 0xffffffff), fpData,
-                     VSIStrerror(errno));
-            return CE_Failure;
-        }
-
-        // If the block was previously invalid, mark it as valid now.
-        if ((panBlockFlag[iBlock] & BFLG_VALID) == 0)
-        {
-            char szVarName[64];
-            MMREntry *poDMS = poNode->GetNamedChild("RasterDMS");
-            if (poDMS == nullptr)
-            {
-                CPLError(CE_Failure, CPLE_AppDefined,
-                         "Unable to get RasterDMS when trying to mark "
-                         "block valid.");
-                return CE_Failure;
-            }
-            snprintf(szVarName, sizeof(szVarName), "blockinfo[%d].logvalid",
-                     iBlock);
-            poDMS->SetStringField(szVarName, "true");
-
-            panBlockFlag[iBlock] |= BFLG_VALID;
-        }
-    }
-    // Swap back, since we don't really have permission to change
-    // the callers buffer.
-
-#ifdef CPL_MSB
-    if (MMRGetDataTypeBits(eDataType) == 16)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-            CPL_SWAP16PTR(((unsigned char *)pData) + ii * 2);
-    }
-    else if (MMRGetDataTypeBits(eDataType) == 32)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-            CPL_SWAP32PTR(((unsigned char *)pData) + ii * 4);
-    }
-    else if (eDataType == EPT_f64)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize; ii++)
-            CPL_SWAP64PTR(((unsigned char *)pData) + ii * 8);
-    }
-    else if (eDataType == EPT_c64)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize * 2; ii++)
-            CPL_SWAP32PTR(((unsigned char *)pData) + ii * 4);
-    }
-    else if (eDataType == EPT_c128)
-    {
-        for (int ii = 0; ii < nBlockXSize * nBlockYSize * 2; ii++)
-            CPL_SWAP64PTR(((unsigned char *)pData) + ii * 8);
-    }
-#endif  // def CPL_MSB
-
-    return CE_None;
-}
-
-/************************************************************************/
-/*                         SetBandName()                                */
-/*                                                                      */
-/*      Set the Layer Name                                              */
-/************************************************************************/
-
-void MMRBand::SetBandName(const char *pszName)
-{
-    if (psInfo->eAccess == MMRAccess::MMR_Update)
-    {
-        poNode->SetName(pszName);
-    }
-}
-
-/************************************************************************/
-/*                         SetNoDataValue()                             */
-/*                                                                      */
-/*      Set the band no-data value                                      */
-/************************************************************************/
-
-CPLErr MMRBand::SetNoDataValue(double dfValue)
-{
-    if (psInfo->eAccess != MMRAccess::MMR_Update)
-        return CE_Failure;
-
-    MMREntry *poNDNode = poNode->GetNamedChild("Eimg_NonInitializedValue");
-
-    if (poNDNode == nullptr)
-    {
-        poNDNode = MMREntry::New(psInfo, "Eimg_NonInitializedValue",
-                                 "Eimg_NonInitializedValue", poNode);
-    }
-
-    poNDNode->MakeData(8 + 12 + 8);
-    poNDNode->SetPosition();
-
-    poNDNode->SetIntField("valueBD[-3]", EPT_f64);
-    poNDNode->SetIntField("valueBD[-2]", 1);
-    poNDNode->SetIntField("valueBD[-1]", 1);
-
-    if (poNDNode->SetDoubleField("valueBD[0]", dfValue) == CE_Failure)
-        return CE_Failure;
-
-    bNoDataSet = true;
-    dfNoData = dfValue;
-    return CE_None;
-}
-
-/************************************************************************/
-/*                        MMRReadBFUniqueBins()                         */
-/*                                                                      */
-/*      Attempt to read the bins used for a PCT or RAT from a           */
-/*      BinFunction node.  On failure just return NULL.                 */
-/************************************************************************/
-
-double *MMRReadBFUniqueBins(MMREntry *poBinFunc, int nPCTColors)
-
-{
-    // First confirm this is a "BFUnique" bin function.  We don't
-    // know what to do with any other types.
-    const char *pszBinFunctionType =
-        poBinFunc->GetStringField("binFunction.type.string");
-
-    if (pszBinFunctionType == nullptr || !EQUAL(pszBinFunctionType, "BFUnique"))
-        return nullptr;
-
-    // Process dictionary.
-    const char *pszDict =
-        poBinFunc->GetStringField("binFunction.MIFDictionary.string");
-    if (pszDict == nullptr)
-        pszDict = poBinFunc->GetStringField("binFunction.MIFDictionary");
-    if (pszDict == nullptr)
-        return nullptr;
-
-    MMRDictionary oMiniDict(pszDict);
-
-    MMRType *poBFUnique = oMiniDict.FindType("BFUnique");
-    if (poBFUnique == nullptr)
-        return nullptr;
-
-    // Field the MIFObject raw data pointer.
-    int nMIFObjectSize = 0;
-    const GByte *pabyMIFObject =
-        reinterpret_cast<const GByte *>(poBinFunc->GetStringField(
-            "binFunction.MIFObject", nullptr, &nMIFObjectSize));
-
-    if (pabyMIFObject == nullptr ||
-        nMIFObjectSize < 24 + static_cast<int>(sizeof(double)) * nPCTColors)
-        return nullptr;
-
-    // Confirm that this is a 64bit floating point basearray.
-    if (pabyMIFObject[20] != 0x0a || pabyMIFObject[21] != 0x00)
-    {
-        CPLDebug("MiraMonRaster",
-                 "MMRReadPCTBins(): "
-                 "The basedata does not appear to be EGDA_TYPE_F64.");
-        return nullptr;
-    }
-
-    // Decode bins.
-    double *padfBins =
-        static_cast<double *>(CPLCalloc(sizeof(double), nPCTColors));
-
-    memcpy(padfBins, pabyMIFObject + 24, sizeof(double) * nPCTColors);
-
-    for (int i = 0; i < nPCTColors; i++)
-    {
-        MMRStandard(8, padfBins + i);
-#if DEBUG_VERBOSE
-        CPLDebug("MiraMonRaster", "Bin[%d] = %g", i, padfBins[i]);
-#endif
-    }
-
-    return padfBins;
+    return GetRowData(pData);
 }
 
 // Colors in a DBF format file
@@ -1932,110 +1304,6 @@ CPLErr MMRBand::GetPCT()
     CPLErr peErr = ConvertPaletteColors();
     if (peErr != CE_None)
         return peErr;
-
-    return CE_None;
-}
-
-/************************************************************************/
-/*                               SetPCT()                               */
-/*                                                                      */
-/*      Set the PCT information for this band.                          */
-/************************************************************************/
-
-CPLErr MMRBand::SetPCT(int nColors, const double *padfRed,
-                       const double *padfGreen, const double *padfBlue,
-                       const double *padfAlpha)
-
-{
-    static const char *const apszColNames[4] = {"Red", "Green", "Blue",
-                                                "Opacity"};
-    const double *const apadfValues[] = {padfRed, padfGreen, padfBlue,
-                                         padfAlpha};
-    MMREntry *poEdsc_Table;
-
-    // Do we need to try and clear any existing color table?
-    if (nColors == 0)
-    {
-        poEdsc_Table = poNode->GetNamedChild("Descriptor_Table");
-        if (poEdsc_Table == nullptr)
-            return CE_None;
-
-        for (int iColumn = 0; iColumn < 4; iColumn++)
-        {
-            MMREntry *poEdsc_Column =
-                poEdsc_Table->GetNamedChild(apszColNames[iColumn]);
-            if (poEdsc_Column)
-                poEdsc_Column->RemoveAndDestroy();
-        }
-
-        return CE_None;
-    }
-
-    // Create the Descriptor table.
-    poEdsc_Table = poNode->GetNamedChild("Descriptor_Table");
-    if (poEdsc_Table == nullptr ||
-        !EQUAL(poEdsc_Table->GetType(), "Edsc_Table"))
-        poEdsc_Table =
-            MMREntry::New(psInfo, "Descriptor_Table", "Edsc_Table", poNode);
-
-    poEdsc_Table->SetIntField("numrows", nColors);
-
-    // Create the Binning function node.  I am not sure that we
-    // really need this though.
-    MMREntry *poEdsc_BinFunction =
-        poEdsc_Table->GetNamedChild("#Bin_Function#");
-    if (poEdsc_BinFunction == nullptr ||
-        !EQUAL(poEdsc_BinFunction->GetType(), "Edsc_BinFunction"))
-        poEdsc_BinFunction = MMREntry::New(psInfo, "#Bin_Function#",
-                                           "Edsc_BinFunction", poEdsc_Table);
-
-    // Because of the BaseData we have to hardcode the size.
-    poEdsc_BinFunction->MakeData(30);
-
-    poEdsc_BinFunction->SetIntField("numBins", nColors);
-    poEdsc_BinFunction->SetStringField("binFunction", "direct");
-    poEdsc_BinFunction->SetDoubleField("minLimit", 0.0);
-    poEdsc_BinFunction->SetDoubleField("maxLimit", nColors - 1.0);
-
-    // Process each color component.
-    for (int iColumn = 0; iColumn < 4; iColumn++)
-    {
-        const double *padfValues = apadfValues[iColumn];
-        const char *pszName = apszColNames[iColumn];
-
-        // Create the Edsc_Column.
-        MMREntry *poEdsc_Column = poEdsc_Table->GetNamedChild(pszName);
-        if (poEdsc_Column == nullptr ||
-            !EQUAL(poEdsc_Column->GetType(), "Edsc_Column"))
-            poEdsc_Column =
-                MMREntry::New(psInfo, pszName, "Edsc_Column", poEdsc_Table);
-
-        poEdsc_Column->SetIntField("numRows", nColors);
-        poEdsc_Column->SetStringField("dataType", "real");
-        poEdsc_Column->SetIntField("maxNumChars", 0);
-
-        // Write the data out.
-        const int nOffset = MMRAllocateSpace(psInfo, 8 * nColors);
-
-        poEdsc_Column->SetIntField("columnDataPtr", nOffset);
-
-        double *padfFileData =
-            static_cast<double *>(CPLMalloc(nColors * sizeof(double)));
-        for (int iColor = 0; iColor < nColors; iColor++)
-        {
-            padfFileData[iColor] = padfValues[iColor];
-            MMRStandard(8, padfFileData + iColor);
-        }
-        const bool bRet = VSIFSeekL(psInfo->fp, nOffset, SEEK_SET) >= 0 &&
-                          VSIFWriteL(padfFileData, 8, nColors, psInfo->fp) ==
-                              static_cast<size_t>(nColors);
-        CPLFree(padfFileData);
-        if (!bRet)
-            return CE_Failure;
-    }
-
-    // Update the layer type to be thematic.
-    poNode->SetStringField("layerType", "thematic");
 
     return CE_None;
 }

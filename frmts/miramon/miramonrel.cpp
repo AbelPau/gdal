@@ -114,13 +114,6 @@ MMRHandle MMRRel::GetInfoFromREL(const char *pszFileName, const char *pszAccess)
     psInfo->fRel = this;
     psInfo->osRELFileName = osRELFileNameIn;
 
-    if (EQUAL(pszAccess, "r") || EQUAL(pszAccess, "rb"))
-        psInfo->eAccess = MMRAccess::MMR_ReadOnly;
-    else
-        psInfo->eAccess = MMRAccess::MMR_Update;
-
-    psInfo->bTreeDirty = false;
-
     // Collect band definitions.
     if (ParseBandInfo(psInfo) != CE_None)
     {

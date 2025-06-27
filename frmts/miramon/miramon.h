@@ -142,19 +142,7 @@ CPL_C_START
 
 //MMRHandle CPL_DLL GetInfoFromREL(const char *pszFileName, const char *pszMode);
 int CPL_DLL MMRClose(MMRHandle); /* 0 = success */
-CPLErr MMRRenameReferences(MMRHandle, const char *, const char *);
 
-MMRHandle CPL_DLL MMRCreateLL(const char *pszFileName);
-MMRHandle CPL_DLL MMRCreate(const char *pszFileName, int nXSize, int nYSize,
-                            int nBands, EPTType eDataType, char **papszOptions);
-CPLErr CPL_DLL MMRFlush(MMRHandle);
-
-CPLErr CPL_DLL MMRSetGeoTransform(MMRHandle, const char *, const char *,
-                                  double *);
-CPLErr CPL_DLL MMRSetMapInfo(MMRHandle, const Eprj_MapInfo *);
-const Eprj_Datum CPL_DLL *MMRGetDatum(MMRHandle);
-CPLErr CPL_DLL MMRSetDatum(MMRHandle, const Eprj_Datum *);
-char CPL_DLL *MMRGetPEString(MMRHandle);
 CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
                               CPLString *osBandSection,
                               MMDataType *eMMRDataType,
@@ -162,34 +150,14 @@ CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
                               int *pnBlockXSize, int *pnBlockYSize,
                               int *pnCompressionType);
 int CPL_DLL MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfValue);
-CPLErr CPL_DLL MMRSetBandNoData(MMRHandle hMMR, int nBand, double dfValue);
 CPLErr CPL_DLL MMRGetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock,
                                  int nYBlock, void *pData);
 CPLErr CPL_DLL MMRGetRasterBlockEx(MMRHandle hMMR, int nBand, int nXBlock,
                                    int nYBlock, void *pData, int nDataSize);
-CPLErr CPL_DLL MMRSetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock,
-                                 int nYBlock, void *pData);
 const char *MMRGetBandName(MMRHandle hMMR, int nBand);
-void MMRSetBandName(MMRHandle hMMR, int nBand, const char *pszName);
 int CPL_DLL MMRGetDataTypeBits(EPTType eDataType);
 const char CPL_DLL *MMRGetDataTypeName(EPTType eDataType);
 CPLErr CPL_DLL MMRGetPCT(MMRHandle, int);
-CPLErr CPL_DLL MMRSetPCT(MMRHandle, int, int, double *, double *, double *,
-                         double *);
-void CPL_DLL MMRDumpDictionary(MMRHandle, FILE *);
-CPLErr CPL_DLL MMRGetDataRange(MMRHandle, int, double *, double *);
-char CPL_DLL **MMRGetMetadata(MMRHandle hMMR, int nBand);
-CPLErr CPL_DLL MMRSetMetadata(MMRHandle hMMR, int nBand, char **);
-char CPL_DLL **MMRGetClassNames(MMRHandle hMMR, int nBand);
-
-CPLErr CPL_DLL MMRWriteXFormStack(MMRHandle psInfo, int nBand, int nXFormCount,
-                                  Efga_Polynomial **ppasPolyListForward,
-                                  Efga_Polynomial **ppasPolyListReverse);
-int CPL_DLL MMREvaluateXFormStack(int nStepCount, int bForward,
-                                  Efga_Polynomial *pasPolyList, double *pdfX,
-                                  double *pdfY);
-
-const char CPL_DLL *MMRReadElevationUnit(MMRHandle psInfo, int iBand);
 
 /* -------------------------------------------------------------------- */
 /*      Projection codes.                                               */
