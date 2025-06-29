@@ -280,7 +280,8 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
     else
     {
         osBandName = CPLGetBasenameSafe(osRawBandFileName);
-        CPLString osAux = CPLGetPathSafe((const char *)pfRel->GetRELNameChar());
+        CPLString osAux =
+            CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
         osBandFileName =
             CPLFormFilenameSafe(osAux.c_str(), osRawBandFileName.c_str(), "");
     }
@@ -433,7 +434,8 @@ template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
             for (; ii < acumulat; ii++)
             {
                 VSIFReadL(&valor_rle, sizeof(TYPE), 1, pfIMG);
-                memcpy(((TYPE *)rowBuffer) + ii, &valor_rle, sizeof(TYPE));
+                memcpy((static_cast<TYPE *>(rowBuffer)) + ii, &valor_rle,
+                       sizeof(TYPE));
             }
         }
         else
@@ -447,7 +449,8 @@ template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
             if (VSIFReadL(&valor_rle, sizeof(TYPE), 1, pfIMG) != 1)
                 return CE_Failure;
             for (; ii < acumulat; ii++)
-                memcpy(((TYPE *)rowBuffer) + ii, &valor_rle, sizeof(TYPE));
+                memcpy((static_cast<TYPE *>(rowBuffer)) + ii, &valor_rle,
+                       sizeof(TYPE));
         }
     }
 
@@ -491,7 +494,8 @@ bool MMRBand::AcceptedDataType()
 /************************************************************************/
 CPLErr MMRBand::GetRowData(void *rowBuffer)
 {
-    const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
+    const int nDataTypeSizeBytes =
+        std::max(1, static_cast<int>(eMMBytesPerPixel));
     if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
     {
         const int nGDALBlockSize = static_cast<int>(ceil(nBlockXSize / 8.0));
@@ -512,7 +516,7 @@ CPLErr MMRBand::GetRowData(void *rowBuffer)
         eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE)
     {
         if (VSIFReadL(rowBuffer, nDataTypeSizeBytes, nWidth, pfIMG) !=
-            (size_t)nWidth)
+            static_cast<size_t>(nWidth))
         {
             CPLError(CE_Failure, CPLE_AppDefined, "\nError while reading band");
             return CE_Failure;
@@ -563,12 +567,12 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
     if (VSIFSeekL(pfIMG, 0, SEEK_END))
         return 0;
 
-    if ((vsi_l_offset)(-1) == (nFileSize = VSIFTellL(pfIMG)))
+    if (static_cast<vsi_l_offset>(-1) == (nFileSize = VSIFTellL(pfIMG)))
         return 0;
 
     if (nHeight)
     {
-        if (nFileSize < (vsi_l_offset)32 + nHeight + 32)
+        if (nFileSize < static_cast<vsi_l_offset>(32) + nHeight + 32)
             return 0;
     }
 
@@ -653,10 +657,10 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
 
     if (nHeight)
     {
-        if (nHeaderOffset <
-                (vsi_l_offset)nHeight * 2 ||  // Minumum size of an RLE
+        if (nHeaderOffset < static_cast<vsi_l_offset>(nHeight) *
+                                2 ||  // Minumum size of an RLE
             nFileSize - nHeaderOffset <
-                (vsi_l_offset)32 + nHeight +
+                static_cast<vsi_l_offset>(32) + nHeight +
                     32)  // Minumum size of the section in version 1.0
             return 0;
     }
@@ -669,7 +673,7 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
     if (nHeight)
     {
         if (nFileSize - nHeaderOffset <
-            32 + (vsi_l_offset)nOffsetSize * nHeight +
+            32 + static_cast<vsi_l_offset>(nOffsetSize) * nHeight +
                 32)  // No space for this section in this file
             return 0;
 
@@ -723,14 +727,16 @@ bool MMRBand::FillRowOffsets()
         return false;
     }
 
-    const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
+    const int nDataTypeSizeBytes =
+        std::max(1, static_cast<int>(eMMBytesPerPixel));
     switch (eMMDataType)
     {
         case MMDataType::DATATYPE_AND_COMPR_BIT:
 
             // "<=" it's ok. There is space and it's to make easier the programming
             for (nIRow = 0; nIRow <= nHeight; nIRow++)
-                aFileOffsets[nIRow] = (vsi_l_offset)nIRow * nGDALBlockSize;
+                aFileOffsets[nIRow] =
+                    static_cast<vsi_l_offset>(nIRow) * nGDALBlockSize;
             break;
 
         case MMDataType::DATATYPE_AND_COMPR_BYTE:
@@ -739,11 +745,12 @@ bool MMRBand::FillRowOffsets()
         case MMDataType::DATATYPE_AND_COMPR_LONG:
         case MMDataType::DATATYPE_AND_COMPR_REAL:
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
-            nBytesPerPixelPerNCol = nDataTypeSizeBytes * (vsi_l_offset)nWidth;
+            nBytesPerPixelPerNCol =
+                nDataTypeSizeBytes * static_cast<vsi_l_offset>(nWidth);
             // "<=" it's ok. There is space and it's to make easier the programming
             for (nIRow = 0; nIRow <= nHeight; nIRow++)
                 aFileOffsets[nIRow] =
-                    (vsi_l_offset)nIRow * nBytesPerPixelPerNCol;
+                    static_cast<vsi_l_offset>(nIRow) * nBytesPerPixelPerNCol;
             break;
 
         case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
@@ -774,8 +781,9 @@ bool MMRBand::FillRowOffsets()
 
             // Not indexed RLE. We create a dynamic indexation
             nMaxBytesPerCompressedRow =
-                (int)eMMBytesPerPixel ? (nWidth * ((int)eMMBytesPerPixel + 1))
-                                      : (nWidth * (1 + 1));
+                static_cast<int>(eMMBytesPerPixel)
+                    ? (nWidth * (static_cast<int>(eMMBytesPerPixel) + 1))
+                    : (nWidth * (1 + 1));
             unsigned char *pBuffer;
 
             if (nullptr == (pBuffer = static_cast<unsigned char *>(
@@ -812,7 +820,8 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
 
 {
     const int iBlock = nXBlock + nYBlock * nBlocksPerRow;
-    const int nDataTypeSizeBytes = std::max(1, (int)eMMBytesPerPixel);
+    const int nDataTypeSizeBytes =
+        std::max(1, static_cast<int>(eMMBytesPerPixel));
     const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
 
     // Calculate block offset in case we have spill file. Use predefined
@@ -891,16 +900,17 @@ CPLErr MMRBand::GetPaletteColors_DBF_Indexs(struct MM_DATA_BASE_XP &oColorTable,
 CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
 {
-    CPLString osAux = CPLGetPathSafe((const char *)pfRel->GetRELNameChar());
+    CPLString osAux =
+        CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
     CPLString osColorTableFileName =
         CPLFormFilenameSafe(osAux.c_str(), os_Color_Paleta_DBF.c_str(), "");
 
     struct MM_DATA_BASE_XP oColorTable;
     memset(&oColorTable, 0, sizeof(oColorTable));
 
-    if (MM_ReadExtendedDBFHeaderFromFile(osColorTableFileName.c_str(),
-                                         &oColorTable,
-                                         (const char *)pfRel->GetRELNameChar()))
+    if (MM_ReadExtendedDBFHeaderFromFile(
+            osColorTableFileName.c_str(), &oColorTable,
+            static_cast<const char *>(pfRel->GetRELNameChar())))
     {
         CPLError(CE_Failure, CPLE_NotSupported,
                  "Error reading color table \"%s\".",
@@ -1030,7 +1040,8 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
 {
-    CPLString osAux = CPLGetPathSafe((const char *)pfRel->GetRELNameChar());
+    CPLString osAux =
+        CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
     CPLString osColorTableFileName =
         CPLFormFilenameSafe(osAux.c_str(), os_Color_Paleta_DBF.c_str(), "");
 
@@ -1172,7 +1183,10 @@ CPLErr MMRBand::ConvertPaletteColors()
     nNoDataPaletteIndex = 0;
     nNoDataOriginalIndex = 0;
 
-    int nNPossibleValues = (int)pow(2, (double)8 * (int)eMMBytesPerPixel) * 3L;
+    int nNPossibleValues =
+        static_cast<int>(
+            pow(2, (double)8 * static_cast<int>(eMMBytesPerPixel))) *
+        3L;
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
         try
@@ -1201,7 +1215,8 @@ CPLErr MMRBand::ConvertPaletteColors()
     if (bPaletteHasNodata)
         nNPaletteColors--;
 
-    if ((int)eMMBytesPerPixel > 2 && nNPaletteColors < nNPossibleValues)
+    if (static_cast<int>(eMMBytesPerPixel) > 2 &&
+        nNPaletteColors < nNPossibleValues)
         return CE_None;
 
     int nFirstValidPaletteIndex;
@@ -1213,7 +1228,7 @@ CPLErr MMRBand::ConvertPaletteColors()
     else
         nFirstValidPaletteIndex = 0;
 
-    if ((int)eMMBytesPerPixel == 2)
+    if (static_cast<int>(eMMBytesPerPixel) == 2)
     {
         // A scaling is applied between the minimum and maximum display values.
         dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
@@ -1236,17 +1251,17 @@ CPLErr MMRBand::ConvertPaletteColors()
         }
         else
         {
-            if (nIPaletteColor < (int)dfMin)
+            if (nIPaletteColor < static_cast<int>(dfMin))
             {
                 // Before the minimum, we apply the color of the first
                 // element (as a placeholder).
                 AssignRGBColor(nIPaletteColor, 0);
             }
-            else if (nIPaletteColor <= (int)dfMax)
+            else if (nIPaletteColor <= static_cast<int>(dfMax))
             {
                 // Between the minimum and maximum, we apply the value
                 // read from the table.
-                if ((int)eMMBytesPerPixel < 2)
+                if (static_cast<int>(eMMBytesPerPixel) < 2)
                 {
                     // The value is applied directly.
                     AssignRGBColor(nIPaletteColor, nFirstValidPaletteIndex);

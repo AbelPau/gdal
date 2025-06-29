@@ -478,7 +478,7 @@ int MMRRel::IdentifyFile(CPLString pszFileName)
     // If IMG, a sidecar file I.rel with reference to
     // poOpenInfo->pszFilename must exist
     CPLString pszRELFile =
-        GetAssociatedMetadataFileName((const char *)pszFileName);
+        GetAssociatedMetadataFileName(static_cast<const char *>(pszFileName));
 
     if (EQUAL(pszRELFile, ""))
         return FALSE;
@@ -716,7 +716,7 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
 
     int nNBand;
     if (psInfo->papoSDSBands.size())
-        nNBand = (int)psInfo->papoSDSBands.size();
+        nNBand = static_cast<int>(psInfo->papoSDSBands.size());
     else
         nNBand = nTokenCount;
 

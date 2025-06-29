@@ -454,7 +454,8 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
     if (osRELName != "")
     {
         if (MM_ReadExtendedDBFHeaderFromFile(
-                osDBFName.c_str(), &oAttributteTable, (const char *)osRELName))
+                osDBFName.c_str(), &oAttributteTable,
+                static_cast<const char *>(osRELName)))
         {
             CPLError(CE_Failure, CPLE_NotSupported,
                      "Error reading attribute table \"%s\".",
