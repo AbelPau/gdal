@@ -74,19 +74,16 @@ def test_miramon_test_012345_raster(filename, band_idx):
     assert buf is not None, "Could not read raster data"
 
     # unpack and assert values
-    if "chess" in filename:
-        count = xsize * ysize
-        values = struct.unpack(f"{count}{fmt}", buf)
+    count = xsize * ysize
+    values = struct.unpack(f"{count}{fmt}", buf)
 
+    if "chess" in filename:  # testing a few values
         expected = [0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0]
         for i, exp in enumerate(expected):
             assert (
                 values[i] == exp
             ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
     else:
-        count = xsize * ysize
-        values = struct.unpack(f"{count}{fmt}", buf)
-
         expected = [0, 1, 2, 3, 4, 5]
         for i, exp in enumerate(expected):
             assert i < len(values), f"Expected value at index {i}, but got fewer values"
