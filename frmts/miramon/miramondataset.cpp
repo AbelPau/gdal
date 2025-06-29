@@ -117,7 +117,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
             // This should really report an error, but this isn't
             // so easy from within constructors.
             CPLDebug("GDAL", "Unsupported pixel type in MMRRasterBand: %d.",
-                     (int)eMMRDataTypeMiraMon);
+                     static_cast<int>(eMMRDataTypeMiraMon));
             break;
     }
 
@@ -132,10 +132,14 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
         for (int iColor = 0; iColor < nColors; iColor++)
         {
             GDALColorEntry sEntry = {
-                (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Red()[iColor]),
-                (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Green()[iColor]),
-                (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Blue()[iColor]),
-                (short int)(hMMR->papoBand[nBand - 1]->GetPCT_Alpha()[iColor])};
+                static_cast<short int>(
+                    hMMR->papoBand[nBand - 1]->GetPCT_Red()[iColor]),
+                static_cast<short int>(
+                    hMMR->papoBand[nBand - 1]->GetPCT_Green()[iColor]),
+                static_cast<short int>(
+                    hMMR->papoBand[nBand - 1]->GetPCT_Blue()[iColor]),
+                static_cast<short int>(
+                    hMMR->papoBand[nBand - 1]->GetPCT_Alpha()[iColor])};
 
             if ((sEntry.c1 < 0 || sEntry.c1 > 255) ||
                 (sEntry.c2 < 0 || sEntry.c2 > 255) ||
@@ -665,8 +669,6 @@ MMRDataset::MMRDataset()
 {
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
-    memset(adfGeoTransform, 0, sizeof(adfGeoTransform));
-
     nNSubdataSets = 0;
 }
 
@@ -848,9 +850,8 @@ CPLErr MMRDataset::SetMetadataItem(const char *pszTag, const char *pszValue,
 }
 
 /************************************************************************/
-/*                          GetColumnsNumberFromREL()                          */
+/*                          GetColumnsNumberFromREL()                   */
 /*                          GetDataSetBoundingBox()                     */
-/*                          GetGeoTransform()                           */
 /************************************************************************/
 int MMRDataset::GetColumnsNumberFromREL(int *nNCols)
 {
@@ -892,12 +893,12 @@ int MMRDataset::GetDataSetBoundingBox()
     // Bounding box of the band
     // Section [EXTENT] in rel file
 
-    adfGeoTransform[0] = 0.0;
-    adfGeoTransform[1] = 1.0;
-    adfGeoTransform[2] = 0.0;
-    adfGeoTransform[3] = 0.0;
-    adfGeoTransform[4] = 0.0;
-    adfGeoTransform[5] = 1.0;
+    m_gt[0] = 0.0;
+    m_gt[1] = 1.0;
+    m_gt[2] = 0.0;
+    m_gt[3] = 0.0;
+    m_gt[4] = 0.0;
+    m_gt[5] = 1.0;
 
     if (!hMMR || !hMMR->fRel)
         return 1;
@@ -905,7 +906,7 @@ int MMRDataset::GetDataSetBoundingBox()
     CPLString osMinX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MinX");
     if (osMinX.empty())
         return 1;
-    adfGeoTransform[0] = atof(osMinX);
+    m_gt[0] = atof(osMinX);
 
     int nNCols;
     if (1 == GetColumnsNumberFromREL(&nNCols) || nNCols <= 0)
@@ -915,8 +916,8 @@ int MMRDataset::GetDataSetBoundingBox()
     if (osMaxX.empty())
         return 1;
 
-    adfGeoTransform[1] = (atof(osMaxX) - adfGeoTransform[0]) / nNCols;
-    adfGeoTransform[2] = 0.0;  // No rotation in MiraMon rasters
+    m_gt[1] = (atof(osMaxX) - m_gt[0]) / nNCols;
+    m_gt[2] = 0.0;  // No rotation in MiraMon rasters
 
     CPLString osMinY = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MinY");
     if (osMinY.empty())
@@ -930,10 +931,10 @@ int MMRDataset::GetDataSetBoundingBox()
     if (1 == GetRowsNumberFromREL(&nNRows) || nNRows <= 0)
         return 1;
 
-    adfGeoTransform[3] = atof(osMaxY);
-    adfGeoTransform[4] = 0.0;
+    m_gt[3] = atof(osMaxY);
+    m_gt[4] = 0.0;
 
-    adfGeoTransform[5] = (atof(osMinY) - adfGeoTransform[3]) / nNRows;
+    m_gt[5] = (atof(osMinY) - m_gt[3]) / nNRows;
 
     return 0;
 }
@@ -941,12 +942,12 @@ int MMRDataset::GetDataSetBoundingBox()
 int MMRDataset::GetBandBoundingBox(int nIBand)
 {
     // Bounding box of the band
-    adfGeoTransform[0] = 0.0;
-    adfGeoTransform[1] = 1.0;
-    adfGeoTransform[2] = 0.0;
-    adfGeoTransform[3] = 0.0;
-    adfGeoTransform[4] = 0.0;
-    adfGeoTransform[5] = 1.0;
+    m_gt[0] = 0.0;
+    m_gt[1] = 1.0;
+    m_gt[2] = 0.0;
+    m_gt[3] = 0.0;
+    m_gt[4] = 0.0;
+    m_gt[5] = 1.0;
 
     if (!hMMR || !hMMR->papoBand || nIBand >= hMMR->nBands ||
         !hMMR->papoBand[nIBand])
@@ -954,46 +955,28 @@ int MMRDataset::GetBandBoundingBox(int nIBand)
 
     MMRBand *poBand = hMMR->papoBand[nIBand];
 
-    adfGeoTransform[0] = poBand->GetBoundingBoxMinX();
-    adfGeoTransform[1] =
-        (poBand->GetBoundingBoxMaxX() - adfGeoTransform[0]) / poBand->nWidth;
-    adfGeoTransform[2] = 0.0;  // No rotation in MiraMon rasters
-    adfGeoTransform[3] = poBand->GetBoundingBoxMaxY();
-    adfGeoTransform[4] = 0.0;
-    adfGeoTransform[5] =
-        (poBand->GetBoundingBoxMinY() - adfGeoTransform[3]) / poBand->nHeight;
+    m_gt[0] = poBand->GetBoundingBoxMinX();
+    m_gt[1] = (poBand->GetBoundingBoxMaxX() - m_gt[0]) / poBand->nWidth;
+    m_gt[2] = 0.0;  // No rotation in MiraMon rasters
+    m_gt[3] = poBand->GetBoundingBoxMaxY();
+    m_gt[4] = 0.0;
+    m_gt[5] = (poBand->GetBoundingBoxMinY() - m_gt[3]) / poBand->nHeight;
 
     return 0;
 }
 
-CPLErr MMRDataset::GetGeoTransform(double *padfTransform)
-
+CPLErr MMRDataset::GetGeoTransform(GDALGeoTransform &gt) const
 {
-    if (adfGeoTransform[0] != 0.0 || adfGeoTransform[1] != 1.0 ||
-        adfGeoTransform[2] != 0.0 || adfGeoTransform[3] != 0.0 ||
-        adfGeoTransform[4] != 0.0 || adfGeoTransform[5] != 1.0)
+    if (m_gt[0] != 0.0 || m_gt[1] != 1.0 || m_gt[2] != 0.0 || m_gt[3] != 0.0 ||
+        m_gt[4] != 0.0 || m_gt[5] != 1.0)
     {
-        memcpy(padfTransform, adfGeoTransform, sizeof(double) * 6);
+        gt = m_gt;
         return CE_None;
     }
 
     //return GDALPamDataset::GetGeoTransform(padfTransform);
-    return GDALDataset::GetGeoTransform(padfTransform);
+    return GDALDataset::GetGeoTransform(gt);
 }
-
-/************************************************************************/
-/*                          SetGeoTransform()                           */
-/************************************************************************/
-#ifdef TODO
-CPLErr MMRDataset::SetGeoTransform(double *padfTransform)
-
-{
-    memcpy(adfGeoTransform, padfTransform, sizeof(double) * 6);
-    bGeoDirty = true;
-
-    return CE_None;
-}
-#endif  //TODO
 
 /************************************************************************/
 /*                            GetGCPCount()                             */

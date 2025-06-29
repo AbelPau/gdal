@@ -40,7 +40,8 @@ class MMRDataset final : public GDALPamDataset
 
     bool bMetadataDirty = false;
 
-    double adfGeoTransform[6];
+    GDALGeoTransform m_gt{};
+    //double adfGeoTransform[6];
     OGRSpatialReference m_oSRS{};
 
     bool bIgnoreUTM = false;
@@ -80,7 +81,7 @@ class MMRDataset final : public GDALPamDataset
     const OGRSpatialReference *GetSpatialRef() const override;
     //CPLErr SetSpatialRef(const OGRSpatialReference *poSRS) override;
 
-    virtual CPLErr GetGeoTransform(double *) override;
+    virtual CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
     //virtual CPLErr SetGeoTransform(double *) override;
 
     int GetDataSetBoundingBox();

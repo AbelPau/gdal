@@ -1184,8 +1184,8 @@ CPLErr MMRBand::ConvertPaletteColors()
     nNoDataOriginalIndex = 0;
 
     int nNPossibleValues =
-        static_cast<int>(
-            pow(2, (double)8 * static_cast<int>(eMMBytesPerPixel))) *
+        static_cast<int>(pow(2, static_cast<double>(8) *
+                                    static_cast<int>(eMMBytesPerPixel))) *
         3L;
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
@@ -1270,8 +1270,8 @@ CPLErr MMRBand::ConvertPaletteColors()
                 else
                 {
                     // The value is applied according to the scaling.
-                    nIndexColor = (unsigned short)(dfSlope * nIPaletteColor +
-                                                   dfIntercept);
+                    nIndexColor = static_cast<unsigned short>(
+                        dfSlope * nIPaletteColor + dfIntercept);
                     AssignRGBColor(nIPaletteColor, nIndexColor);
                 }
             }
