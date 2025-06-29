@@ -400,11 +400,13 @@ OGRMiraMonLayer::OGRMiraMonLayer(GDALDataset *poDS, const char *pszFilename,
                 // multiple records
                 if (phMiraMonLayer->pMultRecordIndex)
                 {
-                    padfValues = static_cast<double *>(CPLCalloc(
-                        (size_t)phMiraMonLayer->nMaxN, sizeof(*padfValues)));
+                    padfValues = static_cast<double *>(
+                        CPLCalloc(static_cast<size_t>(phMiraMonLayer->nMaxN),
+                                  sizeof(*padfValues)));
 
-                    pnInt64Values = static_cast<GInt64 *>(CPLCalloc(
-                        (size_t)phMiraMonLayer->nMaxN, sizeof(*pnInt64Values)));
+                    pnInt64Values = static_cast<GInt64 *>(
+                        CPLCalloc(static_cast<size_t>(phMiraMonLayer->nMaxN),
+                                  sizeof(*pnInt64Values)));
                 }
 
                 phMiraMonLayer->iMultiRecord =
@@ -811,7 +813,8 @@ OGRFeature *OGRMiraMonLayer::GetNextRawFeature()
     if (!phMiraMonLayer)
         return nullptr;
 
-    if (m_iNextFID >= (GUInt64)phMiraMonLayer->TopHeader.nElemCount)
+    if (m_iNextFID >=
+        static_cast<GUInt64>(phMiraMonLayer->TopHeader.nElemCount))
         return nullptr;
 
     OGRFeature *poFeature = GetFeature(m_iNextFID);
@@ -847,10 +850,10 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
         if (nFeatureId == GINTBIG_MAX)
             return nullptr;
 
-        nIElem = (MM_INTERNAL_FID)(nFeatureId + 1);
+        nIElem = static_cast<MM_INTERNAL_FID>(nFeatureId + 1);
     }
     else
-        nIElem = (MM_INTERNAL_FID)nFeatureId;
+        nIElem = static_cast<MM_INTERNAL_FID>(nFeatureId);
 
     if (nIElem >= phMiraMonLayer->TopHeader.nElemCount)
         return nullptr;
@@ -1067,8 +1070,8 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
     /* -------------------------------------------------------------------- */
     /*      Process field values if its possible.                           */
     /* -------------------------------------------------------------------- */
-    if (phMiraMonLayer->pMMBDXP &&
-        (MM_EXT_DBF_N_RECORDS)nIElem < phMiraMonLayer->pMMBDXP->nRecords)
+    if (phMiraMonLayer->pMMBDXP && static_cast<MM_EXT_DBF_N_RECORDS>(nIElem) <
+                                       phMiraMonLayer->pMMBDXP->nRecords)
     {
         MM_EXT_DBF_N_FIELDS nIField;
 
@@ -1147,8 +1150,9 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
 
                             CPLStrlcpy(
                                 phMiraMonLayer->szStringToOperate, pszString,
-                                (size_t)phMiraMonLayer->pMMBDXP->pField[nIField]
-                                        .BytesPerField +
+                                static_cast<size_t>(
+                                    phMiraMonLayer->pMMBDXP->pField[nIField]
+                                        .BytesPerField) +
                                     1);
 
                             CPLFree(pszString);
@@ -1208,8 +1212,9 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
 
                             CPLStrlcpy(
                                 phMiraMonLayer->szStringToOperate, pszString,
-                                (size_t)phMiraMonLayer->pMMBDXP->pField[nIField]
-                                        .BytesPerField +
+                                static_cast<size_t>(
+                                    phMiraMonLayer->pMMBDXP->pField[nIField]
+                                        .BytesPerField) +
                                     1);
 
                             CPLFree(pszString);
@@ -1239,13 +1244,13 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                             nIElem,
                             phMiraMonLayer->pMultRecordIndex[nIElem].nMR - 1,
                             nIField);
-                    else if ((MM_EXT_DBF_N_MULTIPLE_RECORDS)
-                                 phMiraMonLayer->iMultiRecord <
+                    else if (static_cast<MM_EXT_DBF_N_MULTIPLE_RECORDS>(
+                                 phMiraMonLayer->iMultiRecord) <
                              phMiraMonLayer->pMultRecordIndex[nIElem].nMR)
                         GoToFieldOfMultipleRecord(
                             nIElem,
-                            (MM_EXT_DBF_N_MULTIPLE_RECORDS)
-                                phMiraMonLayer->iMultiRecord,
+                            static_cast<MM_EXT_DBF_N_MULTIPLE_RECORDS>(
+                                phMiraMonLayer->iMultiRecord),
                             nIField);
                     else
                     {
@@ -1281,8 +1286,9 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                         CPLRecode(phMiraMonLayer->szStringToOperate,
                                   CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
                     CPLStrlcpy(phMiraMonLayer->szStringToOperate, pszString,
-                               (size_t)phMiraMonLayer->pMMBDXP->pField[nIField]
-                                       .BytesPerField +
+                               static_cast<size_t>(
+                                   phMiraMonLayer->pMMBDXP->pField[nIField]
+                                       .BytesPerField) +
                                    1);
                     CPLFree(pszString);
                 }
@@ -1416,14 +1422,14 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                             phMiraMonLayer->pMultRecordIndex[nIElem].nMR - 1,
                             nIField);
                     }
-                    else if ((MM_EXT_DBF_N_MULTIPLE_RECORDS)
-                                 phMiraMonLayer->iMultiRecord <
+                    else if (static_cast<MM_EXT_DBF_N_MULTIPLE_RECORDS>(
+                                 phMiraMonLayer->iMultiRecord) <
                              phMiraMonLayer->pMultRecordIndex[nIElem].nMR)
                     {
                         GoToFieldOfMultipleRecord(
                             nIElem,
-                            (MM_EXT_DBF_N_MULTIPLE_RECORDS)
-                                phMiraMonLayer->iMultiRecord,
+                            static_cast<MM_EXT_DBF_N_MULTIPLE_RECORDS>(
+                                phMiraMonLayer->iMultiRecord),
                             nIField);
                     }
                     else
@@ -1499,13 +1505,13 @@ OGRFeature *OGRMiraMonLayer::GetFeature(GIntBig nFeatureId)
                             nIElem,
                             phMiraMonLayer->pMultRecordIndex[nIElem].nMR - 1,
                             nIField);
-                    else if ((MM_EXT_DBF_N_MULTIPLE_RECORDS)
-                                 phMiraMonLayer->iMultiRecord <
+                    else if (static_cast<MM_EXT_DBF_N_MULTIPLE_RECORDS>(
+                                 phMiraMonLayer->iMultiRecord) <
                              phMiraMonLayer->pMultRecordIndex[nIElem].nMR)
                         GoToFieldOfMultipleRecord(
                             nIElem,
-                            (MM_EXT_DBF_N_MULTIPLE_RECORDS)
-                                phMiraMonLayer->iMultiRecord,
+                            static_cast<MM_EXT_DBF_N_MULTIPLE_RECORDS>(
+                                phMiraMonLayer->iMultiRecord),
                             nIField);
                     else
                     {
@@ -1578,10 +1584,11 @@ GIntBig OGRMiraMonLayer::GetFeatureCount(int bForce)
 
     if (phMiraMonLayer->bIsPolygon)
     {
-        return std::max((GIntBig)0,
-                        (GIntBig)(phMiraMonLayer->TopHeader.nElemCount - 1));
+        return std::max(
+            static_cast<GIntBig>(0),
+            static_cast<GIntBig>(phMiraMonLayer->TopHeader.nElemCount - 1));
     }
-    return (GIntBig)phMiraMonLayer->TopHeader.nElemCount;
+    return static_cast<GIntBig>(phMiraMonLayer->TopHeader.nElemCount);
 }
 
 /****************************************************************************/
@@ -1773,8 +1780,8 @@ OGRErr OGRMiraMonLayer::ICreateFeature(OGRFeature *poFeature)
     {
         eErr = MMProcessGeometry(nullptr, poFeature, TRUE);
         if (phMiraMonLayer->bIsDBF && phMiraMonLayer->TopHeader.nElemCount > 0)
-            poFeature->SetFID((GIntBig)phMiraMonLayer->TopHeader.nElemCount -
-                              1);
+            poFeature->SetFID(
+                static_cast<GIntBig>(phMiraMonLayer->TopHeader.nElemCount) - 1);
         return eErr;
     }
 
@@ -1802,11 +1809,11 @@ OGRErr OGRMiraMonLayer::ICreateFeature(OGRFeature *poFeature)
     {
         if (phMiraMonLayer->bIsPolygon &&
             phMiraMonLayer->TopHeader.nElemCount > 1)
-            poFeature->SetFID((GIntBig)phMiraMonLayer->TopHeader.nElemCount -
-                              2);
+            poFeature->SetFID(
+                static_cast<GIntBig>(phMiraMonLayer->TopHeader.nElemCount) - 2);
         else if (phMiraMonLayer->TopHeader.nElemCount > 0)
-            poFeature->SetFID((GIntBig)phMiraMonLayer->TopHeader.nElemCount -
-                              1);
+            poFeature->SetFID(
+                static_cast<GIntBig>(phMiraMonLayer->TopHeader.nElemCount) - 1);
     }
     return eErr;
 }
@@ -1838,9 +1845,10 @@ OGRErr OGRMiraMonLayer::MMDumpVertices(OGRGeometryH hGeom,
 
     if (bUseVFG)
     {
-        if (MMResizeVFGPointer(&hMMFeature.flag_VFG, &hMMFeature.nMaxVFG,
-                               (MM_INTERNAL_FID)hMMFeature.nNRings + 1,
-                               MM_MEAN_NUMBER_OF_RINGS, 0))
+        if (MMResizeVFGPointer(
+                &hMMFeature.flag_VFG, &hMMFeature.nMaxVFG,
+                static_cast<MM_INTERNAL_FID>(hMMFeature.nNRings) + 1,
+                MM_MEAN_NUMBER_OF_RINGS, 0))
             return OGRERR_FAILURE;
 
         hMMFeature.flag_VFG[hMMFeature.nIRing] = MM_END_ARC_IN_RING;
