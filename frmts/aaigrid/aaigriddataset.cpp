@@ -156,7 +156,7 @@ CPLErr AAIGRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 
         char szToken[500] = {'\0'};
         int iTokenChar = 0;
-        while (chNext != '\0' && !isspace((unsigned char)chNext))
+        while (chNext != '\0' && !isspace(static_cast<unsigned char>(chNext)))
         {
             if (iTokenChar == sizeof(szToken) - 2)
             {
@@ -260,12 +260,6 @@ AAIGDataset::AAIGDataset()
       eDataType(GDT_Int32), bNoDataSet(false), dfNoDataValue(-9999.0)
 {
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-    adfGeoTransform[0] = 0.0;
-    adfGeoTransform[1] = 1.0;
-    adfGeoTransform[2] = 0.0;
-    adfGeoTransform[3] = 0.0;
-    adfGeoTransform[4] = 0.0;
-    adfGeoTransform[5] = 1.0;
     memset(achReadBuf, 0, sizeof(achReadBuf));
 }
 
@@ -357,15 +351,24 @@ int AAIGDataset::Identify(GDALOpenInfo *poOpenInfo)
 {
     // Does this look like an AI grid file?
     if (poOpenInfo->nHeaderBytes < 40 ||
-        !(STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "ncols") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "nrows") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "xllcorner") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "yllcorner") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "xllcenter") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "yllcenter") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "dx") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "dy") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "cellsize")))
+        !(STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "ncols") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "nrows") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "xllcorner") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "yllcorner") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "xllcenter") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "yllcenter") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "dx") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "dy") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "cellsize")))
         return FALSE;
 
     return TRUE;
@@ -380,12 +383,18 @@ int GRASSASCIIDataset::Identify(GDALOpenInfo *poOpenInfo)
 {
     // Does this look like a GRASS ASCII grid file?
     if (poOpenInfo->nHeaderBytes < 40 ||
-        !(STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "north:") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "south:") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "east:") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "west:") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "rows:") ||
-          STARTS_WITH_CI((const char *)poOpenInfo->pabyHeader, "cols:")))
+        !(STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "north:") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "south:") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "east:") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "west:") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "rows:") ||
+          STARTS_WITH_CI(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                         "cols:")))
         return FALSE;
 
     return TRUE;
@@ -400,22 +409,25 @@ int ISGDataset::Identify(GDALOpenInfo *poOpenInfo)
 {
     // Does this look like a ISG grid file?
     if (poOpenInfo->nHeaderBytes < 40 ||
-        !strstr((const char *)poOpenInfo->pabyHeader, "model name"))
+        !strstr(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                "model name"))
     {
         return FALSE;
     }
     for (int i = 0; i < 2; ++i)
     {
-        if (strstr((const char *)poOpenInfo->pabyHeader, "lat min") !=
-                nullptr &&
-            strstr((const char *)poOpenInfo->pabyHeader, "lat max") !=
-                nullptr &&
-            strstr((const char *)poOpenInfo->pabyHeader, "lon min") !=
-                nullptr &&
-            strstr((const char *)poOpenInfo->pabyHeader, "lon max") !=
-                nullptr &&
-            strstr((const char *)poOpenInfo->pabyHeader, "nrows") != nullptr &&
-            strstr((const char *)poOpenInfo->pabyHeader, "ncols") != nullptr)
+        if (strstr(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                   "lat min") != nullptr &&
+            strstr(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                   "lat max") != nullptr &&
+            strstr(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                   "lon min") != nullptr &&
+            strstr(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                   "lon max") != nullptr &&
+            strstr(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                   "nrows") != nullptr &&
+            strstr(reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+                   "ncols") != nullptr)
         {
             return TRUE;
         }
@@ -518,13 +530,12 @@ int AAIGDataset::ParseHeader(const char *pszHeader, const char *pszDataType)
         (j = CSLFindString(papszTokens, "yllcorner")) >= 0 && i + 1 < nTokens &&
         j + 1 < nTokens)
     {
-        adfGeoTransform[0] = CPLAtofM(papszTokens[i + 1]);
+        m_gt[0] = CPLAtofM(papszTokens[i + 1]);
 
         // Small hack to compensate from insufficient precision in cellsize
         // parameter in datasets of
         // http://ccafs-climate.org/data/A2a_2020s/hccpr_hadcm3
-        if ((nRasterXSize % 360) == 0 &&
-            fabs(adfGeoTransform[0] - (-180.0)) < 1e-12 &&
+        if ((nRasterXSize % 360) == 0 && fabs(m_gt[0] - (-180.0)) < 1e-12 &&
             dfCellDX == dfCellDY &&
             fabs(dfCellDX - (360.0 / nRasterXSize)) < 1e-9)
         {
@@ -532,12 +543,11 @@ int AAIGDataset::ParseHeader(const char *pszHeader, const char *pszDataType)
             dfCellDX = dfCellDY;
         }
 
-        adfGeoTransform[1] = dfCellDX;
-        adfGeoTransform[2] = 0.0;
-        adfGeoTransform[3] =
-            CPLAtofM(papszTokens[j + 1]) + nRasterYSize * dfCellDY;
-        adfGeoTransform[4] = 0.0;
-        adfGeoTransform[5] = -dfCellDY;
+        m_gt[1] = dfCellDX;
+        m_gt[2] = 0.0;
+        m_gt[3] = CPLAtofM(papszTokens[j + 1]) + nRasterYSize * dfCellDY;
+        m_gt[4] = 0.0;
+        m_gt[5] = -dfCellDY;
     }
     else if ((i = CSLFindString(papszTokens, "xllcenter")) >= 0 &&
              (j = CSLFindString(papszTokens, "yllcenter")) >= 0 &&
@@ -545,22 +555,22 @@ int AAIGDataset::ParseHeader(const char *pszHeader, const char *pszDataType)
     {
         SetMetadataItem(GDALMD_AREA_OR_POINT, GDALMD_AOP_POINT);
 
-        adfGeoTransform[0] = CPLAtofM(papszTokens[i + 1]) - 0.5 * dfCellDX;
-        adfGeoTransform[1] = dfCellDX;
-        adfGeoTransform[2] = 0.0;
-        adfGeoTransform[3] = CPLAtofM(papszTokens[j + 1]) - 0.5 * dfCellDY +
-                             nRasterYSize * dfCellDY;
-        adfGeoTransform[4] = 0.0;
-        adfGeoTransform[5] = -dfCellDY;
+        m_gt[0] = CPLAtofM(papszTokens[i + 1]) - 0.5 * dfCellDX;
+        m_gt[1] = dfCellDX;
+        m_gt[2] = 0.0;
+        m_gt[3] = CPLAtofM(papszTokens[j + 1]) - 0.5 * dfCellDY +
+                  nRasterYSize * dfCellDY;
+        m_gt[4] = 0.0;
+        m_gt[5] = -dfCellDY;
     }
     else
     {
-        adfGeoTransform[0] = 0.0;
-        adfGeoTransform[1] = dfCellDX;
-        adfGeoTransform[2] = 0.0;
-        adfGeoTransform[3] = 0.0;
-        adfGeoTransform[4] = 0.0;
-        adfGeoTransform[5] = -dfCellDY;
+        m_gt[0] = 0.0;
+        m_gt[1] = dfCellDX;
+        m_gt[2] = 0.0;
+        m_gt[3] = 0.0;
+        m_gt[4] = 0.0;
+        m_gt[5] = -dfCellDY;
     }
 
     if ((i = CSLFindString(papszTokens, "NODATA_value")) >= 0 &&
@@ -688,12 +698,12 @@ int GRASSASCIIDataset::ParseHeader(const char *pszHeader,
     const double dfPixelXSize = (dfEast - dfWest) / nRasterXSize;
     const double dfPixelYSize = (dfNorth - dfSouth) / nRasterYSize;
 
-    adfGeoTransform[0] = dfWest;
-    adfGeoTransform[1] = dfPixelXSize;
-    adfGeoTransform[2] = 0.0;
-    adfGeoTransform[3] = dfNorth;
-    adfGeoTransform[4] = 0.0;
-    adfGeoTransform[5] = -dfPixelYSize;
+    m_gt[0] = dfWest;
+    m_gt[1] = dfPixelXSize;
+    m_gt[2] = 0.0;
+    m_gt[3] = dfNorth;
+    m_gt[4] = 0.0;
+    m_gt[5] = -dfPixelYSize;
 
     if ((i = CSLFindString(papszTokens, "null")) >= 0 && i + 1 < nTokens)
     {
@@ -1008,12 +1018,12 @@ int ISGDataset::ParseHeader(const char *pszHeader, const char *)
     }
     nRasterXSize = nCols;
     nRasterYSize = nRows;
-    adfGeoTransform[0] = dfLonMin;
-    adfGeoTransform[1] = dfDeltaLon;
-    adfGeoTransform[2] = 0.0;
-    adfGeoTransform[3] = dfLatMax;
-    adfGeoTransform[4] = 0.0;
-    adfGeoTransform[5] = -dfDeltaLat;
+    m_gt[0] = dfLonMin;
+    m_gt[1] = dfDeltaLon;
+    m_gt[2] = 0.0;
+    m_gt[3] = dfLatMax;
+    m_gt[4] = 0.0;
+    m_gt[5] = -dfDeltaLat;
     if (!osNodata.empty())
     {
         bNoDataSet = true;
@@ -1073,7 +1083,9 @@ GDALDataset *AAIGDataset::CommonOpen(GDALOpenInfo *poOpenInfo,
     }
 
     // Parse the header.
-    if (!poDS->ParseHeader((const char *)poOpenInfo->pabyHeader, pszDataType))
+    if (!poDS->ParseHeader(
+            reinterpret_cast<const char *>(poOpenInfo->pabyHeader),
+            pszDataType))
     {
         delete poDS;
         return nullptr;
@@ -1252,12 +1264,12 @@ GDALDataset *AAIGDataset::CommonOpen(GDALOpenInfo *poOpenInfo,
             if (oSRS.IsGeographic() &&
                 EQUAL(OSR_GDS(poDS->papszPrj, "Units", ""), "DS"))
             {
-                poDS->adfGeoTransform[0] /= 3600.0;
-                poDS->adfGeoTransform[1] /= 3600.0;
-                poDS->adfGeoTransform[2] /= 3600.0;
-                poDS->adfGeoTransform[3] /= 3600.0;
-                poDS->adfGeoTransform[4] /= 3600.0;
-                poDS->adfGeoTransform[5] /= 3600.0;
+                poDS->m_gt[0] /= 3600.0;
+                poDS->m_gt[1] /= 3600.0;
+                poDS->m_gt[2] /= 3600.0;
+                poDS->m_gt[3] /= 3600.0;
+                poDS->m_gt[4] /= 3600.0;
+                poDS->m_gt[5] /= 3600.0;
             }
 
             poDS->m_oSRS = std::move(oSRS);
@@ -1282,10 +1294,10 @@ GDALDataset *AAIGDataset::CommonOpen(GDALOpenInfo *poOpenInfo,
 /*                          GetGeoTransform()                           */
 /************************************************************************/
 
-CPLErr AAIGDataset::GetGeoTransform(double *padfTransform)
+CPLErr AAIGDataset::GetGeoTransform(GDALGeoTransform &gt) const
 
 {
-    memcpy(padfTransform, adfGeoTransform, sizeof(double) * 6);
+    gt = m_gt;
     return CE_None;
 }
 
@@ -1335,19 +1347,16 @@ GDALDataset *AAIGDataset::CreateCopy(const char *pszFilename,
     }
 
     // Write ASCII Grid file header.
-    double adfGeoTransform[6] = {};
+    GDALGeoTransform gt;
     char szHeader[2000] = {};
     const char *pszForceCellsize =
         CSLFetchNameValue(papszOptions, "FORCE_CELLSIZE");
 
-    poSrcDS->GetGeoTransform(adfGeoTransform);
+    poSrcDS->GetGeoTransform(gt);
 
-    const double dfYLLCorner =
-        adfGeoTransform[5] < 0
-            ? adfGeoTransform[3] + nYSize * adfGeoTransform[5]
-            : adfGeoTransform[3];
-    if (std::abs(adfGeoTransform[1] + adfGeoTransform[5]) < 0.0000001 ||
-        std::abs(adfGeoTransform[1] - adfGeoTransform[5]) < 0.0000001 ||
+    const double dfYLLCorner = gt[5] < 0 ? gt[3] + nYSize * gt[5] : gt[3];
+    if (std::abs(gt[1] + gt[5]) < 0.0000001 ||
+        std::abs(gt[1] - gt[5]) < 0.0000001 ||
         (pszForceCellsize && CPLTestBool(pszForceCellsize)))
     {
         CPLsnprintf(szHeader, sizeof(szHeader),
@@ -1356,8 +1365,7 @@ GDALDataset *AAIGDataset::CreateCopy(const char *pszFilename,
                     "xllcorner    %.12f\n"
                     "yllcorner    %.12f\n"
                     "cellsize     %.12f\n",
-                    nXSize, nYSize, adfGeoTransform[0], dfYLLCorner,
-                    adfGeoTransform[1]);
+                    nXSize, nYSize, gt[0], dfYLLCorner, gt[1]);
     }
     else
     {
@@ -1376,8 +1384,7 @@ GDALDataset *AAIGDataset::CreateCopy(const char *pszFilename,
                     "yllcorner    %.12f\n"
                     "dx           %.12f\n"
                     "dy           %.12f\n",
-                    nXSize, nYSize, adfGeoTransform[0], dfYLLCorner,
-                    adfGeoTransform[1], fabs(adfGeoTransform[5]));
+                    nXSize, nYSize, gt[0], dfYLLCorner, gt[1], fabs(gt[5]));
     }
 
     // Builds the format string used for printing float values.
@@ -1461,8 +1468,7 @@ GDALDataset *AAIGDataset::CreateCopy(const char *pszFilename,
     for (int iLine = 0; eErr == CE_None && iLine < nYSize; iLine++)
     {
         CPLString osBuf;
-        const int iSrcLine =
-            adfGeoTransform[5] < 0 ? iLine : nYSize - 1 - iLine;
+        const int iSrcLine = gt[5] < 0 ? iLine : nYSize - 1 - iLine;
         eErr = poBand->RasterIO(GF_Read, 0, iSrcLine, nXSize, 1,
                                 bReadAsInt ? static_cast<void *>(panScanline)
                                            : static_cast<void *>(padfScanline),

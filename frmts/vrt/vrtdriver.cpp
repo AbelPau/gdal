@@ -176,12 +176,24 @@ static GDALDataset *VRTCreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
 {
     CPLAssert(nullptr != poSrcDS);
 
+    VRTDataset *poSrcVRTDS = nullptr;
+
+    void *pHandle = poSrcDS->GetInternalHandle("VRT_DATASET");
+    if (pHandle && poSrcDS->GetInternalHandle(nullptr) == nullptr)
+    {
+        poSrcVRTDS = static_cast<VRTDataset *>(pHandle);
+    }
+    else
+    {
+        poSrcVRTDS = dynamic_cast<VRTDataset *>(poSrcDS);
+    }
+
     /* -------------------------------------------------------------------- */
     /*      If the source dataset is a virtual dataset then just write      */
     /*      it to disk as a special case to avoid extra layers of           */
     /*      indirection.                                                    */
     /* -------------------------------------------------------------------- */
-    if (auto poSrcVRTDS = dynamic_cast<VRTDataset *>(poSrcDS))
+    if (poSrcVRTDS)
     {
 
         /* --------------------------------------------------------------------
@@ -271,11 +283,10 @@ static GDALDataset *VRTCreateCopy(const char *pszFilename, GDALDataset *poSrcDS,
     /* -------------------------------------------------------------------- */
     /*      Do we have a geotransform?                                      */
     /* -------------------------------------------------------------------- */
-    double adfGeoTransform[6] = {0.0};
-
-    if (poSrcDS->GetGeoTransform(adfGeoTransform) == CE_None)
+    GDALGeoTransform gt;
+    if (poSrcDS->GetGeoTransform(gt) == CE_None)
     {
-        poVRTDS->SetGeoTransform(adfGeoTransform);
+        poVRTDS->SetGeoTransform(gt);
     }
 
     /* -------------------------------------------------------------------- */

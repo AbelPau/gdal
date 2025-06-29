@@ -710,7 +710,8 @@ def test_ogr_parquet_write_edge_cases():
     domain = ogr.CreateCodedFieldDomain(
         "name", "desc", ogr.OFTInteger, ogr.OFSTNone, {1: "one", "2": None}
     )
-    assert ds.AddFieldDomain(domain) == False
+    with pytest.raises(Exception, match="Layer must be created"):
+        ds.AddFieldDomain(domain)
     assert ds.GetFieldDomainNames() is None
     assert ds.GetFieldDomain("foo") is None
     ds = None
@@ -812,6 +813,33 @@ def test_ogr_parquet_write_compression(compression):
     ds = None
 
     gdal.Unlink(outfilename)
+
+
+###############################################################################
+# Test compression level support
+
+
+def test_ogr_parquet_compression_level(tmp_vsimem):
+
+    lco = gdal.GetDriverByName("Parquet").GetMetadataItem("DS_LAYER_CREATIONOPTIONLIST")
+    if "ZSTD" not in lco:
+        pytest.skip("ZSTD codec missing")
+
+    gdal.VectorTranslate(
+        tmp_vsimem / "out1.parquet",
+        "data/poly.shp",
+        layerCreationOptions=["COMPRESSION=ZSTD", "COMPRESSION_LEVEL=1"],
+    )
+    gdal.VectorTranslate(
+        tmp_vsimem / "out22.parquet",
+        "data/poly.shp",
+        layerCreationOptions=["COMPRESSION=ZSTD", "COMPRESSION_LEVEL=22"],
+    )
+
+    assert (
+        gdal.VSIStatL(tmp_vsimem / "out22.parquet").size
+        < gdal.VSIStatL(tmp_vsimem / "out1.parquet").size
+    )
 
 
 ###############################################################################

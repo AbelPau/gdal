@@ -225,7 +225,7 @@ std::vector<gdal::GCP> GDALRasterEditAlgorithm::ParseGCPs() const
 /*                GDALRasterEditAlgorithm::RunStep()                    */
 /************************************************************************/
 
-bool GDALRasterEditAlgorithm::RunStep(GDALRasterPipelineStepRunContext &ctxt)
+bool GDALRasterEditAlgorithm::RunStep(GDALPipelineStepRunContext &ctxt)
 {
     GDALDataset *poDS = m_dataset.GetDatasetRef();
     if (poDS)
@@ -293,14 +293,14 @@ bool GDALRasterEditAlgorithm::RunStep(GDALRasterPipelineStepRunContext &ctxt)
                             "or width is null");
                 return false;
             }
-            double adfGT[6];
-            adfGT[0] = m_bbox[0];
-            adfGT[1] = (m_bbox[2] - m_bbox[0]) / poDS->GetRasterXSize();
-            adfGT[2] = 0;
-            adfGT[3] = m_bbox[3];
-            adfGT[4] = 0;
-            adfGT[5] = -(m_bbox[3] - m_bbox[1]) / poDS->GetRasterYSize();
-            if (poDS->SetGeoTransform(adfGT) != CE_None)
+            GDALGeoTransform gt;
+            gt[0] = m_bbox[0];
+            gt[1] = (m_bbox[2] - m_bbox[0]) / poDS->GetRasterXSize();
+            gt[2] = 0;
+            gt[3] = m_bbox[3];
+            gt[4] = 0;
+            gt[5] = -(m_bbox[3] - m_bbox[1]) / poDS->GetRasterYSize();
+            if (poDS->SetGeoTransform(gt) != CE_None)
             {
                 ReportError(CE_Failure, CPLE_AppDefined,
                             "Setting extent failed");

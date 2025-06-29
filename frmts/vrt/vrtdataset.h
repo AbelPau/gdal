@@ -193,9 +193,14 @@ class CPL_DLL VRTSource
         return false;
     }
 
-    virtual const CPLString &GetName() const
+    const std::string &GetName() const
     {
         return m_osName;
+    }
+
+    void SetName(const std::string &s)
+    {
+        m_osName = s;
     }
 
     /** Returns a string with the VRTSource class type.
@@ -209,7 +214,7 @@ class CPL_DLL VRTSource
     }
 
   protected:
-    CPLString m_osName{};
+    std::string m_osName{};
 };
 
 typedef VRTSource *(*VRTSourceParser)(const CPLXMLNode *, const char *,
@@ -314,7 +319,7 @@ class CPL_DLL VRTDataset CPL_NON_FINAL : public GDALDataset
     std::unique_ptr<OGRSpatialReference, OGRSpatialReferenceReleaser> m_poSRS{};
 
     int m_bGeoTransformSet = false;
-    double m_adfGeoTransform[6];
+    GDALGeoTransform m_gt{};
 
     virtual int CloseDependentDatasets() override;
 
@@ -345,8 +350,8 @@ class CPL_DLL VRTDataset CPL_NON_FINAL : public GDALDataset
 
     CPLErr SetSpatialRef(const OGRSpatialReference *poSRS) override;
 
-    virtual CPLErr GetGeoTransform(double *) override;
-    virtual CPLErr SetGeoTransform(double *) override;
+    virtual CPLErr GetGeoTransform(GDALGeoTransform &) const override;
+    virtual CPLErr SetGeoTransform(const GDALGeoTransform &) override;
 
     virtual CPLErr SetMetadata(char **papszMetadata,
                                const char *pszDomain = "") override;
@@ -1181,10 +1186,9 @@ class CPL_DLL VRTDerivedRasterBand CPL_NON_FINAL : public VRTSourcedRasterBand
 {
     VRTDerivedRasterBandPrivateData *m_poPrivate;
     bool InitializePython();
-    CPLErr
-    GetPixelFunctionArguments(const CPLString &,
-                              const std::vector<int> &anMapBufferIdxToSourceIdx,
-                              std::vector<std::pair<CPLString, CPLString>> &);
+    CPLErr GetPixelFunctionArguments(
+        const CPLString &, const std::vector<int> &anMapBufferIdxToSourceIdx,
+        int nXOff, int nYOff, std::vector<std::pair<CPLString, CPLString>> &);
 
     CPL_DISALLOW_COPY_ASSIGN(VRTDerivedRasterBand)
 
@@ -1198,7 +1202,8 @@ class CPL_DLL VRTDerivedRasterBand CPL_NON_FINAL : public VRTSourcedRasterBand
 
     VRTDerivedRasterBand(GDALDataset *poDS, int nBand);
     VRTDerivedRasterBand(GDALDataset *poDS, int nBand, GDALDataType eType,
-                         int nXSize, int nYSize);
+                         int nXSize, int nYSize, int nBlockXSizeIn = 0,
+                         int nBlockYSizeIn = 0);
     virtual ~VRTDerivedRasterBand();
 
     virtual CPLErr IRasterIO(GDALRWFlag, int, int, int, int, void *, int, int,

@@ -68,7 +68,7 @@ class AAIGDataset CPL_NON_FINAL : public GDALPamDataset
     VSILFILE *fp;
 
     char **papszPrj;
-    CPLString osPrjFilename;
+    CPLString osPrjFilename{};
     OGRSpatialReference m_oSRS{};
 
     unsigned char achReadBuf[256];
@@ -79,9 +79,11 @@ class AAIGDataset CPL_NON_FINAL : public GDALPamDataset
     GUIntBig Tell() const;
     int Seek(GUIntBig nOffset);
 
+    CPL_DISALLOW_COPY_ASSIGN(AAIGDataset)
+
   protected:
     GDALDataType eDataType;
-    double adfGeoTransform[6];
+    GDALGeoTransform m_gt{};
     bool bNoDataSet;
     double dfNoDataValue;
     CPLString osUnits{};
@@ -107,7 +109,7 @@ class AAIGDataset CPL_NON_FINAL : public GDALPamDataset
                                    GDALProgressFunc pfnProgress,
                                    void *pProgressData);
 
-    CPLErr GetGeoTransform(double *) override;
+    CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
     const OGRSpatialReference *GetSpatialRef() const override;
 };
 
@@ -164,6 +166,8 @@ class AAIGRasterBand final : public GDALPamRasterBand
     friend class AAIGDataset;
 
     GUIntBig *panLineOffset;
+
+    CPL_DISALLOW_COPY_ASSIGN(AAIGRasterBand)
 
   public:
     AAIGRasterBand(AAIGDataset *, int);
