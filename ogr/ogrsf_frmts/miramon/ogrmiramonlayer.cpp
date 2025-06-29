@@ -798,7 +798,7 @@ void OGRMiraMonLayer::GoToFieldOfMultipleRecord(MM_INTERNAL_FID iFID,
 
     VSIFSeekL(phMiraMonLayer->pMMBDXP->pfDataBase,
               phMiraMonLayer->pMultRecordIndex[iFID].offset +
-                  (MM_FILE_OFFSET)nIRecord *
+                  static_cast<MM_FILE_OFFSET>(nIRecord) *
                       phMiraMonLayer->pMMBDXP->BytesPerRecord +
                   phMiraMonLayer->pMMBDXP->pField[nIField].AccumulatedBytes,
               SEEK_SET);
@@ -1839,8 +1839,8 @@ OGRErr OGRMiraMonLayer::MMDumpVertices(OGRGeometryH hGeom,
     }
     if (MMResize_MM_N_VERTICES_TYPE_Pointer(
             &hMMFeature.pNCoordRing, &hMMFeature.nMaxpNCoordRing,
-            (MM_N_VERTICES_TYPE)hMMFeature.nNRings + 1, MM_MEAN_NUMBER_OF_RINGS,
-            0))
+            static_cast<MM_N_VERTICES_TYPE>(hMMFeature.nNRings) + 1,
+            MM_MEAN_NUMBER_OF_RINGS, 0))
         return OGRERR_FAILURE;
 
     if (bUseVFG)
@@ -1876,8 +1876,8 @@ OGRErr OGRMiraMonLayer::MMDumpVertices(OGRGeometryH hGeom,
         return OGRERR_FAILURE;
 
     hMMFeature.bAllZHaveSameValue = TRUE;
-    for (int iPoint = 0;
-         (MM_N_VERTICES_TYPE)iPoint < hMMFeature.pNCoordRing[hMMFeature.nIRing];
+    for (int iPoint = 0; static_cast<MM_N_VERTICES_TYPE>(iPoint) <
+                         hMMFeature.pNCoordRing[hMMFeature.nIRing];
          iPoint++)
     {
         hMMFeature.pCoord[hMMFeature.nICoord].dfX = OGR_G_GetX(hGeom, iPoint);
@@ -2055,7 +2055,8 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
                m_poFeatureDefn->GetFieldCount() *
                    sizeof(*phMiraMonLayer->pLayerDB->pFields));
         for (MM_EXT_DBF_N_FIELDS iField = 0;
-             iField < (MM_EXT_DBF_N_FIELDS)m_poFeatureDefn->GetFieldCount();
+             iField <
+             static_cast<MM_EXT_DBF_N_FIELDS>(m_poFeatureDefn->GetFieldCount());
              iField++)
         {
             switch (m_poFeatureDefn->GetFieldDefn(iField)->GetType())
@@ -2201,9 +2202,9 @@ OGRErr OGRMiraMonLayer::TranslateFieldsToMM()
                 {
                     // One more space for the "."
                     phMiraMonLayer->pLayerDB->pFields[iField].nFieldSize =
-                        (unsigned int)(m_poFeatureDefn->GetFieldDefn(iField)
-                                           ->GetWidth() +
-                                       1);
+                        static_cast<unsigned int>(
+                            m_poFeatureDefn->GetFieldDefn(iField)->GetWidth() +
+                            1);
                 }
             }
 
