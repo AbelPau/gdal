@@ -484,7 +484,7 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
             nFieldIndex = nIField;
             if (nIField + 1 < oAttributteTable.nFields)
                 nCategIndex = nIField + 1;
-            else if (nIField - 1 > 0)
+            else if (nIField > 1)
                 nCategIndex = nIField - 1;
             break;
         }

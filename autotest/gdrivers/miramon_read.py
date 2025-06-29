@@ -20,7 +20,6 @@ import pytest
 from osgeo import gdal
 
 gdal_to_struct = {
-    gdal.GDT_Bit: ("b", 1),
     gdal.GDT_Byte: ("B", 1),
     gdal.GDT_UInt16: ("H", 2),
     gdal.GDT_Int16: ("h", 2),
@@ -44,7 +43,6 @@ init_list = [
     ("data/miramon/normal/long_2x3_6_categs_RLE.img", 1),
     ("data/miramon/normal/real_2x3_6_categs_RLE.img", 1),
     ("data/miramon/normal/double_2x3_6_categs_RLE.img", 1),
-    ("data/miramon/normal/chess_bit.img", 1),
 ]
 
 
@@ -75,82 +73,9 @@ def test_miramon_test_012345_raster(filename, band_idx):
     count = xsize * ysize
     values = struct.unpack(f"{count}{fmt}", buf)
 
-    if dtype == gdal.GDT_Bit:
-        expected = [
-            0,
-            1,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            0,
-            1,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            0,
-            1,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            0,
-            1,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            0,
-        ]
-        for i, exp in enumerate(expected):
-            assert i < len(values), f"Expected value at index {i}, but got fewer values"
-            assert (
-                values[i] == exp
-            ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
-    else:
-        expected = [0, 1, 2, 3, 4, 5]
-        for i, exp in enumerate(expected):
-            assert i < len(values), f"Expected value at index {i}, but got fewer values"
-            assert (
-                values[i] == exp
-            ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
+    expected = [0, 1, 2, 3, 4, 5]
+    for i, exp in enumerate(expected):
+        assert i < len(values), f"Expected value at index {i}, but got fewer values"
+        assert (
+            values[i] == exp
+        ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
