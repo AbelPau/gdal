@@ -14,6 +14,8 @@
 
 import struct
 
+import numpy as np
+
 # import gdaltest
 import pytest
 
@@ -79,3 +81,21 @@ def test_miramon_test_012345_raster(filename, band_idx):
         assert (
             values[i] == exp
         ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
+
+
+def test_miramon_chess_bit_band1_values():
+    ds = gdal.Open("data/miramon/normal/chess_bit.img", gdal.GA_ReadOnly)
+    assert ds is not None, "Could not read raster data"
+
+    band = ds.GetRasterBand(1)
+    assert band is not None, "Could not read band 1 data"
+
+    data = band.ReadAsArray()
+    flat = data.ravel()
+
+    expected = []
+    for row in range(8):
+        for col in range(8):
+            expected.append((row + col) % 2)
+
+    np.testing.assert_array_equal(flat[:64], expected)
