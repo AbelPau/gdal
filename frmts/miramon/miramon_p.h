@@ -99,15 +99,15 @@ class MMRBand
     int nBlocks;
 
     // indexed-RLE format
-    std::vector<vsi_l_offset> aFileOffsets;
+    std::vector<vsi_l_offset> aFileOffsets{};
 
     // Palette info
-    std::array<std::vector<double>, 4> aadfPaletteColors;
+    std::array<std::vector<double>, 4> aadfPaletteColors{};
 
     int nNoDataOriginalIndex;
     bool bPaletteHasNodata;
 
-    std::array<std::vector<double>, 4> aadfPCT;
+    std::array<std::vector<double>, 4> aadfPCT{};
     int nNoDataPaletteIndex;
 
     // Assigned Subdataset for this band.
