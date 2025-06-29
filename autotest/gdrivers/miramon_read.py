@@ -14,9 +14,6 @@
 
 import struct
 
-import numpy as np
-
-# import gdaltest
 import pytest
 
 from osgeo import gdal
@@ -45,6 +42,7 @@ init_list = [
     ("data/miramon/normal/long_2x3_6_categs_RLE.img", 1),
     ("data/miramon/normal/real_2x3_6_categs_RLE.img", 1),
     ("data/miramon/normal/double_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/chess_bit.img", 1),
 ]
 
 
@@ -60,7 +58,11 @@ def test_miramon_test_012345_raster(filename, band_idx):
     band = ds.GetRasterBand(band_idx)
     assert band is not None, f"Error opening band {band_idx}"
     rchecksum = band.Checksum()
-    assert rchecksum == 15, f"Unexpected checksum: {rchecksum}"
+
+    if "chess" in filename:
+        assert rchecksum == 32, f"Unexpected checksum: {rchecksum}"
+    else:
+        assert rchecksum == 15, f"Unexpected checksum: {rchecksum}"
 
     xsize = band.XSize
     ysize = band.YSize
@@ -71,31 +73,23 @@ def test_miramon_test_012345_raster(filename, band_idx):
     buf = band.ReadRaster(0, 0, xsize, ysize, buf_type=dtype)
     assert buf is not None, "Could not read raster data"
 
-    # Desempaqueta els valors (ordre per files, com fa GDAL)
-    count = xsize * ysize
-    values = struct.unpack(f"{count}{fmt}", buf)
+    # unpack and assert values
+    if "chess" in filename:
+        count = xsize * ysize
+        values = struct.unpack(f"{count}{fmt}", buf)
 
-    expected = [0, 1, 2, 3, 4, 5]
-    for i, exp in enumerate(expected):
-        assert i < len(values), f"Expected value at index {i}, but got fewer values"
-        assert (
-            values[i] == exp
-        ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
+        expected = [0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0]
+        for i, exp in enumerate(expected):
+            assert (
+                values[i] == exp
+            ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
+    else:
+        count = xsize * ysize
+        values = struct.unpack(f"{count}{fmt}", buf)
 
-
-def test_miramon_chess_bit_band1_values():
-    ds = gdal.Open("data/miramon/normal/chess_bit.img", gdal.GA_ReadOnly)
-    assert ds is not None, "Could not read raster data"
-
-    band = ds.GetRasterBand(1)
-    assert band is not None, "Could not read band 1 data"
-
-    data = band.ReadAsArray()
-    flat = data.ravel()
-
-    expected = []
-    for row in range(8):
-        for col in range(8):
-            expected.append((row + col) % 2)
-
-    np.testing.assert_array_equal(flat[:64], expected)
+        expected = [0, 1, 2, 3, 4, 5]
+        for i, exp in enumerate(expected):
+            assert i < len(values), f"Expected value at index {i}, but got fewer values"
+            assert (
+                values[i] == exp
+            ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
