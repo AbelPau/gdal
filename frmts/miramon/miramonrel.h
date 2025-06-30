@@ -16,8 +16,6 @@
 
 #include "cpl_string.h"
 
-typedef struct mmrinfo *MMRHandle;
-
 /************************************************************************/
 /*                               MMRRel                                */
 /************************************************************************/
@@ -65,10 +63,44 @@ enum class MMBytesPerPixel
     TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE = 8
 };
 
+class MMRRel;
+class MMRBand;
+
+/************************************************************************/
+/*                         class MMRInfo                                */
+/*                                                                      */
+/*      A class that holds all information of a subdataset              */
+/*      dataset within miramonopen.cpp                                  */
+/************************************************************************/
+class MMRInfo
+{
+  public:
+    MMRInfo() = default;
+
+    MMRInfo(const MMRInfo &) =
+        delete;  // I don't want to construct a MMRInfo from another MMRInfo (effc++)
+    MMRInfo &operator=(const MMRInfo &) =
+        delete;  // I don't want to assing a MMRInfo to another MMRInfo (effc++)
+
+    CPLString osRELFileName;
+    MMRRel *fRel = nullptr;  // Access stuff to REL file
+
+    int nXSize = 0;
+    int nYSize = 0;
+
+    // List of rawBandNames in a subdataset
+    std::vector<CPLString> papoSDSBands;
+
+    int nBands = 0;
+    MMRBand **papoBand = nullptr;
+};
+
+using MMRHandle = MMRInfo *;
+
 class MMRRel
 {
   public:
-    MMRHandle GetInfoFromREL(const char *pszFileName);
+    CPLErr GetInfoFromREL(const char *pszFileName, MMRInfo *hMMR);
     static CPLString GetAssociatedMetadataFileName(const char *pszFileName);
     static int IdentifySubdataSetFile(const CPLString pszFileName);
     static int IdentifyFile(CPLString pszFileName);
@@ -87,7 +119,7 @@ class MMRRel
                                               const char *pszKey);
     const char *GetRELNameChar();
     void SetRELNameChar(CPLString osRelFileNameIn);
-    static CPLErr ParseBandInfo(struct mmrinfo *psInfo);
+    static CPLErr ParseBandInfo(MMRHandle hMMR);
     static CPLString
     RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
 

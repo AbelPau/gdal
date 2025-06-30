@@ -39,29 +39,6 @@ constexpr auto pszExtRaster = ".img";
 constexpr auto pszExtRasterREL = "I.rel";
 
 /************************************************************************/
-/*                         struct mmrinfo                               */
-/*                                                                      */
-/*      This is just a structure, and used hold info about the whole    */
-/*      dataset within miramonopen.cpp                                  */
-/************************************************************************/
-struct mmrinfo
-{
-    VSILFILE *fp = nullptr;
-
-    CPLString osRELFileName;
-    MMRRel *fRel = nullptr;  // Access stuff to REL file
-
-    int nXSize;
-    int nYSize;
-
-    // List of rawBandNames in a subdataset
-    std::vector<CPLString> papoSDSBands;
-
-    int nBands;
-    MMRBand **papoBand = nullptr;
-};
-
-/************************************************************************/
 /*                               MMRBand                                */
 /************************************************************************/
 
@@ -133,7 +110,7 @@ class MMRBand
     double nResolution;
 
   public:
-    MMRBand(struct mmrinfo *, const char *pszSection);
+    MMRBand(MMRHandle, const char *pszSection);
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
     MMRBand &operator=(const MMRBand &) =
@@ -308,7 +285,7 @@ class MMRBand
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
-    struct mmrinfo *psInfo;
+    MMRHandle hMMR;
 
     int nBlockXSize;
     int nBlockYSize;

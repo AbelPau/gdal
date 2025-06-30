@@ -685,11 +685,16 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     // Creating of the object that allows inspect metadata (REL file)
     MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
 
-    // Getting the info fromthat REL
-    MMRHandle hMMR = fRel->GetInfoFromREL(poOpenInfo->pszFilename);
-    if (!hMMR)
+    // Creating the class MMRInfo.
+    MMRInfo *hMMR = new MMRInfo();
+
+    // Getting the info from that REL
+    if (CE_None != fRel->GetInfoFromREL(poOpenInfo->pszFilename, hMMR))
     {
+        CPLError(CE_Failure, CPLE_AppDefined, "Unable to open %s",
+                 poOpenInfo->pszFilename);
         delete fRel;
+        delete hMMR;
         return nullptr;
     }
 

@@ -30,19 +30,33 @@ gdal_to_struct = {
 
 init_list = [
     ("data/miramon/normal/byte_2x3_6_categs.img", 1),
+    ("data/miramon/normal/byte_2x3_6_categsI.rel", 1),
     ("data/miramon/normal/integer_2x3_6_categs.img", 1),
+    ("data/miramon/normal/integer_2x3_6_categsI.rel", 1),
     ("data/miramon/normal/uinteger_2x3_6_categs.img", 1),
+    ("data/miramon/normal/uinteger_2x3_6_categsI.rel", 1),
     ("data/miramon/normal/long_2x3_6_categs.img", 1),
+    ("data/miramon/normal/long_2x3_6_categsI.rel", 1),
     ("data/miramon/normal/real_2x3_6_categs.img", 1),
+    ("data/miramon/normal/real_2x3_6_categsI.rel", 1),
     ("data/miramon/normal/double_2x3_6_categs.img", 1),
+    ("data/miramon/normal/double_2x3_6_categsI.rel", 1),
     ("data/miramon/normal/byte_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/byte_2x3_6_categs_RLEI.rel", 1),
     ("data/miramon/normal/byte_2x3_6_categs_RLE_no_ind.img", 1),
+    ("data/miramon/normal/byte_2x3_6_categs_RLE_no_indI.rel", 1),
     ("data/miramon/normal/integer_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/integer_2x3_6_categs_RLEI.rel", 1),
     ("data/miramon/normal/uinteger_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/uinteger_2x3_6_categs_RLEI.rel", 1),
     ("data/miramon/normal/long_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/long_2x3_6_categs_RLEI.rel", 1),
     ("data/miramon/normal/real_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/real_2x3_6_categs_RLEI.rel", 1),
     ("data/miramon/normal/double_2x3_6_categs_RLE.img", 1),
+    ("data/miramon/normal/double_2x3_6_categs_RLEI.rel", 1),
     ("data/miramon/normal/chess_bit.img", 1),
+    ("data/miramon/normal/chess_bitI.rel", 1),
 ]
 
 
@@ -53,7 +67,8 @@ init_list = [
 )
 @pytest.mark.require_driver("MiraMonRaster")
 def test_miramon_test_012345_raster(filename, band_idx):
-    ds = gdal.Open(filename)
+    # ds = gdal.Open(filename)
+    ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
     assert ds is not None, "Could not open the file"
     band = ds.GetRasterBand(band_idx)
     assert band is not None, f"Error opening band {band_idx}"

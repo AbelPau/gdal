@@ -114,6 +114,10 @@ class MMRRasterBand final : public GDALPamRasterBand
 
   public:
     MMRRasterBand(MMRDataset *, int);
+    MMRRasterBand(const MMRRasterBand &) =
+        delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
+    MMRRasterBand &operator=(const MMRRasterBand &) =
+        delete;  // I don't want to assing a MMRBand to another MMRBand (effc++)
     virtual ~MMRRasterBand();
 
     virtual CPLErr IReadBlock(int, int, void *) override;
