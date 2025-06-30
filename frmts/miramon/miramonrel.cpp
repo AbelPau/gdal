@@ -754,16 +754,17 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo_t *psInfo)
         osBandSectionValue =
             RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
-        psInfo->papoBand[psInfo->nBands] =
+        psInfo->papoBand[static_cast<size_t>(psInfo->nBands)] =
             new MMRBand(psInfo, osBandSectionValue);
 
-        if (psInfo->papoBand[psInfo->nBands]->nWidth == 0)
+        if (psInfo->papoBand[static_cast<size_t>(psInfo->nBands)]->nWidth == 0)
         {
             CSLDestroy(papszTokens);
             return CE_Failure;
         }
 
-        psInfo->papoBand[psInfo->nBands]->SetRELFileName(pszRELFileName);
+        psInfo->papoBand[static_cast<size_t>(psInfo->nBands)]->SetRELFileName(
+            pszRELFileName);
         psInfo->nBands++;
     }
 

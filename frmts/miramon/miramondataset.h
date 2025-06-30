@@ -1,6 +1,5 @@
 /******************************************************************************
  *
- * Name:     miramondataset.h
  * Project:  MiraMon Raster Driver
  * Purpose:  Main driver for MiraMon Raster format.
  * Author:   Abel Pau
@@ -41,7 +40,6 @@ class MMRDataset final : public GDALPamDataset
     bool bMetadataDirty = false;
 
     GDALGeoTransform m_gt{};
-    //double adfGeoTransform[6];
     OGRSpatialReference m_oSRS{};
 
     bool bIgnoreUTM = false;
@@ -60,29 +58,18 @@ class MMRDataset final : public GDALPamDataset
     virtual ~MMRDataset();
 
     static int Identify(GDALOpenInfo *);
-    //static CPLErr CopyFiles(const char *pszNewName, const char *pszOldName);
     static GDALDataset *Open(GDALOpenInfo *);
     static GDALDataset *Create(const char *pszFileName, int nXSize, int nYSize,
                                int nBands, GDALDataType eType,
                                char **papszParamList);
-    /*static GDALDataset *CreateCopy(const char *pszFileName,
-                                   GDALDataset *poSrcDS, int bStrict,
-                                   char **papszOptions,
-                                   GDALProgressFunc pfnProgress,
-                                   void *pProgressData);*/
-    //static CPLErr Delete(const char *pszFileName);
 
     void AssignBandsToSubdataSets();
     void CreateSubdatasetsFromBands();
     void AssignBands(GDALOpenInfo *poOpenInfo);
 
-    //virtual char **GetFileList() override;
-
     const OGRSpatialReference *GetSpatialRef() const override;
-    //CPLErr SetSpatialRef(const OGRSpatialReference *poSRS) override;
 
     virtual CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
-    //virtual CPLErr SetGeoTransform(double *) override;
 
     int GetDataSetBoundingBox();
     int GetBandBoundingBox(int nIBand);
@@ -116,7 +103,6 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     GDALColorTable *poCT;
 
-    EPTType eMMRDataType;
     MMDataType eMMRDataTypeMiraMon;  // Arreglar nom
     MMBytesPerPixel eMMBytesPerPixel;
 
@@ -144,11 +130,6 @@ class MMRRasterBand final : public GDALPamRasterBand
     virtual CPLErr SetMetadata(char **, const char * = "") override;
     virtual CPLErr SetMetadataItem(const char *, const char *,
                                    const char * = "") override;
-
-    virtual CPLErr GetDefaultHistogram(double *pdfMin, double *pdfMax,
-                                       int *pnBuckets, GUIntBig **ppanHistogram,
-                                       int bForce, GDALProgressFunc,
-                                       void *pProgressData) override;
 
     virtual GDALRasterAttributeTable *GetDefaultRAT() override;
 

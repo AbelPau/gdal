@@ -1,13 +1,11 @@
 /******************************************************************************
  *
- * Project:  Erdas Imagine (.img) Translator
- * Purpose:  Public (C callable) interface for the Erdas Imagine reading
- *           code.  This include files, and its implementing code depends
- *           on CPL, but not GDAL.
- * Author:   Frank Warmerdam, warmerdam@pobox.com
+ * Project:  MiraMonRaster driver
+ * Purpose:  Implements some raster functions.
+ * Author:   Abel Pau
  *
  ******************************************************************************
- * Copyright (c) 1999, Intergraph Corporation
+ * Copyright (c) 2025, Xavier Ponss
  *
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
@@ -15,9 +13,6 @@
 #ifndef MMRRASTERTOOLS_H_INCLUDED
 #define MMRRASTERTOOLS_H_INCLUDED
 
-#include <cstdio>
-
-#include "cpl_conv.h"
 #include "cpl_string.h"
 
 CPLString MMRGetFileNameFromRelName(const char *pszRELFile);

@@ -1,13 +1,12 @@
 /******************************************************************************
  *
- * Project:  Erdas Imagine (.img) Translator
- * Purpose:  Private class declarations for the MiraMonRaster classes used
- *           to read MiraMon (.img) files.  Public (C callable) declarations
- *           are in miramon.h.
- * Author:   Frank Warmerdam, warmerdam@pobox.com
+ * Project:  MiraMonRaster driver
+ * Purpose:  Implements MMRRel class who gets all information from MiraMon
+ *           metadata REL files
+ * Author:   Abel Pau
  *
  ******************************************************************************
- * Copyright (c) 1999, Intergraph Corporation
+ * Copyright (c) 2025, Xavier Pons
  *
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
@@ -15,16 +14,7 @@
 #ifndef MMR_REL_H_INCLUDED
 #define MMR_REL_H_INCLUDED
 
-#include "cpl_port.h"
-
-#include <cstdio>
-#include <memory>
-#include <vector>
-#include <set>
-
-#include "cpl_error.h"
-#include "cpl_vsi.h"
-#include "ogr_spatialref.h"
+#include "cpl_string.h"
 
 typedef struct mmrinfo *MMRHandle;
 typedef struct mmrinfo MMRInfo_t;

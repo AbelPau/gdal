@@ -1,144 +1,28 @@
 /******************************************************************************
  *
- * Project:  Erdas Imagine (.img) Translator
- * Purpose:  Public (C callable) interface for the Erdas Imagine reading
- *           code.  This include files, and its implementing code depends
- *           on CPL, but not GDAL.
- * Author:   Frank Warmerdam, warmerdam@pobox.com
+ * Project:  MiraMonRaster driver
+ * Purpose:  Implements some raster functions.
+ * Author:   Abel Pau
  *
  ******************************************************************************
- * Copyright (c) 1999, Intergraph Corporation
+ * Copyright (c) 2025, Xavier Pons
  *
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-#ifndef MMROPEN_H_INCLUDED
-#define MMROPEN_H_INCLUDED
+#ifndef MMR_MIRAMON_H_INCLUDED
+#define MMR_MIRAMON_H_INCLUDED
 
 #include <cstdio>
 
-#include "cpl_conv.h"
+//#include "cpl_conv.h"
 #include "cpl_string.h"
 
 #include "miramonrel.h"
 
 /* -------------------------------------------------------------------- */
-/*      Structure definitions from eprj.h, with some type               */
-/*      simplifications.                                                */
-/* -------------------------------------------------------------------- */
-typedef struct
-{
-    double x; /* coordinate x-value */
-    double y; /* coordinate y-value */
-} Eprj_Coordinate;
-
-typedef struct
-{
-    double width;  /* pixelsize width */
-    double height; /* pixelsize height */
-} Eprj_Size;
-
-typedef struct
-{
-    char *proName;                    /* projection name */
-    Eprj_Coordinate upperLeftCenter;  /* map coordinates of center of
-                                         upper left pixel */
-    Eprj_Coordinate lowerRightCenter; /* map coordinates of center of
-                                         lower right pixel */
-    Eprj_Size pixelSize;              /* pixel size in map units */
-    char *units;                      /* units of the map */
-} Eprj_MapInfo;
-
-typedef enum
-{
-    EPRJ_INTERNAL, /* Indicates that the projection is built into
-                      the eprj package as function calls */
-    EPRJ_EXTERNAL  /* Indicates that the projection is accessible
-                      as an EXTERNal executable */
-} Eprj_ProType;
-
-typedef enum
-{
-    EPRJ_NAD27 = 1, /* Use the North America Datum 1927 */
-    EPRJ_NAD83 = 2, /* Use the North America Datum 1983 */
-    EPRJ_HARN       /* Use the North America Datum High Accuracy
-                       Reference Network */
-} Eprj_NAD;
-
-typedef enum
-{
-    EPRJ_DATUM_PARAMETRIC, /* The datum info is 7 doubles */
-    EPRJ_DATUM_GRID,       /* The datum info is a name */
-    EPRJ_DATUM_REGRESSION,
-    EPRJ_DATUM_NONE
-} Eprj_DatumType;
-
-typedef struct
-{
-    char *datumname;     /* name of the datum */
-    Eprj_DatumType type; /* The datum type */
-    double params[7];    /* The parameters for type
-                            EPRJ_DATUM_PARAMETRIC */
-    char *gridname;      /* name of the grid file */
-} Eprj_Datum;
-
-typedef struct
-{
-    char *sphereName; /* name of the ellipsoid */
-    double a;         /* semi-major axis of ellipsoid */
-    double b;         /* semi-minor axis of ellipsoid */
-    double eSquared;  /* eccentricity-squared */
-    double radius;    /* radius of the sphere */
-} Eprj_Spheroid;
-
-typedef struct
-{
-    Eprj_ProType proType;      /* projection type */
-    int proNumber;             /* projection number for internal
-                                  projections */
-    char *proExeName;          /* projection executable name for
-                                  EXTERNal projections */
-    char *proName;             /* projection name */
-    int proZone;               /* projection zone (UTM, SP only) */
-    double proParams[15];      /* projection parameters array in the
-                                  GCTP form */
-    Eprj_Spheroid proSpheroid; /* projection spheroid */
-} Eprj_ProParameters;
-
-typedef struct
-{
-    int order;
-    double polycoefmtx[18];
-    double polycoefvector[2];
-} Efga_Polynomial;
-
-/* -------------------------------------------------------------------- */
-/*      data types.                                                     */
-/* -------------------------------------------------------------------- */
-typedef enum
-{
-    EPT_MIN = 0,
-    EPT_u1 = 0,
-    EPT_u2 = 1,
-    EPT_u4 = 2,
-    EPT_u8 = 3,
-    EPT_s8 = 4,
-    EPT_u16 = 5,
-    EPT_s16 = 6,
-    EPT_u32 = 7,
-    EPT_s32 = 8,
-    EPT_f32 = 9,
-    EPT_f64 = 10,
-    EPT_c64 = 11,
-    EPT_c128 = 12,
-    EPT_MAX = EPT_c128
-} EPTType;
-
-/* -------------------------------------------------------------------- */
 /*      Prototypes                                                      */
 /* -------------------------------------------------------------------- */
-
-CPL_C_START
 
 int CPL_DLL MMRClose(MMRHandle); /* 0 = success */
 
@@ -146,108 +30,13 @@ CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
                               CPLString *osBandSection,
                               MMDataType *eMMRDataType,
                               MMBytesPerPixel *eMMBytesPerPixel,
-                              int *pnBlockXSize, int *pnBlockYSize,
-                              int *pnCompressionType);
+                              int *pnBlockXSize, int *pnBlockYSize);
 int CPL_DLL MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfValue);
 CPLErr CPL_DLL MMRGetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock,
                                  int nYBlock, void *pData);
 CPLErr CPL_DLL MMRGetRasterBlockEx(MMRHandle hMMR, int nBand, int nXBlock,
                                    int nYBlock, void *pData, int nDataSize);
 const char *MMRGetBandName(MMRHandle hMMR, int nBand);
-int CPL_DLL MMRGetDataTypeBits(EPTType eDataType);
-const char CPL_DLL *MMRGetDataTypeName(EPTType eDataType);
 CPLErr CPL_DLL MMRGetPCT(MMRHandle, int);
 
-/* -------------------------------------------------------------------- */
-/*      Projection codes.                                               */
-/* -------------------------------------------------------------------- */
-#define EPRJ_LATLONG 0
-#define EPRJ_UTM 1
-#define EPRJ_STATE_PLANE 2
-#define EPRJ_ALBERS_CONIC_EQUAL_AREA 3
-#define EPRJ_LAMBERT_CONFORMAL_CONIC 4
-#define EPRJ_MERCATOR 5
-#define EPRJ_POLAR_STEREOGRAPHIC 6
-#define EPRJ_POLYCONIC 7
-#define EPRJ_EQUIDISTANT_CONIC 8
-#define EPRJ_TRANSVERSE_MERCATOR 9
-#define EPRJ_STEREOGRAPHIC 10
-#define EPRJ_LAMBERT_AZIMUTHAL_EQUAL_AREA 11
-#define EPRJ_AZIMUTHAL_EQUIDISTANT 12
-#define EPRJ_GNOMONIC 13
-#define EPRJ_ORTHOGRAPHIC 14
-#define EPRJ_GENERAL_VERTICAL_NEAR_SIDE_PERSPECTIVE 15
-#define EPRJ_SINUSOIDAL 16
-#define EPRJ_EQUIRECTANGULAR 17
-#define EPRJ_MILLER_CYLINDRICAL 18
-#define EPRJ_VANDERGRINTEN 19
-#define EPRJ_HOTINE_OBLIQUE_MERCATOR 20
-#define EPRJ_SPACE_OBLIQUE_MERCATOR 21
-#define EPRJ_MODIFIED_TRANSVERSE_MERCATOR 22
-#define EPRJ_EOSAT_SOM 23
-#define EPRJ_ROBINSON 24
-#define EPRJ_SOM_A_AND_B 25
-#define EPRJ_ALASKA_CONFORMAL 26
-#define EPRJ_INTERRUPTED_GOODE_HOMOLOSINE 27
-#define EPRJ_MOLLWEIDE 28
-#define EPRJ_INTERRUPTED_MOLLWEIDE 29
-#define EPRJ_HAMMER 30
-#define EPRJ_WAGNER_IV 31
-#define EPRJ_WAGNER_VII 32
-#define EPRJ_OBLATED_EQUAL_AREA 33
-#define EPRJ_PLATE_CARREE 34
-#define EPRJ_EQUIDISTANT_CYLINDRICAL 35
-#define EPRJ_GAUSS_KRUGER 36
-#define EPRJ_ECKERT_VI 37
-#define EPRJ_ECKERT_V 38
-#define EPRJ_ECKERT_IV 39
-#define EPRJ_ECKERT_III 40
-#define EPRJ_ECKERT_II 41
-#define EPRJ_ECKERT_I 42
-#define EPRJ_GALL_STEREOGRAPHIC 43
-#define EPRJ_BEHRMANN 44
-#define EPRJ_WINKEL_I 45
-#define EPRJ_WINKEL_II 46
-#define EPRJ_QUARTIC_AUTHALIC 47
-#define EPRJ_LOXIMUTHAL 48
-#define EPRJ_BONNE 49
-#define EPRJ_STEREOGRAPHIC_EXTENDED 50
-#define EPRJ_CASSINI 51
-#define EPRJ_TWO_POINT_EQUIDISTANT 52
-#define EPRJ_ANCHORED_LSR 53
-#define EPRJ_KROVAK 54
-#define EPRJ_DOUBLE_STEREOGRAPHIC 55
-#define EPRJ_AITOFF 56
-#define EPRJ_CRASTER_PARABOLIC 57
-#define EPRJ_CYLINDRICAL_EQUAL_AREA 58
-#define EPRJ_FLAT_POLAR_QUARTIC 59
-#define EPRJ_TIMES 60
-#define EPRJ_WINKEL_TRIPEL 61
-#define EPRJ_HAMMER_AITOFF 62
-#define EPRJ_VERTICAL_NEAR_SIDE_PERSPECTIVE 63
-#define EPRJ_HOTINE_OBLIQUE_MERCATOR_AZIMUTH_CENTER 64
-#define EPRJ_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_CENTER 65
-#define EPRJ_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_NATURAL_ORIGIN 66
-#define EPRJ_LAMBERT_CONFORMAL_CONIC_1SP 67
-#define EPRJ_PSEUDO_MERCATOR 68
-#define EPRJ_MERCATOR_VARIANT_A 69
-#define EPRJ_HOTINE_OBLIQUE_MERCATOR_VARIANT_A 70
-#define EPRJ_TRANSVERSE_MERCATOR_SOUTH_ORIENTATED 71
-
-#define EPRJ_EXTERNAL_RSO "eprj_rso"
-#define EPRJ_EXTERNAL_NZMG "nzmg"
-#define EPRJ_EXTERNAL_INTEGERIZED_SINUSOIDAL "isin"
-
-CPL_C_END
-
-/*
-#ifdef __cplusplus
-extern "C++"
-{
-#include <string>
-    std::string MMRGetIGEFilename(MMRHandle);
-}
-#endif
-*/
-
-#endif /* ndef MMROPEN_H_INCLUDED */
+#endif /* ndef MMR_MIRAMON_H_INCLUDED */

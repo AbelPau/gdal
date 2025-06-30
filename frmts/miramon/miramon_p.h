@@ -1,13 +1,11 @@
 /******************************************************************************
  *
- * Project:  Erdas Imagine (.img) Translator
- * Purpose:  Private class declarations for the MiraMonRaster classes used
- *           to read MiraMon (.img) files.  Public (C callable) declarations
- *           are in miramon.h.
- * Author:   Frank Warmerdam, warmerdam@pobox.com
+ * Project:  MiraMonRaster driver
+ * Purpose:  Implements some raster functions.
+ * Author:   Abel Pau
  *
  ******************************************************************************
- * Copyright (c) 1999, Intergraph Corporation
+ * Copyright (c) 2025, Xavier Pons
  *
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
@@ -15,18 +13,8 @@
 #ifndef MMR_P_H_INCLUDED
 #define MMR_P_H_INCLUDED
 
-#include "cpl_port.h"
-#include "miramon.h"
-
-#include <cstdio>
-#include <memory>
 #include <vector>
 #include <array>
-#include <set>
-
-#include "cpl_error.h"
-#include "cpl_vsi.h"
-#include "ogr_spatialref.h"
 
 #ifdef CPL_LSB
 #define MMRStandard(n, p)                                                      \
@@ -46,21 +34,9 @@ void MMRStandard(int, void *);
 #endif
 
 class MMRBand;
-class MMRDictionary;
-class MMRSpillFile;
-class MMRType;
 
 constexpr auto pszExtRaster = ".img";
 constexpr auto pszExtRasterREL = "I.rel";
-
-/************************************************************************/
-/*      Flag indicating read/write, or read-only access to data.        */
-/************************************************************************/
-enum class MMRAccess
-{
-    /*! Read only (no update) access */ MMR_ReadOnly = 0,
-    /*! Read/write access. */ MMR_Update = 1
-};
 
 /************************************************************************/
 /*                              MMRInfo_t                               */
@@ -84,8 +60,6 @@ struct mmrinfo
     int nBands;
     MMRBand **papoBand = nullptr;
 };
-
-const char *const *GetMMRAuxMetaDataList();
 
 /************************************************************************/
 /*                               MMRBand                                */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Contains generic raster functions 
+ * Purpose:  Implements MMRBand class.
  * Author:   Abel Pau
  * 
  ******************************************************************************

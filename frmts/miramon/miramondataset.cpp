@@ -60,23 +60,18 @@
 /*                           MMRRasterBand()                            */
 /************************************************************************/
 MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
-    : poCT(nullptr), eMMRDataType(EPT_MIN), hMMR(poDSIn->hMMR),
-      bMetadataDirty(false), poDefaultRAT(nullptr)
+    : poCT(nullptr), hMMR(poDSIn->hMMR), bMetadataDirty(false),
+      poDefaultRAT(nullptr)
 {
     poDS = poDSIn;
 
     nBand = nBandIn;
     eAccess = poDSIn->GetAccess();
 
-    int nCompression = 0;
     MMRGetBandInfo(hMMR, nBand, &osBandSection, &eMMRDataTypeMiraMon,
-                   &eMMBytesPerPixel, &nBlockXSize, &nBlockYSize,
-                   &nCompression);
+                   &eMMBytesPerPixel, &nBlockXSize, &nBlockYSize);
 
     // Set some other information.
-    if (nCompression != 0)
-        GDALMajorObject::SetMetadataItem("COMPRESSION", "RLE",
-                                         "IMAGE_STRUCTURE");
     switch (eMMRDataTypeMiraMon)
     {
         case MMDataType::DATATYPE_AND_COMPR_BIT:
@@ -269,14 +264,6 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 const char *MMRRasterBand::GetDescription() const
 {
     return MMRGetBandName(hMMR, nBand);
-    /*
-    const char *pszName = MMRGetBandName(hMMR, nBand);
-
-    if (pszName == nullptr)
-        return GDALPamRasterBand::GetDescription();
-
-    return pszName;
-    */
 }
 
 /************************************************************************/
@@ -326,7 +313,7 @@ CPLErr MMRRasterBand::SetMetadata(char **papszMDIn, const char *pszDomain)
 }
 
 /************************************************************************/
-/*                            SetMetadata()                             */
+/*                        SetMetadataItem()                             */
 /************************************************************************/
 
 CPLErr MMRRasterBand::SetMetadataItem(const char *pszTag, const char *pszValue,
@@ -336,61 +323,6 @@ CPLErr MMRRasterBand::SetMetadataItem(const char *pszTag, const char *pszValue,
     bMetadataDirty = true;
 
     return GDALPamRasterBand::SetMetadataItem(pszTag, pszValue, pszDomain);
-}
-
-/************************************************************************/
-/*                        GetDefaultHistogram()                         */
-/************************************************************************/
-
-CPLErr MMRRasterBand::GetDefaultHistogram(double *pdfMin, double *pdfMax,
-                                          int *pnBuckets,
-                                          GUIntBig **ppanHistogram, int bForce,
-                                          GDALProgressFunc pfnProgress,
-                                          void *pProgressData)
-
-{
-    if (GetMetadataItem("STATISTICS_HISTOBINVALUES") != nullptr &&
-        GetMetadataItem("STATISTICS_HISTOMIN") != nullptr &&
-        GetMetadataItem("STATISTICS_HISTOMAX") != nullptr)
-    {
-        const char *pszBinValues = GetMetadataItem("STATISTICS_HISTOBINVALUES");
-
-        *pdfMin = CPLAtof(GetMetadataItem("STATISTICS_HISTOMIN"));
-        *pdfMax = CPLAtof(GetMetadataItem("STATISTICS_HISTOMAX"));
-
-        *pnBuckets = 0;
-        for (int i = 0; pszBinValues[i] != '\0'; i++)
-        {
-            if (pszBinValues[i] == '|')
-                (*pnBuckets)++;
-        }
-
-        *ppanHistogram =
-            static_cast<GUIntBig *>(CPLCalloc(sizeof(GUIntBig), *pnBuckets));
-
-        const char *pszNextBin = pszBinValues;
-        for (int i = 0; i < *pnBuckets; i++)
-        {
-            (*ppanHistogram)[i] =
-                static_cast<GUIntBig>(CPLAtoGIntBig(pszNextBin));
-
-            while (*pszNextBin != '|' && *pszNextBin != '\0')
-                pszNextBin++;
-            if (*pszNextBin == '|')
-                pszNextBin++;
-        }
-
-        // Adjust min/max to reflect outer edges of buckets.
-        double dfBucketWidth = (*pdfMax - *pdfMin) / (*pnBuckets - 1);
-        *pdfMax += 0.5 * dfBucketWidth;
-        *pdfMin -= 0.5 * dfBucketWidth;
-
-        return CE_None;
-    }
-
-    return GDALPamRasterBand::GetDefaultHistogram(pdfMin, pdfMax, pnBuckets,
-                                                  ppanHistogram, bForce,
-                                                  pfnProgress, pProgressData);
 }
 
 /************************************************************************/
