@@ -17,7 +17,6 @@
 #include "cpl_string.h"
 
 typedef struct mmrinfo *MMRHandle;
-typedef struct mmrinfo MMRInfo_t;
 
 /************************************************************************/
 /*                               MMRRel                                */
@@ -88,7 +87,7 @@ class MMRRel
                                               const char *pszKey);
     const char *GetRELNameChar();
     void SetRELNameChar(CPLString osRelFileNameIn);
-    static CPLErr ParseBandInfo(MMRInfo_t *psInfo);
+    static CPLErr ParseBandInfo(struct mmrinfo *psInfo);
     static CPLString
     RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
 

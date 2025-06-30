@@ -238,7 +238,7 @@ void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
         dfBBMaxY = atof(osValue);
 }
 
-MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
+MMRBand::MMRBand(struct mmrinfo *psInfoIn, const char *pszSection)
     : pfIMG(nullptr), pfRel(psInfoIn->fRel), nBlocks(0),
       nNoDataOriginalIndex(0), bPaletteHasNodata(false), nNoDataPaletteIndex(0),
       nAssignedSDS(0), osBandSection(pszSection), osRELFileName(""),
@@ -250,11 +250,10 @@ MMRBand::MMRBand(MMRInfo_t *psInfoIn, const char *pszSection)
       bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
       dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
       dfVisuMax(0.0), pszRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
-      dfBBMaxY(0), nResolution(0), psInfo(psInfoIn),
-      /*eDataType(static_cast<EPTType>(EPT_MIN)), poNode(nullptr), */
-      nBlockXSize(0), nBlockYSize(1), nWidth(psInfoIn->nXSize),
-      nHeight(psInfo->nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), pszNodataDef(""), dfNoData(0.0)
+      dfBBMaxY(0), nResolution(0), psInfo(psInfoIn), nBlockXSize(0),
+      nBlockYSize(1), nWidth(psInfoIn->nXSize), nHeight(psInfo->nYSize),
+      nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false),
+      pszNodataDef(""), dfNoData(0.0)
 {
     // Getting band and band file name from metadata
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,

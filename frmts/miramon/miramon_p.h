@@ -39,7 +39,7 @@ constexpr auto pszExtRaster = ".img";
 constexpr auto pszExtRasterREL = "I.rel";
 
 /************************************************************************/
-/*                              MMRInfo_t                               */
+/*                         struct mmrinfo                               */
 /*                                                                      */
 /*      This is just a structure, and used hold info about the whole    */
 /*      dataset within miramonopen.cpp                                  */
@@ -133,7 +133,11 @@ class MMRBand
     double nResolution;
 
   public:
-    MMRBand(MMRInfo_t *, const char *pszSection);
+    MMRBand(struct mmrinfo *, const char *pszSection);
+    MMRBand(const MMRBand &) =
+        delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
+    MMRBand &operator=(const MMRBand &) =
+        delete;  // I don't want to assing a MMRBand to another MMRBand (effc++)
     ~MMRBand();
 
     int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
@@ -304,7 +308,7 @@ class MMRBand
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
-    MMRInfo_t *psInfo;
+    struct mmrinfo *psInfo;
 
     int nBlockXSize;
     int nBlockYSize;
