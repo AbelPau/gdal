@@ -285,7 +285,7 @@ class MMRBand
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
-    MMRInfo *hMMR;
+    MMRInfo *hMMR = nullptr;  // Just a pointer. No need to be freed
 
     int nBlockXSize;
     int nBlockYSize;

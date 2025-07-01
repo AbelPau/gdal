@@ -35,7 +35,7 @@ class MMRDataset final : public GDALPamDataset
 {
     friend class MMRRasterBand;
 
-    MMRInfo *hMMR = nullptr;
+    MMRInfo *hMMR = nullptr;  //owner
 
     bool bMetadataDirty = false;
 
@@ -54,7 +54,11 @@ class MMRDataset final : public GDALPamDataset
     int GetRowsNumberFromREL(int *nNRows);
 
   public:
-    MMRDataset();
+    MMRDataset(GDALOpenInfo *poOpenInfo);
+    MMRDataset(const MMRDataset &) =
+        delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
+    MMRDataset &operator=(const MMRDataset &) =
+        delete;  // I don't want to assing a MMRDataset to another MMRDataset (effc++)
     virtual ~MMRDataset();
 
     static int Identify(GDALOpenInfo *);
@@ -74,9 +78,9 @@ class MMRDataset final : public GDALPamDataset
     int GetDataSetBoundingBox();
     int GetBandBoundingBox(int nIBand);
 
-    virtual int GetGCPCount() override;
-    const OGRSpatialReference *GetGCPSpatialRef() const override;
-    virtual const GDAL_GCP *GetGCPs() override;
+    //virtual int GetGCPCount() override;
+    //const OGRSpatialReference *GetGCPSpatialRef() const override;
+    //virtual const GDAL_GCP *GetGCPs() override;
 
     virtual CPLErr SetMetadata(char **, const char * = "") override;
     virtual CPLErr SetMetadataItem(const char *, const char *,
@@ -86,7 +90,7 @@ class MMRDataset final : public GDALPamDataset
     bool NextBandInANewDataSet(int nIBand);
 
     // Numbers of subdatasets (if any) in this dataset.
-    int nNSubdataSets;
+    int nNSubdataSets = 0;
 };
 
 /************************************************************************/
@@ -106,7 +110,7 @@ class MMRRasterBand final : public GDALPamRasterBand
     MMDataType eMMRDataTypeMiraMon;  // Arreglar nom
     MMBytesPerPixel eMMBytesPerPixel;
 
-    MMRInfo *hMMR;
+    MMRInfo *hMMR = nullptr;  // Just a pointer. No need to be freed
 
     bool bMetadataDirty;
 
@@ -114,10 +118,11 @@ class MMRRasterBand final : public GDALPamRasterBand
 
   public:
     MMRRasterBand(MMRDataset *, int);
+
     MMRRasterBand(const MMRRasterBand &) =
-        delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
+        delete;  // I don't want to construct a MMRRasterBand from another MMRRasterBand (effc++)
     MMRRasterBand &operator=(const MMRRasterBand &) =
-        delete;  // I don't want to assing a MMRBand to another MMRBand (effc++)
+        delete;  // I don't want to assing a MMRRasterBand to another MMRRasterBand (effc++)
     virtual ~MMRRasterBand();
 
     virtual CPLErr IReadBlock(int, int, void *) override;

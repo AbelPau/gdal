@@ -95,8 +95,6 @@ class MMRInfo
     MMRBand **papoBand = nullptr;
 };
 
-//using MMRHandle = MMRInfo *;
-
 class MMRRel
 {
   public:

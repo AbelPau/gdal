@@ -60,8 +60,10 @@
 /*                           MMRRasterBand()                            */
 /************************************************************************/
 MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
-    : poCT(nullptr), hMMR(poDSIn->hMMR), bMetadataDirty(false),
-      poDefaultRAT(nullptr)
+    : osBandSection(), poCT(nullptr),
+      eMMRDataTypeMiraMon(MMDataType::DATATYPE_AND_COMPR_UNDEFINED),
+      eMMBytesPerPixel(MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED),
+      hMMR(poDSIn->hMMR), bMetadataDirty(false), poDefaultRAT(nullptr)
 {
     poDS = poDSIn;
 
@@ -597,11 +599,59 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
 /*                            MMRDataset()                            */
 /************************************************************************/
 
-MMRDataset::MMRDataset()
+MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 {
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
-    nNSubdataSets = 0;
+    // Creating of the object that allows inspect metadata (REL file)
+    MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
+
+    // Creating the class MMRInfo.
+    hMMR = new MMRInfo();
+
+    // Getting the info from that REL
+    if (CE_None != fRel->SetInfoFromREL(poOpenInfo->pszFilename, *hMMR))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Unable to open %s",
+                 poOpenInfo->pszFilename);
+        delete fRel;
+        delete hMMR;
+        hMMR = nullptr;
+        return;
+    }
+
+    if (hMMR->nBands == 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Unable to open %s, it has zero usable bands.",
+                 poOpenInfo->pszFilename);
+
+        delete fRel;
+        delete hMMR;
+        hMMR = nullptr;
+        return;
+    }
+
+    eAccess = poOpenInfo->eAccess;
+
+    // General Dataset information available
+    nRasterXSize = hMMR->nXSize;
+    nRasterYSize = hMMR->nYSize;
+    GetDataSetBoundingBox();  // Fills adfGeoTransform
+    ReadProjection();
+    nBands = 0;
+
+    // Assign every band to a subdataset (if any)
+    // If all bands should go to a one single Subdataset, then,
+    // no subdataset will be created and all bands will go to this
+    // dataset.
+    AssignBandsToSubdataSets();
+
+    // Create subdatasets or add bands, as needed
+    if (nNSubdataSets)
+        CreateSubdatasetsFromBands();
+    else
+        AssignBands(poOpenInfo);
 }
 
 /************************************************************************/
@@ -682,57 +732,12 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
         return nullptr;
 #endif
 
-    // Creating of the object that allows inspect metadata (REL file)
-    MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
-
-    // Creating the class MMRInfo.
-    MMRInfo *hMMR = new MMRInfo();
-
-    // Getting the info from that REL
-    if (CE_None != fRel->SetInfoFromREL(poOpenInfo->pszFilename, *hMMR))
-    {
-        CPLError(CE_Failure, CPLE_AppDefined, "Unable to open %s",
-                 poOpenInfo->pszFilename);
-        delete fRel;
-        delete hMMR;
-        return nullptr;
-    }
-
-    if (hMMR->nBands == 0)
-    {
-        delete fRel;
-        delete hMMR;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Unable to open %s, it has zero usable bands.",
-                 poOpenInfo->pszFilename);
-        return nullptr;
-    }
-
     // Creating the Dataset (with bands or Subdatasets).
     MMRDataset *poDS;
-    poDS = new MMRDataset();
-    poDS->hMMR =
-        hMMR;  // Assigning the information to the Dataset, who will delete that
-    poDS->eAccess = poOpenInfo->eAccess;
+    poDS = new MMRDataset(poOpenInfo);
 
-    // General Dataset information available
-    poDS->nRasterXSize = hMMR->nXSize;
-    poDS->nRasterYSize = hMMR->nYSize;
-    poDS->GetDataSetBoundingBox();  // Fills adfGeoTransform
-    poDS->ReadProjection();
-    poDS->nBands = 0;
-
-    // Assign every band to a subdataset (if any)
-    // If all bands should go to a one single Subdataset, then,
-    // no subdataset will be created and all bands will go to this
-    // dataset.
-    poDS->AssignBandsToSubdataSets();
-
-    // Create subdatasets or add bands, as needed
-    if (poDS->nNSubdataSets)
-        poDS->CreateSubdatasetsFromBands();
-    else
-        poDS->AssignBands(poOpenInfo);
+    if (poDS->hMMR == nullptr)
+        return nullptr;
 
     return poDS;
 }
@@ -918,17 +923,17 @@ CPLErr MMRDataset::GetGeoTransform(GDALGeoTransform &gt) const
 /************************************************************************/
 /*                            GetGCPCount()                             */
 /************************************************************************/
-
+/*
 int MMRDataset::GetGCPCount()
 {
     const int nPAMCount = GDALPamDataset::GetGCPCount();
     return nPAMCount > 0 ? nPAMCount : static_cast<int>(m_aoGCPs.size());
-}
+}*/
 
 /************************************************************************/
 /*                          GetGCPSpatialRef()                          */
 /************************************************************************/
-
+/*
 const OGRSpatialReference *MMRDataset::GetGCPSpatialRef() const
 
 {
@@ -936,19 +941,19 @@ const OGRSpatialReference *MMRDataset::GetGCPSpatialRef() const
     if (poSRS)
         return poSRS;
     return !m_aoGCPs.empty() && !m_oSRS.IsEmpty() ? &m_oSRS : nullptr;
-}
+}*/
 
 /************************************************************************/
 /*                               GetGCPs()                              */
 /************************************************************************/
-
+/*
 const GDAL_GCP *MMRDataset::GetGCPs()
 {
     const GDAL_GCP *psPAMGCPs = GDALPamDataset::GetGCPs();
     if (psPAMGCPs)
         return psPAMGCPs;
     return gdal::GCP::c_ptr(m_aoGCPs);
-}
+}*/
 
 /************************************************************************/
 /*                GDALRegister_MiraMon()                                */
