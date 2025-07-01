@@ -68,7 +68,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     nBand = nBandIn;
     eAccess = poDSIn->GetAccess();
 
-    MMRGetBandInfo(hMMR, nBand, &osBandSection, &eMMRDataTypeMiraMon,
+    MMRGetBandInfo(*hMMR, nBand, &osBandSection, &eMMRDataTypeMiraMon,
                    &eMMBytesPerPixel, &nBlockXSize, &nBlockYSize);
 
     // Set some other information.
@@ -117,7 +117,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     }
 
     // Collect color table if present.
-    CPLErr eErr = MMRGetPCT(hMMR, nBand);
+    CPLErr eErr = MMRGetPCT(*hMMR, nBand);
     int nColors =
         static_cast<int>(hMMR->papoBand[nBand - 1]->GetPCT_Red().size());
 
@@ -176,7 +176,7 @@ double MMRRasterBand::GetNoDataValue(int *pbSuccess)
 {
     double dfNoData = 0.0;
 
-    if (MMRGetBandNoData(hMMR, nBand, &dfNoData))
+    if (MMRGetBandNoData(*hMMR, nBand, &dfNoData))
     {
         if (pbSuccess)
             *pbSuccess = TRUE;
@@ -236,7 +236,7 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 {
     CPLErr eErr = CE_None;
 
-    eErr = MMRGetRasterBlockEx(hMMR, nBand, nBlockXOff, nBlockYOff, pImage,
+    eErr = MMRGetRasterBlockEx(*hMMR, nBand, nBlockXOff, nBlockYOff, pImage,
                                nBlockXSize * nBlockYSize *
                                    GDALGetDataTypeSizeBytes(eDataType));
 
@@ -263,19 +263,19 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 
 const char *MMRRasterBand::GetDescription() const
 {
-    return MMRGetBandName(hMMR, nBand);
+    return MMRGetBandName(*hMMR, nBand);
 }
 
 /************************************************************************/
 /*                         MMRGetBandName()                             */
 /************************************************************************/
 
-const char *MMRGetBandName(MMRHandle hMMR, int nBand)
+const char *MMRGetBandName(MMRInfo &hMMR, int nBand)
 {
-    if (nBand < 1 || nBand > hMMR->nBands)
+    if (nBand < 1 || nBand > hMMR.nBands)
         return "";
 
-    return hMMR->papoBand[nBand - 1]->GetBandName();
+    return hMMR.papoBand[nBand - 1]->GetBandName();
 }
 
 /************************************************************************/
@@ -689,7 +689,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     MMRInfo *hMMR = new MMRInfo();
 
     // Getting the info from that REL
-    if (CE_None != fRel->GetInfoFromREL(poOpenInfo->pszFilename, hMMR))
+    if (CE_None != fRel->SetInfoFromREL(poOpenInfo->pszFilename, *hMMR))
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Unable to open %s",
                  poOpenInfo->pszFilename);

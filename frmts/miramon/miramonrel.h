@@ -95,12 +95,12 @@ class MMRInfo
     MMRBand **papoBand = nullptr;
 };
 
-using MMRHandle = MMRInfo *;
+//using MMRHandle = MMRInfo *;
 
 class MMRRel
 {
   public:
-    CPLErr GetInfoFromREL(const char *pszFileName, MMRInfo *hMMR);
+    CPLErr SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR);
     static CPLString GetAssociatedMetadataFileName(const char *pszFileName);
     static int IdentifySubdataSetFile(const CPLString pszFileName);
     static int IdentifyFile(CPLString pszFileName);
@@ -119,7 +119,7 @@ class MMRRel
                                               const char *pszKey);
     const char *GetRELNameChar();
     void SetRELNameChar(CPLString osRelFileNameIn);
-    static CPLErr ParseBandInfo(MMRHandle hMMR);
+    static CPLErr ParseBandInfo(MMRInfo &hMMR);
     static CPLString
     RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
 

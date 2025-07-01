@@ -40,10 +40,10 @@ MMRRel::~MMRRel()
 }
 
 /************************************************************************/
-/*                              GetInfoFromREL()                        */
+/*                              SetInfoFromREL()                        */
 /************************************************************************/
 
-CPLErr MMRRel::GetInfoFromREL(const char *pszFileName, MMRInfo *hMMR)
+CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
 
 {
     CPLString osRELFileNameIn;
@@ -76,7 +76,7 @@ CPLErr MMRRel::GetInfoFromREL(const char *pszFileName, MMRInfo *hMMR)
             // Raw band name
             CPLString osBandName = papszTokens[nIBand + 1];
             osBandName.replaceAll("\"", "");
-            hMMR->papoSDSBands.emplace_back(osBandName);
+            hMMR.papoSDSBands.emplace_back(osBandName);
         }
         CSLDestroy(papszTokens);
     }
@@ -98,8 +98,8 @@ CPLErr MMRRel::GetInfoFromREL(const char *pszFileName, MMRInfo *hMMR)
     // from the one found from IMG file.
     SetRELNameChar(osRELFileNameIn);
 
-    hMMR->fRel = this;
-    hMMR->osRELFileName = osRELFileNameIn;
+    hMMR.fRel = this;
+    hMMR.osRELFileName = osRELFileNameIn;
 
     // Collect band definitions.
     if (ParseBandInfo(hMMR) != CE_None)
@@ -660,18 +660,17 @@ void MMRRel::SetRELNameChar(CPLString osRelFileNameIn)
 /************************************************************************/
 /*                          ParseBandInfo()                             */
 /************************************************************************/
-CPLErr MMRRel::ParseBandInfo(MMRHandle hMMR)
-
+CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
 {
-    if (!hMMR || !hMMR->fRel)
+    if (!hMMR.fRel)
         return CE_Fatal;
 
-    hMMR->nBands = 0;
+    hMMR.nBands = 0;
 
-    CPLString pszRELFileName = hMMR->osRELFileName;
+    CPLString pszRELFileName = hMMR.osRELFileName;
 
-    CPLString osFieldNames = hMMR->fRel->GetMetadataValue(
-        SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
+    CPLString osFieldNames = hMMR.fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                         Key_IndexsNomsCamps);
 
     if (!osFieldNames)
     {
@@ -699,12 +698,12 @@ CPLErr MMRRel::ParseBandInfo(MMRHandle hMMR)
     CPLString osBandSectionValue;
 
     int nNBand;
-    if (hMMR->papoSDSBands.size())
-        nNBand = static_cast<int>(hMMR->papoSDSBands.size());
+    if (hMMR.papoSDSBands.size())
+        nNBand = static_cast<int>(hMMR.papoSDSBands.size());
     else
         nNBand = nTokenCount;
 
-    hMMR->papoBand = new MMRBand *[nNBand];
+    hMMR.papoBand = new MMRBand *[nNBand];
 
     for (int i = 0; i < nTokenCount; i++)
     {
@@ -712,44 +711,44 @@ CPLErr MMRRel::ParseBandInfo(MMRHandle hMMR)
         osBandSectionKey.append("_");
         osBandSectionKey.append(papszTokens[i]);
 
-        osBandSectionValue = hMMR->fRel->GetMetadataValue(
-            SECTION_ATTRIBUTE_DATA, osBandSectionKey);
+        osBandSectionValue = hMMR.fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                         osBandSectionKey);
 
         if (!osBandSectionValue)
             continue;
 
-        if (hMMR->papoSDSBands.size())
+        if (hMMR.papoSDSBands.size())
         {
-            CPLString osRawBandFileName = hMMR->fRel->GetMetadataValue(
+            CPLString osRawBandFileName = hMMR.fRel->GetMetadataValue(
                 SECTION_ATTRIBUTE_DATA, osBandSectionValue, KEY_NomFitxer);
 
             // I'm in a Subataset
             size_t nISDSBand;
-            for (nISDSBand = 0; nISDSBand < hMMR->papoSDSBands.size();
+            for (nISDSBand = 0; nISDSBand < hMMR.papoSDSBands.size();
                  nISDSBand++)
             {
-                if (hMMR->papoSDSBands[nISDSBand] == osRawBandFileName)
+                if (hMMR.papoSDSBands[nISDSBand] == osRawBandFileName)
                     break;
             }
-            if (nISDSBand == hMMR->papoSDSBands.size())
+            if (nISDSBand == hMMR.papoSDSBands.size())
                 continue;
         }
 
         osBandSectionValue =
             RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
-        hMMR->papoBand[static_cast<size_t>(hMMR->nBands)] =
+        hMMR.papoBand[static_cast<size_t>(hMMR.nBands)] =
             new MMRBand(hMMR, osBandSectionValue);
 
-        if (hMMR->papoBand[static_cast<size_t>(hMMR->nBands)]->nWidth == 0)
+        if (hMMR.papoBand[static_cast<size_t>(hMMR.nBands)]->nWidth == 0)
         {
             CSLDestroy(papszTokens);
             return CE_Failure;
         }
 
-        hMMR->papoBand[static_cast<size_t>(hMMR->nBands)]->SetRELFileName(
+        hMMR.papoBand[static_cast<size_t>(hMMR.nBands)]->SetRELFileName(
             pszRELFileName);
-        hMMR->nBands++;
+        hMMR.nBands++;
     }
 
     CSLDestroy(papszTokens);

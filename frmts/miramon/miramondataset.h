@@ -35,7 +35,7 @@ class MMRDataset final : public GDALPamDataset
 {
     friend class MMRRasterBand;
 
-    MMRHandle hMMR = nullptr;
+    MMRInfo *hMMR = nullptr;
 
     bool bMetadataDirty = false;
 
@@ -106,7 +106,7 @@ class MMRRasterBand final : public GDALPamRasterBand
     MMDataType eMMRDataTypeMiraMon;  // Arreglar nom
     MMBytesPerPixel eMMBytesPerPixel;
 
-    MMRHandle hMMR;
+    MMRInfo *hMMR;
 
     bool bMetadataDirty;
 

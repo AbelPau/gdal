@@ -238,8 +238,8 @@ void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
         dfBBMaxY = atof(osValue);
 }
 
-MMRBand::MMRBand(MMRHandle hMMRIn, const char *pszSection)
-    : pfIMG(nullptr), pfRel(hMMRIn->fRel), nBlocks(0), nNoDataOriginalIndex(0),
+MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
+    : pfIMG(nullptr), pfRel(hMMRIn.fRel), nBlocks(0), nNoDataOriginalIndex(0),
       bPaletteHasNodata(false), nNoDataPaletteIndex(0), nAssignedSDS(0),
       osBandSection(pszSection), osRELFileName(""), osRawBandFileName(""),
       osBandFileName(""), osBandName(""), osFriendlyDescription(""),
@@ -250,9 +250,10 @@ MMRBand::MMRBand(MMRHandle hMMRIn, const char *pszSection)
       bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
       dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
       dfVisuMax(0.0), pszRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
-      dfBBMaxY(0), nResolution(0), hMMR(hMMRIn), nBlockXSize(0), nBlockYSize(1),
-      nWidth(hMMRIn->nXSize), nHeight(hMMR->nYSize), nBlocksPerRow(1),
-      nBlocksPerColumn(1), bNoDataSet(false), pszNodataDef(""), dfNoData(0.0)
+      dfBBMaxY(0), nResolution(0), hMMR(&hMMRIn), nBlockXSize(0),
+      nBlockYSize(1), nWidth(hMMRIn.nXSize), nHeight(hMMRIn.nYSize),
+      nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false),
+      pszNodataDef(""), dfNoData(0.0)
 {
     // Getting band and band file name from metadata
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
@@ -260,7 +261,7 @@ MMRBand::MMRBand(MMRHandle hMMRIn, const char *pszSection)
 
     if (osRawBandFileName.empty())
     {
-        osBandFileName = MMRGetFileNameFromRelName(hMMRIn->osRELFileName);
+        osBandFileName = MMRGetFileNameFromRelName(hMMRIn.osRELFileName);
         if (osBandFileName.empty())
         {
             nWidth = 0;
@@ -268,7 +269,7 @@ MMRBand::MMRBand(MMRHandle hMMRIn, const char *pszSection)
             CPLError(CE_Failure, CPLE_AssertionFailed,
                      "The REL file '%s' contains a documented \
                 band with no explicit name. Section [%s] or [%s:%s].\n",
-                     hMMR->osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                     hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
                      SECTION_ATTRIBUTE_DATA, pszSection);
             return;
         }
@@ -292,7 +293,7 @@ MMRBand::MMRBand(MMRHandle hMMRIn, const char *pszSection)
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "The REL file '%s' contains a documented \
             band with no explicit name. Section [%s] or [%s:%s].\n",
-                 hMMR->osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                 hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
                  SECTION_ATTRIBUTE_DATA, pszSection);
         return;
     }
@@ -325,8 +326,8 @@ MMRBand::MMRBand(MMRHandle hMMRIn, const char *pszSection)
     }
     else
     {
-        hMMRIn->nXSize = nWidth;
-        hMMRIn->nYSize = nHeight;
+        hMMRIn.nXSize = nWidth;
+        hMMRIn.nYSize = nHeight;
     }
 
     // Getting data type and compression

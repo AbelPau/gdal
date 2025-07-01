@@ -110,7 +110,7 @@ class MMRBand
     double nResolution;
 
   public:
-    MMRBand(MMRHandle, const char *pszSection);
+    MMRBand(MMRInfo &, const char *pszSection);
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
     MMRBand &operator=(const MMRBand &) =
@@ -285,7 +285,7 @@ class MMRBand
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
-    MMRHandle hMMR;
+    MMRInfo *hMMR;
 
     int nBlockXSize;
     int nBlockYSize;

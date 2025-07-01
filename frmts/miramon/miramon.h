@@ -24,19 +24,19 @@
 /*      Prototypes                                                      */
 /* -------------------------------------------------------------------- */
 
-int CPL_DLL MMRClose(MMRHandle); /* 0 = success */
+int CPL_DLL MMRClose(MMRInfo *); /* 0 = success */
 
-CPLErr CPL_DLL MMRGetBandInfo(MMRHandle hMMR, int nBand,
+CPLErr CPL_DLL MMRGetBandInfo(const MMRInfo &hMMR, int nBand,
                               CPLString *osBandSection,
                               MMDataType *eMMRDataType,
                               MMBytesPerPixel *eMMBytesPerPixel,
                               int *pnBlockXSize, int *pnBlockYSize);
-int CPL_DLL MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfValue);
-CPLErr CPL_DLL MMRGetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock,
+int CPL_DLL MMRGetBandNoData(MMRInfo &hMMR, int nBand, double *pdfValue);
+CPLErr CPL_DLL MMRGetRasterBlock(MMRInfo &hMMR, int nBand, int nXBlock,
                                  int nYBlock, void *pData);
-CPLErr CPL_DLL MMRGetRasterBlockEx(MMRHandle hMMR, int nBand, int nXBlock,
+CPLErr CPL_DLL MMRGetRasterBlockEx(MMRInfo &hMMR, int nBand, int nXBlock,
                                    int nYBlock, void *pData, int nDataSize);
-const char *MMRGetBandName(MMRHandle hMMR, int nBand);
-CPLErr CPL_DLL MMRGetPCT(MMRHandle, int);
+const char *MMRGetBandName(MMRInfo &hMMR, int nBand);
+CPLErr CPL_DLL MMRGetPCT(MMRInfo &hMMR, int);
 
 #endif /* ndef MMR_MIRAMON_H_INCLUDED */

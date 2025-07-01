@@ -51,7 +51,7 @@
 /*                              MMRClose()                              */
 /************************************************************************/
 
-int MMRClose(MMRHandle hMMR)
+int MMRClose(MMRInfo *hMMR)
 
 {
     int nRet = 0;
@@ -73,19 +73,19 @@ int MMRClose(MMRHandle hMMR)
 /*                           MMRGetBandInfo()                           */
 /************************************************************************/
 
-CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, CPLString *osBandSection,
+CPLErr MMRGetBandInfo(const MMRInfo &hMMR, int nBand, CPLString *osBandSection,
                       MMDataType *eMMRDataType,
                       MMBytesPerPixel *eMMBytesPerPixel, int *pnBlockXSize,
                       int *pnBlockYSize)
 
 {
-    if (nBand < 0 || nBand > hMMR->nBands)
+    if (nBand < 0 || nBand > hMMR.nBands)
     {
         CPLAssert(false);
         return CE_Failure;
     }
 
-    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    MMRBand *poBand = hMMR.papoBand[nBand - 1];
 
     if (osBandSection != nullptr)
         *osBandSection = poBand->GetBandSection();
@@ -111,16 +111,16 @@ CPLErr MMRGetBandInfo(MMRHandle hMMR, int nBand, CPLString *osBandSection,
 /*      returns true if value is set, otherwise false.                  */
 /************************************************************************/
 
-int MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfNoData)
+int MMRGetBandNoData(MMRInfo &hMMR, int nBand, double *pdfNoData)
 
 {
-    if (nBand < 0 || (nBand - 1) > hMMR->nBands || !pdfNoData)
+    if (nBand < 0 || (nBand - 1) > hMMR.nBands || !pdfNoData)
     {
         CPLAssert(false);
         return false;
     }
 
-    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    MMRBand *poBand = hMMR.papoBand[nBand - 1];
     if (!poBand)
         return false;
 
@@ -135,7 +135,7 @@ int MMRGetBandNoData(MMRHandle hMMR, int nBand, double *pdfNoData)
 /*                         MMRGetRasterBlock()                          */
 /************************************************************************/
 
-CPLErr MMRGetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock, int nYBlock,
+CPLErr MMRGetRasterBlock(MMRInfo &hMMR, int nBand, int nXBlock, int nYBlock,
                          void *pData)
 
 {
@@ -146,15 +146,15 @@ CPLErr MMRGetRasterBlock(MMRHandle hMMR, int nBand, int nXBlock, int nYBlock,
 /*                        MMRGetRasterBlockEx()                         */
 /************************************************************************/
 
-CPLErr MMRGetRasterBlockEx(MMRHandle hMMR, int nBand, int nXBlock, int nYBlock,
+CPLErr MMRGetRasterBlockEx(MMRInfo &hMMR, int nBand, int nXBlock, int nYBlock,
                            void *pData, int nDataSize)
 
 {
-    if (nBand < 1 || nBand > hMMR->nBands)
+    if (nBand < 1 || nBand > hMMR.nBands)
         return CE_Failure;
 
-    return hMMR->papoBand[nBand - 1]->GetRasterBlock(nXBlock, nYBlock, pData,
-                                                     nDataSize);
+    return hMMR.papoBand[nBand - 1]->GetRasterBlock(nXBlock, nYBlock, pData,
+                                                    nDataSize);
 }
 
 /************************************************************************/
@@ -163,13 +163,13 @@ CPLErr MMRGetRasterBlockEx(MMRHandle hMMR, int nBand, int nXBlock, int nYBlock,
 /*      Read the PCT from a band, if it has one.                        */
 /************************************************************************/
 
-CPLErr MMRGetPCT(MMRHandle hMMR, int nBand)
+CPLErr MMRGetPCT(MMRInfo &hMMR, int nBand)
 
 {
-    if (nBand < 1 || nBand > hMMR->nBands)
+    if (nBand < 1 || nBand > hMMR.nBands)
         return CE_Failure;
 
-    return hMMR->papoBand[nBand - 1]->GetPCT();
+    return hMMR.papoBand[nBand - 1]->GetPCT();
 }
 
 /************************************************************************/
