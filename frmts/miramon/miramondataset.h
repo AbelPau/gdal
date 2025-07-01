@@ -54,7 +54,7 @@ class MMRDataset final : public GDALPamDataset
     int GetRowsNumberFromREL(int *nNRows);
 
   public:
-    MMRDataset(GDALOpenInfo *poOpenInfo);
+    explicit MMRDataset(GDALOpenInfo *poOpenInfo);
     MMRDataset(const MMRDataset &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRDataset &operator=(const MMRDataset &) =
@@ -77,10 +77,6 @@ class MMRDataset final : public GDALPamDataset
 
     int GetDataSetBoundingBox();
     int GetBandBoundingBox(int nIBand);
-
-    //virtual int GetGCPCount() override;
-    //const OGRSpatialReference *GetGCPSpatialRef() const override;
-    //virtual const GDAL_GCP *GetGCPs() override;
 
     virtual CPLErr SetMetadata(char **, const char * = "") override;
     virtual CPLErr SetMetadataItem(const char *, const char *,

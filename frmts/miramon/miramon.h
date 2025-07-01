@@ -36,7 +36,7 @@ CPLErr CPL_DLL MMRGetRasterBlock(MMRInfo &hMMR, int nBand, int nXBlock,
                                  int nYBlock, void *pData);
 CPLErr CPL_DLL MMRGetRasterBlockEx(MMRInfo &hMMR, int nBand, int nXBlock,
                                    int nYBlock, void *pData, int nDataSize);
-const char *MMRGetBandName(MMRInfo &hMMR, int nBand);
+const char *MMRGetBandName(const MMRInfo &hMMR, int nBand);
 CPLErr CPL_DLL MMRGetPCT(MMRInfo &hMMR, int);
 
 #endif /* ndef MMR_MIRAMON_H_INCLUDED */

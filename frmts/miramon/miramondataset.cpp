@@ -272,7 +272,7 @@ const char *MMRRasterBand::GetDescription() const
 /*                         MMRGetBandName()                             */
 /************************************************************************/
 
-const char *MMRGetBandName(MMRInfo &hMMR, int nBand)
+const char *MMRGetBandName(const MMRInfo &hMMR, int nBand)
 {
     if (nBand < 1 || nBand > hMMR.nBands)
         return "";
@@ -1168,7 +1168,7 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
         // interacting with PAM.
         //·$·TODO ens saltem aixo de moment.
 
-        /*char **papszMD = MMRGetMetadata(hMMR, i + 1);
+        /*char**papszMD = MMRGetMetadata(hMMR, i + 1);
         if (papszMD != nullptr)
         {
             poBand->SetMetadata(papszMD);
@@ -1181,7 +1181,7 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
 
     /*
     // Check for GDAL style metadata.
-    char **papszMD = MMRGetMetadata(hMMR, 0);
+    char**papszMD = MMRGetMetadata(hMMR, 0);
     if (papszMD != nullptr)
     {
         SetMetadata(papszMD);
@@ -1193,7 +1193,7 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
     {
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(iBand + 1));
-        const char *pszEU = MMRReadElevationUnit(hMMR, iBand);
+        const char* pszEU = MMRReadElevationUnit(hMMR, iBand);
 
         if (pszEU != nullptr)
         {
