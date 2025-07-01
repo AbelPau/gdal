@@ -339,11 +339,28 @@ GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
 
     poDefaultRAT = new GDALDefaultRasterAttributeTable();
 
+    FillRATFromDBF();
+
+    return poDefaultRAT;
+}
+
+/************************************************************************/
+/*                           FillRATFromDBF()                           */
+/************************************************************************/
+
+CPLErr MMRRasterBand::FillRATFromDBF()
+
+{
     CPLString os_IndexJoin = hMMR->fRel->GetMetadataValue(
         SECTION_ATTRIBUTE_DATA, osBandSection, "IndexsJoinTaula");
 
     if (os_IndexJoin.empty())
-        return nullptr;  // No attribute available
+    {
+        // No attribute available
+        delete poDefaultRAT;
+        poDefaultRAT = nullptr;
+        return CE_Failure;
+    }
 
     char **papszTokens = CSLTokenizeString2(os_IndexJoin, ",", 0);
     const int nTokens = CSLCount(papszTokens);
@@ -351,7 +368,9 @@ GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
     if (nTokens < 1)
     {
         CSLDestroy(papszTokens);
-        return nullptr;
+        delete poDefaultRAT;
+        poDefaultRAT = nullptr;
+        return CE_Failure;
     }
 
     for (int nIAttTable = 0; nIAttTable < nTokens; nIAttTable++)
@@ -361,25 +380,30 @@ GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
                                              osDBFName, osAssociateRel))
         {
             CSLDestroy(papszTokens);
-            return nullptr;
+            delete poDefaultRAT;
+            poDefaultRAT = nullptr;
+            return CE_Failure;
         }
 
         if (osDBFName.empty())
         {
             CSLDestroy(papszTokens);
-            return nullptr;
+            delete poDefaultRAT;
+            poDefaultRAT = nullptr;
+            return CE_Failure;
         }
 
         if (CE_None !=
             CreateAttributteTableFromDBF(osRELName, osDBFName, osAssociateRel))
         {
             CSLDestroy(papszTokens);
-            return nullptr;
+            delete poDefaultRAT;
+            poDefaultRAT = nullptr;
+            return CE_Failure;
         }
     }
     CSLDestroy(papszTokens);
-
-    return poDefaultRAT;
+    return CE_None;
 }
 
 CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,

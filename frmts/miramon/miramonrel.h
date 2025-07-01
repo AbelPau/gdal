@@ -82,14 +82,14 @@ class MMRInfo
     MMRInfo &operator=(const MMRInfo &) =
         delete;  // I don't want to assing a MMRInfo to another MMRInfo (effc++)
 
-    CPLString osRELFileName;
+    CPLString osRELFileName = "";
     MMRRel *fRel = nullptr;  // Access stuff to REL file
 
     int nXSize = 0;
     int nYSize = 0;
 
     // List of rawBandNames in a subdataset
-    std::vector<CPLString> papoSDSBands;
+    std::vector<CPLString> papoSDSBands{};
 
     int nBands = 0;
     MMRBand **papoBand = nullptr;
