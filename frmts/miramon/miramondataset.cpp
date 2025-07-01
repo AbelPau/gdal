@@ -527,10 +527,19 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
                    oAttributteTable.pField[nCategIndex].AccumulatedBytes,
                oAttributteTable.pField[nCategIndex].BytesPerField);
         pzsField[oAttributteTable.pField[nCategIndex].BytesPerField] = '\0';
-        char *pszFieldRecoded =
-            CPLRecode(pzsField, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
-        poDefaultRAT->SetValue(nIRecord, 1, pszFieldRecoded);
-        CPLFree(pszFieldRecoded);
+        if (oAttributteTable.CharSet == MM_JOC_CARAC_OEM850_DBASE)
+            MM_oemansi(pzsField);
+
+        if (oAttributteTable.CharSet != MM_JOC_CARAC_UTF8_DBF)
+        {
+            // MiraMon encoding is ISO 8859-1 (Latin1) -> Recode to UTF-8
+            char *pszFieldRecoded =
+                CPLRecode(pzsField, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
+            poDefaultRAT->SetValue(nIRecord, 1, pszFieldRecoded);
+            CPLFree(pszFieldRecoded);
+        }
+        else
+            poDefaultRAT->SetValue(nIRecord, 1, pzsField);
     }
 
     VSIFree(pzsField);
