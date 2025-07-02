@@ -1,0 +1,7 @@
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\alone_rel.rel" "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\alone_rel.tiff" -if MiraMonRaster
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\alone_IrelI.rel" "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\alone_Irel.tiff" -if MiraMonRaster
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\empy_img.img" "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\empy_img.tiff" -if MiraMonRaster
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\empy_relI.rel" "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\empy_relI.tiff" -if MiraMonRaster

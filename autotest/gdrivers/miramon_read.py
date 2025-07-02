@@ -12,6 +12,7 @@
 ###############################################################################
 
 
+import re
 import struct
 
 import pytest
@@ -105,3 +106,41 @@ def test_miramon_test_012345_raster(filename, band_idx):
             assert (
                 values[i] == exp
             ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
+
+
+@pytest.mark.parametrize(
+    "name,message",
+    [
+        (
+            "data/miramon/several_errors/alone_rel.rel",
+            "not recognized as being in a supported file format",
+        ),
+        (
+            "data/miramon/several_errors/alone_IrelI.rel",
+            'The file "data/miramon/several_errors/alone_IrelI.rel" must have VersMetaDades>=4.',
+        ),
+        (
+            "data/miramon/several_errors/empy_img.img",
+            "not recognized as being in a supported file format",
+        ),
+        (
+            "data/miramon/several_errors/empy_relI.rel",
+            'The file "data/miramon/several_errors/empy_relI.rel" must be REL4. You can use ConvREL.exe from MiraMon software  or GeM+ to convert this file to REL4.',
+        ),
+        (
+            "data/miramon/several_errors/no_assoc_img.rel",
+            "not recognized as being in a supported file format",
+        ),
+        (
+            "data/miramon/several_errors/no_assoc_rel.img",
+            "not recognized as being in a supported file format",
+        ),
+    ],
+)
+@pytest.mark.require_driver("MiraMonRaster")
+def test_miramon_test_fails(name, message):
+    with pytest.raises(Exception, match=re.escape(message)):
+        gdal.OpenEx(
+            name,
+            gdal.OF_RASTER,
+        )
