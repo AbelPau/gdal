@@ -87,11 +87,10 @@ CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
         // Getting the metadata file name. If it's already a REL file,
         // then same name is returned.
         osRELFileNameIn = MMRRel::GetAssociatedMetadataFileName(pszFileName);
-        if (EQUAL(osRELFileNameIn, ""))
+        if (osRELFileNameIn.empty())
         {
-            CPLError(CE_Failure, CPLE_OpenFailed, "Metadata file for %s \
-                     should exist.",
-                     pszFileName);
+            CPLError(CE_Failure, CPLE_OpenFailed,
+                     "Metadata file for %s should exist.", pszFileName);
             return CE_Failure;
         }
     }
@@ -281,7 +280,10 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
 CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
 {
     if (!pszFileName)
+    {
+        CPLError(CE_Failure, CPLE_OpenFailed, "Expected File name.");
         return "";
+    }
 
     // If the string finishes in "I.rel" we consider it can be
     // the associated file to all bands that are documented in this file.
@@ -298,21 +300,26 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
         CPLString(CPLGetExtensionSafe(pszFileName).c_str());
     if (!EQUAL(pszExtension, pszExtRaster + 1))
     {
+        CPLError(CE_Failure, CPLE_OpenFailed, "File %s should be an IMG file",
+                 pszFileName);
         return "";
     }
 
     // Converting FileName.img to FileNameI.rel
-    CPLString pszRELFile = MMRGetSimpleMetadataName(pszFileName);
-    if (EQUAL(pszRELFile, ""))
+    CPLString osRELFile = MMRGetSimpleMetadataName(pszFileName);
+    if (osRELFile.empty())
     {
+        CPLError(CE_Failure, CPLE_OpenFailed,
+                 "Failing in conversion from .img to I.rel for %s file",
+                 pszFileName);
         return "";
     }
 
     // Checking if the file exists
     VSIStatBufL sStat;
-    if (VSIStatExL(pszRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
+    if (VSIStatExL(osRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
     {
-        return MMRGetAReferenceToIMGFile(pszFileName, pszRELFile.c_str());
+        return MMRGetAReferenceToIMGFile(pszFileName, osRELFile.c_str());
     }
 
     const CPLString osPath = CPLGetPathSafe(pszFileName);
@@ -329,15 +336,17 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
         const CPLString osFilePath =
             CPLFormFilenameSafe(osPath, folder[i], nullptr);
 
-        pszRELFile = MMRGetAReferenceToIMGFile(pszFileName, osFilePath.c_str());
-        if (!EQUAL(pszRELFile, ""))
+        osRELFile = MMRGetAReferenceToIMGFile(pszFileName, osFilePath.c_str());
+        if (!osRELFile.empty())
         {
             CSLDestroy(folder);
-            return pszRELFile;
+            return osRELFile;
         }
     }
 
     CSLDestroy(folder);
+    CPLError(CE_Failure, CPLE_OpenFailed, "REL search failed for %s file",
+             pszFileName);
 
     return "";
 }
@@ -468,14 +477,14 @@ int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
     // Verify that this is a MiraMon IMG or REL file.
     // If IMG, a sidecar file I.rel with reference to
     // poOpenInfo->pszFilename must exist
-    CPLString pszRELFile = GetAssociatedMetadataFileName(
+    CPLString osRELFile = GetAssociatedMetadataFileName(
         static_cast<const char *>(poOpenInfo->pszFilename));
 
-    if (EQUAL(pszRELFile, ""))
+    if (osRELFile.empty())
         return FALSE;
 
     // Some versions of REL files are not allowed.
-    if (MMCheck_REL_FILE(pszRELFile))
+    if (MMCheck_REL_FILE(osRELFile))
         return FALSE;
 
     return TRUE;
@@ -679,10 +688,10 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
     CPLString osFieldNames = hMMR.fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                          Key_IndexsNomsCamps);
 
-    if (!osFieldNames)
+    if (osFieldNames.empty())
     {
-        CPLError(CE_Failure, CPLE_AssertionFailed, "%s-%s section-key \
-            should exist in %s.",
+        CPLError(CE_Failure, CPLE_AssertionFailed,
+                 "%s-%s section-key should exist in %s.",
                  SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps,
                  pszRELFileName.c_str());
         return CE_Failure;
@@ -694,8 +703,7 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
 
     if (!nTokenCount)
     {
-        CPLError(CE_Failure, CPLE_AssertionFailed, "No bands in file \
-            %s.",
+        CPLError(CE_Failure, CPLE_AssertionFailed, "No bands in file %s.",
                  pszRELFileName.c_str());
         return CE_Failure;
     }
