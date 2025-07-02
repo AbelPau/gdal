@@ -175,7 +175,7 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
         return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
 
     // Is the found Value the same than the pszLayerName file?
-    if (pszFileAux == pszLayerName)
+    if (EQUAL(pszFileAux, pszLayerName))
     {
         return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
     }
