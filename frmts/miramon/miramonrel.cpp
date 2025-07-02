@@ -190,7 +190,10 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
                                             const char *pszRELFile)
 {
     if (!pszRELFile)
+    {
+        CPLError(CE_Failure, CPLE_OpenFailed, "Expected File name.");
         return "";
+    }
 
     // [ATTRIBUTE_DATA]
     // NomFitxer=
@@ -206,6 +209,10 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
     }
     else if (iState == MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED)
     {
+        CPLError(CE_Failure, CPLE_OpenFailed,
+                 "Unexpected value for SECTION_ATTRIBUTE_DATA [NomFitxer] in "
+                 "%s file.",
+                 pszRELFile);
         return "";
     }
 
@@ -214,13 +221,21 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
     CPLString osVia =
         GetMetadataValueDirectly(pszRELFile, SECTION_ATTRIBUTE_DATA, KEY_via);
     if (!osVia.empty() && !EQUAL(osVia, "SDE"))
+    {
+        CPLError(CE_Failure, CPLE_OpenFailed, "Unexpected Via in %s file",
+                 pszRELFile);
         return "";
+    }
 
     CPLString osFieldNames = GetMetadataValueDirectly(
         pszRELFile, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
 
     if (osFieldNames.empty())
+    {
+        CPLError(CE_Failure, CPLE_OpenFailed, "Unexpected Via in %s file",
+                 pszRELFile);
         return "";
+    }
 
     // Getting the internal names of the bands
     char **papszTokens = CSLTokenizeString2(osFieldNames, ",", 0);
@@ -273,6 +288,8 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
     }
 
     CSLDestroy(papszTokens);
+    CPLError(CE_Failure, CPLE_OpenFailed,
+             "REL search failed for all bands in %s file", pszRELFile);
     return "";
 }
 
@@ -318,9 +335,7 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
     // Checking if the file exists
     VSIStatBufL sStat;
     if (VSIStatExL(osRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
-    {
         return MMRGetAReferenceToIMGFile(pszFileName, osRELFile.c_str());
-    }
 
     const CPLString osPath = CPLGetPathSafe(pszFileName);
     char **folder = VSIReadDir(osPath.c_str());
