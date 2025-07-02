@@ -11,6 +11,8 @@
  ****************************************************************************/
 
 #include "cpl_port.h"
+#include "gdal_priv.h"
+
 #include "miramon_p.h"
 
 #ifdef MSVC
@@ -456,13 +458,18 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
 /************************************************************************/
 /*                     IdentifyFile()                                */
 /************************************************************************/
-int MMRRel::IdentifyFile(CPLString pszFileName)
+int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
 {
+    // Open function will try to open that, but as it has computation
+    // cost is better avoid doing it here.
+    if (poOpenInfo->IsExtensionEqualToCI("IMG"))
+        return GDAL_IDENTIFY_UNKNOWN;
+
     // Verify that this is a MiraMon IMG or REL file.
     // If IMG, a sidecar file I.rel with reference to
     // poOpenInfo->pszFilename must exist
-    CPLString pszRELFile =
-        GetAssociatedMetadataFileName(static_cast<const char *>(pszFileName));
+    CPLString pszRELFile = GetAssociatedMetadataFileName(
+        static_cast<const char *>(poOpenInfo->pszFilename));
 
     if (EQUAL(pszRELFile, ""))
         return FALSE;

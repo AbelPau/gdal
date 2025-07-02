@@ -15,6 +15,7 @@
 #define MMR_REL_H_INCLUDED
 
 #include "cpl_string.h"
+#include "gdal_priv.h"
 
 /************************************************************************/
 /*                               MMRRel                                */
@@ -101,7 +102,7 @@ class MMRRel
     CPLErr SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR);
     static CPLString GetAssociatedMetadataFileName(const char *pszFileName);
     static int IdentifySubdataSetFile(const CPLString pszFileName);
-    static int IdentifyFile(CPLString pszFileName);
+    static int IdentifyFile(GDALOpenInfo *poOpenInfo);
     static int GetDataTypeAndBytesPerPixel(const char *pszCompType,
                                            MMDataType *nCompressionType,
                                            MMBytesPerPixel *nBytesPerPixel);

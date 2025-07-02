@@ -744,12 +744,11 @@ CPLErr MMRDataset::ReadProjection()
 /*                              Identify()                              */
 /************************************************************************/
 int MMRDataset::Identify(GDALOpenInfo *poOpenInfo)
-
 {
     if (MMRRel::IdentifySubdataSetFile(poOpenInfo->pszFilename))
         return TRUE;
 
-    return MMRRel::IdentifyFile(poOpenInfo->pszFilename);
+    return MMRRel::IdentifyFile(poOpenInfo);
 }
 
 /************************************************************************/
@@ -1004,8 +1003,9 @@ void GDALRegister_MiraMon()
     poDriver->SetDescription("MiraMonRaster");
     poDriver->SetMetadataItem(GDAL_DCAP_RASTER, "YES");
     poDriver->SetMetadataItem(GDAL_DMD_LONGNAME,
-                              "MiraMon Raster Images (.img)");
-    poDriver->SetMetadataItem(GDAL_DMD_HELPTOPIC, "drivers/raster/hfa.html");
+                              "MiraMon Raster Images (.rel, .img)");
+    poDriver->SetMetadataItem(GDAL_DMD_HELPTOPIC,
+                              "drivers/raster/miramon.html");
     poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "img");
     poDriver->SetMetadataItem(
         GDAL_DMD_CREATIONDATATYPES,
