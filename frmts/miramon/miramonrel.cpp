@@ -86,11 +86,15 @@ CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
     {
         // Getting the metadata file name. If it's already a REL file,
         // then same name is returned.
-        osRELFileNameIn = MMRRel::GetAssociatedMetadataFileName(pszFileName);
+        osRELFileNameIn = MMRRel::GetAssociatedMetadataFileName(
+            pszFileName, hMMR.bIsAMiraMonFile);
         if (osRELFileNameIn.empty())
         {
-            CPLError(CE_Failure, CPLE_OpenFailed,
-                     "Metadata file for %s should exist.", pszFileName);
+            if (hMMR.bIsAMiraMonFile)
+            {
+                CPLError(CE_Failure, CPLE_OpenFailed,
+                         "Metadata file for %s should exist.", pszFileName);
+            }
             return CE_Failure;
         }
     }
@@ -187,7 +191,8 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
 // Tries to find a reference to the IMG file 'pszLayerName'
 // we are opening in the REL file 'pszRELFile'
 CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
-                                            const char *pszRELFile)
+                                            const char *pszRELFile,
+                                            bool &bIsAMiraMonFile)
 {
     if (!pszRELFile)
     {
@@ -209,10 +214,14 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
     }
     else if (iState == MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED)
     {
-        CPLError(CE_Failure, CPLE_OpenFailed,
-                 "Unexpected value for SECTION_ATTRIBUTE_DATA [NomFitxer] in "
-                 "%s file.",
-                 pszRELFile);
+        if (bIsAMiraMonFile)
+        {
+            CPLError(
+                CE_Failure, CPLE_OpenFailed,
+                "Unexpected value for SECTION_ATTRIBUTE_DATA [NomFitxer] in "
+                "%s file.",
+                pszRELFile);
+        }
         return "";
     }
 
@@ -222,8 +231,11 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
         GetMetadataValueDirectly(pszRELFile, SECTION_ATTRIBUTE_DATA, KEY_via);
     if (!osVia.empty() && !EQUAL(osVia, "SDE"))
     {
-        CPLError(CE_Failure, CPLE_OpenFailed, "Unexpected Via in %s file",
-                 pszRELFile);
+        if (bIsAMiraMonFile)
+        {
+            CPLError(CE_Failure, CPLE_OpenFailed, "Unexpected Via in %s file",
+                     pszRELFile);
+        }
         return "";
     }
 
@@ -232,8 +244,11 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
 
     if (osFieldNames.empty())
     {
-        CPLError(CE_Failure, CPLE_OpenFailed, "Unexpected Via in %s file",
-                 pszRELFile);
+        if (bIsAMiraMonFile)
+        {
+            CPLError(CE_Failure, CPLE_OpenFailed,
+                     "IndexsNomsCamps not found in %s file", pszRELFile);
+        }
         return "";
     }
 
@@ -288,17 +303,22 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
     }
 
     CSLDestroy(papszTokens);
-    CPLError(CE_Failure, CPLE_OpenFailed,
-             "REL search failed for all bands in %s file", pszRELFile);
+    if (bIsAMiraMonFile)
+    {
+        CPLError(CE_Failure, CPLE_OpenFailed,
+                 "REL search failed for all bands in %s file", pszRELFile);
+    }
     return "";
 }
 
 // Finds the metadata filename associated to pszFileName (usually an IMG file)
-CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
+CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
+                                                bool &bIsAMiraMonFile)
 {
     if (!pszFileName)
     {
-        CPLError(CE_Failure, CPLE_OpenFailed, "Expected File name.");
+        if (bIsAMiraMonFile)
+            CPLError(CE_Failure, CPLE_OpenFailed, "Expected File name.");
         return "";
     }
 
@@ -308,6 +328,7 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
         EQUAL(pszFileName + strlen(pszFileName) - strlen(pszExtRasterREL),
               pszExtRasterREL))
     {
+        bIsAMiraMonFile = true;
         return CPLString(pszFileName);
     }
 
@@ -316,26 +337,26 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
     CPLString pszExtension =
         CPLString(CPLGetExtensionSafe(pszFileName).c_str());
     if (!EQUAL(pszExtension, pszExtRaster + 1))
-    {
-        CPLError(CE_Failure, CPLE_OpenFailed, "File %s should be an IMG file",
-                 pszFileName);
         return "";
-    }
 
     // Converting FileName.img to FileNameI.rel
     CPLString osRELFile = MMRGetSimpleMetadataName(pszFileName);
     if (osRELFile.empty())
     {
-        CPLError(CE_Failure, CPLE_OpenFailed,
-                 "Failing in conversion from .img to I.rel for %s file",
-                 pszFileName);
+        if (bIsAMiraMonFile)
+        {
+            CPLError(CE_Failure, CPLE_OpenFailed,
+                     "Failing in conversion from .img to I.rel for %s file",
+                     pszFileName);
+        }
         return "";
     }
 
     // Checking if the file exists
     VSIStatBufL sStat;
     if (VSIStatExL(osRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
-        return MMRGetAReferenceToIMGFile(pszFileName, osRELFile.c_str());
+        return MMRGetAReferenceToIMGFile(pszFileName, osRELFile.c_str(),
+                                         bIsAMiraMonFile);
 
     const CPLString osPath = CPLGetPathSafe(pszFileName);
     char **folder = VSIReadDir(osPath.c_str());
@@ -351,7 +372,8 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
         const CPLString osFilePath =
             CPLFormFilenameSafe(osPath, folder[i], nullptr);
 
-        osRELFile = MMRGetAReferenceToIMGFile(pszFileName, osFilePath.c_str());
+        osRELFile = MMRGetAReferenceToIMGFile(pszFileName, osFilePath.c_str(),
+                                              bIsAMiraMonFile);
         if (!osRELFile.empty())
         {
             CSLDestroy(folder);
@@ -360,8 +382,11 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName)
     }
 
     CSLDestroy(folder);
-    CPLError(CE_Failure, CPLE_OpenFailed, "REL search failed for %s file",
-             pszFileName);
+    if (bIsAMiraMonFile)
+    {
+        CPLError(CE_Failure, CPLE_OpenFailed, "REL search failed for %s file",
+                 pszFileName);
+    }
 
     return "";
 }
@@ -498,6 +523,8 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
 /************************************************************************/
 int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
 {
+    // IMG files are shared for many drivers.
+    // Identify will mark it as unknown.
     // Open function will try to open that, but as it has computation
     // cost is better avoid doing it here.
     if (poOpenInfo->IsExtensionEqualToCI("IMG"))
@@ -506,17 +533,15 @@ int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
     if (!poOpenInfo->IsExtensionEqualToCI("REL"))
         return GDAL_IDENTIFY_FALSE;
 
-    // Verify that this is a MiraMon IMG or REL file.
-    // If IMG, a sidecar file I.rel with reference to
-    // poOpenInfo->pszFilename must exist
-    CPLString osRELFile = GetAssociatedMetadataFileName(
-        static_cast<const char *>(poOpenInfo->pszFilename));
-
-    if (osRELFile.empty())
+    // In fact, the file has to end with I.rel (pszExtRasterREL)
+    if (!(strlen(poOpenInfo->pszFilename) >= strlen(pszExtRasterREL) &&
+          EQUAL(poOpenInfo->pszFilename + strlen(poOpenInfo->pszFilename) -
+                    strlen(pszExtRasterREL),
+                pszExtRasterREL)))
         return GDAL_IDENTIFY_FALSE;
 
     // Some versions of REL files are not allowed.
-    if (MMCheck_REL_FILE(osRELFile))
+    if (MMCheck_REL_FILE(poOpenInfo->pszFilename))
         return GDAL_IDENTIFY_FALSE;
 
     return GDAL_IDENTIFY_TRUE;

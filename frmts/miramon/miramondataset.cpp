@@ -645,8 +645,11 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     // Getting the info from that REL
     if (CE_None != fRel->SetInfoFromREL(poOpenInfo->pszFilename, *hMMR))
     {
-        CPLError(CE_Failure, CPLE_AppDefined, "Unable to open %s",
-                 poOpenInfo->pszFilename);
+        if (hMMR->bIsAMiraMonFile)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Unable to open %s",
+                     poOpenInfo->pszFilename);
+        }
         delete fRel;
         delete hMMR;
         hMMR = nullptr;
@@ -655,9 +658,12 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 
     if (hMMR->nBands == 0)
     {
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Unable to open %s, it has zero usable bands.",
-                 poOpenInfo->pszFilename);
+        if (hMMR->bIsAMiraMonFile)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Unable to open %s, it has zero usable bands.",
+                     poOpenInfo->pszFilename);
+        }
 
         delete fRel;
         delete hMMR;
@@ -1010,7 +1016,8 @@ void GDALRegister_MiraMon()
                               "MiraMon Raster Images (.rel, .img)");
     poDriver->SetMetadataItem(GDAL_DMD_HELPTOPIC,
                               "drivers/raster/miramon.html");
-    poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "img");
+    poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "rel");
+    poDriver->SetMetadataItem(GDAL_DMD_EXTENSIONS, "rel img");
     poDriver->SetMetadataItem(
         GDAL_DMD_CREATIONDATATYPES,
         "Byte Int8 Int16 UInt16 Int32 UInt32 Float32 Float64 "

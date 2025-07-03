@@ -49,7 +49,7 @@ These are the main characteristics of MiraMon rasters dataset:
     - *Real*: 4 bytes real numbers.
     - *Double*: 8 bytes real numbers.
 
-- **rel file**: This is the metadata file containing metada information such as number of rows, columns, data type, if it's compressed.
+- **rel file**: This is the file containing metadata information such as number of rows, columns, data type, if it's compressed.
 
 Encoding
 --------

@@ -83,6 +83,17 @@ class MMRInfo
     MMRInfo &operator=(const MMRInfo &) =
         delete;  // I don't want to assing a MMRInfo to another MMRInfo (effc++)
 
+    /*
+        When it is known that the file is a REL file (a
+        format not used by any other driver), or if it is
+        an IMG file accompanied by a sibling I.rel file that
+        references this IMG file, special care must be taken.
+        Since the Identify method returns UNKNOWN for IMG files,
+        it is necessary to be cautious before assuming that any
+        IMG file belongs to this driver.
+    */
+    bool bIsAMiraMonFile = false;
+
     CPLString osRELFileName = "";
     MMRRel *fRel = nullptr;  // Access stuff to REL file
 
@@ -100,7 +111,8 @@ class MMRRel
 {
   public:
     CPLErr SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR);
-    static CPLString GetAssociatedMetadataFileName(const char *pszFileName);
+    static CPLString GetAssociatedMetadataFileName(const char *pszFileName,
+                                                   bool &bIsAMiraMonFile);
     static int IdentifySubdataSetFile(const CPLString pszFileName);
     static int IdentifyFile(GDALOpenInfo *poOpenInfo);
     static int GetDataTypeAndBytesPerPixel(const char *pszCompType,
@@ -127,6 +139,7 @@ class MMRRel
 
   private:
     CPLString osRelFileName;
+
     static CPLErr CheckBandInRel(const char *pszRELFileName,
                                  const char *pszIMGFile);
     static CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
@@ -135,7 +148,8 @@ class MMRRel
                                  const char *pszSection,
                                  const char *pszRELFile);
     static CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
-                                               const char *pszRELFile);
+                                               const char *pszRELFile,
+                                               bool &bIsAMiraMonFile);
 };
 
 #endif /* ndef MMR_REL_H_INCLUDED */

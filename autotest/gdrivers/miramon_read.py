@@ -132,13 +132,13 @@ def test_miramon_test_012345_raster(filename, band_idx):
         ),
         (
             "data/miramon/several_errors/no_assoc_rel.img",
-            "REL search failed",
+            "not recognized as being in a supported file format",
         ),
     ],
 )
 @pytest.mark.require_driver("MiraMonRaster")
 def test_miramon_test_fails(name, message_substring):
-    with pytest.raises as excinfo:
+    with pytest.raises(Exception) as excinfo:
         gdal.OpenEx(
             name,
             gdal.OF_RASTER,
