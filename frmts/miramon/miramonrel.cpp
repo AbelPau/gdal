@@ -97,6 +97,11 @@ CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
             }
             return CE_Failure;
         }
+        else
+        {
+            // It's a REL, so it's a MiraMon file
+            hMMR.bIsAMiraMonFile = true;
+        }
     }
 
     // If rel name was not a REL name, we update that
@@ -168,10 +173,7 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
     if (osDocumentedLayerName.empty())
         return MMRNomFitxerState::NOMFITXER_NOT_FOUND;
 
-    if (*osDocumentedLayerName == '\0')
-        return MMRNomFitxerState::NOMFITXER_VALUE_EMPTY;
-
-    CPLString pszFileAux = CPLFormFilenameSafe(
+    CPLString osFileAux = CPLFormFilenameSafe(
         CPLGetPathSafe(pszRELFile).c_str(), osDocumentedLayerName, "");
 
     osDocumentedLayerName =
@@ -180,10 +182,20 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
         return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
 
     // Is the found Value the same than the pszLayerName file?
-    if (EQUAL(pszFileAux, pszLayerName))
-    {
+    if (EQUAL(osFileAux, pszLayerName))
         return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
-    }
+
+    // Just to be sure:
+    if (osFileAux.compare(pszLayerName) == 0)
+        return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
+
+    // Just to be more sure:
+    osFileAux.replaceAll("\\", "/");
+    CPLString osLayerName = pszLayerName;
+    osLayerName.replaceAll("\\", "/");
+
+    if (EQUAL(osFileAux, osLayerName))
+        return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
 
     return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
 }
@@ -358,6 +370,8 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
         return MMRGetAReferenceToIMGFile(pszFileName, osRELFile.c_str(),
                                          bIsAMiraMonFile);
 
+    // If the file I.rel doesn't exist then it has to be found
+    // in the same folder than the .img file.
     const CPLString osPath = CPLGetPathSafe(pszFileName);
     char **folder = VSIReadDir(osPath.c_str());
     int size = folder ? CSLCount(folder) : 0;
@@ -500,14 +514,15 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
         // Let's check that this band (papszTokens[nIBand]) is in the REL file.
         CPLString osBandName = papszTokens[nIBand];
 
+        // Let's remove "\"" if existant.
+        osBandName.replaceAll("\"", "");
+
         // If it's not an IMG file return FALSE
         CPLString pszExtension =
             CPLString(CPLGetExtensionSafe(osBandName).c_str());
         if (!EQUAL(pszExtension, pszExtRaster + 1))
             return GDAL_IDENTIFY_FALSE;
 
-        // Let's remove "\"" if existant.
-        osBandName.replaceAll("\"", "");
         if (CE_None != CheckBandInRel(osRELName, osBandName))
         {
             CSLDestroy(papszTokens);
