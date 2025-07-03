@@ -624,6 +624,26 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
 
 /************************************************************************/
 /* ==================================================================== */
+/*                            MMRInfo                                   */
+/* ==================================================================== */
+/************************************************************************/
+
+/************************************************************************/
+/*                              ~MMRInfo()                              */
+/************************************************************************/
+MMRInfo::~MMRInfo()
+{
+    for (int i = 0; i < nBands; i++)
+        delete papoBand[i];
+
+    delete papoBand;
+
+    delete fRel;
+    //fRel = nullptr;
+}
+
+/************************************************************************/
+/* ==================================================================== */
 /*                            MMRDataset                               */
 /* ==================================================================== */
 /************************************************************************/
@@ -713,15 +733,7 @@ MMRDataset::~MMRDataset()
     CPLFree(papoBands);
     papoBands = nullptr;
 
-    // Close the file.
-    if (hMMR != nullptr)
-    {
-        if (MMRClose(hMMR) != 0)
-        {
-            CPLError(CE_Failure, CPLE_FileIO, "I/O error");
-        }
-        hMMR = nullptr;
-    }
+    delete hMMR;
 }
 
 /************************************************************************/
@@ -1012,8 +1024,7 @@ void GDALRegister_MiraMon()
     //·$·TODO Fitxer ajuda!!
     poDriver->SetDescription("MiraMonRaster");
     poDriver->SetMetadataItem(GDAL_DCAP_RASTER, "YES");
-    poDriver->SetMetadataItem(GDAL_DMD_LONGNAME,
-                              "MiraMon Raster Images (.rel, .img)");
+    poDriver->SetMetadataItem(GDAL_DMD_LONGNAME, "MiraMon Raster Images");
     poDriver->SetMetadataItem(GDAL_DMD_HELPTOPIC,
                               "drivers/raster/miramon.html");
     poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "rel");

@@ -24,8 +24,6 @@
 /*      Prototypes                                                      */
 /* -------------------------------------------------------------------- */
 
-int CPL_DLL MMRClose(MMRInfo *); /* 0 = success */
-
 CPLErr CPL_DLL MMRGetBandInfo(const MMRInfo &hMMR, int nBand,
                               CPLString *osBandSection,
                               MMDataType *eMMRDataType,

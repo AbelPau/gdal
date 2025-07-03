@@ -48,28 +48,6 @@
 #include "miramon_rastertools.h"
 
 /************************************************************************/
-/*                              MMRClose()                              */
-/************************************************************************/
-
-int MMRClose(MMRInfo *hMMR)
-
-{
-    int nRet = 0;
-
-    for (int i = 0; i < hMMR->nBands; i++)
-    {
-        delete hMMR->papoBand[i];
-    }
-    delete hMMR->papoBand;
-
-    delete hMMR->fRel;
-    hMMR->fRel = nullptr;
-
-    delete hMMR;
-    return nRet;
-}
-
-/************************************************************************/
 /*                           MMRGetBandInfo()                           */
 /************************************************************************/
 

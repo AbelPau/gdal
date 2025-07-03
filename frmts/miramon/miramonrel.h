@@ -83,6 +83,7 @@ class MMRInfo
     MMRInfo &operator=(const MMRInfo &) =
         delete;  // I don't want to assing a MMRInfo to another MMRInfo (effc++)
 
+    ~MMRInfo();
     /*
         When it is known that the file is a REL file (a
         format not used by any other driver), or if it is
