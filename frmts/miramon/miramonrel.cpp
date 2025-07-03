@@ -463,7 +463,7 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
     if (!(strlen(osRELName) >= strlen(pszExtRasterREL) &&
           EQUAL(osRELName + strlen(osRELName) - strlen(pszExtRasterREL),
                 pszExtRasterREL)))
-        GDAL_IDENTIFY_FALSE;
+        return GDAL_IDENTIFY_FALSE;
 
     if (MMCheck_REL_FILE(osRELName))
         return GDAL_IDENTIFY_FALSE;
@@ -479,7 +479,7 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
         CPLString pszExtension =
             CPLString(CPLGetExtensionSafe(osBandName).c_str());
         if (!EQUAL(pszExtension, pszExtRaster + 1))
-            GDAL_IDENTIFY_FALSE;
+            return GDAL_IDENTIFY_FALSE;
 
         // Let's remove "\"" if existant.
         osBandName.replaceAll("\"", "");
