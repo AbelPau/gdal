@@ -444,7 +444,7 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
     CPLString osFilename = pszFileName;
     size_t nPos = osFilename.ifind(osMMRPrefix);
     if (nPos != 0)
-        return FALSE;
+        return GDAL_IDENTIFY_FALSE;
 
     CPLString osRELAndBandName = osFilename.substr(osMMRPrefix.size());
 
@@ -453,30 +453,44 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
     // Getting the REL associated to the bands
     // We need the REL and at least one band (index + name).
     if (nTokens < 2)
-        return FALSE;
+        return GDAL_IDENTIFY_FALSE;
 
     // Let's remove "\"" if existant.
     CPLString osRELName = papszTokens[0];
     osRELName.replaceAll("\"", "");
 
-    if (MMCheck_REL_FILE(osRELName))
-        return FALSE;
+    // It must be a I.rel file.
+    if (!(strlen(osRELName) >= strlen(pszExtRasterREL) &&
+          EQUAL(osRELName + strlen(osRELName) - strlen(pszExtRasterREL),
+                pszExtRasterREL)))
+        GDAL_IDENTIFY_FALSE;
 
+    if (MMCheck_REL_FILE(osRELName))
+        return GDAL_IDENTIFY_FALSE;
+
+    // Let's see if the specifieds bands are in the REL file
     // Getting the index + internal names of the bands
     for (int nIBand = 1; nIBand < nTokens; nIBand++)
     {
         // Let's check that this band (papszTokens[nIBand]) is in the REL file.
         CPLString osBandName = papszTokens[nIBand];
+
+        // If it's not an IMG file return FALSE
+        CPLString pszExtension =
+            CPLString(CPLGetExtensionSafe(osBandName).c_str());
+        if (!EQUAL(pszExtension, pszExtRaster + 1))
+            GDAL_IDENTIFY_FALSE;
+
         // Let's remove "\"" if existant.
         osBandName.replaceAll("\"", "");
         if (CE_None != CheckBandInRel(osRELName, osBandName))
         {
             CSLDestroy(papszTokens);
-            return FALSE;
+            return GDAL_IDENTIFY_FALSE;
         }
     }
     CSLDestroy(papszTokens);
-    return TRUE;
+    return GDAL_IDENTIFY_TRUE;
 }
 
 /************************************************************************/
@@ -489,6 +503,9 @@ int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
     if (poOpenInfo->IsExtensionEqualToCI("IMG"))
         return GDAL_IDENTIFY_UNKNOWN;
 
+    if (!poOpenInfo->IsExtensionEqualToCI("REL"))
+        return GDAL_IDENTIFY_FALSE;
+
     // Verify that this is a MiraMon IMG or REL file.
     // If IMG, a sidecar file I.rel with reference to
     // poOpenInfo->pszFilename must exist
@@ -496,13 +513,13 @@ int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
         static_cast<const char *>(poOpenInfo->pszFilename));
 
     if (osRELFile.empty())
-        return FALSE;
+        return GDAL_IDENTIFY_FALSE;
 
     // Some versions of REL files are not allowed.
     if (MMCheck_REL_FILE(osRELFile))
-        return FALSE;
+        return GDAL_IDENTIFY_FALSE;
 
-    return TRUE;
+    return GDAL_IDENTIFY_TRUE;
 }
 
 /************************************************************************/

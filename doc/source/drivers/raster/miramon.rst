@@ -61,8 +61,6 @@ are in ANSI, OEM or UTF-8).
 Open options
 ------------
 
-The following open options are available.
-
 None
 
 Dataset creation options

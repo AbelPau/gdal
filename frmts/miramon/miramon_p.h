@@ -37,6 +37,7 @@ class MMRBand;
 
 constexpr auto pszExtRaster = ".img";
 constexpr auto pszExtRasterREL = "I.rel";
+constexpr auto pszExtREL = ".rel";
 
 /************************************************************************/
 /*                               MMRBand                                */

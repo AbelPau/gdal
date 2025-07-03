@@ -745,9 +745,13 @@ CPLErr MMRDataset::ReadProjection()
 /************************************************************************/
 int MMRDataset::Identify(GDALOpenInfo *poOpenInfo)
 {
-    if (MMRRel::IdentifySubdataSetFile(poOpenInfo->pszFilename))
-        return TRUE;
+    // Checking for subdataset
+    int nIdentifyResult =
+        MMRRel::IdentifySubdataSetFile(poOpenInfo->pszFilename);
+    if (nIdentifyResult != GDAL_IDENTIFY_FALSE)
+        return nIdentifyResult;
 
+    // Checking for MiraMon raster file
     return MMRRel::IdentifyFile(poOpenInfo);
 }
 
