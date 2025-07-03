@@ -636,7 +636,7 @@ MMRInfo::~MMRInfo()
     for (int i = 0; i < nBands; i++)
         delete papoBand[i];
 
-    delete papoBand;
+    delete[] papoBand;
 
     delete fRel;
     //fRel = nullptr;
