@@ -566,7 +566,9 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
     if (VSIFSeekL(pfIMG, 0, SEEK_END))
         return 0;
 
-    if (static_cast<vsi_l_offset>(-1) == (nFileSize = VSIFTellL(pfIMG)))
+    nFileSize = VSIFTellL(pfIMG);
+
+    if (nFileSize < 32)  // Minimum required size
         return 0;
 
     if (nHeight)
@@ -575,7 +577,9 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
             return 0;
     }
 
-    if (VSIFSeekL(pfIMG, -32, SEEK_CUR))  // Reading final header.
+    vsi_l_offset nHeadOffset = nFileSize - 32;
+
+    if (VSIFSeekL(pfIMG, nHeadOffset, SEEK_SET))  // Reading final header.
         return 0;
     if (VSIFReadL(szChain, 16, 1, pfIMG) != 1)
         return 0;
