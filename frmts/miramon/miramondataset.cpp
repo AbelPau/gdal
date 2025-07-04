@@ -791,7 +791,10 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     poDS = new MMRDataset(poOpenInfo);
 
     if (poDS->hMMR == nullptr)
+    {
+        delete poDS;
         return nullptr;
+    }
 
     return poDS;
 }
