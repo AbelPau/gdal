@@ -204,6 +204,9 @@ static int MM_GetArcHeights(double *coord_z, VSILFILE *pF,
 #define MM_N_ALCADA_LOCAL 50  // Nr of local heights
     double local_CinquantaAlcades[MM_N_ALCADA_LOCAL];
 
+    if (!pZDescription)
+        return 0;
+
     for (i_vrt = 0; i_vrt < n_vrt; i_vrt++)
         coord_z[i_vrt] = MM_NODATA_COORD_Z;
 
