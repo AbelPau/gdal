@@ -16,14 +16,6 @@
 #include <vector>
 #include <array>
 
-#ifdef CPL_LSB
-#define MMRStandard(n, p)                                                      \
-    {                                                                          \
-    }
-#else
-void MMRStandard(int, void *);
-#endif
-
 #include "miramonrel.h"
 
 #ifdef MSVC

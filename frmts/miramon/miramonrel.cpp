@@ -13,7 +13,7 @@
 #include "cpl_port.h"
 #include "gdal_priv.h"
 
-#include "miramon_p.h"
+#include "miramonband.h"
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()

@@ -11,7 +11,7 @@
  ****************************************************************************/
 #include <algorithm>
 
-#include "miramon_p.h"
+#include "miramonband.h"
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MM_ReadExtendedDBFHeaderFromFile()

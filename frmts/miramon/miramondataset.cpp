@@ -12,8 +12,8 @@
 
 //#include "cpl_port.h"
 #include "miramondataset.h"
-#include "miramon_p.h"
 #include "miramonrel.h"
+#include "miramonband.h"
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
@@ -1015,36 +1015,11 @@ void GDALRegister_MiraMon()
         "Byte Int8 Int16 UInt16 Int32 UInt32 Float32 Float64 "
         "CFloat32 CFloat64");
 
-    /*poDriver->SetMetadataItem(
-        GDAL_DMD_CREATIONOPTIONLIST,
-        "<CreationOptionList>"
-        "   <Option name='BLOCKSIZE' type='integer' description='tile "
-        "width/height (32-2048)' default='64'/>"
-        "   <Option name='USE_SPILL' type='boolean' description='Force use of "
-        "spill file'/>"
-        "   <Option name='COMPRESSED' alias='COMPRESS' type='boolean' "
-        "description='compress blocks'/>"
-        "   <Option name='NBITS' type='integer' description='Create file with "
-        "special sub-byte data type (1/2/4)'/>"
-        "   <Option name='STATISTICS' type='boolean' description='Generate "
-        "statistics and a histogram'/>"
-        "</CreationOptionList>");
-        */
-
     poDriver->SetMetadataItem(GDAL_DCAP_VIRTUALIO, "YES");
-
-    //poDriver->SetMetadataItem(GDAL_DCAP_UPDATE, "YES");
-    //poDriver->SetMetadataItem(GDAL_DMD_UPDATE_ITEMS,
-    //                          "GeoTransform SRS NoData "
-    //                          "RasterValues "
-    //                          "DatasetMetadata BandMetadata");
     poDriver->SetMetadataItem(GDAL_DMD_SUBDATASETS, "YES");
 
     poDriver->pfnOpen = MMRDataset::Open;
-    //poDriver->pfnCreate = MMRDataset::Create;
-    //poDriver->pfnCreateCopy = MMRDataset::CreateCopy;
     poDriver->pfnIdentify = MMRDataset::Identify;
-    //poDriver->pfnCopyFiles = MMRDataset::CopyFiles;
 
     GetGDALDriverManager()->RegisterDriver(poDriver);
 }

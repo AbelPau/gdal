@@ -16,12 +16,9 @@
 #include <cstddef>
 #include <vector>
 
-#include "gdal_frmts.h"
 #include "gdal_pam.h"
 #include "gdal_rat.h"
-#include "miramon_p.h"
-#include "ogr_spatialref.h"
-#include "ogr_srs_api.h"
+#include "miramonrel.h"  // For MMRInfo
 
 /************************************************************************/
 /* ==================================================================== */
@@ -63,9 +60,6 @@ class MMRDataset final : public GDALPamDataset
 
     static int Identify(GDALOpenInfo *);
     static GDALDataset *Open(GDALOpenInfo *);
-    static GDALDataset *Create(const char *pszFileName, int nXSize, int nYSize,
-                               int nBands, GDALDataType eType,
-                               char **papszParamList);
 
     void AssignBandsToSubdataSets();
     void CreateSubdatasetsFromBands();
