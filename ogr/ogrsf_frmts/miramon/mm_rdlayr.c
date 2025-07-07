@@ -191,9 +191,9 @@ static void MM_AdoptHeight(double *desti, const double *proposta, uint32_t flag)
     }
 }
 
-CPL_DLL int MM_GetArcHeights(double *coord_z, VSILFILE *pF,
-                             MM_N_VERTICES_TYPE n_vrt,
-                             struct MM_ZD *pZDescription, uint32_t flag)
+static int MM_GetArcHeights(double *coord_z, VSILFILE *pF,
+                            MM_N_VERTICES_TYPE n_vrt,
+                            struct MM_ZD *pZDescription, uint32_t flag)
 {
     MM_N_HEIGHT_TYPE i;
     MM_N_VERTICES_TYPE i_vrt;
