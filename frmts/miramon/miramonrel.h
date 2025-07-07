@@ -119,17 +119,20 @@ class MMRRel
     static int GetDataTypeAndBytesPerPixel(const char *pszCompType,
                                            MMDataType *nCompressionType,
                                            MMBytesPerPixel *nBytesPerPixel);
-    CPLString GetMetadataValue(const char *pszMainSection,
-                               const char *pszSubSection,
-                               const char *pszSubSubSection,
-                               const char *pszKey);
-    CPLString GetMetadataValue(const char *pszMainSection,
-                               const char *pszSubSection, const char *pszKey);
-    CPLString GetMetadataValue(const char *pszSection, const char *pszKey);
+    CPLString GetMetadataValue(const CPLString osMainSection,
+                               const CPLString osSubSection,
+                               const CPLString osSubSubSection,
+                               const CPLString osKey);
+    CPLString GetMetadataValue(const CPLString osMainSection,
+                               const CPLString osSubSection,
+                               const CPLString osKey);
+    CPLString GetMetadataValue(const CPLString osSection,
+                               const CPLString osKey);
     static CPLString GetMetadataValueDirectly(const char *pszRELFile,
                                               const char *pszSection,
                                               const char *pszKey);
     const char *GetRELNameChar();
+    static CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
     void SetRELNameChar(CPLString osRelFileNameIn);
     static CPLErr ParseBandInfo(MMRInfo &hMMR);
     static CPLString

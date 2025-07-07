@@ -14,41 +14,6 @@
 #include "miramondataset.h"
 #include "miramon_p.h"
 #include "miramonrel.h"
-#include "miramon_rastertools.h"
-
-//#include <cassert>
-/*
-#include <climits>
-#include <cmath>
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#if HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
-#include <algorithm>
-#include <limits>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "cpl_conv.h"
-#include "cpl_error.h"
-#include "cpl_minixml.h"
-#include "cpl_progress.h"
-#include "cpl_string.h"
-#include "cpl_vsi.h"
-#include "gdal.h"
-#include "gdal_frmts.h"
-#include "gdal_pam.h"
-#include "gdal_priv.h"
-#include "gdal_rat.h"
-#include "miramon.h"
-#include "ogr_core.h"
-#include "ogr_spatialref.h"
-#include "ogr_srs_api.h"
-*/
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
@@ -70,10 +35,21 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     nBand = nBandIn;
     eAccess = poDSIn->GetAccess();
 
-    MMRGetBandInfo(*hMMR, nBand, &osBandSection, &eMMRDataTypeMiraMon,
-                   &eMMBytesPerPixel, &nBlockXSize, &nBlockYSize);
+    if (nBand < 0 || nBand > hMMR->nBands)
+    {
+        CPLAssert(false);
+        return;
+    }
 
-    // Set some other information.
+    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+
+    // Getting some band info
+    osBandSection = poBand->GetBandSection();
+    eMMRDataTypeMiraMon = poBand->GeteMMDataType();
+    eMMBytesPerPixel = poBand->GeteMMBytesPerPixel();
+    nBlockXSize = poBand->nBlockXSize;
+    nBlockYSize = poBand->nBlockYSize;
+
     switch (eMMRDataTypeMiraMon)
     {
         case MMDataType::DATATYPE_AND_COMPR_BIT:
@@ -119,9 +95,9 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     }
 
     // Collect color table if present.
-    CPLErr eErr = MMRGetPCT(*hMMR, nBand);
-    int nColors =
-        static_cast<int>(hMMR->papoBand[nBand - 1]->GetPCT_Red().size());
+    CPLErr eErr = poBand->GetPCT();
+
+    int nColors = static_cast<int>(poBand->GetPCT_Red().size());
 
     if (eErr == CE_None && nColors > 0)
     {
@@ -129,14 +105,10 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
         for (int iColor = 0; iColor < nColors; iColor++)
         {
             GDALColorEntry sEntry = {
-                static_cast<short int>(
-                    hMMR->papoBand[nBand - 1]->GetPCT_Red()[iColor]),
-                static_cast<short int>(
-                    hMMR->papoBand[nBand - 1]->GetPCT_Green()[iColor]),
-                static_cast<short int>(
-                    hMMR->papoBand[nBand - 1]->GetPCT_Blue()[iColor]),
-                static_cast<short int>(
-                    hMMR->papoBand[nBand - 1]->GetPCT_Alpha()[iColor])};
+                static_cast<short int>(poBand->GetPCT_Red()[iColor]),
+                static_cast<short int>(poBand->GetPCT_Green()[iColor]),
+                static_cast<short int>(poBand->GetPCT_Blue()[iColor]),
+                static_cast<short int>(poBand->GetPCT_Alpha()[iColor])};
 
             if ((sEntry.c1 < 0 || sEntry.c1 > 255) ||
                 (sEntry.c2 < 0 || sEntry.c2 > 255) ||
@@ -178,17 +150,29 @@ double MMRRasterBand::GetNoDataValue(int *pbSuccess)
 {
     double dfNoData = 0.0;
 
-    if (MMRGetBandNoData(*hMMR, nBand, &dfNoData))
+    if (nBand < 0 || (nBand - 1) > hMMR->nBands)
     {
-        if (pbSuccess)
-            *pbSuccess = TRUE;
+        CPLAssert(false);
         return dfNoData;
     }
-    if (pbSuccess)
-        *pbSuccess = FALSE;
-    return dfNoData;
 
-    //return GDALPamRasterBand::GetNoDataValue(pbSuccess);
+    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    if (!poBand)
+    {
+        CPLAssert(false);
+        return dfNoData;
+    }
+
+    if (!poBand->bNoDataSet)
+    {
+        if (pbSuccess)
+            *pbSuccess = FALSE;
+        return dfNoData;
+    }
+
+    if (pbSuccess)
+        *pbSuccess = TRUE;
+    return poBand->dfNoData;
 }
 
 /************************************************************************/
@@ -238,9 +222,12 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 {
     CPLErr eErr = CE_None;
 
-    eErr = MMRGetRasterBlockEx(*hMMR, nBand, nBlockXOff, nBlockYOff, pImage,
-                               nBlockXSize * nBlockYSize *
-                                   GDALGetDataTypeSizeBytes(eDataType));
+    if (nBand < 1 || nBand > hMMR->nBands)
+        return CE_Failure;
+
+    eErr = hMMR->papoBand[nBand - 1]->GetRasterBlock(
+        nBlockXOff, nBlockYOff, pImage,
+        nBlockXSize * nBlockYSize * GDALGetDataTypeSizeBytes(eDataType));
 
     if (eErr == CE_None &&
         eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BIT)
@@ -265,19 +252,10 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 
 const char *MMRRasterBand::GetDescription() const
 {
-    return MMRGetBandName(*hMMR, nBand);
-}
-
-/************************************************************************/
-/*                         MMRGetBandName()                             */
-/************************************************************************/
-
-const char *MMRGetBandName(const MMRInfo &hMMR, int nBand)
-{
-    if (nBand < 1 || nBand > hMMR.nBands)
+    if (nBand < 1 || nBand > hMMR->nBands)
         return "";
 
-    return hMMR.papoBand[nBand - 1]->GetBandName();
+    return hMMR->papoBand[nBand - 1]->GetBandName();
 }
 
 /************************************************************************/

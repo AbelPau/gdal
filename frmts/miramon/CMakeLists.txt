@@ -1,16 +1,13 @@
 # depend from gcore
 add_gdal_driver(
   TARGET gdal_MiraMon
-  SOURCES miramon.h
-          miramon_p.h
+  SOURCES miramon_p.h
           miramonrel.h
           miramondataset.h
-          miramon_rastertools.h
           miramonband.cpp
           miramonrel.cpp
           miramondataset.cpp
           miramonopen.cpp
-          miramon_rastertools.cpp
   PLUGIN_CAPABLE
   NO_DEPS
 )

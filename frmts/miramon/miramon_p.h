@@ -24,7 +24,6 @@
 void MMRStandard(int, void *);
 #endif
 
-#include "miramon.h"
 #include "miramonrel.h"
 
 #ifdef MSVC
@@ -97,7 +96,7 @@ class MMRBand
     bool bMaxVisuSet;
     double dfVisuMax;  // Key Color_ValorColor_n_1 COLOR_TEXT
 
-    CPLString pszRefSystem;
+    CPLString osRefSystem;
 
     // Extent values of the band:
     // They always refer to extreme outer coordinates,
@@ -119,11 +118,11 @@ class MMRBand
     ~MMRBand();
 
     int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
-        const char *pszSection, const char *pszKey, int *nValue,
+        const CPLString osSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
     int GetDataTypeFromREL(const char *pszSection);
     int GetResolutionFromREL(const char *pszSection);
-    int GetColumnsNumberFromREL(const char *pszSection);
+    int GetColumnsNumberFromREL(const CPLString osSection);
     int GetRowsNumberFromREL(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
     void GetNoDataDefinitionFromREL(const char *pszSection);
@@ -270,7 +269,7 @@ class MMRBand
 
     template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
     bool AcceptedDataType();
-    CPLErr GetRowData(void *rowBuffer);
+    CPLErr GetBlockData(void *rowBuffer);
     int PositionAtStartOfRowOffsetsInFile();
     bool FillRowOffsets();
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
@@ -297,9 +296,9 @@ class MMRBand
     int nBlocksPerRow;
     int nBlocksPerColumn;
 
-    bool bNoDataSet;         // There is nodata?
-    CPLString pszNodataDef;  // Definition of nodata
-    double dfNoData;         // Value of nodata
+    bool bNoDataSet;        // There is nodata?
+    CPLString osNodataDef;  // Definition of nodata
+    double dfNoData;        // Value of nodata
 };
 
 #endif /* ndef MMR_P_H_INCLUDED */

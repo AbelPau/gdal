@@ -23,8 +23,6 @@
 //#include "../miramon_common/mm_gdal_constants.h"
 #endif
 
-#include "miramon_rastertools.h"
-
 /************************************************************************/
 /*                              MMRRel()                               */
 /************************************************************************/
@@ -121,6 +119,22 @@ CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
 /************************************************************************/
 /*              GetAssociatedMetadataFileName()                      */
 /************************************************************************/
+// Converts FileNameI.rel to FileName.img
+CPLString MMRRel::MMRGetFileNameFromRelName(const char *pszRELFile)
+{
+    if (!pszRELFile)
+        return "";
+
+    CPLString osFile = CPLString(CPLResetExtensionSafe(pszRELFile, "").c_str());
+
+    if (osFile.length() < 2)
+        return "";
+
+    osFile.resize(osFile.size() - 2);  // I.
+    osFile += pszExtRaster;
+
+    return osFile;
+}
 
 // Converts FileName.img to FileNameI.rel
 CPLString MMRRel::MMRGetSimpleMetadataName(const char *pszLayerName)
@@ -129,18 +143,18 @@ CPLString MMRRel::MMRGetSimpleMetadataName(const char *pszLayerName)
         return "";
 
     // Extract extension
-    CPLString pszRELFile =
+    CPLString osRELFile =
         CPLString(CPLResetExtensionSafe(pszLayerName, "").c_str());
 
-    if (!pszRELFile.length())
+    if (!osRELFile.length())
         return "";
 
     // Extract "."
-    pszRELFile.resize(pszRELFile.size() - 1);
+    osRELFile.resize(osRELFile.size() - 1);
     // Add "I.rel"
-    pszRELFile += pszExtRasterREL;
+    osRELFile += pszExtRasterREL;
 
-    return pszRELFile;
+    return osRELFile;
 }
 
 CPLString MMRRel::GetMetadataValueDirectly(const char *pszRELFile,
@@ -346,9 +360,8 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
 
     // If the file is not a REL file, let's try to find the associated REL
     // It must be a IMG file.
-    CPLString pszExtension =
-        CPLString(CPLGetExtensionSafe(pszFileName).c_str());
-    if (!EQUAL(pszExtension, pszExtRaster + 1))
+    CPLString osExtension = CPLString(CPLGetExtensionSafe(pszFileName).c_str());
+    if (!EQUAL(osExtension, pszExtRaster + 1))
         return "";
 
     // Converting FileName.img to FileNameI.rel
@@ -426,7 +439,6 @@ CPLErr MMRRel::CheckBandInRel(const char *pszRELFileName,
         return CE_Failure;
 
     CPLString osBandSectionKey;
-    CPLString pszFileAux;
     CPLString osBandSectionValue;
     for (int i = 0; i < nTokenCount; i++)
     {
@@ -518,9 +530,9 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
         osBandName.replaceAll("\"", "");
 
         // If it's not an IMG file return FALSE
-        CPLString pszExtension =
+        CPLString osExtension =
             CPLString(CPLGetExtensionSafe(osBandName).c_str());
-        if (!EQUAL(pszExtension, pszExtRaster + 1))
+        if (!EQUAL(osExtension, pszExtRaster + 1))
             return GDAL_IDENTIFY_FALSE;
 
         if (CE_None != CheckBandInRel(osRELName, osBandName))
@@ -657,21 +669,21 @@ int MMRRel::GetDataTypeAndBytesPerPixel(const char *pszCompType,
 /************************************************************************/
 /*                     GetMetadataValue()                               */
 /************************************************************************/
-CPLString MMRRel::GetMetadataValue(const char *pszMainSection,
-                                   const char *pszSubSection,
-                                   const char *pszSubSubSection,
-                                   const char *pszKey)
+CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
+                                   const CPLString osSubSection,
+                                   const CPLString osSubSubSection,
+                                   const CPLString osKey)
 {
     // Searches in [pszMainSection:pszSubSection]
     CPLString osAtributeDataName;
-    osAtributeDataName = pszMainSection;
+    osAtributeDataName = osMainSection;
     osAtributeDataName.append(":");
-    osAtributeDataName.append(pszSubSection);
+    osAtributeDataName.append(osSubSection);
     osAtributeDataName.append(":");
-    osAtributeDataName.append(pszSubSubSection);
+    osAtributeDataName.append(osSubSubSection);
 
-    char *pszValue = MMReturnValueFromSectionINIFile(
-        GetRELNameChar(), osAtributeDataName, pszKey);
+    char *pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
+                                                     osAtributeDataName, osKey);
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -681,7 +693,7 @@ CPLString MMRRel::GetMetadataValue(const char *pszMainSection,
 
     // If the value is not found then searches in [pszMainSection]
     pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
-                                               pszSubSubSection, pszKey);
+                                               osSubSubSection, osKey);
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -691,18 +703,18 @@ CPLString MMRRel::GetMetadataValue(const char *pszMainSection,
     return "";
 }
 
-CPLString MMRRel::GetMetadataValue(const char *pszMainSection,
-                                   const char *pszSubSection,
-                                   const char *pszKey)
+CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
+                                   const CPLString osSubSection,
+                                   const CPLString osKey)
 {
     // Searches in [pszMainSection:pszSubSection]
     CPLString osAtributeDataName;
-    osAtributeDataName = pszMainSection;
+    osAtributeDataName = osMainSection;
     osAtributeDataName.append(":");
-    osAtributeDataName.append(pszSubSection);
+    osAtributeDataName.append(osSubSection);
 
-    char *pszValue = MMReturnValueFromSectionINIFile(
-        GetRELNameChar(), osAtributeDataName, pszKey);
+    char *pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
+                                                     osAtributeDataName, osKey);
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -711,8 +723,8 @@ CPLString MMRRel::GetMetadataValue(const char *pszMainSection,
     }
 
     // If the value is not found then searches in [pszMainSection]
-    pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(), pszMainSection,
-                                               pszKey);
+    pszValue =
+        MMReturnValueFromSectionINIFile(GetRELNameChar(), osMainSection, osKey);
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -722,10 +734,11 @@ CPLString MMRRel::GetMetadataValue(const char *pszMainSection,
     return "";
 }
 
-CPLString MMRRel::GetMetadataValue(const char *pszSection, const char *pszKey)
+CPLString MMRRel::GetMetadataValue(const CPLString osSection,
+                                   const CPLString osKey)
 {
     char *pszValue =
-        MMReturnValueFromSectionINIFile(GetRELNameChar(), pszSection, pszKey);
+        MMReturnValueFromSectionINIFile(GetRELNameChar(), osSection, osKey);
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -781,7 +794,6 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
     }
 
     CPLString osBandSectionKey;
-    CPLString pszFileAux;
     CPLString osBandSectionValue;
 
     int nNBand;

@@ -12,7 +12,6 @@
 #include <algorithm>
 
 #include "miramon_p.h"
-#include "miramon_rastertools.h"  // For MMRGetFileNameFromRelName()
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MM_ReadExtendedDBFHeaderFromFile()
@@ -25,14 +24,14 @@
 /************************************************************************/
 // [ATTRIBUTE_DATA:xxxx] or [OVERVIEW:ASPECTES_TECNICS]
 int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
-    const char *pszSection, const char *pszKey, int *nValue,
+    const CPLString osSection, const char *pszKey, int *nValue,
     const char *pszErrorMessage)
 {
-    if (!pszSection || !pszKey || !nValue)
+    if (osSection.empty() || !pszKey || !nValue)
         return 1;
 
     CPLString osValue =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, pszKey);
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, pszKey);
 
     if (osValue.empty())
     {
@@ -103,10 +102,10 @@ int MMRBand::GetResolutionFromREL(const char *pszSection)
 }
 
 // Getting number of columns from metadata
-int MMRBand::GetColumnsNumberFromREL(const char *pszSection)
+int MMRBand::GetColumnsNumberFromREL(const CPLString osSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
-        pszSection, "columns", &nWidth,
+        osSection, "columns", &nWidth,
         "MMRBand::MMRBand : No number of columns documented");
 }
 
@@ -140,8 +139,8 @@ void MMRBand::GetNoDataDefinitionFromREL(const char *pszSection)
     if (!bNoDataSet)
         return;
 
-    pszNodataDef = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                           "NODATADef");
+    osNodataDef = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+                                          "NODATADef");
 }
 
 void MMRBand::GetMinMaxValuesFromREL(const char *pszSection)
@@ -201,8 +200,8 @@ void MMRBand::GetFriendlyDescriptionFromREL(const char *pszSection)
 
 void MMRBand::GetReferenceSystemFromREL()
 {
-    pszRefSystem = pfRel->GetMetadataValue(
-        "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
+    osRefSystem = pfRel->GetMetadataValue("SPATIAL_REFERENCE_SYSTEM:HORIZONTAL",
+                                          "HorizontalSystemIdentifier");
 }
 
 void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
@@ -238,10 +237,10 @@ void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
         dfBBMaxY = atof(osValue);
 }
 
-MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
+MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
     : pfIMG(nullptr), pfRel(hMMRIn.fRel), nBlocks(0), nNoDataOriginalIndex(0),
       bPaletteHasNodata(false), nNoDataPaletteIndex(0), nAssignedSDS(0),
-      osBandSection(pszSection), osRELFileName(""), osRawBandFileName(""),
+      osBandSection(osBandSectionIn), osRELFileName(""), osRawBandFileName(""),
       osBandFileName(""), osBandName(""), osFriendlyDescription(""),
       eMMDataType(
           static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
@@ -249,19 +248,19 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
           MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
       bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
       dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
-      dfVisuMax(0.0), pszRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
+      dfVisuMax(0.0), osRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
       dfBBMaxY(0), nResolution(0), hMMR(&hMMRIn), nBlockXSize(0),
       nBlockYSize(1), nWidth(hMMRIn.nXSize), nHeight(hMMRIn.nYSize),
-      nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false),
-      pszNodataDef(""), dfNoData(0.0)
+      nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false), osNodataDef(""),
+      dfNoData(0.0)
 {
     // Getting band and band file name from metadata
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                pszSection, KEY_NomFitxer);
+                                                osBandSectionIn, KEY_NomFitxer);
 
     if (osRawBandFileName.empty())
     {
-        osBandFileName = MMRGetFileNameFromRelName(hMMRIn.osRELFileName);
+        osBandFileName = pfRel->MMRGetFileNameFromRelName(hMMRIn.osRELFileName);
         if (osBandFileName.empty())
         {
             nWidth = 0;
@@ -270,7 +269,7 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
                      "The REL file '%s' contains a documented \
                 band with no explicit name. Section [%s] or [%s:%s].\n",
                      hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
-                     SECTION_ATTRIBUTE_DATA, pszSection);
+                     SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
             return;
         }
         osBandName = CPLGetBasenameSafe(osBandFileName);
@@ -294,7 +293,7 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
                  "The REL file '%s' contains a documented \
             band with no explicit name. Section [%s] or [%s:%s].\n",
                  hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
-                 SECTION_ATTRIBUTE_DATA, pszSection);
+                 SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
         return;
     }
 
@@ -302,14 +301,14 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
     // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
 
     // Getting number of columns and rows
-    if (GetColumnsNumberFromREL(pszSection))
+    if (GetColumnsNumberFromREL(osBandSection))
     {
         nWidth = 0;
         nHeight = 0;
         return;
     }
 
-    if (GetRowsNumberFromREL(pszSection))
+    if (GetRowsNumberFromREL(osBandSection))
     {
         nWidth = 0;
         nHeight = 0;
@@ -331,7 +330,7 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
     }
 
     // Getting data type and compression
-    if (GetDataTypeFromREL(pszSection))
+    if (GetDataTypeFromREL(osBandSection))
         return;
 
     // Let's see if there is RLE compression
@@ -341,14 +340,14 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
          eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
 
     // Getting resolution
-    if (GetResolutionFromREL(pszSection))
+    if (GetResolutionFromREL(osBandSection))
         return;
 
     // Getting min and max values
-    GetMinMaxValuesFromREL(pszSection);
+    GetMinMaxValuesFromREL(osBandSection);
 
     // Getting min and max values for simbolization
-    GetMinMaxVisuValuesFromREL(pszSection);
+    GetMinMaxVisuValuesFromREL(osBandSection);
     if (!bMinVisuSet)
     {
         if (bMinSet)
@@ -361,18 +360,18 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *pszSection)
     }
 
     // Getting the friendly description of the band
-    GetFriendlyDescriptionFromREL(pszSection);
+    GetFriendlyDescriptionFromREL(osBandSection);
 
     // Getting NoData value and definition
-    GetNoDataValue(pszSection);
+    GetNoDataValue(osBandSection);
     GetNoDataDefinitionFromREL(
-        pszSection);  // ·$·TODO put it in metadata MIRAMON subdomain?
+        osBandSection);  // ·$·TODO put it in metadata MIRAMON subdomain?
 
     // Getting reference system and coordinates of the geographic bounding box
     GetReferenceSystemFromREL();
 
     // Getting the bounding box: coordinates in the terrain
-    GetBoundingBoxFromREL(pszSection);
+    GetBoundingBoxFromREL(osBandSection);
 
     // MiraMon IMG files are efficient in going to an specified row.
     // So le'ts configurate the blocks as line blocks.
@@ -489,9 +488,9 @@ bool MMRBand::AcceptedDataType()
 }
 
 /************************************************************************/
-/*                 GetRowData                             */
+/*                 GetBlockData                             */
 /************************************************************************/
-CPLErr MMRBand::GetRowData(void *rowBuffer)
+CPLErr MMRBand::GetBlockData(void *rowBuffer)
 {
     const int nDataTypeSizeBytes =
         std::max(1, static_cast<int>(eMMBytesPerPixel));
@@ -551,7 +550,7 @@ CPLErr MMRBand::GetRowData(void *rowBuffer)
     }
 
     return peErr;
-}  // End of GetRowData()
+}  // End of GetBlockData()
 
 /************************************************************************/
 /*                 PositionAtStartOfRowOffsetsInFile                */
@@ -800,7 +799,7 @@ bool MMRBand::FillRowOffsets()
             aFileOffsets[0] = 0;
             for (nIRow = 0; nIRow < nHeight; nIRow++)
             {
-                GetRowData(pBuffer);
+                GetBlockData(pBuffer);
                 aFileOffsets[static_cast<size_t>(nIRow) + 1] = VSIFTellL(pfIMG);
             }
             VSIFree(pBuffer);
@@ -860,7 +859,7 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         return CE_Failure;
     }
 
-    return GetRowData(pData);
+    return GetBlockData(pData);
 }
 
 // Colors in a DBF format file
