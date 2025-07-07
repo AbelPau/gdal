@@ -1,12 +1,12 @@
 # depend from gcore
 add_gdal_driver(
   TARGET gdal_MiraMon
-  SOURCES miramonband.h
-          miramonrel.h
-          miramondataset.h
-          miramonband.cpp
-          miramonrel.cpp
-          miramondataset.cpp
+  SOURCES miramon_band.h
+          miramon_rel.h
+          miramon_dataset.h
+          miramon_band.cpp
+          miramon_rel.cpp
+          miramon_dataset.cpp
   PLUGIN_CAPABLE
   NO_DEPS
 )

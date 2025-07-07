@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Project:  MiraMon Raster Driver
- * Purpose:  Main driver for MiraMon Raster format.
+ * Purpose:  Implements MMRDataset and MMRRasterBand class 
  * Author:   Abel Pau
  *
  ******************************************************************************

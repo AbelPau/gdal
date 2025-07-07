@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements some raster functions.
+ * Purpose:  Implements MMRBand
  * Author:   Abel Pau
  *
  ******************************************************************************
@@ -19,9 +19,9 @@
 #include "miramon_rel.h"
 
 #ifdef MSVC
-#include "..\miramon_common\mm_gdal_constants.h"
+#include "..\miramon_common\mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
 #else
-#include "../miramon_common/mm_gdal_constants.h"
+#include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
 #endif
 
 class MMRBand;

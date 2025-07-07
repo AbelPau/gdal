@@ -55,10 +55,6 @@ CPL_DLL int MM_ChangeDBFWidthField(struct MM_DATA_BASE_XP *data_base_XP,
                                    MM_BYTES_PER_FIELD_TYPE_DBF novaamplada,
                                    MM_BYTE nou_decimals);
 
-CPL_DLL int MM_GetArcHeights(double *coord_z, VSILFILE *pF,
-                             MM_N_VERTICES_TYPE n_vrt,
-                             struct MM_ZD *pZDescription, uint32_t flag);
-
 // Strings
 CPL_DLL char *MM_RemoveInitial_and_FinalQuotationMarks(char *cadena);
 CPL_DLL char *MM_RemoveWhitespacesFromEndOfString(char *str);

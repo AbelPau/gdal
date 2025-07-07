@@ -12,8 +12,7 @@
 
 //#include "cpl_port.h"
 #include "miramon_dataset.h"
-#include "miramon_rel.h"
-#include "miramon_band.h"
+#include "miramon_band.h"  // Per a MMRBand
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
