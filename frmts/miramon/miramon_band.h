@@ -93,13 +93,21 @@ class MMRBand
     // Extent values of the band:
     // They always refer to extreme outer coordinates,
     // not to cell centers.
+
     double dfBBMinX;
     double dfBBMinY;
     double dfBBMaxX;
     double dfBBMaxY;
+    // Determines if dfBBMinX,... are found
+    bool bSetExtent;
 
     // Resolution of the pixel
-    double nResolution;
+    double dfResolution;
+    double dfResolutionY;
+
+    // Determines if dfResolution and dfResolutionY have been found
+    // If is not found 1 is the defect value
+    bool bSetResolution;
 
   public:
     MMRBand(MMRInfo &, const char *pszSection);
@@ -114,6 +122,7 @@ class MMRBand
         const char *pszErrorMessage);
     int GetDataTypeFromREL(const char *pszSection);
     void GetResolutionFromREL(const char *pszSection);
+    void GetResolutionYFromREL(const char *pszSection);
     int GetColumnsNumberFromREL(const CPLString osSection);
     int GetRowsNumberFromREL(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
@@ -256,7 +265,12 @@ class MMRBand
 
     double GetPixelResolution()
     {
-        return nResolution;
+        return dfResolution;
+    }
+
+    double GetPixelResolutionY()
+    {
+        return dfResolutionY;
     }
 
     template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);

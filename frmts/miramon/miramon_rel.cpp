@@ -870,6 +870,9 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
 
         if (hMMR.papoBand[hMMR.nBands]->nWidth == 0)
         {
+            // This band is not been comleted, so let's detele now
+            // The rest of bands will be deleted by destructor.
+            delete hMMR.papoBand[hMMR.nBands];
             CSLDestroy(papszTokens);
             return CE_Failure;
         }

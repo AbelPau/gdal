@@ -81,6 +81,8 @@ int MMRBand::GetDataTypeFromREL(const char *pszSection)
 // Getting resolution from metadata
 void MMRBand::GetResolutionFromREL(const char *pszSection)
 {
+    bSetResolution = false;
+
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, "resolution");
     if (osValue.empty())
@@ -89,11 +91,35 @@ void MMRBand::GetResolutionFromREL(const char *pszSection)
                                           SECTION_HORIZONTAL, "resolution");
         if (osValue.empty())
         {
-            nResolution = 1;
+            dfResolution = 1;
+            dfResolutionY = 1;
             return;
         }
     }
-    nResolution = osValue.empty() ? 0 : atoi(osValue);
+    dfResolution = osValue.empty() ? 0 : atof(osValue);
+    GetResolutionYFromREL(pszSection);
+    if (!bSetResolution)
+        dfResolutionY = dfResolution;
+
+    bSetResolution = true;
+}
+
+void MMRBand::GetResolutionYFromREL(const char *pszSection)
+{
+    CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                pszSection, "resolutionY");
+    if (osValue.empty())
+    {
+        osValue = pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
+                                          SECTION_HORIZONTAL, "resolutionY");
+        if (osValue.empty())
+        {
+            dfResolutionY = 1;
+            return;
+        }
+    }
+    dfResolutionY = osValue.empty() ? 0 : atof(osValue);
+    bSetResolution = true;
 }
 
 // Getting number of columns from metadata
@@ -201,6 +227,9 @@ void MMRBand::GetReferenceSystemFromREL()
 
 void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
 {
+    // Getting resolution
+    GetResolutionFromREL(osBandSection);
+
     // Bounding box of the band
     // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]
     CPLString osValue = pfRel->GetMetadataValue(
@@ -213,7 +242,12 @@ void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
     osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
                                       SECTION_EXTENT, "MaxX");
     if (osValue.empty())
-        dfBBMaxX = nWidth;
+    {
+        if (bSetResolution)
+            dfBBMaxX = nWidth * dfResolution;
+        else
+            dfBBMaxX = nWidth;
+    }
     else
         dfBBMaxX = atof(osValue);
 
@@ -227,7 +261,12 @@ void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
     osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
                                       SECTION_EXTENT, "MaxY");
     if (osValue.empty())
-        dfBBMaxY = nHeight;
+    {
+        if (bSetResolution)
+            dfBBMaxY = nHeight * dfResolutionY;
+        else
+            dfBBMaxY = nHeight;
+    }
     else
         dfBBMaxY = atof(osValue);
 }
@@ -244,10 +283,10 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
       bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
       dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
       dfVisuMax(0.0), osRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
-      dfBBMaxY(0), nResolution(0), hMMR(&hMMRIn), nBlockXSize(0),
-      nBlockYSize(1), nWidth(hMMRIn.nXSize), nHeight(hMMRIn.nYSize),
-      nBlocksPerRow(1), nBlocksPerColumn(1), bNoDataSet(false), osNodataDef(""),
-      dfNoData(0.0)
+      dfBBMaxY(0), dfResolution(0), dfResolutionY(0), hMMR(&hMMRIn),
+      nBlockXSize(0), nBlockYSize(1), nWidth(hMMRIn.nXSize),
+      nHeight(hMMRIn.nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
+      bNoDataSet(false), osNodataDef(""), dfNoData(0.0)
 {
     // Getting band and band file name from metadata
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
@@ -334,9 +373,6 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
         (((eMMDataType >= MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
           (eMMDataType <= MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
          eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
-
-    // Getting resolution
-    GetResolutionFromREL(osBandSection);
 
     // Getting min and max values
     GetMinMaxValuesFromREL(osBandSection);

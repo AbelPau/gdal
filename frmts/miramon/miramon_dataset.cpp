@@ -564,6 +564,7 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
         if (osShortDBFName.empty())
         {
             osRELName = "";
+            delete fRel;
             return CE_Failure;
         }
 
@@ -573,6 +574,7 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
         if (osAssociateREL.empty())
         {
             osRELName = "";
+            delete fRel;
             return CE_Failure;
         }
 
@@ -616,7 +618,7 @@ MMRInfo::~MMRInfo()
     delete[] papoBand;
 
     delete fRel;
-    //fRel = nullptr;
+    fRel = nullptr;
 }
 
 /************************************************************************/
