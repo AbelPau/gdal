@@ -98,8 +98,6 @@ class MMRBand
     double dfBBMinY;
     double dfBBMaxX;
     double dfBBMaxY;
-    // Determines if dfBBMinX,... are found
-    bool bSetExtent;
 
     // Resolution of the pixel
     double dfResolution;
