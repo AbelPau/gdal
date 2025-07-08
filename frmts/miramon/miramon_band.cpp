@@ -11,7 +11,7 @@
  ****************************************************************************/
 #include <algorithm>
 
-#include "miramonband.h"
+#include "miramon_band.h"
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MM_ReadExtendedDBFHeaderFromFile()
@@ -57,9 +57,7 @@ int MMRBand::GetDataTypeFromREL(const char *pszSection)
     eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
-    if (osValue.empty() ||
-        pfRel->GetDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
-                                           &eMMBytesPerPixel) == 1)
+    if (osValue.empty())
     {
         nWidth = 0;
         nHeight = 0;
@@ -68,7 +66,8 @@ int MMRBand::GetDataTypeFromREL(const char *pszSection)
         return 1;
     }
 
-    if (!AcceptedDataType())
+    if (pfRel->GetDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
+                                           &eMMBytesPerPixel) == 1)
     {
         nWidth = 0;
         nHeight = 0;
@@ -79,8 +78,8 @@ int MMRBand::GetDataTypeFromREL(const char *pszSection)
     return 0;
 }
 
-// Getting number of columns from metadata
-int MMRBand::GetResolutionFromREL(const char *pszSection)
+// Getting resolution from metadata
+void MMRBand::GetResolutionFromREL(const char *pszSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 pszSection, "resolution");
@@ -90,15 +89,11 @@ int MMRBand::GetResolutionFromREL(const char *pszSection)
                                           SECTION_HORIZONTAL, "resolution");
         if (osValue.empty())
         {
-            nWidth = 0;
-            nHeight = 0;
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "MMRBand::MMRBand : No resolution documented");
-            return 1;
+            nResolution = 1;
+            return;
         }
     }
     nResolution = osValue.empty() ? 0 : atoi(osValue);
-    return 0;
 }
 
 // Getting number of columns from metadata
@@ -329,7 +324,8 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
         hMMRIn.nYSize = nHeight;
     }
 
-    // Getting data type and compression
+    // Getting data type and compression.
+    // If error, message given inside.
     if (GetDataTypeFromREL(osBandSection))
         return;
 
@@ -340,8 +336,7 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
          eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
 
     // Getting resolution
-    if (GetResolutionFromREL(osBandSection))
-        return;
+    GetResolutionFromREL(osBandSection);
 
     // Getting min and max values
     GetMinMaxValuesFromREL(osBandSection);
@@ -351,12 +346,18 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
     if (!bMinVisuSet)
     {
         if (bMinSet)
+        {
             dfVisuMin = dfMin;
+            bMinVisuSet = true;
+        }
     }
     if (!bMaxVisuSet)
     {
         if (bMaxSet)
+        {
             dfVisuMax = dfMax;
+            bMaxVisuSet = true;
+        }
     }
 
     // Getting the friendly description of the band
@@ -453,38 +454,6 @@ template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
     }
 
     return CE_None;
-}
-
-bool MMRBand::AcceptedDataType()
-{
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG_RLE)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL_RLE)
-        return true;
-    if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)
-        return true;
-
-    return false;
 }
 
 /************************************************************************/
@@ -1179,7 +1148,7 @@ CPLErr MMRBand::ConvertPaletteColors()
     }
 
     // Some necessary information
-    if (!bMinSet || !bMaxSet)
+    if (!bMinVisuSet || !bMaxVisuSet)
         return CE_None;
 
     nNoDataPaletteIndex = 0;
@@ -1233,12 +1202,12 @@ CPLErr MMRBand::ConvertPaletteColors()
     if (static_cast<int>(eMMBytesPerPixel) == 2)
     {
         // A scaling is applied between the minimum and maximum display values.
-        dfSlope = nNPaletteColors / ((dfMax + 1 - dfMin));
+        dfSlope = nNPaletteColors / ((dfVisuMax + 1 - dfVisuMin));
 
         if (nNoDataPaletteIndex != 0)  // nodata at the end of the list
-            dfIntercept = -dfSlope * dfMin;
+            dfIntercept = -dfSlope * dfVisuMin;
         else
-            dfIntercept = -dfSlope * dfMin + 1;
+            dfIntercept = -dfSlope * dfVisuMin + 1;
     }
 
     for (int nIPaletteColor = 0; nIPaletteColor < nNPossibleValues / 3;
@@ -1253,13 +1222,13 @@ CPLErr MMRBand::ConvertPaletteColors()
         }
         else
         {
-            if (nIPaletteColor < static_cast<int>(dfMin))
+            if (nIPaletteColor < static_cast<int>(dfVisuMin))
             {
                 // Before the minimum, we apply the color of the first
                 // element (as a placeholder).
                 AssignRGBColor(nIPaletteColor, 0);
             }
-            else if (nIPaletteColor <= static_cast<int>(dfMax))
+            else if (nIPaletteColor <= static_cast<int>(dfVisuMax))
             {
                 // Between the minimum and maximum, we apply the value
                 // read from the table.

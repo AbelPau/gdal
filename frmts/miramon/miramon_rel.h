@@ -147,6 +147,7 @@ class MMRRel
     static CPLErr CheckBandInRel(const char *pszRELFileName,
                                  const char *pszIMGFile);
     static CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
+    static bool SameFile(CPLString osFile1, CPLString osFile2);
     static MMRNomFitxerState
     MMRStateOfNomFitxerInSection(const char *pszLayerName,
                                  const char *pszSection,

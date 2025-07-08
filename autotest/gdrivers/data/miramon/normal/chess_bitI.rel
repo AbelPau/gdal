@@ -29,7 +29,6 @@ rows=8
 HorizontalSystemDefinition=Local
 HorizontalSystemIdentifier=plane
 unitats=STB#T_pixels
-resolution=1
 
 [EXTENT]
 toler_env=0

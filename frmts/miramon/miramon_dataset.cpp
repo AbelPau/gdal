@@ -639,15 +639,9 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     // Creating the class MMRInfo.
     hMMR = new MMRInfo();
 
-    // Getting the info from that REL
+    // Setting the info from that REL
     if (CE_None != fRel->SetInfoFromREL(poOpenInfo->pszFilename, *hMMR))
     {
-        if (hMMR->bIsAMiraMonFile)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined, "Unable to open %s",
-                     poOpenInfo->pszFilename);
-        }
-        delete fRel;
         delete hMMR;
         hMMR = nullptr;
         return;
@@ -662,7 +656,6 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
                      poOpenInfo->pszFilename);
         }
 
-        delete fRel;
         delete hMMR;
         hMMR = nullptr;
         return;

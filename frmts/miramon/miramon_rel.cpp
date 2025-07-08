@@ -13,7 +13,7 @@
 #include "cpl_port.h"
 #include "gdal_priv.h"
 
-#include "miramonband.h"
+#include "miramon_band.h"
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
@@ -97,8 +97,23 @@ CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
         }
         else
         {
-            // It's a REL, so it's a MiraMon file
-            hMMR.bIsAMiraMonFile = true;
+            // It's a REL and it's not empty, so it's a MiraMon file
+            VSILFILE *pF = VSIFOpenL(osRELFileNameIn, "r");
+            VSIFSeekL(pF, 0, SEEK_END);
+            if (VSIFTellL(pF))
+                hMMR.bIsAMiraMonFile = true;
+            else
+            {
+                osRELFileNameIn = "";
+                CPLError(
+                    CE_Failure, CPLE_OpenFailed,
+                    "Metadata file for %s should have some information in.",
+                    pszFileName);
+
+                VSIFCloseL(pF);
+                return CE_Failure;
+            }
+            VSIFCloseL(pF);
         }
     }
 
@@ -173,6 +188,26 @@ CPLString MMRRel::GetMetadataValueDirectly(const char *pszRELFile,
     }
 }
 
+bool MMRRel::SameFile(CPLString osFile1, CPLString osFile2)
+{
+    if (EQUAL(osFile1, osFile2))
+        return true;
+
+    // Just to be sure:
+    if (osFile1.compare(osFile2) == 0)
+        return true;
+
+    // Just to be more sure:
+    osFile1.replaceAll("\\", "/");
+    CPLString osLayerName = osFile2;
+    osLayerName.replaceAll("\\", "/");
+
+    if (EQUAL(osFile1, osLayerName))
+        return true;
+
+    return false;
+}
+
 // Gets the state (enum class MMRNomFitxerState) of NomFitxer in the
 // specified section
 // [pszSection]
@@ -185,7 +220,13 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
         GetMetadataValueDirectly(pszRELFile, pszSection, KEY_NomFitxer);
 
     if (osDocumentedLayerName.empty())
-        return MMRNomFitxerState::NOMFITXER_NOT_FOUND;
+    {
+        CPLString osIIMGFromREL = MMRGetFileNameFromRelName(pszRELFile);
+        if (SameFile(osIIMGFromREL, pszLayerName))
+            return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
+
+        return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
+    }
 
     CPLString osFileAux = CPLFormFilenameSafe(
         CPLGetPathSafe(pszRELFile).c_str(), osDocumentedLayerName, "");
@@ -195,20 +236,7 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
     if (*osDocumentedLayerName == '*' || *osDocumentedLayerName == '?')
         return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
 
-    // Is the found Value the same than the pszLayerName file?
-    if (EQUAL(osFileAux, pszLayerName))
-        return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
-
-    // Just to be sure:
-    if (osFileAux.compare(pszLayerName) == 0)
-        return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
-
-    // Just to be more sure:
-    osFileAux.replaceAll("\\", "/");
-    CPLString osLayerName = pszLayerName;
-    osLayerName.replaceAll("\\", "/");
-
-    if (EQUAL(osFileAux, osLayerName))
+    if (SameFile(osFileAux, pszLayerName))
         return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
 
     return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
@@ -784,9 +812,9 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
 
     // Separator ,
     char **papszTokens = CSLTokenizeString2(osFieldNames, ",", 0);
-    const int nTokenCount = CSLCount(papszTokens);
+    const int nMaxBands = CSLCount(papszTokens);
 
-    if (!nTokenCount)
+    if (!nMaxBands)
     {
         CPLError(CE_Failure, CPLE_AssertionFailed, "No bands in file %s.",
                  pszRELFileName.c_str());
@@ -800,11 +828,11 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
     if (hMMR.papoSDSBands.size())
         nNBand = static_cast<int>(hMMR.papoSDSBands.size());
     else
-        nNBand = nTokenCount;
+        nNBand = nMaxBands;
 
     hMMR.papoBand = new MMRBand *[nNBand];
 
-    for (int i = 0; i < nTokenCount; i++)
+    for (int i = 0; i < nMaxBands; i++)
     {
         osBandSectionKey = KEY_NomCamp;
         osBandSectionKey.append("_");
@@ -813,7 +841,7 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
         osBandSectionValue = hMMR.fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                          osBandSectionKey);
 
-        if (!osBandSectionValue)
+        if (osBandSectionValue.empty())
             continue;
 
         if (hMMR.papoSDSBands.size())
@@ -836,10 +864,12 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
         osBandSectionValue =
             RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
-        hMMR.papoBand[static_cast<size_t>(hMMR.nBands)] =
-            new MMRBand(hMMR, osBandSectionValue);
+        if (hMMR.nBands >= nNBand)
+            break;
 
-        if (hMMR.papoBand[static_cast<size_t>(hMMR.nBands)]->nWidth == 0)
+        hMMR.papoBand[hMMR.nBands] = new MMRBand(hMMR, osBandSectionValue);
+
+        if (hMMR.papoBand[hMMR.nBands]->nWidth == 0)
         {
             CSLDestroy(papszTokens);
             return CE_Failure;
@@ -855,7 +885,6 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
     return CE_None;
 }
 
-// ·$·TODO USE ONLY CPL stuff
 CPLString MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
 {
     char *pszBandSectionValue = CPLStrdup(osInputWithSpaces);

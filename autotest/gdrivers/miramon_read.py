@@ -134,6 +134,42 @@ def test_miramon_test_012345_raster(filename, band_idx):
             "data/miramon/several_errors/no_assoc_rel.img",
             "not recognized as being in a supported file format",
         ),
+        (
+            "data/miramon/several_errors/no_colI.rel",
+            "No number of columns documented",
+        ),
+        (
+            "data/miramon/several_errors/no_rowI.rel",
+            "No number of rows documented",
+        ),
+        (
+            "data/miramon/several_errors/no_zero_col_rowI.rel",
+            "(nWidth <= 0 || nHeight <= 0)",
+        ),
+        (
+            "data/miramon/several_errors/no_bandsI.rel",
+            "ATTRIBUTE_DATA-IndexsNomsCamps section-key should exist",
+        ),
+        (
+            "data/miramon/several_errors/no_bands2I.rel",
+            "it has zero usable bands",
+        ),
+        (
+            "data/miramon/several_errors/no_bands3I.rel",
+            "ATTRIBUTE_DATA-IndexsNomsCamps section-key should exist",
+        ),
+        (
+            "data/miramon/several_errors/no_typeI.rel",
+            "MMRBand::MMRBand : No nDataType documented",
+        ),
+        (
+            "data/miramon/several_errors/wrong_typeI.rel",
+            "MMRBand::GetDataTypeFromREL data type unhandled",
+        ),
+        (
+            "data/miramon/several_errors/wrong_band_nameI.rel",
+            "Failed to open MiraMon band file",
+        ),
     ],
 )
 @pytest.mark.require_driver("MiraMonRaster")

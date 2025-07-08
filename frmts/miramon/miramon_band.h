@@ -82,7 +82,7 @@ class MMRBand
     double dfMin;
     bool bMaxSet;
     double dfMax;
-    //
+    // These values will be dfMin/dfMax if they don't exist in REL file
     bool bMinVisuSet;
     double dfVisuMin;  // Key Color_ValorColor_0 in COLOR_TEXT
     bool bMaxVisuSet;
@@ -113,7 +113,7 @@ class MMRBand
         const CPLString osSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
     int GetDataTypeFromREL(const char *pszSection);
-    int GetResolutionFromREL(const char *pszSection);
+    void GetResolutionFromREL(const char *pszSection);
     int GetColumnsNumberFromREL(const CPLString osSection);
     int GetRowsNumberFromREL(const char *pszSection);
     void GetNoDataValue(const char *pszSection);
@@ -260,7 +260,6 @@ class MMRBand
     }
 
     template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
-    bool AcceptedDataType();
     CPLErr GetBlockData(void *rowBuffer);
     int PositionAtStartOfRowOffsetsInFile();
     bool FillRowOffsets();
