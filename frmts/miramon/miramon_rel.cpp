@@ -104,7 +104,6 @@ CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
                 hMMR.bIsAMiraMonFile = true;
             else
             {
-                osRELFileNameIn = "";
                 CPLError(
                     CE_Failure, CPLE_OpenFailed,
                     "Metadata file for %s should have some information in.",
