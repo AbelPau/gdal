@@ -283,8 +283,8 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
       bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
       dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
       dfVisuMax(0.0), osRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
-      dfBBMaxY(0), dfResolution(0), dfResolutionY(0), hMMR(&hMMRIn),
-      nBlockXSize(0), nBlockYSize(1), nWidth(hMMRIn.nXSize),
+      dfBBMaxY(0), dfResolution(0), dfResolutionY(0), bSetResolution(false),
+      hMMR(&hMMRIn), nBlockXSize(0), nBlockYSize(1), nWidth(hMMRIn.nXSize),
       nHeight(hMMRIn.nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
       bNoDataSet(false), osNodataDef(""), dfNoData(0.0)
 {
