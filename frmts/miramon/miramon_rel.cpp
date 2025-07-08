@@ -120,7 +120,6 @@ CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
     // from the one found from IMG file.
     SetRELNameChar(osRELFileNameIn);
 
-    hMMR.fRel = this;
     hMMR.osRELFileName = osRELFileNameIn;
 
     // Collect band definitions.

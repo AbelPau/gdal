@@ -607,6 +607,11 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
 /* ==================================================================== */
 /************************************************************************/
 
+MMRInfo::MMRInfo(MMRRel *fRel)
+{
+    this->fRel = fRel;
+}
+
 /************************************************************************/
 /*                              ~MMRInfo()                              */
 /************************************************************************/
@@ -639,10 +644,10 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
 
     // Creating the class MMRInfo.
-    hMMR = new MMRInfo();
+    hMMR = new MMRInfo(fRel);
 
     // Setting the info from that REL
-    if (CE_None != fRel->SetInfoFromREL(poOpenInfo->pszFilename, *hMMR))
+    if (CE_None != hMMR->fRel->SetInfoFromREL(poOpenInfo->pszFilename, *hMMR))
     {
         delete hMMR;
         hMMR = nullptr;
