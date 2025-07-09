@@ -894,3 +894,20 @@ CPLString MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
     VSIFree(pszBandSectionValue);
     return osInputWithSpaces;
 }
+
+int MMRRel::GetColumnsNumberFromREL(int *nNCols)
+{
+    // Number of columns of the subdataset (if exist)
+    // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
+    if (!nNCols)
+        return 1;
+
+    CPLString osValue =
+        GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "columns");
+
+    if (osValue.empty())
+        return 1;
+
+    *nNCols = atoi(osValue);
+    return 0;
+}

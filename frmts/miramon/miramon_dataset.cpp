@@ -27,7 +27,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     : osBandSection(), poCT(nullptr),
       eMMRDataTypeMiraMon(MMDataType::DATATYPE_AND_COMPR_UNDEFINED),
       eMMBytesPerPixel(MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED),
-      hMMR(poDSIn->hMMR), bMetadataDirty(false), poDefaultRAT(nullptr)
+      hMMR(poDSIn->GetMMRInfo()), bMetadataDirty(false), poDefaultRAT(nullptr)
 {
     poDS = poDSIn;
     nBand = nBandIn;
@@ -615,9 +615,14 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
 /* ==================================================================== */
 /************************************************************************/
 
-MMRInfo::MMRInfo(MMRRel *fRelIn)
+MMRInfo::MMRInfo(char *pszFilename)
 {
-    this->fRel = fRelIn;
+    // Creates the object that allows inspect metadata (REL file)
+    fRel = new MMRRel(pszFilename);
+
+    // Sets the info from that REL
+    if (CE_None != fRel->SetInfoFromREL(pszFilename, *this))
+        return;
 }
 
 /************************************************************************/
@@ -631,14 +636,7 @@ MMRInfo::~MMRInfo()
     delete[] papoBand;
 
     delete fRel;
-    fRel = nullptr;
 }
-
-/************************************************************************/
-/* ==================================================================== */
-/*                            MMRDataset                               */
-/* ==================================================================== */
-/************************************************************************/
 
 /************************************************************************/
 /*                            MMRDataset()                            */
@@ -648,33 +646,40 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 {
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
-    // Creating of the object that allows inspect metadata (REL file)
-    MMRRel *fRel = new MMRRel(poOpenInfo->pszFilename);
-
     // Creating the class MMRInfo.
-    hMMR = new MMRInfo(fRel);
+    auto pMMInfo = std::make_unique<MMRInfo>(poOpenInfo->pszFilename);
 
-    // Setting the info from that REL
-    if (CE_None != hMMR->fRel->SetInfoFromREL(poOpenInfo->pszFilename, *hMMR))
+    if (pMMInfo->nBands == 0)
     {
-        delete hMMR;
-        hMMR = nullptr;
-        return;
-    }
-
-    if (hMMR->nBands == 0)
-    {
-        if (hMMR->bIsAMiraMonFile)
+        if (pMMInfo->bIsAMiraMonFile)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "Unable to open %s, it has zero usable bands.",
                      poOpenInfo->pszFilename);
         }
-
-        delete hMMR;
-        hMMR = nullptr;
         return;
     }
+
+    hMMR = pMMInfo.release();
+
+    // General Dataset information available
+    nRasterXSize = hMMR->nXSize;
+    nRasterYSize = hMMR->nYSize;
+    GetDataSetBoundingBox();  // Fills adfGeoTransform
+    ReadProjection();
+    nBands = 0;
+
+    // Assign every band to a subdataset (if any)
+    // If all bands should go to a one single Subdataset, then,
+    // no subdataset will be created and all bands will go to this
+    // dataset.
+    AssignBandsToSubdataSets();
+
+    // Create subdatasets or add bands, as needed
+    if (nNSubdataSets)
+        CreateSubdatasetsFromBands();
+    else
+        AssignBands();
 }
 
 /************************************************************************/
@@ -684,8 +689,6 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 MMRDataset::~MMRDataset()
 
 {
-    FlushCache(true);
-
     // Destroy the raster bands if they exist.  We forcibly clean
     // them up now to avoid any effort to write to them after the
     // file is closed.
@@ -761,25 +764,6 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     if (poDS->hMMR == nullptr)
         return nullptr;
 
-    // General Dataset information available
-    poDS->nRasterXSize = poDS->hMMR->nXSize;
-    poDS->nRasterYSize = poDS->hMMR->nYSize;
-    poDS->GetDataSetBoundingBox();  // Fills adfGeoTransform
-    poDS->ReadProjection();
-    poDS->nBands = 0;
-
-    // Assign every band to a subdataset (if any)
-    // If all bands should go to a one single Subdataset, then,
-    // no subdataset will be created and all bands will go to this
-    // dataset.
-    poDS->AssignBandsToSubdataSets();
-
-    // Create subdatasets or add bands, as needed
-    if (poDS->nNSubdataSets)
-        poDS->CreateSubdatasetsFromBands();
-    else
-        poDS->AssignBands();
-
     // Set description
     poDS->SetDescription(poOpenInfo->pszFilename);
 
@@ -795,21 +779,6 @@ const OGRSpatialReference *MMRDataset::GetSpatialRef() const
     return m_oSRS.IsEmpty() ? nullptr : &m_oSRS;
 }
 
-/************************************************************************/
-/*                           SetSpatialRef()                            */
-/************************************************************************/
-#ifdef TODO
-CPLErr MMRDataset::SetSpatialRef(const OGRSpatialReference *poSRS)
-
-{
-    m_oSRS.Clear();
-    if (poSRS)
-        m_oSRS = *poSRS;
-    bGeoDirty = true;
-
-    return CE_None;
-}
-#endif  //TODO
 /************************************************************************/
 /*                            SetMetadata()                             */
 /************************************************************************/
@@ -836,42 +805,24 @@ CPLErr MMRDataset::SetMetadataItem(const char *pszTag, const char *pszValue,
 }
 
 /************************************************************************/
-/*                          GetColumnsNumberFromREL()                   */
 /*                          GetDataSetBoundingBox()                     */
 /************************************************************************/
-int MMRDataset::GetColumnsNumberFromREL(int *nNCols)
-{
-    // Number of columns of the subdataset (if exist)
-    // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
-    if (!nNCols || !hMMR || !hMMR->fRel)
-        return 1;
-
-    CPLString osValue =
-        hMMR->fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "columns");
-
-    if (osValue.empty())
-        return 1;
-
-    *nNCols = atoi(osValue);
-    return 0;
-}
-
-int MMRDataset::GetRowsNumberFromREL(int *nNRows)
+std::optional<int> MMRDataset::GetRowsNumberFromREL() const
+//int MMRDataset::GetRowsNumberFromREL(int *nNRows)
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
     // Key raws
-    if (!nNRows || !hMMR || !hMMR->fRel)
-        return 1;
+    if (!hMMR || !hMMR->fRel)
+        return std::nullopt;
 
     CPLString osValue =
         hMMR->fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "rows");
 
     if (osValue.empty())
-        return 1;
+        return std::nullopt;
 
-    *nNRows = atoi(osValue);
-    return 0;
+    return atoi(osValue);
 }
 
 int MMRDataset::GetDataSetBoundingBox()
@@ -895,7 +846,7 @@ int MMRDataset::GetDataSetBoundingBox()
     m_gt[0] = atof(osMinX);
 
     int nNCols;
-    if (1 == GetColumnsNumberFromREL(&nNCols) || nNCols <= 0)
+    if (1 == hMMR->fRel->GetColumnsNumberFromREL(&nNCols) || nNCols <= 0)
         return 1;
 
     CPLString osMaxX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
@@ -913,13 +864,18 @@ int MMRDataset::GetDataSetBoundingBox()
     if (osMaxY.empty())
         return 1;
 
+    /*
     int nNRows;
     if (1 == GetRowsNumberFromREL(&nNRows) || nNRows <= 0)
+        return 1;
+    */
+
+    int nNRows = GetRowsNumberFromREL().value_or(0);
+    if (nNRows <= 0)
         return 1;
 
     m_gt[3] = atof(osMaxY);
     m_gt[4] = 0.0;
-
     m_gt[5] = (atof(osMinY) - m_gt[3]) / nNRows;
 
     return 0;
@@ -1018,10 +974,11 @@ void GDALRegister_MiraMon()
                               "drivers/raster/miramon.html");
     poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "rel");
     poDriver->SetMetadataItem(GDAL_DMD_EXTENSIONS, "rel img");
-    poDriver->SetMetadataItem(
-        GDAL_DMD_CREATIONDATATYPES,
-        "Byte Int8 Int16 UInt16 Int32 UInt32 Float32 Float64 "
-        "CFloat32 CFloat64");
+    // For the writing part
+    // poDriver->SetMetadataItem(
+    //    GDAL_DMD_CREATIONDATATYPES,
+    //    "Byte Int8 Int16 UInt16 Int32 UInt32 Float32 Float64 "
+    //    "CFloat32 CFloat64");
 
     poDriver->SetMetadataItem(GDAL_DCAP_VIRTUALIO, "YES");
     poDriver->SetMetadataItem(GDAL_DMD_SUBDATASETS, "YES");

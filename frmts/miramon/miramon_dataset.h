@@ -15,6 +15,7 @@
 
 #include <cstddef>
 #include <vector>
+#include <optional>
 
 #include "gdal_pam.h"
 #include "gdal_rat.h"
@@ -30,22 +31,6 @@ class MMRRasterBand;
 
 class MMRDataset final : public GDALPamDataset
 {
-    friend class MMRRasterBand;
-
-    MMRInfo *hMMR = nullptr;  //owner
-
-    bool bMetadataDirty = false;
-
-    GDALGeoTransform m_gt{};
-    OGRSpatialReference m_oSRS{};
-
-    CPLErr ReadProjection();
-
-    std::vector<gdal::GCP> m_aoGCPs{};
-
-    int GetColumnsNumberFromREL(int *nNCols);
-    int GetRowsNumberFromREL(int *nNRows);
-
   public:
     explicit MMRDataset(GDALOpenInfo *poOpenInfo);
     MMRDataset(const MMRDataset &) =
@@ -61,19 +46,33 @@ class MMRDataset final : public GDALPamDataset
     void CreateSubdatasetsFromBands();
     void AssignBands();
 
-    const OGRSpatialReference *GetSpatialRef() const override;
-
-    virtual CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
-
     int GetDataSetBoundingBox();
     int GetBandBoundingBox(int nIBand);
 
+    MMRInfo *GetMMRInfo()
+    {
+        return hMMR;
+    }
+
+    const OGRSpatialReference *GetSpatialRef() const override;
+    virtual CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
     virtual CPLErr SetMetadata(char **, const char * = "") override;
     virtual CPLErr SetMetadataItem(const char *, const char *,
                                    const char * = "") override;
 
   private:
+    GDALGeoTransform m_gt{};
+    OGRSpatialReference m_oSRS{};
+    CPLErr ReadProjection();
+    // esto al rel
+    //int GetRowsNumberFromREL(int *nNRows);
+    std::optional<int> GetRowsNumberFromREL() const;
     bool NextBandInANewDataSet(int nIBand);
+
+    MMRInfo *hMMR = nullptr;  //owner
+
+    bool bMetadataDirty = false;
+    std::vector<gdal::GCP> m_aoGCPs{};
 
     // Numbers of subdatasets (if any) in this dataset.
     int nNSubdataSets = 0;

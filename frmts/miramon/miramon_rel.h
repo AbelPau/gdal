@@ -76,7 +76,7 @@ class MMRBand;
 class MMRInfo
 {
   public:
-    explicit MMRInfo(MMRRel *fRel);
+    explicit MMRInfo(char *pszFilename);
 
     MMRInfo(const MMRInfo &) =
         delete;  // I don't want to construct a MMRInfo from another MMRInfo (effc++)
@@ -137,6 +137,7 @@ class MMRRel
     static CPLErr ParseBandInfo(MMRInfo &hMMR);
     static CPLString
     RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
+    int GetColumnsNumberFromREL(int *nNCols);
 
     explicit MMRRel(CPLString);
     ~MMRRel();
