@@ -28,56 +28,13 @@ gdal_to_struct = {
     gdal.GDT_Float64: ("d", 8),
 }
 
-init_list = [
-    ("data/miramon/normal/byte_2x3_6_categs.img", 1),
-    ("data/miramon/normal/byte_2x3_6_categsI.rel", 1),
-    ("data/miramon/normal/integer_2x3_6_categs.img", 1),
-    ("data/miramon/normal/integer_2x3_6_categsI.rel", 1),
-    ("data/miramon/normal/uinteger_2x3_6_categs.img", 1),
-    ("data/miramon/normal/uinteger_2x3_6_categsI.rel", 1),
-    ("data/miramon/normal/long_2x3_6_categs.img", 1),
-    ("data/miramon/normal/long_2x3_6_categsI.rel", 1),
-    ("data/miramon/normal/real_2x3_6_categs.img", 1),
-    ("data/miramon/normal/real_2x3_6_categsI.rel", 1),
-    ("data/miramon/normal/double_2x3_6_categs.img", 1),
-    ("data/miramon/normal/double_2x3_6_categsI.rel", 1),
-    ("data/miramon/normal/byte_2x3_6_categs_RLE.img", 1),
-    ("data/miramon/normal/byte_2x3_6_categs_RLEI.rel", 1),
-    ("data/miramon/normal/byte_2x3_6_categs_RLE_no_ind.img", 1),
-    ("data/miramon/normal/byte_2x3_6_categs_RLE_no_indI.rel", 1),
-    ("data/miramon/normal/integer_2x3_6_categs_RLE.img", 1),
-    ("data/miramon/normal/integer_2x3_6_categs_RLEI.rel", 1),
-    ("data/miramon/normal/uinteger_2x3_6_categs_RLE.img", 1),
-    ("data/miramon/normal/uinteger_2x3_6_categs_RLEI.rel", 1),
-    ("data/miramon/normal/long_2x3_6_categs_RLE.img", 1),
-    ("data/miramon/normal/long_2x3_6_categs_RLEI.rel", 1),
-    ("data/miramon/normal/real_2x3_6_categs_RLE.img", 1),
-    ("data/miramon/normal/real_2x3_6_categs_RLEI.rel", 1),
-    ("data/miramon/normal/double_2x3_6_categs_RLE.img", 1),
-    ("data/miramon/normal/double_2x3_6_categs_RLEI.rel", 1),
-    ("data/miramon/normal/chess_bit.img", 1),
-    ("data/miramon/normal/chess_bitI.rel", 1),
-]
-
-
-@pytest.mark.parametrize(
-    "filename,band_idx",
-    init_list,
-    ids=[tup[0].split(".")[0] for tup in init_list],
-)
-@pytest.mark.require_driver("MiraMonRaster")
-def test_miramon_test_012345_raster(filename, band_idx):
-    # ds = gdal.Open(filename)
-    ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
-    assert ds is not None, "Could not open the file"
+###### Testing IMG/REL normal files
+def check_raster(ds, band_idx, expected, checksum):
     band = ds.GetRasterBand(band_idx)
     assert band is not None, f"Error opening band {band_idx}"
     rchecksum = band.Checksum()
 
-    if "chess" in filename:
-        assert rchecksum == 32, f"Unexpected checksum: {rchecksum}"
-    else:
-        assert rchecksum == 15, f"Unexpected checksum: {rchecksum}"
+    assert rchecksum == checksum, f"Unexpected checksum: {rchecksum}"
 
     xsize = band.XSize
     ysize = band.YSize
@@ -92,21 +49,73 @@ def test_miramon_test_012345_raster(filename, band_idx):
     count = xsize * ysize
     values = struct.unpack(f"{count}{fmt}", buf)
 
-    if "chess" in filename:  # testing a few values
-        expected = [0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0]
-        for i, exp in enumerate(expected):
-            assert (
-                values[i] == exp
-            ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
-    else:
-        expected = [0, 1, 2, 3, 4, 5]
-        for i, exp in enumerate(expected):
-            assert i < len(values), f"Expected value at index {i}, but got fewer values"
-            assert (
-                values[i] == exp
-            ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
+    for i, exp in enumerate(expected):
+        assert (
+            values[i] == exp
+        ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
 
 
+init_list = [
+    ("data/miramon/normal/byte_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/byte_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/integer_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/integer_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/uinteger_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/uinteger_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/long_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/long_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/real_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/real_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/double_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/double_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/byte_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/byte_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/byte_2x3_6_categs_RLE_no_ind.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    (
+        "data/miramon/normal/byte_2x3_6_categs_RLE_no_indI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+    ),
+    ("data/miramon/normal/integer_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/integer_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/uinteger_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/uinteger_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/long_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/long_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/real_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/real_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/double_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15),
+    ("data/miramon/normal/double_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15),
+    (
+        "data/miramon/normal/chess_bit.img",
+        1,
+        [0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0],
+        32,
+    ),
+    (
+        "data/miramon/normal/chess_bitI.rel",
+        1,
+        [0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0],
+        32,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "filename,band_idx,expected,checksum",
+    init_list,
+    ids=[tup[0].split(".")[0] for tup in init_list],
+)
+@pytest.mark.require_driver("MiraMonRaster")
+def test_miramon_test_012345_raster(filename, band_idx, expected, checksum):
+    # ds = gdal.Open(filename)
+    ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
+    assert ds is not None, "Could not open the file"
+    check_raster(ds, band_idx, expected, checksum)
+
+
+###### Testing IMG/REL files with errors
 @pytest.mark.parametrize(
     "name,message_substring",
     [
@@ -180,3 +189,70 @@ def test_miramon_test_fails(name, message_substring):
             gdal.OF_RASTER,
         )
     assert message_substring in str(excinfo.value)
+
+
+###### Testing subdatasets
+init_list_subdatasets = [
+    (
+        "data/miramon/multiband/byte_2x3_6_multibandI.rel",
+        3,
+        0,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        None,
+    ),
+    (
+        "data/miramon/multiband/byte_2x3_6_multibandI.rel",
+        3,
+        1,
+        1,
+        [0, 1, 2, 3, 4, 255],
+        10,
+        255,
+    ),
+    (
+        "data/miramon/multiband/byte_2x3_6_multibandI.rel",
+        3,
+        2,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "filename,n_exp_sds,idx_sds,idx_bnd,expected,checksum,expected_nodata",
+    init_list_subdatasets,
+    ids=[tup[0].split("/")[-1].split(".")[0] for tup in init_list_subdatasets],
+)
+@pytest.mark.require_driver("MiraMonRaster")
+def test_miramon_subdatasets_detection(
+    filename, n_exp_sds, idx_sds, idx_bnd, expected, checksum, expected_nodata
+):
+    ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
+    assert ds is not None, f"Could not open file: {filename}"
+
+    subdatasets = ds.GetSubDatasets()
+    assert subdatasets is not None, "GetSubDatasets() returned None"
+    assert (
+        len(subdatasets) == n_exp_sds
+    ), f"Expected {n_exp_sds} subdatasets, got {len(subdatasets)}"
+
+    # Let's open every one of them
+    subdataset_name, desc = subdatasets[idx_sds]
+    subds = gdal.OpenEx(subdataset_name, allowed_drivers=["MiraMonRaster"])
+    assert subds is not None, f"Could not open subdataset: {subdataset_name}"
+    band = subds.GetRasterBand(idx_bnd)
+    assert band is not None, "Could not get band from subdataset"
+    checksum = band.Checksum()
+    assert checksum >= 0, "Invalid checksum from subdataset"
+    nodata = band.GetNoDataValue()
+    if nodata is not None:
+        assert (
+            nodata == expected_nodata
+        ), f"Unexpected nodata value : got {nodata}, expected {expected_nodata}"
+
+    check_raster(subds, idx_bnd, expected, checksum)
