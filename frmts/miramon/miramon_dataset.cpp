@@ -607,9 +607,9 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
 /* ==================================================================== */
 /************************************************************************/
 
-MMRInfo::MMRInfo(MMRRel *fRel)
+MMRInfo::MMRInfo(MMRRel *fRelIn)
 {
-    this->fRel = fRel;
+    this->fRel = fRelIn;
 }
 
 /************************************************************************/

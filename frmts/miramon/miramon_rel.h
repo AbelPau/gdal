@@ -76,7 +76,7 @@ class MMRBand;
 class MMRInfo
 {
   public:
-    MMRInfo(MMRRel *fRel);
+    explicit MMRInfo(MMRRel *fRel);
 
     MMRInfo(const MMRInfo &) =
         delete;  // I don't want to construct a MMRInfo from another MMRInfo (effc++)
