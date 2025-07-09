@@ -807,24 +807,6 @@ CPLErr MMRDataset::SetMetadataItem(const char *pszTag, const char *pszValue,
 /************************************************************************/
 /*                          GetDataSetBoundingBox()                     */
 /************************************************************************/
-std::optional<int> MMRDataset::GetRowsNumberFromREL() const
-//int MMRDataset::GetRowsNumberFromREL(int *nNRows)
-{
-    // Number of columns of the subdataset (if exist)
-    // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
-    // Key raws
-    if (!hMMR || !hMMR->fRel)
-        return std::nullopt;
-
-    CPLString osValue =
-        hMMR->fRel->GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "rows");
-
-    if (osValue.empty())
-        return std::nullopt;
-
-    return atoi(osValue);
-}
-
 int MMRDataset::GetDataSetBoundingBox()
 {
     // Bounding box of the band
@@ -845,8 +827,8 @@ int MMRDataset::GetDataSetBoundingBox()
         return 1;
     m_gt[0] = atof(osMinX);
 
-    int nNCols;
-    if (1 == hMMR->fRel->GetColumnsNumberFromREL(&nNCols) || nNCols <= 0)
+    int nNCols = hMMR->fRel->UpdateColumnsNumberFromREL();
+    if (nNCols <= 0)
         return 1;
 
     CPLString osMaxX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
@@ -864,13 +846,7 @@ int MMRDataset::GetDataSetBoundingBox()
     if (osMaxY.empty())
         return 1;
 
-    /*
-    int nNRows;
-    if (1 == GetRowsNumberFromREL(&nNRows) || nNRows <= 0)
-        return 1;
-    */
-
-    int nNRows = GetRowsNumberFromREL().value_or(0);
+    int nNRows = hMMR->fRel->UpdateRowsNumberFromREL();
     if (nNRows <= 0)
         return 1;
 

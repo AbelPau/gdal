@@ -169,11 +169,11 @@ def test_miramon_test_012345_raster(filename, band_idx, expected, checksum):
         ),
         (
             "data/miramon/several_errors/no_typeI.rel",
-            "MMRBand::MMRBand : No nDataType documented",
+            "MiraMonRaster: no nDataType documented",
         ),
         (
             "data/miramon/several_errors/wrong_typeI.rel",
-            "MMRBand::GetDataTypeFromREL data type unhandled",
+            "MiraMonRaster: data type unhandled",
         ),
         (
             "data/miramon/several_errors/wrong_band_nameI.rel",

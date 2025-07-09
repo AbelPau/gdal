@@ -698,7 +698,7 @@ int MMRRel::GetDataTypeAndBytesPerPixel(const char *pszCompType,
 CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
                                    const CPLString osSubSection,
                                    const CPLString osSubSubSection,
-                                   const CPLString osKey)
+                                   const CPLString osKey) const
 {
     // Searches in [pszMainSection:pszSubSection]
     CPLString osAtributeDataName;
@@ -731,7 +731,7 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
 
 CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
                                    const CPLString osSubSection,
-                                   const CPLString osKey)
+                                   const CPLString osKey) const
 {
     // Searches in [pszMainSection:pszSubSection]
     CPLString osAtributeDataName;
@@ -761,7 +761,7 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
 }
 
 CPLString MMRRel::GetMetadataValue(const CPLString osSection,
-                                   const CPLString osKey)
+                                   const CPLString osKey) const
 {
     char *pszValue =
         MMReturnValueFromSectionINIFile(GetRELNameChar(), osSection, osKey);
@@ -774,7 +774,7 @@ CPLString MMRRel::GetMetadataValue(const CPLString osSection,
     return "";
 }
 
-const char *MMRRel::GetRELNameChar()
+const char *MMRRel::GetRELNameChar() const
 {
     return osRelFileName.c_str();
 }
@@ -895,19 +895,28 @@ CPLString MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
     return osInputWithSpaces;
 }
 
-int MMRRel::GetColumnsNumberFromREL(int *nNCols)
+int MMRRel::UpdateColumnsNumberFromREL() const
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
-    if (!nNCols)
-        return 1;
-
     CPLString osValue =
         GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "columns");
 
     if (osValue.empty())
-        return 1;
+        return 0;  // Default value
 
-    *nNCols = atoi(osValue);
-    return 0;
+    return atoi(osValue);
+}
+
+int MMRRel::UpdateRowsNumberFromREL() const
+{
+    // Number of columns of the subdataset (if exist)
+    // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
+    // Key raws
+    CPLString osValue = GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "rows");
+
+    if (osValue.empty())
+        return 0;  // Default value
+
+    return atoi(osValue);
 }

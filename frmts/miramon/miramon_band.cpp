@@ -49,10 +49,10 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
 }
 
 // Getting data type from metadata
-int MMRBand::GetDataTypeFromREL(const char *pszSection)
+int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                pszSection, "TipusCompressio");
+                                                osSection, "TipusCompressio");
 
     eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
@@ -62,7 +62,7 @@ int MMRBand::GetDataTypeFromREL(const char *pszSection)
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : No nDataType documented");
+                 "MiraMonRaster: no nDataType documented");
         return 1;
     }
 
@@ -72,19 +72,19 @@ int MMRBand::GetDataTypeFromREL(const char *pszSection)
         nWidth = 0;
         nHeight = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::GetDataTypeFromREL data type unhandled");
+                 "MiraMonRaster: data type unhandled");
         return 1;
     }
     return 0;
 }
 
 // Getting resolution from metadata
-void MMRBand::GetResolutionFromREL(const char *pszSection)
+void MMRBand::SetResolutionFromREL(const CPLString osSection)
 {
     bSetResolution = false;
 
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                pszSection, "resolution");
+                                                osSection, "resolution");
     if (osValue.empty())
     {
         osValue = pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
@@ -97,17 +97,17 @@ void MMRBand::GetResolutionFromREL(const char *pszSection)
         }
     }
     dfResolution = osValue.empty() ? 0 : atof(osValue);
-    GetResolutionYFromREL(pszSection);
+    SetResolutionYFromREL(osSection);
     if (!bSetResolution)
         dfResolutionY = dfResolution;
 
     bSetResolution = true;
 }
 
-void MMRBand::GetResolutionYFromREL(const char *pszSection)
+void MMRBand::SetResolutionYFromREL(const CPLString osSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                pszSection, "resolutionY");
+                                                osSection, "resolutionY");
     if (osValue.empty())
     {
         osValue = pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
@@ -123,25 +123,25 @@ void MMRBand::GetResolutionYFromREL(const char *pszSection)
 }
 
 // Getting number of columns from metadata
-int MMRBand::GetColumnsNumberFromREL(const CPLString osSection)
+int MMRBand::UpdateColumnsNumberFromREL(const CPLString osSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         osSection, "columns", &nWidth,
         "MMRBand::MMRBand : No number of columns documented");
 }
 
-int MMRBand::GetRowsNumberFromREL(const char *pszSection)
+int MMRBand::UpdateRowsNumberFromREL(const CPLString osSection)
 {
     return Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
-        pszSection, "rows", &nHeight,
+        osSection, "rows", &nHeight,
         "MMRBand::MMRBand : No number of rows documented");
 }
 
 // Getting nodata value from metadata
-void MMRBand::GetNoDataValue(const char *pszSection)
+void MMRBand::UpdateNoDataValue(const CPLString osSection)
 {
     CPLString osValue =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "NODATA");
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "NODATA");
     if (osValue.empty())
     {
         dfNoData = 0;  // No a valid value.
@@ -155,21 +155,21 @@ void MMRBand::GetNoDataValue(const char *pszSection)
 }
 
 // Getting nodata value from metadata
-void MMRBand::GetNoDataDefinitionFromREL(const char *pszSection)
+void MMRBand::UpdateNoDataDefinitionFromREL(const CPLString osSection)
 {
     if (!bNoDataSet)
         return;
 
-    osNodataDef = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
-                                          "NODATADef");
+    osNodataDef =
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "NODATADef");
 }
 
-void MMRBand::GetMinMaxValuesFromREL(const char *pszSection)
+void MMRBand::UpdateMinMaxValuesFromREL(const CPLString osSection)
 {
     bMinSet = false;
 
     CPLString osValue =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "min");
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "min");
     if (!osValue.empty())
     {
         bMinSet = true;
@@ -177,8 +177,7 @@ void MMRBand::GetMinMaxValuesFromREL(const char *pszSection)
     }
 
     bMaxSet = false;
-    osValue =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection, "max");
+    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "max");
 
     if (!osValue.empty())
     {
@@ -187,12 +186,12 @@ void MMRBand::GetMinMaxValuesFromREL(const char *pszSection)
     }
 }
 
-void MMRBand::GetMinMaxVisuValuesFromREL(const char *pszSection)
+void MMRBand::UpdateMinMaxVisuValuesFromREL(const CPLString osSection)
 {
     bMinVisuSet = false;
     dfVisuMin = 1;
 
-    CPLString osValue = pfRel->GetMetadataValue(SECTION_COLOR_TEXT, pszSection,
+    CPLString osValue = pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osSection,
                                                 "Color_ValorColor_0");
     if (!osValue.empty())
     {
@@ -203,7 +202,7 @@ void MMRBand::GetMinMaxVisuValuesFromREL(const char *pszSection)
     bMaxVisuSet = false;
     dfVisuMax = 1;
 
-    osValue = pfRel->GetMetadataValue(SECTION_COLOR_TEXT, pszSection,
+    osValue = pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osSection,
                                       "Color_ValorColor_n_1");
 
     if (!osValue.empty())
@@ -213,33 +212,33 @@ void MMRBand::GetMinMaxVisuValuesFromREL(const char *pszSection)
     }
 }
 
-void MMRBand::GetFriendlyDescriptionFromREL(const char *pszSection)
+void MMRBand::UpdateFriendlyDescriptionFromREL(const CPLString osSection)
 {
     osFriendlyDescription = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                    pszSection, "descriptor");
+                                                    osSection, "descriptor");
 }
 
-void MMRBand::GetReferenceSystemFromREL()
+void MMRBand::UpdateReferenceSystemFromREL()
 {
     osRefSystem = pfRel->GetMetadataValue("SPATIAL_REFERENCE_SYSTEM:HORIZONTAL",
                                           "HorizontalSystemIdentifier");
 }
 
-void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
+void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
 {
     // Getting resolution
-    GetResolutionFromREL(osBandSection);
+    SetResolutionFromREL(osBandSection);
 
     // Bounding box of the band
     // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]
     CPLString osValue = pfRel->GetMetadataValue(
-        SECTION_ATTRIBUTE_DATA, pszSection, SECTION_EXTENT, "MinX");
+        SECTION_ATTRIBUTE_DATA, osSection, SECTION_EXTENT, "MinX");
     if (osValue.empty())
         dfBBMinX = 0;
     else
         dfBBMinX = atof(osValue);
 
-    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
                                       SECTION_EXTENT, "MaxX");
     if (osValue.empty())
     {
@@ -251,14 +250,14 @@ void MMRBand::GetBoundingBoxFromREL(const char *pszSection)
     else
         dfBBMaxX = atof(osValue);
 
-    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
                                       SECTION_EXTENT, "MinY");
     if (osValue.empty())
         dfBBMinY = 0;
     else
         dfBBMinY = atof(osValue);
 
-    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, pszSection,
+    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
                                       SECTION_EXTENT, "MaxY");
     if (osValue.empty())
     {
@@ -335,14 +334,14 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
     // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
 
     // Getting number of columns and rows
-    if (GetColumnsNumberFromREL(osBandSection))
+    if (UpdateColumnsNumberFromREL(osBandSection))
     {
         nWidth = 0;
         nHeight = 0;
         return;
     }
 
-    if (GetRowsNumberFromREL(osBandSection))
+    if (UpdateRowsNumberFromREL(osBandSection))
     {
         nWidth = 0;
         nHeight = 0;
@@ -365,7 +364,7 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
 
     // Getting data type and compression.
     // If error, message given inside.
-    if (GetDataTypeFromREL(osBandSection))
+    if (UpdateDataTypeFromREL(osBandSection))
         return;
 
     // Let's see if there is RLE compression
@@ -375,10 +374,10 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
          eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
 
     // Getting min and max values
-    GetMinMaxValuesFromREL(osBandSection);
+    UpdateMinMaxValuesFromREL(osBandSection);
 
     // Getting min and max values for simbolization
-    GetMinMaxVisuValuesFromREL(osBandSection);
+    UpdateMinMaxVisuValuesFromREL(osBandSection);
     if (!bMinVisuSet)
     {
         if (bMinSet)
@@ -397,18 +396,18 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
     }
 
     // Getting the friendly description of the band
-    GetFriendlyDescriptionFromREL(osBandSection);
+    UpdateFriendlyDescriptionFromREL(osBandSection);
 
     // Getting NoData value and definition
-    GetNoDataValue(osBandSection);
-    GetNoDataDefinitionFromREL(
+    UpdateNoDataValue(osBandSection);
+    UpdateNoDataDefinitionFromREL(
         osBandSection);  // ·$·TODO put it in metadata MIRAMON subdomain?
 
     // Getting reference system and coordinates of the geographic bounding box
-    GetReferenceSystemFromREL();
+    UpdateReferenceSystemFromREL();
 
     // Getting the bounding box: coordinates in the terrain
-    GetBoundingBoxFromREL(osBandSection);
+    UpdateBoundingBoxFromREL(osBandSection);
 
     // MiraMon IMG files are efficient in going to an specified row.
     // So le'ts configurate the blocks as line blocks.

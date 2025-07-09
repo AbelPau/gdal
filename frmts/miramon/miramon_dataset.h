@@ -64,9 +64,7 @@ class MMRDataset final : public GDALPamDataset
     GDALGeoTransform m_gt{};
     OGRSpatialReference m_oSRS{};
     CPLErr ReadProjection();
-    // esto al rel
-    //int GetRowsNumberFromREL(int *nNRows);
-    std::optional<int> GetRowsNumberFromREL() const;
+
     bool NextBandInANewDataSet(int nIBand);
 
     MMRInfo *hMMR = nullptr;  //owner

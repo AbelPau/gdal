@@ -118,18 +118,18 @@ class MMRBand
     int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         const CPLString osSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
-    int GetDataTypeFromREL(const char *pszSection);
-    void GetResolutionFromREL(const char *pszSection);
-    void GetResolutionYFromREL(const char *pszSection);
-    int GetColumnsNumberFromREL(const CPLString osSection);
-    int GetRowsNumberFromREL(const char *pszSection);
-    void GetNoDataValue(const char *pszSection);
-    void GetNoDataDefinitionFromREL(const char *pszSection);
-    void GetBoundingBoxFromREL(const char *pszSection);
-    void GetReferenceSystemFromREL();
-    void GetMinMaxValuesFromREL(const char *pszSection);
-    void GetMinMaxVisuValuesFromREL(const char *pszSection);
-    void GetFriendlyDescriptionFromREL(const char *pszSection);
+    int UpdateDataTypeFromREL(const CPLString osSection);
+    void SetResolutionFromREL(const CPLString osSection);
+    void SetResolutionYFromREL(const CPLString osSection);
+    int UpdateColumnsNumberFromREL(const CPLString osSection);
+    int UpdateRowsNumberFromREL(const CPLString osSection);
+    void UpdateNoDataValue(const CPLString osSection);
+    void UpdateNoDataDefinitionFromREL(const CPLString osSection);
+    void UpdateBoundingBoxFromREL(const CPLString osSection);
+    void UpdateReferenceSystemFromREL();
+    void UpdateMinMaxValuesFromREL(const CPLString osSection);
+    void UpdateMinMaxVisuValuesFromREL(const CPLString osSection);
+    void UpdateFriendlyDescriptionFromREL(const CPLString osSection);
 
     const std::vector<double> &GetPCT_Red() const
     {
