@@ -128,12 +128,11 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     virtual GDALRasterAttributeTable *GetDefaultRAT() override;
 
+    void MMRRasterBand::SetDataType();
     CPLErr FillRATFromDBF();
-
     CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
                                  CPLString &osDBFName,
                                  CPLString &osAssociateREL);
-
     CPLErr CreateAttributteTableFromDBF(CPLString osRELName,
                                         CPLString osDBFName,
                                         CPLString osAssociateRel);

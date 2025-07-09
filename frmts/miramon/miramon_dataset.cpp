@@ -30,8 +30,8 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
       hMMR(poDSIn->hMMR), bMetadataDirty(false), poDefaultRAT(nullptr)
 {
     poDS = poDSIn;
-
     nBand = nBandIn;
+
     eAccess = poDSIn->GetAccess();
 
     if (nBand < 0 || nBand > hMMR->nBands)
@@ -49,49 +49,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     nBlockXSize = poBand->nBlockXSize;
     nBlockYSize = poBand->nBlockYSize;
 
-    switch (eMMRDataTypeMiraMon)
-    {
-        case MMDataType::DATATYPE_AND_COMPR_BIT:
-        case MMDataType::DATATYPE_AND_COMPR_BYTE:
-        case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
-            eDataType = GDT_Byte;
-            break;
-
-        case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
-        case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
-            eDataType = GDT_UInt16;
-            break;
-
-        case MMDataType::DATATYPE_AND_COMPR_INTEGER:
-        case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
-        case MMDataType::DATATYPE_AND_COMPR_INTEGER_ASCII:
-            eDataType = GDT_Int16;
-            break;
-
-        case MMDataType::DATATYPE_AND_COMPR_LONG:
-        case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
-            eDataType = GDT_Int32;
-            break;
-
-        case MMDataType::DATATYPE_AND_COMPR_REAL:
-        case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
-        case MMDataType::DATATYPE_AND_COMPR_REAL_ASCII:
-            eDataType = GDT_Float32;
-            break;
-
-        case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
-        case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
-            eDataType = GDT_Float64;
-            break;
-
-        default:
-            eDataType = GDT_Byte;
-            // This should really report an error, but this isn't
-            // so easy from within constructors.
-            CPLDebug("GDAL", "Unsupported pixel type in MMRRasterBand: %d.",
-                     static_cast<int>(eMMRDataTypeMiraMon));
-            break;
-    }
+    SetDataType();
 
     // Collect color table if present.
     CPLErr eErr = poBand->GetPCT();
@@ -138,6 +96,56 @@ MMRRasterBand::~MMRRasterBand()
 
     if (poDefaultRAT)
         delete poDefaultRAT;
+}
+
+/************************************************************************/
+/*                             SetDataType()                         */
+/************************************************************************/
+void MMRRasterBand::SetDataType()
+{
+    switch (eMMRDataTypeMiraMon)
+    {
+        case MMDataType::DATATYPE_AND_COMPR_BIT:
+        case MMDataType::DATATYPE_AND_COMPR_BYTE:
+        case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
+            eDataType = GDT_Byte;
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
+            eDataType = GDT_UInt16;
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_ASCII:
+            eDataType = GDT_Int16;
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_LONG:
+        case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
+            eDataType = GDT_Int32;
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_REAL:
+        case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_REAL_ASCII:
+            eDataType = GDT_Float32;
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
+            eDataType = GDT_Float64;
+            break;
+
+        default:
+            eDataType = GDT_Byte;
+            // This should really report an error, but this isn't
+            // so easy from within constructors.
+            CPLDebug("GDAL", "Unsupported pixel type in MMRRasterBand: %d.",
+                     static_cast<int>(eMMRDataTypeMiraMon));
+            break;
+    }
 }
 
 /************************************************************************/
@@ -667,27 +675,6 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
         hMMR = nullptr;
         return;
     }
-
-    eAccess = poOpenInfo->eAccess;
-
-    // General Dataset information available
-    nRasterXSize = hMMR->nXSize;
-    nRasterYSize = hMMR->nYSize;
-    GetDataSetBoundingBox();  // Fills adfGeoTransform
-    ReadProjection();
-    nBands = 0;
-
-    // Assign every band to a subdataset (if any)
-    // If all bands should go to a one single Subdataset, then,
-    // no subdataset will be created and all bands will go to this
-    // dataset.
-    AssignBandsToSubdataSets();
-
-    // Create subdatasets or add bands, as needed
-    if (nNSubdataSets)
-        CreateSubdatasetsFromBands();
-    else
-        AssignBands(poOpenInfo);
 }
 
 /************************************************************************/
@@ -757,19 +744,44 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 
 {
     // Verify that this is a MMR file.
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-    // During fuzzing, do not use Identify to reject crazy content.
     if (!Identify(poOpenInfo))
         return nullptr;
-#endif
 
-    //MMRDataset *poDS;
-    //poDS = new MMRDataset(poOpenInfo);
+    // Confirm the requested access is supported.
+    if (poOpenInfo->eAccess == GA_Update)
+    {
+        CPLError(CE_Failure, CPLE_NotSupported,
+                 "The MiraMonRaster driver does not support update "
+                 "access to existing datasets.");
+        return nullptr;
+    }
 
-    // Creating the Dataset (with bands or Subdatasets).
+    // Create the Dataset (with bands or Subdatasets).
     auto poDS = std::make_unique<MMRDataset>(poOpenInfo);
     if (poDS->hMMR == nullptr)
         return nullptr;
+
+    // General Dataset information available
+    poDS->nRasterXSize = poDS->hMMR->nXSize;
+    poDS->nRasterYSize = poDS->hMMR->nYSize;
+    poDS->GetDataSetBoundingBox();  // Fills adfGeoTransform
+    poDS->ReadProjection();
+    poDS->nBands = 0;
+
+    // Assign every band to a subdataset (if any)
+    // If all bands should go to a one single Subdataset, then,
+    // no subdataset will be created and all bands will go to this
+    // dataset.
+    poDS->AssignBandsToSubdataSets();
+
+    // Create subdatasets or add bands, as needed
+    if (poDS->nNSubdataSets)
+        poDS->CreateSubdatasetsFromBands();
+    else
+        poDS->AssignBands(poOpenInfo);
+
+    // Set description
+    poDS->SetDescription(poOpenInfo->pszFilename);
 
     return poDS.release();
 }
@@ -999,7 +1011,6 @@ void GDALRegister_MiraMon()
 
     GDALDriver *poDriver = new GDALDriver();
 
-    //·$·TODO Fitxer ajuda!!
     poDriver->SetDescription("MiraMonRaster");
     poDriver->SetMetadataItem(GDAL_DCAP_RASTER, "YES");
     poDriver->SetMetadataItem(GDAL_DMD_LONGNAME, "MiraMon Raster Images");
@@ -1213,10 +1224,6 @@ void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
         }
     }
     */
-
-    // Initialize any PAM information.
-    SetDescription(poOpenInfo->pszFilename);
-    //TryLoadXML();
 
     // Clear dirty metadata flags.
     for (int i = 0; i < nBands; i++)
