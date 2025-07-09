@@ -59,7 +59,7 @@ class MMRDataset final : public GDALPamDataset
 
     void AssignBandsToSubdataSets();
     void CreateSubdatasetsFromBands();
-    void AssignBands(GDALOpenInfo *poOpenInfo);
+    void AssignBands();
 
     const OGRSpatialReference *GetSpatialRef() const override;
 
@@ -128,7 +128,7 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     virtual GDALRasterAttributeTable *GetDefaultRAT() override;
 
-    void MMRRasterBand::SetDataType();
+    void SetDataType();
     CPLErr FillRATFromDBF();
     CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
                                  CPLString &osDBFName,

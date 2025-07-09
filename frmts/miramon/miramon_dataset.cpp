@@ -778,7 +778,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     if (poDS->nNSubdataSets)
         poDS->CreateSubdatasetsFromBands();
     else
-        poDS->AssignBands(poOpenInfo);
+        poDS->AssignBands();
 
     // Set description
     poDS->SetDescription(poOpenInfo->pszFilename);
@@ -1158,7 +1158,7 @@ void MMRDataset::CreateSubdatasetsFromBands()
     }
 }
 
-void MMRDataset::AssignBands(GDALOpenInfo *poOpenInfo)
+void MMRDataset::AssignBands()
 {
     for (int nIBand = 0; nIBand < hMMR->nBands; nIBand++)
     {
