@@ -763,17 +763,15 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
         return nullptr;
 #endif
 
+    //MMRDataset *poDS;
+    //poDS = new MMRDataset(poOpenInfo);
+
     // Creating the Dataset (with bands or Subdatasets).
-    MMRDataset *poDS;
-    poDS = new MMRDataset(poOpenInfo);
-
+    auto poDS = std::make_unique<MMRDataset>(poOpenInfo);
     if (poDS->hMMR == nullptr)
-    {
-        delete poDS;
         return nullptr;
-    }
 
-    return poDS;
+    return poDS.release();
 }
 
 /************************************************************************/
