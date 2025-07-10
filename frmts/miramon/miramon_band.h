@@ -119,8 +119,8 @@ class MMRBand
         const CPLString osSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
     int UpdateDataTypeFromREL(const CPLString osSection);
-    void SetResolutionFromREL(const CPLString osSection);
-    void SetResolutionYFromREL(const CPLString osSection);
+    void UpdateResolutionFromREL(const CPLString osSection);
+    void UpdateResolutionYFromREL(const CPLString osSection);
     int UpdateColumnsNumberFromREL(const CPLString osSection);
     int UpdateRowsNumberFromREL(const CPLString osSection);
     void UpdateNoDataValue(const CPLString osSection);

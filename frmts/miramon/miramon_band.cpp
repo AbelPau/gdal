@@ -79,7 +79,7 @@ int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
 }
 
 // Getting resolution from metadata
-void MMRBand::SetResolutionFromREL(const CPLString osSection)
+void MMRBand::UpdateResolutionFromREL(const CPLString osSection)
 {
     bSetResolution = false;
 
@@ -97,14 +97,14 @@ void MMRBand::SetResolutionFromREL(const CPLString osSection)
         }
     }
     dfResolution = osValue.empty() ? 0 : atof(osValue);
-    SetResolutionYFromREL(osSection);
+    UpdateResolutionYFromREL(osSection);
     if (!bSetResolution)
         dfResolutionY = dfResolution;
 
     bSetResolution = true;
 }
 
-void MMRBand::SetResolutionYFromREL(const CPLString osSection)
+void MMRBand::UpdateResolutionYFromREL(const CPLString osSection)
 {
     CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 osSection, "resolutionY");
@@ -227,7 +227,7 @@ void MMRBand::UpdateReferenceSystemFromREL()
 void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
 {
     // Getting resolution
-    SetResolutionFromREL(osBandSection);
+    UpdateResolutionFromREL(osBandSection);
 
     // Bounding box of the band
     // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]

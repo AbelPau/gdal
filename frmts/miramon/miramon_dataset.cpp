@@ -378,6 +378,14 @@ CPLErr MMRRasterBand::FillRATFromDBF()
             return CE_Failure;
         }
 
+        if (osAssociateRel.empty())
+        {
+            CSLDestroy(papszTokens);
+            delete poDefaultRAT;
+            poDefaultRAT = nullptr;
+            return CE_Failure;
+        }
+
         if (CE_None !=
             CreateAttributteTableFromDBF(osRELName, osDBFName, osAssociateRel))
         {
@@ -398,7 +406,7 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
     struct MM_DATA_BASE_XP oAttributteTable;
     memset(&oAttributteTable, 0, sizeof(oAttributteTable));
 
-    if (osRELName != "")
+    if (!osRELName.empty())
     {
         if (MM_ReadExtendedDBFHeaderFromFile(
                 osDBFName.c_str(), &oAttributteTable,
@@ -544,14 +552,14 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
     os_Join.append("_");
     os_Join.append(papszToken);
 
-    CPLString osTableNameSection_key = hMMR->fRel->GetMetadataValue(
+    CPLString osTableNameSection_value = hMMR->fRel->GetMetadataValue(
         SECTION_ATTRIBUTE_DATA, osBandSection, os_Join);
 
-    if (osTableNameSection_key.empty())
+    if (osTableNameSection_value.empty())
         return CE_Failure;  // No attribute available
 
     CPLString osTableNameSection = "TAULA_";
-    osTableNameSection.append(osTableNameSection_key);
+    osTableNameSection.append(osTableNameSection_value);
 
     CPLString osShortRELName =
         hMMR->fRel->GetMetadataValue(osTableNameSection, "NomFitxer");
@@ -598,6 +606,10 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
         osDBFName = CPLFormFilenameSafe(
             CPLGetPathSafe(hMMR->fRel->GetRELNameChar()).c_str(),
             osShortDBFName, "");
+
+        osAssociateREL =
+            hMMR->fRel->GetMetadataValue(osTableNameSection, "AssociatRel");
+
         return CE_None;
     }
     else
