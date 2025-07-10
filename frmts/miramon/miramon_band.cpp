@@ -1024,6 +1024,9 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             aadfPaletteColors[1][nIRecord] == -1 &&
             aadfPaletteColors[2][nIRecord] == -1)
         {
+            // (-1, -1, -1) is like nodata color
+            bPaletteHasNodata = true;
+
             // Transparent (white or whatever color)
             aadfPaletteColors[0][nIRecord] = 0;
             aadfPaletteColors[1][nIRecord] = 0;

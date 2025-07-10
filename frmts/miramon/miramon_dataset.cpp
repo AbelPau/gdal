@@ -636,6 +636,23 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
         osAssociateREL =
             fLocalRel->GetMetadataValue("TAULA_PRINCIPAL", "AssociatRel");
 
+        if (osAssociateREL.empty())
+        {
+            osRELName = "";
+            delete fLocalRel;
+            return CE_Failure;
+        }
+
+        CPLString osSection = "TAULA_PRINCIPAL:";
+        osSection.append(osAssociateREL);
+
+        CPLString osTactVar =
+            fLocalRel->GetMetadataValue(osSection, "TractamentVariable");
+        if (osTactVar == "Categoric")
+            poDefaultRAT->SetTableType(GRTT_THEMATIC);
+        else
+            poDefaultRAT->SetTableType(GRTT_ATHEMATIC);
+
         delete fLocalRel;
         return CE_None;
     }
