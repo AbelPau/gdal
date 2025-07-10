@@ -430,10 +430,10 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
         }
     }
 
+    MM_EXT_DBF_N_FIELDS nIField;
     MM_EXT_DBF_N_FIELDS nFieldIndex = oAttributteTable.nFields;
     MM_EXT_DBF_N_FIELDS nCategIndex = oAttributteTable.nFields;
-    for (MM_EXT_DBF_N_FIELDS nIField = 0; nIField < oAttributteTable.nFields;
-         nIField++)
+    for (nIField = 0; nIField < oAttributteTable.nFields; nIField++)
     {
         if (EQUAL(oAttributteTable.pField[nIField].FieldName, osAssociateRel))
         {
@@ -477,11 +477,45 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
             return CE_Failure;
     }
 
-    // 1 column: category name
-    if (CE_None != poDefaultRAT->CreateColumn(
-                       oAttributteTable.pField[nCategIndex].FieldName,
-                       GFT_String, GFU_Name))
-        return CE_Failure;
+    GDALRATFieldUsage eFieldUsage;
+    GDALRATFieldType eFieldType;
+    for (nIField = 0; nIField < oAttributteTable.nFields; nIField++)
+    {
+        if (nIField == nFieldIndex)
+            continue;
+
+        if (oAttributteTable.pField[nIField].FieldType == 'N')
+        {
+            eFieldUsage = GFU_MinMax;
+            if (oAttributteTable.pField[nIField].DecimalsIfFloat)
+                eFieldType = GFT_Real;
+            else
+                eFieldType = GFT_Integer;
+        }
+        else
+        {
+            eFieldUsage = GFU_Generic;
+            eFieldType = GFT_String;
+        }
+        if (nIField == nCategIndex)
+            eFieldUsage = GFU_Name;
+
+        /*if(*oAttributteTable.pField[nIField].FieldDescription[0] != '\0')
+        {
+            if (CE_None != poDefaultRAT->CreateColumn(
+                oAttributteTable.pField[nIField].FieldDescription[0],
+                eFieldType, eFieldUsage))
+                return CE_Failure;
+        }
+        else
+        */
+        {
+            if (CE_None != poDefaultRAT->CreateColumn(
+                               oAttributteTable.pField[nIField].FieldName,
+                               eFieldType, eFieldUsage))
+                return CE_Failure;
+        }
+    }
 
     VSIFSeekL(oAttributteTable.pfDataBase, oAttributteTable.FirstRecordOffset,
               SEEK_SET);
@@ -514,25 +548,35 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
         CPLString osField = pzsField;
         poDefaultRAT->SetValue(nIRecord, 0, osField);
 
-        // Category value
-        memcpy(pzsField,
-               pzsBuffer +
-                   oAttributteTable.pField[nCategIndex].AccumulatedBytes,
-               oAttributteTable.pField[nCategIndex].BytesPerField);
-        pzsField[oAttributteTable.pField[nCategIndex].BytesPerField] = '\0';
-        if (oAttributteTable.CharSet == MM_JOC_CARAC_OEM850_DBASE)
-            MM_oemansi(pzsField);
-
-        if (oAttributteTable.CharSet != MM_JOC_CARAC_UTF8_DBF)
+        int nIOrderedField = 1;
+        for (nIField = 0; nIField < oAttributteTable.nFields; nIField++)
         {
-            // MiraMon encoding is ISO 8859-1 (Latin1) -> Recode to UTF-8
-            char *pszFieldRecoded =
-                CPLRecode(pzsField, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
-            poDefaultRAT->SetValue(nIRecord, 1, pszFieldRecoded);
-            CPLFree(pszFieldRecoded);
+            if (nIField == nFieldIndex)
+                continue;
+
+            // Category value
+            memcpy(pzsField,
+                   pzsBuffer +
+                       oAttributteTable.pField[nIField].AccumulatedBytes,
+                   oAttributteTable.pField[nIField].BytesPerField);
+            pzsField[oAttributteTable.pField[nIField].BytesPerField] = '\0';
+            if (oAttributteTable.CharSet == MM_JOC_CARAC_OEM850_DBASE)
+                MM_oemansi(pzsField);
+
+            if (oAttributteTable.CharSet != MM_JOC_CARAC_UTF8_DBF)
+            {
+                // MiraMon encoding is ISO 8859-1 (Latin1) -> Recode to UTF-8
+                char *pszFieldRecoded =
+                    CPLRecode(pzsField, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
+                poDefaultRAT->SetValue(nIRecord, nIOrderedField,
+                                       pszFieldRecoded);
+                CPLFree(pszFieldRecoded);
+            }
+            else
+                poDefaultRAT->SetValue(nIRecord, nIOrderedField, pzsField);
+
+            nIOrderedField++;
         }
-        else
-            poDefaultRAT->SetValue(nIRecord, 1, pzsField);
     }
 
     VSIFree(pzsField);
@@ -565,7 +609,6 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
         hMMR->fRel->GetMetadataValue(osTableNameSection, "NomFitxer");
 
     CPLString osExtension = CPLGetExtensionSafe(osShortRELName);
-    CPLString osShortDBFName;
     if (osExtension.tolower() == "rel")
     {
         // Get path relative to REL file
@@ -574,49 +617,45 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
             osShortRELName, "");
 
         // Getting information from the associated REL
-        MMRRel *fRel = new MMRRel(osRELName);
-        osShortDBFName = fRel->GetMetadataValue("TAULA_PRINCIPAL", "NomFitxer");
+        MMRRel *fLocalRel = new MMRRel(osRELName);
+        CPLString osShortDBFName =
+            fLocalRel->GetMetadataValue("TAULA_PRINCIPAL", "NomFitxer");
 
         if (osShortDBFName.empty())
         {
             osRELName = "";
-            delete fRel;
+            delete fLocalRel;
             return CE_Failure;
         }
+
+        // Get path relative to REL file
+        osDBFName = CPLFormFilenameSafe(
+            CPLGetPathSafe(fLocalRel->GetRELNameChar()).c_str(), osShortDBFName,
+            "");
 
         osAssociateREL =
-            fRel->GetMetadataValue("TAULA_PRINCIPAL", "AssociatRel");
+            fLocalRel->GetMetadataValue("TAULA_PRINCIPAL", "AssociatRel");
 
-        if (osAssociateREL.empty())
-        {
-            osRELName = "";
-            delete fRel;
-            return CE_Failure;
-        }
-
-        delete fRel;
+        delete fLocalRel;
+        return CE_None;
     }
-    else
-        osShortDBFName = osShortRELName;
 
-    osExtension = CPLGetExtensionSafe(osShortDBFName);
+    osExtension = CPLGetExtensionSafe(osShortRELName);
     if (osExtension.tolower() == "dbf")
     {
         // Get path relative to REL file
         osDBFName = CPLFormFilenameSafe(
             CPLGetPathSafe(hMMR->fRel->GetRELNameChar()).c_str(),
-            osShortDBFName, "");
+            osShortRELName, "");
 
         osAssociateREL =
             hMMR->fRel->GetMetadataValue(osTableNameSection, "AssociatRel");
 
         return CE_None;
     }
-    else
-    {
-        osRELName = "";
-        osAssociateREL = "";
-    }
+
+    osRELName = "";
+    osAssociateREL = "";
 
     return CE_Failure;
 }
