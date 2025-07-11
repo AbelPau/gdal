@@ -22,6 +22,226 @@
 /************************************************************************/
 /*                              MMRBand()                               */
 /************************************************************************/
+MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
+    : pfIMG(nullptr), pfRel(hMMRIn.fRel), nBlocks(0), nNoDataOriginalIndex(0),
+      bPaletteHasNodata(false), nNoDataPaletteIndex(0), nAssignedSDS(0),
+      osBandSection(osBandSectionIn), osRELFileName(""), osRawBandFileName(""),
+      osBandFileName(""), osBandName(""), osFriendlyDescription(""),
+      eMMDataType(
+          static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
+      eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
+          MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
+      bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
+      dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
+      dfVisuMax(0.0), osRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
+      dfBBMaxY(0), dfResolution(0), dfResolutionY(0), bSetResolution(false),
+      hMMR(&hMMRIn), nBlockXSize(0), nBlockYSize(1), nWidth(hMMRIn.nXSize),
+      nHeight(hMMRIn.nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
+      bNoDataSet(false), osNodataDef(""), dfNoData(0.0)
+{
+    // Getting band and band file name from metadata
+    osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                osBandSectionIn, KEY_NomFitxer);
+
+    if (osRawBandFileName.empty())
+    {
+        osBandFileName = pfRel->MMRGetFileNameFromRelName(hMMRIn.osRELFileName);
+        if (osBandFileName.empty())
+        {
+            nWidth = 0;
+            nHeight = 0;
+            CPLError(CE_Failure, CPLE_AssertionFailed,
+                     "The REL file '%s' contains a documented \
+                band with no explicit name. Section [%s] or [%s:%s].\n",
+                     hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                     SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
+            return;
+        }
+        osBandName = CPLGetBasenameSafe(osBandFileName);
+        osRawBandFileName = osBandName;
+    }
+    else
+    {
+        osBandName = CPLGetBasenameSafe(osRawBandFileName);
+        CPLString osAux =
+            CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
+        osBandFileName =
+            CPLFormFilenameSafe(osAux.c_str(), osRawBandFileName.c_str(), "");
+    }
+
+    // There is a band file documented?
+    if (osBandName.empty())
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AssertionFailed,
+                 "The REL file '%s' contains a documented \
+            band with no explicit name. Section [%s] or [%s:%s].\n",
+                 hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                 SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
+        return;
+    }
+
+    // Getting essential metadata documented at
+    // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
+
+    // Getting number of columns and rows
+    if (UpdateColumnsNumberFromREL(osBandSection))
+    {
+        nWidth = 0;
+        nHeight = 0;
+        return;
+    }
+
+    if (UpdateRowsNumberFromREL(osBandSection))
+    {
+        nWidth = 0;
+        nHeight = 0;
+        return;
+    }
+
+    if (nWidth <= 0 || nHeight <= 0)
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : (nWidth <= 0 || nHeight <= 0)");
+        return;
+    }
+
+    hMMRIn.nXSize = nWidth;
+    hMMRIn.nYSize = nHeight;
+
+    // Getting data type and compression.
+    // If error, message given inside.
+    if (UpdateDataTypeFromREL(osBandSection))
+        return;
+
+    // Let's see if there is RLE compression
+    bIsCompressed =
+        (((eMMDataType >= MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
+          (eMMDataType <= MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
+         eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
+
+    // Getting min and max values
+    UpdateMinMaxValuesFromREL(osBandSection);
+
+    // Getting min and max values for simbolization
+    UpdateMinMaxVisuValuesFromREL(osBandSection);
+    if (!bMinVisuSet)
+    {
+        if (bMinSet)
+        {
+            dfVisuMin = dfMin;
+            bMinVisuSet = true;
+        }
+    }
+    if (!bMaxVisuSet)
+    {
+        if (bMaxSet)
+        {
+            dfVisuMax = dfMax;
+            bMaxVisuSet = true;
+        }
+    }
+
+    // Getting the friendly description of the band
+    UpdateFriendlyDescriptionFromREL(osBandSection);
+
+    // Getting NoData value and definition
+    UpdateNoDataValue(osBandSection);
+    UpdateNoDataDefinitionFromREL(
+        osBandSection);  // ·$·TODO put it in metadata MIRAMON subdomain?
+
+    // Getting reference system and coordinates of the geographic bounding box
+    UpdateReferenceSystemFromREL();
+
+    // Getting the bounding box: coordinates in the terrain
+    UpdateBoundingBoxFromREL(osBandSection);
+
+    // MiraMon IMG files are efficient in going to an specified row.
+    // So le'ts configurate the blocks as line blocks.
+    nBlocks = nHeight;
+    nBlockXSize = nWidth;
+    nBlockYSize = 1;
+    nBlocksPerRow = 1;
+    nBlocksPerColumn = nHeight;
+
+    // Can the binary file that contains all data for this band be opened?
+    pfIMG = VSIFOpenL(osBandFileName, "rb");
+    if (!pfIMG)
+    {
+        nWidth = 0;
+        nHeight = 0;
+        CPLError(CE_Failure, CPLE_OpenFailed,
+                 "Failed to open MiraMon band file `%s' with access 'rb'.",
+                 osBandFileName.c_str());
+        return;
+    }
+}
+
+/************************************************************************/
+/*                              ~MMRBand()                              */
+/************************************************************************/
+MMRBand::~MMRBand()
+
+{
+    if (pfIMG != nullptr)
+        CPL_IGNORE_RET_VAL(VSIFCloseL(pfIMG));
+}
+
+/************************************************************************/
+/*                           GetRasterBlock()                           */
+/************************************************************************/
+CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
+                               int nDataSize)
+
+{
+    const int iBlock = nXBlock + nYBlock * nBlocksPerRow;
+    const int nDataTypeSizeBytes =
+        std::max(1, static_cast<int>(eMMBytesPerPixel));
+    const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
+
+    // Calculate block offset in case we have spill file. Use predefined
+    // block map otherwise.
+    if (!pfIMG)
+    {
+        CPLError(CE_Failure, CPLE_FileIO, "File band not opened: \n%s",
+                 osBandFileName.c_str());
+        return CE_Failure;
+    }
+
+    if (nDataSize != -1 && (nGDALBlockSize > INT_MAX ||
+                            static_cast<int>(nGDALBlockSize) > nDataSize))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid block size: %d",
+                 static_cast<int>(nGDALBlockSize));
+        return CE_Failure;
+    }
+
+    // Getting the row offsets to optimize access.
+    if (FillRowOffsets() == false || aFileOffsets.size() == 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Some error in offsets calculation");
+        return CE_Failure;
+    }
+
+    // Read the block in the documented or deduced offset
+    if (VSIFSeekL(pfIMG, aFileOffsets[iBlock], SEEK_SET))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "Read from invalid offset for grid block.");
+        return CE_Failure;
+    }
+
+    return GetBlockData(pData);
+}
+
+/************************************************************************/
+/*           Functions that update class members                        */
+/************************************************************************/
+
 // [ATTRIBUTE_DATA:xxxx] or [OVERVIEW:ASPECTES_TECNICS]
 int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
     const CPLString osSection, const char *pszKey, int *nValue,
@@ -66,8 +286,8 @@ int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
         return 1;
     }
 
-    if (pfRel->GetDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
-                                           &eMMBytesPerPixel) == 1)
+    if (pfRel->UpdateDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
+                                              &eMMBytesPerPixel) == 1)
     {
         nWidth = 0;
         nHeight = 0;
@@ -270,230 +490,59 @@ void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
         dfBBMaxY = atof(osValue);
 }
 
-MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
-    : pfIMG(nullptr), pfRel(hMMRIn.fRel), nBlocks(0), nNoDataOriginalIndex(0),
-      bPaletteHasNodata(false), nNoDataPaletteIndex(0), nAssignedSDS(0),
-      osBandSection(osBandSectionIn), osRELFileName(""), osRawBandFileName(""),
-      osBandFileName(""), osBandName(""), osFriendlyDescription(""),
-      eMMDataType(
-          static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
-      eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
-          MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
-      bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
-      dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
-      dfVisuMax(0.0), osRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
-      dfBBMaxY(0), dfResolution(0), dfResolutionY(0), bSetResolution(false),
-      hMMR(&hMMRIn), nBlockXSize(0), nBlockYSize(1), nWidth(hMMRIn.nXSize),
-      nHeight(hMMRIn.nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), osNodataDef(""), dfNoData(0.0)
-{
-    // Getting band and band file name from metadata
-    osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                osBandSectionIn, KEY_NomFitxer);
-
-    if (osRawBandFileName.empty())
-    {
-        osBandFileName = pfRel->MMRGetFileNameFromRelName(hMMRIn.osRELFileName);
-        if (osBandFileName.empty())
-        {
-            nWidth = 0;
-            nHeight = 0;
-            CPLError(CE_Failure, CPLE_AssertionFailed,
-                     "The REL file '%s' contains a documented \
-                band with no explicit name. Section [%s] or [%s:%s].\n",
-                     hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
-                     SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
-            return;
-        }
-        osBandName = CPLGetBasenameSafe(osBandFileName);
-        osRawBandFileName = osBandName;
-    }
-    else
-    {
-        osBandName = CPLGetBasenameSafe(osRawBandFileName);
-        CPLString osAux =
-            CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
-        osBandFileName =
-            CPLFormFilenameSafe(osAux.c_str(), osRawBandFileName.c_str(), "");
-    }
-
-    // There is a band file documented?
-    if (osBandName.empty())
-    {
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_AssertionFailed,
-                 "The REL file '%s' contains a documented \
-            band with no explicit name. Section [%s] or [%s:%s].\n",
-                 hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
-                 SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
-        return;
-    }
-
-    // Getting essential metadata documented at
-    // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
-
-    // Getting number of columns and rows
-    if (UpdateColumnsNumberFromREL(osBandSection))
-    {
-        nWidth = 0;
-        nHeight = 0;
-        return;
-    }
-
-    if (UpdateRowsNumberFromREL(osBandSection))
-    {
-        nWidth = 0;
-        nHeight = 0;
-        return;
-    }
-
-    if (nWidth <= 0 || nHeight <= 0)
-    {
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "MMRBand::MMRBand : (nWidth <= 0 || nHeight <= 0)");
-        return;
-    }
-    else
-    {
-        hMMRIn.nXSize = nWidth;
-        hMMRIn.nYSize = nHeight;
-    }
-
-    // Getting data type and compression.
-    // If error, message given inside.
-    if (UpdateDataTypeFromREL(osBandSection))
-        return;
-
-    // Let's see if there is RLE compression
-    bIsCompressed =
-        (((eMMDataType >= MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
-          (eMMDataType <= MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)) ||
-         eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT);
-
-    // Getting min and max values
-    UpdateMinMaxValuesFromREL(osBandSection);
-
-    // Getting min and max values for simbolization
-    UpdateMinMaxVisuValuesFromREL(osBandSection);
-    if (!bMinVisuSet)
-    {
-        if (bMinSet)
-        {
-            dfVisuMin = dfMin;
-            bMinVisuSet = true;
-        }
-    }
-    if (!bMaxVisuSet)
-    {
-        if (bMaxSet)
-        {
-            dfVisuMax = dfMax;
-            bMaxVisuSet = true;
-        }
-    }
-
-    // Getting the friendly description of the band
-    UpdateFriendlyDescriptionFromREL(osBandSection);
-
-    // Getting NoData value and definition
-    UpdateNoDataValue(osBandSection);
-    UpdateNoDataDefinitionFromREL(
-        osBandSection);  // ·$·TODO put it in metadata MIRAMON subdomain?
-
-    // Getting reference system and coordinates of the geographic bounding box
-    UpdateReferenceSystemFromREL();
-
-    // Getting the bounding box: coordinates in the terrain
-    UpdateBoundingBoxFromREL(osBandSection);
-
-    // MiraMon IMG files are efficient in going to an specified row.
-    // So le'ts configurate the blocks as line blocks.
-    nBlocks = nHeight;
-    nBlockXSize = nWidth;
-    nBlockYSize = 1;
-    nBlocksPerRow = 1;
-    nBlocksPerColumn = nHeight;
-
-    // Can the binary file that contains all data for this band be opened?
-    pfIMG = VSIFOpenL(osBandFileName, "rb");
-    if (!pfIMG)
-    {
-        nWidth = 0;
-        nHeight = 0;
-        CPLError(CE_Failure, CPLE_OpenFailed,
-                 "Failed to open MiraMon band file `%s' with access 'rb'.",
-                 osBandFileName.c_str());
-        return;
-    }
-}
-
 /************************************************************************/
-/*                              ~MMRBand()                              */
+/*          Functions that read bytes from IMG file band                */
 /************************************************************************/
-
-MMRBand::~MMRBand()
-
-{
-    if (pfIMG != nullptr)
-        CPL_IGNORE_RET_VAL(VSIFCloseL(pfIMG));
-}
-
 template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
 {
-    int acumulat = 0L, ii = 0L;
-    unsigned char comptador;
+    int nAcumulated = 0L, nIAcumulated = 0L;
+    unsigned char cCounter;
 
-    TYPE valor_rle;
-    while (acumulat < nWidth)
+    TYPE RLEValue;
+    while (nAcumulated < nWidth)
     {
-        if (VSIFReadL(&comptador, sizeof(comptador), 1, pfIMG) != 1)
+        if (VSIFReadL(&cCounter, sizeof(cCounter), 1, pfIMG) != 1)
             return CE_Failure;
 
-        if (comptador == 0) /* Not compressed part */
+        if (cCounter == 0) /* Not compressed part */
         {
             /* The following counter read does not indicate
             "how many repeated values follow" but rather
             "how many are decompressed in standard raster format" */
-            if (VSIFReadL(&comptador, sizeof(comptador), 1, pfIMG) != 1)
+            if (VSIFReadL(&cCounter, sizeof(cCounter), 1, pfIMG) != 1)
                 return CE_Failure;
-            acumulat += comptador;
+            nAcumulated += cCounter;
 
-            if (acumulat > nWidth) /* This should not happen if the file
+            if (nAcumulated > nWidth) /* This should not happen if the file
                                   is RLE and does not share counters across rows */
                 return CE_Failure;
 
-            for (; ii < acumulat; ii++)
+            for (; nIAcumulated < nAcumulated; nIAcumulated++)
             {
-                VSIFReadL(&valor_rle, sizeof(TYPE), 1, pfIMG);
-                memcpy((static_cast<TYPE *>(rowBuffer)) + ii, &valor_rle,
-                       sizeof(TYPE));
+                VSIFReadL(&RLEValue, sizeof(TYPE), 1, pfIMG);
+                memcpy((static_cast<TYPE *>(rowBuffer)) + nIAcumulated,
+                       &RLEValue, sizeof(TYPE));
             }
         }
         else
         {
-            acumulat += comptador;
+            nAcumulated += cCounter;
 
-            if (acumulat > nWidth) /* This should not happen if the file
+            if (nAcumulated > nWidth) /* This should not happen if the file
                                   is RLE and does not share counters across rows */
                 return CE_Failure;
 
-            if (VSIFReadL(&valor_rle, sizeof(TYPE), 1, pfIMG) != 1)
+            if (VSIFReadL(&RLEValue, sizeof(TYPE), 1, pfIMG) != 1)
                 return CE_Failure;
-            for (; ii < acumulat; ii++)
-                memcpy((static_cast<TYPE *>(rowBuffer)) + ii, &valor_rle,
-                       sizeof(TYPE));
+            for (; nIAcumulated < nAcumulated; nIAcumulated++)
+                memcpy((static_cast<TYPE *>(rowBuffer)) + nIAcumulated,
+                       &RLEValue, sizeof(TYPE));
         }
     }
 
     return CE_None;
 }
 
-/************************************************************************/
-/*                 GetBlockData                             */
-/************************************************************************/
 CPLErr MMRBand::GetBlockData(void *rowBuffer)
 {
     const int nDataTypeSizeBytes =
@@ -556,9 +605,6 @@ CPLErr MMRBand::GetBlockData(void *rowBuffer)
     return peErr;
 }  // End of GetBlockData()
 
-/************************************************************************/
-/*                 PositionAtStartOfRowOffsetsInFile                */
-/************************************************************************/
 int MMRBand::PositionAtStartOfRowOffsetsInFile()
 {
     vsi_l_offset nFileSize, nHeaderOffset;
@@ -818,55 +864,45 @@ bool MMRBand::FillRowOffsets()
 }  // End of FillRowOffsets()
 
 /************************************************************************/
-/*                           GetRasterBlock()                           */
+/*                               GetPCT()                               */
 /************************************************************************/
-
-CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
-                               int nDataSize)
+CPLErr MMRBand::GetPCT()
 
 {
-    const int iBlock = nXBlock + nYBlock * nBlocksPerRow;
-    const int nDataTypeSizeBytes =
-        std::max(1, static_cast<int>(eMMBytesPerPixel));
-    const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
+    // If we haven't already tried to load the colors, do so now.
+    if (aadfPCT[0].size() > 0)
+        return CE_None;
 
-    // Calculate block offset in case we have spill file. Use predefined
-    // block map otherwise.
-    if (!pfIMG)
+    CPLString os_Color_Paleta_DBF = pfRel->GetMetadataValue(
+        SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
+
+    if (os_Color_Paleta_DBF.empty() || os_Color_Paleta_DBF == "<Automatic>")
+        return CE_None;  // No color table available
+
+    CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta_DBF);
+    if (osExtension.tolower() == "dbf")
     {
-        CPLError(CE_Failure, CPLE_FileIO, "File band not opened: \n%s",
-                 osBandFileName.c_str());
-        return CE_Failure;
+        CPLErr peErr = GetPaletteColors_DBF(os_Color_Paleta_DBF);
+        if (CE_None != peErr)
+            return peErr;
     }
-
-    if (nDataSize != -1 && (nGDALBlockSize > INT_MAX ||
-                            static_cast<int>(nGDALBlockSize) > nDataSize))
+    else if (osExtension.tolower() == "pal" || osExtension.tolower() == "p25" ||
+             osExtension.tolower() == "p65")
     {
-        CPLError(CE_Failure, CPLE_AppDefined, "Invalid block size: %d",
-                 static_cast<int>(nGDALBlockSize));
-        return CE_Failure;
+        CPLErr peErr = GetPaletteColors_PAL_P25_P65(os_Color_Paleta_DBF);
+        if (CE_None != peErr)
+            return peErr;
     }
+    else
+        return CE_None;
 
-    // Getting the row offsets to optimize access.
-    if (FillRowOffsets() == false || aFileOffsets.size() == 0)
-    {
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Some error in offsets calculation");
-        return CE_Failure;
-    }
+    CPLErr peErr = ConvertPaletteColors();
+    if (peErr != CE_None)
+        return peErr;
 
-    // Read the block in the documented or deduced offset
-    if (VSIFSeekL(pfIMG, aFileOffsets[iBlock], SEEK_SET))
-    {
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Read from invalid offset for grid block.");
-        return CE_Failure;
-    }
-
-    return GetBlockData(pData);
+    return CE_None;
 }
 
-// Colors in a DBF format file
 CPLErr MMRBand::GetPaletteColors_DBF_Indexs(struct MM_DATA_BASE_XP &oColorTable,
                                             MM_EXT_DBF_N_FIELDS &nClauSimbol,
                                             MM_EXT_DBF_N_FIELDS &nRIndex,
@@ -1141,11 +1177,6 @@ CPLErr MMRBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
     return CE_None;
 }
 
-/************************************************************************/
-/*                               GetPCT()                               */
-/*                                                                      */
-/*      Return PCT information, if any exists.                          */
-/************************************************************************/
 void MMRBand::AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete)
 {
     aadfPCT[0][nIndexDstPalete] = aadfPaletteColors[0][nIndexSrcPalete];
@@ -1292,43 +1323,6 @@ CPLErr MMRBand::ConvertPaletteColors()
             }
         }
     }
-
-    return CE_None;
-}
-
-CPLErr MMRBand::GetPCT()
-
-{
-    // If we haven't already tried to load the colors, do so now.
-    if (aadfPCT[0].size() > 0)
-        return CE_None;
-
-    CPLString os_Color_Paleta_DBF = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
-
-    if (os_Color_Paleta_DBF.empty() || os_Color_Paleta_DBF == "<Automatic>")
-        return CE_None;  // No color table available
-
-    CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta_DBF);
-    if (osExtension.tolower() == "dbf")
-    {
-        CPLErr peErr = GetPaletteColors_DBF(os_Color_Paleta_DBF);
-        if (CE_None != peErr)
-            return peErr;
-    }
-    else if (osExtension.tolower() == "pal" || osExtension.tolower() == "p25" ||
-             osExtension.tolower() == "p65")
-    {
-        CPLErr peErr = GetPaletteColors_PAL_P25_P65(os_Color_Paleta_DBF);
-        if (CE_None != peErr)
-            return peErr;
-    }
-    else
-        return CE_None;
-
-    CPLErr peErr = ConvertPaletteColors();
-    if (peErr != CE_None)
-        return peErr;
 
     return CE_None;
 }

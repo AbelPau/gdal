@@ -1,7 +1,8 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements MMRREL class.
+ * Purpose:  Implements MMRREL class that acces to the metadata REL file
+ *           and gets some information
  * Author:   Abel Pau
  * 
  ******************************************************************************
@@ -40,10 +41,10 @@ MMRRel::~MMRRel()
 }
 
 /************************************************************************/
-/*                              SetInfoFromREL()                        */
+/*                              UpdateInfoFromREL()                        */
 /************************************************************************/
 
-CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
+CPLErr MMRRel::UpdateInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
 
 {
     CPLString osRELFileNameIn;
@@ -118,20 +119,16 @@ CPLErr MMRRel::SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
 
     // If rel name was not a REL name, we update that
     // from the one found from IMG file.
-    SetRELNameChar(osRELFileNameIn);
-
+    UpdateRELNameChar(osRELFileNameIn);
     hMMR.osRELFileName = osRELFileNameIn;
 
-    // Collect band definitions.
+    // Collect band information
     if (ParseBandInfo(hMMR) != CE_None)
         return CE_Failure;
 
     return CE_None;
 }
 
-/************************************************************************/
-/*              GetAssociatedMetadataFileName()                      */
-/************************************************************************/
 // Converts FileNameI.rel to FileName.img
 CPLString MMRRel::MMRGetFileNameFromRelName(const char *pszRELFile)
 {
@@ -170,6 +167,7 @@ CPLString MMRRel::MMRGetSimpleMetadataName(const char *pszLayerName)
     return osRELFile;
 }
 
+// Gets the value from a section-key accessind directly to the file
 CPLString MMRRel::GetMetadataValueDirectly(const char *pszRELFile,
                                            const char *pszSection,
                                            const char *pszKey)
@@ -508,9 +506,6 @@ CPLErr MMRRel::CheckBandInRel(const char *pszRELFileName,
     return CE_None;
 }
 
-/************************************************************************/
-/*              IdentifySubdataSetFile()                             */
-/************************************************************************/
 int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
 {
     const CPLString osMMRPrefix = "MiraMonRaster:";
@@ -571,9 +566,6 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
     return GDAL_IDENTIFY_TRUE;
 }
 
-/************************************************************************/
-/*                     IdentifyFile()                                */
-/************************************************************************/
 int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
 {
     // IMG files are shared for many drivers.
@@ -600,12 +592,9 @@ int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
     return GDAL_IDENTIFY_TRUE;
 }
 
-/************************************************************************/
-/*                  GetDataTypeAndBytesPerPixel()                     */
-/************************************************************************/
-int MMRRel::GetDataTypeAndBytesPerPixel(const char *pszCompType,
-                                        MMDataType *nCompressionType,
-                                        MMBytesPerPixel *nBytesPerPixel)
+int MMRRel::UpdateDataTypeAndBytesPerPixel(const char *pszCompType,
+                                           MMDataType *nCompressionType,
+                                           MMBytesPerPixel *nBytesPerPixel)
 {
     if (!nCompressionType || !nBytesPerPixel || !pszCompType)
         return 1;
@@ -779,7 +768,7 @@ const char *MMRRel::GetRELNameChar() const
     return osRelFileName.c_str();
 }
 
-void MMRRel::SetRELNameChar(CPLString osRelFileNameIn)
+void MMRRel::UpdateRELNameChar(CPLString osRelFileNameIn)
 {
     osRelFileName = osRelFileNameIn;
 }
@@ -895,7 +884,7 @@ CPLString MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
     return osInputWithSpaces;
 }
 
-int MMRRel::UpdateColumnsNumberFromREL() const
+int MMRRel::GetColumnsNumberFromREL() const
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
@@ -908,7 +897,7 @@ int MMRRel::UpdateColumnsNumberFromREL() const
     return atoi(osValue);
 }
 
-int MMRRel::UpdateRowsNumberFromREL() const
+int MMRRel::GetRowsNumberFromREL() const
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file

@@ -241,12 +241,13 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
     {
         GByte *pabyData = static_cast<GByte *>(pImage);
 
-        for (int ii = nBlockXSize * nBlockYSize - 1; ii >= 0; ii--)
+        for (int nIAcumulated = nBlockXSize * nBlockYSize - 1;
+             nIAcumulated >= 0; nIAcumulated--)
         {
-            if ((pabyData[ii >> 3] & (1 << (ii & 0x7))))
-                pabyData[ii] = 1;
+            if ((pabyData[nIAcumulated >> 3] & (1 << (nIAcumulated & 0x7))))
+                pabyData[nIAcumulated] = 1;
             else
-                pabyData[ii] = 0;
+                pabyData[nIAcumulated] = 0;
         }
     }
 
@@ -689,7 +690,7 @@ MMRInfo::MMRInfo(char *pszFilename)
     fRel = new MMRRel(pszFilename);
 
     // Sets the info from that REL
-    if (CE_None != fRel->SetInfoFromREL(pszFilename, *this))
+    if (CE_None != fRel->UpdateInfoFromREL(pszFilename, *this))
         return;
 }
 
@@ -895,7 +896,7 @@ int MMRDataset::GetDataSetBoundingBox()
         return 1;
     m_gt[0] = atof(osMinX);
 
-    int nNCols = hMMR->fRel->UpdateColumnsNumberFromREL();
+    int nNCols = hMMR->fRel->GetColumnsNumberFromREL();
     if (nNCols <= 0)
         return 1;
 
@@ -914,7 +915,7 @@ int MMRDataset::GetDataSetBoundingBox()
     if (osMaxY.empty())
         return 1;
 
-    int nNRows = hMMR->fRel->UpdateRowsNumberFromREL();
+    int nNRows = hMMR->fRel->GetRowsNumberFromREL();
     if (nNRows <= 0)
         return 1;
 

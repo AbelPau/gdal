@@ -111,14 +111,14 @@ class MMRInfo
 class MMRRel
 {
   public:
-    CPLErr SetInfoFromREL(const char *pszFileName, MMRInfo &hMMR);
+    CPLErr UpdateInfoFromREL(const char *pszFileName, MMRInfo &hMMR);
     static CPLString GetAssociatedMetadataFileName(const char *pszFileName,
                                                    bool &bIsAMiraMonFile);
     static int IdentifySubdataSetFile(const CPLString pszFileName);
     static int IdentifyFile(GDALOpenInfo *poOpenInfo);
-    static int GetDataTypeAndBytesPerPixel(const char *pszCompType,
-                                           MMDataType *nCompressionType,
-                                           MMBytesPerPixel *nBytesPerPixel);
+    static int UpdateDataTypeAndBytesPerPixel(const char *pszCompType,
+                                              MMDataType *nCompressionType,
+                                              MMBytesPerPixel *nBytesPerPixel);
     CPLString GetMetadataValue(const CPLString osMainSection,
                                const CPLString osSubSection,
                                const CPLString osSubSubSection,
@@ -133,12 +133,12 @@ class MMRRel
                                               const char *pszKey);
     const char *GetRELNameChar() const;
     static CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
-    void SetRELNameChar(CPLString osRelFileNameIn);
+    void UpdateRELNameChar(CPLString osRelFileNameIn);
     static CPLErr ParseBandInfo(MMRInfo &hMMR);
     static CPLString
     RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
-    int UpdateColumnsNumberFromREL() const;
-    int UpdateRowsNumberFromREL() const;
+    int GetColumnsNumberFromREL() const;
+    int GetRowsNumberFromREL() const;
 
     explicit MMRRel(CPLString);
     ~MMRRel();
