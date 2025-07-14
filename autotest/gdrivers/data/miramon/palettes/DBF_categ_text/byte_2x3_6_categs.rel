@@ -1,0 +1,16 @@
+[VERSIO]
+Vers=4
+SubVers=3
+
+[TAULA_PRINCIPAL]
+NomFitxer=byte_2x3_6_categs.dbf
+TipusRelacio=RELACIO_N_1
+AssociatRel=VALUE
+
+[TAULA_PRINCIPAL:VALUE]
+visible=1
+descriptor=Valor
+
+[TAULA_PRINCIPAL:CATEGORY]
+TractamentVariable=Categoric
+descriptor=Descripció de la banda "Al·leluia 1"

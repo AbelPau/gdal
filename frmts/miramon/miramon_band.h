@@ -47,7 +47,7 @@ class MMRBand
     // Palette info
     std::array<std::vector<double>, 4> aadfPaletteColors{};
 
-    int nNoDataOriginalIndex;
+    int nNoDataOriginaPalettelIndex;
     bool bPaletteHasNodata;
 
     std::array<std::vector<double>, 4> aadfPCT{};

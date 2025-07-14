@@ -1,0 +1,10 @@
+<PAMDataset>
+  <Metadata domain="SUBDATASETS">
+    <MDI key="SUBDATASET_1_NAME">MiraMonRaster:"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\multiband\byte_2x3_6_multibandI.rel","byte_2x3_6_categs.img"</MDI>
+    <MDI key="SUBDATASET_1_DESC">Subdataset 1: "byte_2x3_6_categs"</MDI>
+    <MDI key="SUBDATASET_2_NAME">MiraMonRaster:"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\multiband\byte_2x3_6_multibandI.rel","byte_2x3_0_to_4_categs_NoData_255.img"</MDI>
+    <MDI key="SUBDATASET_2_DESC">Subdataset 2: "byte_2x3_0_to_4_categs_NoData_255"</MDI>
+    <MDI key="SUBDATASET_3_NAME">MiraMonRaster:"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\multiband\byte_2x3_6_multibandI.rel","byte_2x3_1_to_5_categs_NoData_0.img"</MDI>
+    <MDI key="SUBDATASET_3_DESC">Subdataset 3: "byte_2x3_1_to_5_categs_NoData_0"</MDI>
+  </Metadata>
+</PAMDataset>
