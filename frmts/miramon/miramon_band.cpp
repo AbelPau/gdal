@@ -983,9 +983,11 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         return CE_Failure;
     }
 
-    if (oColorTable.pField[nRIndex].BytesPerField == 0 ||
+    if (oColorTable.pField[nClauSimbol].BytesPerField == 0 ||
+        oColorTable.pField[nRIndex].BytesPerField == 0 ||
         oColorTable.pField[nGIndex].BytesPerField == 0 ||
         oColorTable.pField[nBIndex].BytesPerField == 0 ||
+        oColorTable.pField[nClauSimbol].FieldType != 'N' ||
         oColorTable.pField[nRIndex].FieldType != 'N' ||
         oColorTable.pField[nGIndex].FieldType != 'N' ||
         oColorTable.pField[nBIndex].FieldType != 'N')
@@ -993,15 +995,6 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: \"%s\"",
                  osColorTableFileName.c_str());
         return CE_Failure;
-    }
-
-    // TODO: Com aprofitar aixo???
-    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
-
-    if (os_Color_TractamentVariable == "Categorical")
-    {
-        ;
     }
 
     VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset, SEEK_SET);
@@ -1041,8 +1034,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         pzsField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
         CPLString osField = pzsField;
         osField.replaceAll(" ", "");
-        if (osField.empty() ||
-            0 == osField.compare("%NODATA%"))  // Nodata value
+        if (osField.empty())  // Nodata value
         {
             bPaletteHasNodata = true;
             nNoDataOriginaPalettelIndex = nIRecord;

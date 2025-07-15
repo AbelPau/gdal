@@ -1,1 +1,1 @@
-"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\DBF_categ_text\byte_2x3_6_categs.img" "D:\tmp\byte_2x3_6_categs_text.tiff" -if MiraMonRaster
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Categorical\byte_2x3_6_categs.img" "D:\tmp\Categorical_byte_2x3_6_categs.rst" -if MiraMonRaster

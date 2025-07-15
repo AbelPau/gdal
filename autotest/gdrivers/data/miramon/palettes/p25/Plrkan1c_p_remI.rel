@@ -28,6 +28,11 @@ DatasetTitle=Precipitació (anual) (densificat)
 [OVERVIEW:ASPECTES_TECNICS]
 columns=3
 rows=3
+comment1=value error és el R2 (coeficient de determinació)
+comment2=obtingut a l'hora de testar el model climàtic.
+comment3=El fitxer era anteriorment en la projecció UTM-31N-UB/ICC
+comment4=Mètode d'interpolació: Bilineal
+comment5=Tipus de remostreig utilitzat: Bilineal.
 
 [SPATIAL_REFERENCE_SYSTEM:HORIZONTAL]
 HorizontalSystemIdentifier=UTM-31N-ETRS89
@@ -74,7 +79,8 @@ EscalaMaxima=0
 EscalaMinima=900000000
 Color_Const=0
 Color_TractamentVariable=QuantitatiuContinu
-Color_Paleta=pluvinou.dbf
+Color_Paleta=<Automatic>
+Color_N_SimbolsALaTaula=256
 Color_EscalatColor=lineal
 Color_ValorColor_0=3652
 Color_ValorColor_n_1=10128

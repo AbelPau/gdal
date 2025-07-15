@@ -256,3 +256,46 @@ def test_miramon_subdatasets_detection(
         ), f"Unexpected nodata value : got {nodata}, expected {expected_nodata}"
 
     check_raster(subds, idx_bnd, expected, checksum)
+
+
+###### Testing color table
+init_list_color_tables = [
+    (
+        "data/miramon/palettes/Categorical/byte_2x3_6_categsI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 125, 255),
+            1: (0, 255, 255, 255),
+            2: (0, 255, 0, 255),
+            3: (255, 255, 0, 255),
+            4: (255, 0, 0, 255),
+            5: (255, 0, 255, 255),
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "filename,idx_bnd,expected_ct",
+    init_list_color_tables,
+    ids=[tup[0].split("/")[-1].split(".")[0] for tup in init_list_color_tables],
+)
+@pytest.mark.require_driver("MiraMonRaster")
+def test_miramon_color_table(filename, idx_bnd, expected_ct):
+    ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
+    assert ds is not None, f"Could not open file: {filename}"
+
+    band = ds.GetRasterBand(idx_bnd)
+    assert band is not None, f"Could not get band {idx_bnd} from file"
+
+    ct = band.GetColorTable()
+    assert ct is not None, "No color table found on band"
+
+    for index, expected_color in expected_ct.items():
+        entry = ct.GetColorEntry(index)
+        assert (
+            entry is not None
+        ), f"Color entry for index {index} is missing in color table"
+        assert (
+            tuple(entry) == expected_color
+        ), f"Color entry for index {index} does not match: got {entry}, expected {expected_color}"

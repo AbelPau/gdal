@@ -28,89 +28,10 @@ DatasetTitle=Precipitació (anual) (densificat)
 [OVERVIEW:ASPECTES_TECNICS]
 columns=3
 rows=3
-comment1=value error és el R2 (coeficient de determinació)
-comment2=obtingut a l'hora de testar el model climàtic.
-comment3=El fitxer era anteriorment en la projecció UTM-31N-UB/ICC
-comment4=Mètode d'interpolació: Bilineal
-comment5=Finestra de D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\DBF_nodata_end\Plrkan1c_p.img densificada amb C:\MiraMon\DensRas_64.exe
-comment6=Tipus de remostreig utilitzat: Bilineal.
 
 [SPATIAL_REFERENCE_SYSTEM:HORIZONTAL]
 HorizontalSystemIdentifier=UTM-31N-ETRS89
 resolution=180
-
-[QUALITY:LINEAGE:PROCESS1]
-nOrganismes=1
-history=DensRas_64.exe D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\DBF_nodata_end\Plrkan1c_p D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\DBF_nodata_end\Plrkan1c_p_rem x x x x 80000 L /FORA_RANG=SATURA
-date=20250714 13091647+0200
-NomFitxer=C:\MiraMon\DensRas_64.exe
-
-[QUALITY:LINEAGE:PROCESS1:ORGANISME_1]
-OrganisationName=Students and educational institutions
-
-[QUALITY:LINEAGE:PROCESS1:SOFTWARE_REFERENCE]
-Titol=
-Edition=
-CollectiveTitle=
-ISBN=
-ISSN=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT1]
-identifier=Param1
-TypeValues=C
-ResultValue=D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\DBF_nodata_end\Plrkan1c_p
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT2]
-identifier=Param2
-TypeValues=C
-ResultValue=D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\DBF_nodata_end\Plrkan1c_p_rem
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT3]
-identifier=Param3
-TypeValues=C
-ResultValue=x
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT4]
-identifier=Param4
-TypeValues=C
-ResultValue=x
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT5]
-identifier=Param5
-TypeValues=C
-ResultValue=x
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT6]
-identifier=Param6
-TypeValues=C
-ResultValue=x
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT7]
-identifier=Param7
-TypeValues=C
-ResultValue=80000
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT8]
-identifier=Param8
-TypeValues=C
-ResultValue=L
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT9]
-identifier=FORA_RANG
-TypeValues=C
-ResultValue=SATURA
-ResultUnits=
-
-[QUALITY:LINEAGE]
-processes=1
 
 [EXTENT]
 MinX=258660
@@ -134,14 +55,6 @@ TipusRelacio=RELACIO_1_1_DICC
 [ATTRIBUTE_DATA:1]
 min=3652
 max=10128
-
-[ATTRIBUTE_DATA:1:QUALITY]
-Parameter1=STB#Exactitud
-Parameter1Indicator1=STB#ExactitudRelativa
-Parameter1Indicator1Measure1=STB#T_RMS
-Parameter1Indicator1Measure1TypeValues=F
-Parameter1Indicator1Measure1ResultValue=0.86
-Parameter1Indicator1Measure1ResultUnits=dècimes de mm
 
 [COLOR_TEXT]
 Simb_Vers=5
