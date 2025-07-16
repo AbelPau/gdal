@@ -439,6 +439,12 @@ class CPL_DLL GDALArgDatasetValue final
      */
     void SetFrom(const GDALArgDatasetValue &other);
 
+    /** Whether the dataset has been opened by the algorithm */
+    bool HasDatasetBeenOpenedByAlgorithm() const
+    {
+        return m_openedByAlgorithm;
+    }
+
   protected:
     friend class GDALAlgorithm;
 
@@ -447,6 +453,12 @@ class CPL_DLL GDALArgDatasetValue final
     {
         CPLAssert(!m_ownerArg);
         m_ownerArg = arg;
+    }
+
+    /** Set that the dataset has been opened by the algorithm */
+    void SetDatasetOpenedByAlgorithm()
+    {
+        m_openedByAlgorithm = true;
     }
 
   private:
@@ -461,6 +473,9 @@ class CPL_DLL GDALArgDatasetValue final
 
     /** Whether a dataset name (possibly empty for a MEM dataset...) has been set */
     bool m_nameSet = false;
+
+    /** Whether the dataset has been opened by the algorithm */
+    bool m_openedByAlgorithm = false;
 
     GDALArgDatasetValue(const GDALArgDatasetValue &) = delete;
     GDALArgDatasetValue &operator=(const GDALArgDatasetValue &) = delete;
@@ -2635,6 +2650,11 @@ class CPL_DLL GDALAlgorithmRegistry
     static bool SaveGDALG(const std::string &filename,
                           const std::string &commandLine);
 
+    //! @cond Doxygen_Suppress
+    void ReportError(CPLErr eErrClass, CPLErrorNum err_no, const char *fmt,
+                     ...) const CPL_PRINT_FUNC_FORMAT(4, 5);
+    //! @endcond
+
   protected:
     friend class GDALInConstructionAlgorithmArg;
     friend class GDALRasterReprojectUtils;
@@ -2878,6 +2898,16 @@ class CPL_DLL GDALAlgorithmRegistry
     GDALInConstructionAlgorithmArg &
     AddAbsolutePathArg(bool *pValue, const char *helpMessage = nullptr);
 
+    /** Add an argument for pixel function name */
+    GDALInConstructionAlgorithmArg &
+    AddPixelFunctionNameArg(std::string *pValue,
+                            const char *helpMessage = nullptr);
+
+    /** Add an argument for pixel function arguments */
+    GDALInConstructionAlgorithmArg &
+    AddPixelFunctionArgsArg(std::vector<std::string> *pValue,
+                            const char *helpMessage = nullptr);
+
     /** Add \--progress argument. */
     GDALInConstructionAlgorithmArg &AddProgressArg();
 
@@ -2957,11 +2987,6 @@ class CPL_DLL GDALAlgorithmRegistry
     virtual void WarnIfDeprecated()
     {
     }
-
-    //! @cond Doxygen_Suppress
-    void ReportError(CPLErr eErrClass, CPLErrorNum err_no, const char *fmt,
-                     ...) const CPL_PRINT_FUNC_FORMAT(4, 5);
-    //! @endcond
 
     /** Return the list of arguments for CLI usage */
     std::pair<std::vector<std::pair<GDALAlgorithmArg *, std::string>>, size_t>
