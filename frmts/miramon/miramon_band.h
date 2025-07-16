@@ -53,6 +53,9 @@ class MMRBand
     std::array<std::vector<double>, 4> aadfPCT{};
     int nNoDataPaletteIndex;
 
+    bool bConstantColor = false;
+    GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
+
     // Assigned Subdataset for this band.
     int nAssignedSDS;
 
@@ -279,8 +282,11 @@ class MMRBand
 
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
-    CPLErr ConvertPaletteColors();
+    CPLErr FromPaletteToTableCategoricalMode();
+    CPLErr FromPaletteToTableContinousMode();
     CPLErr GetPCT();
+    CPLErr AssignUniformColorTable();
+    CPLErr ReadPalette(CPLString os_Color_Paleta_DBF);
     static CPLErr GetPaletteColors_DBF_Indexs(
         struct MM_DATA_BASE_XP &oColorTable, MM_EXT_DBF_N_FIELDS &nClauSimbol,
         MM_EXT_DBF_N_FIELDS &nRIndex, MM_EXT_DBF_N_FIELDS &nGIndex,

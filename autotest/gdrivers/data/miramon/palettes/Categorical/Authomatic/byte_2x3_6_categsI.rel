@@ -165,7 +165,7 @@ EscalaMaxima=0
 EscalaMinima=900000000
 Color_Const=0
 Color_TractamentVariable=Categoric
-Color_Paleta=Colors_byte_2x3_1_to_5_categs.dbf
+Color_Paleta=<Automatic>
 Tooltips_Const=1
 
 [VISU_LLEGENDA]
@@ -174,7 +174,7 @@ LlegSimb_SubVers=5
 Color_VisibleALleg=1
 Color_TitolLlegenda=Al·leluia 1
 Color_CategAMostrar=N
-Color_N_ClassesLleg=5
+Color_N_ClassesLleg=6
 Color_InvertOrdPresentColorLleg=0
 Color_MostrarIndColorLleg=0
 Color_MostrarValColorLleg=1

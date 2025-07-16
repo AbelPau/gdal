@@ -261,15 +261,66 @@ def test_miramon_subdatasets_detection(
 ###### Testing color table
 init_list_color_tables = [
     (
-        "data/miramon/palettes/Categorical/byte_2x3_6_categsI.rel",
+        "data/miramon/palettes/Constant/byte_2x3_6_categsI.rel",
+        1,  # band index
+        {
+            0: (255, 0, 255, 255),
+            1: (255, 0, 255, 255),
+            2: (255, 0, 255, 255),
+            3: (255, 0, 255, 255),
+            4: (255, 0, 255, 255),
+            5: (0, 0, 0, 0),
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/Authomatic/byte_2x3_6_categsI.rel",
+        1,  # band index
+        None,
+    ),
+    (
+        "data/miramon/palettes/Categorical/Assigned/byte_2x3_6_categsI.rel",
         1,  # band index
         {
             0: (0, 0, 125, 255),
-            1: (0, 255, 255, 255),
+            1: (0, 134, 255, 255),
             2: (0, 255, 0, 255),
-            3: (255, 255, 0, 255),
+            3: (255, 255, 78, 255),
             4: (255, 0, 0, 255),
-            5: (255, 0, 255, 255),
+            5: (255, 0, 133, 255),
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/ThematicNoDataBeg/MUCSC_2002_30_m_v_6_retI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 0, 0),
+            1: (212, 247, 255, 255),
+            2: (153, 247, 245, 255),
+            8: (255, 255, 201, 255),
+            9: (184, 201, 189, 255),
+            14: (145, 108, 0, 255),
+            15: (83, 166, 0, 255),
+            16: (149, 206, 0, 255),
+            20: (65, 206, 0, 255),
+            21: (128, 0, 128, 255),
+            24: (201, 232, 163, 255),
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/ThematicNoDataEnd/MUCSC_2002_30_m_v_6_retI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 0, 0),
+            1: (212, 247, 255, 255),
+            2: (153, 247, 245, 255),
+            8: (255, 255, 201, 255),
+            9: (184, 201, 189, 255),
+            14: (145, 108, 0, 255),
+            15: (83, 166, 0, 255),
+            16: (149, 206, 0, 255),
+            20: (65, 206, 0, 255),
+            21: (128, 0, 128, 255),
+            24: (201, 232, 163, 255),
         },
     ),
 ]
@@ -289,13 +340,16 @@ def test_miramon_color_table(filename, idx_bnd, expected_ct):
     assert band is not None, f"Could not get band {idx_bnd} from file"
 
     ct = band.GetColorTable()
-    assert ct is not None, "No color table found on band"
 
-    for index, expected_color in expected_ct.items():
-        entry = ct.GetColorEntry(index)
-        assert (
-            entry is not None
-        ), f"Color entry for index {index} is missing in color table"
-        assert (
-            tuple(entry) == expected_color
-        ), f"Color entry for index {index} does not match: got {entry}, expected {expected_color}"
+    if expected_ct == None:
+        assert ct is None
+    else:
+        assert ct is not None, "No color table found on band"
+        for index, expected_color in expected_ct.items():
+            entry = ct.GetColorEntry(index)
+            assert (
+                entry is not None
+            ), f"Color entry for index {index} is missing in color table"
+            assert (
+                tuple(entry) == expected_color
+            ), f"Color entry for index {index} does not match: got {entry}, expected {expected_color}"
