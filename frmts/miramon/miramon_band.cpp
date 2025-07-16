@@ -1058,20 +1058,15 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                  osColorTableFileName.c_str());
         return CE_None;
     }
-    int nPCTColors = static_cast<int>(oColorTable.nRecords);  // Safe cast
-    if (nPCTColors < 0 || nPCTColors > 65536)
-    {
-        CPLError(CE_Failure, CPLE_AppDefined, "Invalid number of colors: %d",
-                 nPCTColors);
-        return CE_Failure;
-    }
 
+    // Getting indices of fiels that determine the colors.
     MM_EXT_DBF_N_FIELDS nClauSimbol, nRIndex, nGIndex, nBIndex;
     if (CE_Failure == GetPaletteColors_DBF_Indexs(oColorTable, nClauSimbol,
                                                   nRIndex, nGIndex, nBIndex))
     {
         CPLError(CE_Failure, CPLE_AppDefined,
-                 "Invalid name of color fields: %d", nPCTColors);
+                 "Invalid name of color fields in table \"%s\".",
+                 osColorTableFileName.c_str());
         return CE_Failure;
     }
 
@@ -1089,11 +1084,50 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         return CE_Failure;
     }
 
-    VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset, SEEK_SET);
-
+    // Getting the maximum index ClauSimbol
+    int nPCTColors = 0;
     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = oColorTable.BytesPerRecord + 1;
     char *pzsBuffer = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
     char *pzsField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
+
+    VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset, SEEK_SET);
+    MM_EXT_DBF_N_RECORDS nIRecord;
+    for (nIRecord = 0; nIRecord < oColorTable.nRecords; nIRecord++)
+    {
+        if (oColorTable.BytesPerRecord !=
+            VSIFReadL(pzsBuffer, sizeof(unsigned char),
+                      oColorTable.BytesPerRecord, oColorTable.pfDataBase))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: \"%s\"",
+                     osColorTableFileName.c_str());
+            return CE_Failure;
+        }
+
+        memcpy(pzsField,
+               pzsBuffer + oColorTable.pField[nClauSimbol].AccumulatedBytes,
+               oColorTable.pField[nClauSimbol].BytesPerField);
+        pzsField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
+        CPLString osField = pzsField;
+        osField.replaceAll(" ", "");
+        if (osField.empty())
+            bPaletteHasNodata = true;
+        else if (nPCTColors < atoi(osField))
+            nPCTColors = atoi(osField);
+    }
+    nPCTColors++;  // Number is one more than the maximum
+
+    if (bPaletteHasNodata)
+    {
+        nNoDataOriginaPalettelIndex = nPCTColors;
+        nPCTColors++;
+    }
+
+    if (nPCTColors < 0 || nPCTColors > 65536)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "Invalid number of colors: %d",
+                 nPCTColors);
+        return CE_Failure;
+    }
 
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
@@ -1108,8 +1142,20 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         }
     }
 
+    // Inicialization to black (semi-transparent)
+    int nIPCTColors;
+    for (nIPCTColors = 0; nIPCTColors < nPCTColors; nIPCTColors++)
+    {
+        aadfPaletteColors[0][nIPCTColors] = sDefaultColorRGB.c1;
+        aadfPaletteColors[1][nIPCTColors] = sDefaultColorRGB.c2;
+        aadfPaletteColors[2][nIPCTColors] = sDefaultColorRGB.c3;
+        aadfPaletteColors[3][nIPCTColors] = sDefaultColorRGB.c4;
+    }
+
+    // Reading the table colors that are in the palette
     int nIPaletteIndex;
-    for (int nIRecord = 0; nIRecord < nPCTColors; nIRecord++)
+    VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset, SEEK_SET);
+    for (nIRecord = 0; nIRecord < oColorTable.nRecords; nIRecord++)
     {
         if (oColorTable.BytesPerRecord !=
             VSIFReadL(pzsBuffer, sizeof(unsigned char),
@@ -1127,13 +1173,7 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         pzsField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
         CPLString osField = pzsField;
         osField.replaceAll(" ", "");
-        if (osField.empty())  // Nodata value
-        {
-            bPaletteHasNodata = true;
-            nNoDataOriginaPalettelIndex = nIRecord;
-        }
 
-        //nIPaletteIndex = nIRecord;
         nIPaletteIndex = atoi(osField);
 
         // RED
@@ -1169,10 +1209,10 @@ CPLErr MMRBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             bPaletteHasNodata = true;
 
             // Transparent (white or whatever color)
-            aadfPaletteColors[0][nIPaletteIndex] = 0;
-            aadfPaletteColors[1][nIPaletteIndex] = 0;
-            aadfPaletteColors[2][nIPaletteIndex] = 0;
-            aadfPaletteColors[3][nIPaletteIndex] = 0;
+            aadfPaletteColors[0][nIPaletteIndex] = sNoDataColorRGB.c1;
+            aadfPaletteColors[1][nIPaletteIndex] = sNoDataColorRGB.c2;
+            aadfPaletteColors[2][nIPaletteIndex] = sNoDataColorRGB.c3;
+            aadfPaletteColors[3][nIPaletteIndex] = sNoDataColorRGB.c4;
         }
         else
             aadfPaletteColors[3][nIPaletteIndex] = 255;
@@ -1302,20 +1342,8 @@ void MMRBand::AssignRGBColorDirectly(int nIndexDstPalete, double dfValue)
 CPLErr MMRBand::FromPaletteToTableCategoricalMode()
 
 {
-    // Only for 1 or 2 bytes images
-    if (eMMBytesPerPixel != MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE &&
-        eMMBytesPerPixel != MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE)
-    {
-        return CE_None;
-    }
-
-    nNoDataPaletteIndex = 0;
-    nNoDataOriginaPalettelIndex = 0;
-
-    int nNPossibleValues =
-        static_cast<int>(pow(2, static_cast<double>(8) *
-                                    static_cast<int>(eMMBytesPerPixel))) *
-        3L;
+    int nNPossibleValues = static_cast<int>(
+        pow(2, static_cast<double>(8) * static_cast<int>(eMMBytesPerPixel)));
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
         try
@@ -1329,49 +1357,24 @@ CPLErr MMRBand::FromPaletteToTableCategoricalMode()
         }
     }
 
-    // Getting nNoDataPaletteIndex
-    if (bNoDataSet)
+    int nIPaletteColor = 0;
+    // Giving color to the ones in the table
+    int nNPaletteColors = static_cast<int>(aadfPaletteColors[0].size());
+    for (nIPaletteColor = 0; nIPaletteColor < nNPaletteColors; nIPaletteColor++)
     {
-        if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER ||
-            eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE)
-            nNoDataOriginaPalettelIndex = static_cast<int>(dfNoData) + 32768L;
-        else
-            nNoDataOriginaPalettelIndex = static_cast<int>(dfNoData);
+        aadfPCT[0][nIPaletteColor] = aadfPaletteColors[0][nIPaletteColor];
+        aadfPCT[1][nIPaletteColor] = aadfPaletteColors[1][nIPaletteColor];
+        aadfPCT[2][nIPaletteColor] = aadfPaletteColors[2][nIPaletteColor];
+        aadfPCT[3][nIPaletteColor] = aadfPaletteColors[3][nIPaletteColor];
     }
 
-    // Number of real colors (appart from NoData)
-    int nNPaletteColors = static_cast<int>(aadfPaletteColors[0].size());
-
-    // If palette don't has nodata last index is associated
-    if (!bPaletteHasNodata)
-        nNoDataPaletteIndex = nNPaletteColors;
-
-    if (static_cast<int>(eMMBytesPerPixel) > 2 &&
-        nNPaletteColors < nNPossibleValues)
-        return CE_None;
-
-    int nFirstValidPaletteIndex;
-
-    if (bPaletteHasNodata && nNoDataOriginaPalettelIndex == 0)
-        nFirstValidPaletteIndex = 1;
-    else
-        nFirstValidPaletteIndex = 0;
-
-    for (int nIPaletteColor = 0; nIPaletteColor < nNPaletteColors;
-         nIPaletteColor++)
+    // Rest of colors
+    for (; nIPaletteColor < nNPossibleValues; nIPaletteColor++)
     {
-        if (bNoDataSet && nIPaletteColor == nNoDataOriginaPalettelIndex)
-        {
-            if (bPaletteHasNodata)
-                AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
-            else
-                AssignRGBColorDirectly(nIPaletteColor, 255);
-        }
-        else
-        {
-            AssignRGBColor(nIPaletteColor, nFirstValidPaletteIndex);
-            nFirstValidPaletteIndex++;
-        }
+        aadfPCT[0][nIPaletteColor] = sDefaultColorRGB.c1;
+        aadfPCT[1][nIPaletteColor] = sDefaultColorRGB.c2;
+        aadfPCT[2][nIPaletteColor] = sDefaultColorRGB.c3;
+        aadfPCT[3][nIPaletteColor] = sDefaultColorRGB.c4;
     }
 
     return CE_None;

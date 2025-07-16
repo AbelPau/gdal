@@ -69,7 +69,8 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
 
             if ((sEntry.c1 < 0 || sEntry.c1 > 255) ||
                 (sEntry.c2 < 0 || sEntry.c2 > 255) ||
-                (sEntry.c3 < 0 || sEntry.c3 > 255))
+                (sEntry.c3 < 0 || sEntry.c3 > 255) ||
+                (sEntry.c4 < 0 || sEntry.c4 > 255))
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
                          "Color table entry appears to be corrupt, skipping "

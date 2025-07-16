@@ -46,12 +46,14 @@ class MMRBand
 
     // Palette info
     std::array<std::vector<double>, 4> aadfPaletteColors{};
+    GDALColorEntry sDefaultColorRGB = {0, 0, 0, 127};
 
     int nNoDataOriginaPalettelIndex;
     bool bPaletteHasNodata;
 
     std::array<std::vector<double>, 4> aadfPCT{};
     int nNoDataPaletteIndex;
+    GDALColorEntry sNoDataColorRGB = {0, 0, 0, 0};
 
     bool bConstantColor = false;
     GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
