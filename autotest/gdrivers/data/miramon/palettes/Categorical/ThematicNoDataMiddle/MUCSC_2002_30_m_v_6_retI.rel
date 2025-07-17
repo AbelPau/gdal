@@ -13,7 +13,6 @@ nOrganismes=2
 FileIdentifier=MUCSC_2002_30_26561
 
 [IDENTIFICATION]
-AlternateTitle1=Usos/Cobertes del sòl de Catalunya 2002 (v.6)
 topicCategory=001,002,010,012
 language=cat
 code=MUCSC_2002_30_m_v_6
@@ -28,22 +27,6 @@ rows=25
 HorizontalSystemIdentifier=UTM-31N-ETRS89
 resolution=30
 EquivalentScaleDenominator=70000
-
-[SPATIAL_REFERENCE_SYSTEM:HORIZONTAL:QUALITY]
-Parameter1=STB#ExactitudPosicional
-Parameter1Indicator1=STB#ExactitudHoritzontalRelativa
-Parameter1Indicator1Measure1=STB#T_RMS_Test
-Parameter1Indicator1Measure1TypeValues=F
-Parameter1Indicator1Measure1ResultValue=5.81
-Parameter1Indicator1Measure1ResultUnits=m
-Parameter1Indicator1Measure2=STB#T_RMS_X_Test
-Parameter1Indicator1Measure2TypeValues=F
-Parameter1Indicator1Measure2ResultValue=3.46
-Parameter1Indicator1Measure2ResultUnits=m
-Parameter1Indicator1Measure3=STB#T_RMS_Y_Test
-Parameter1Indicator1Measure3TypeValues=F
-Parameter1Indicator1Measure3ResultValue=4.52
-Parameter1Indicator1Measure3ResultUnits=m
 
 [EXTENT]
 MinX=416055

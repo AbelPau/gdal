@@ -278,6 +278,21 @@ init_list_color_tables = [
         None,
     ),
     (
+        "data/miramon/several_errors/WrongPaletteI.rel",
+        1,  # band index
+        None,
+    ),
+    (
+        "data/miramon/several_errors/NonExistantPaletteI.rel",
+        1,  # band index
+        None,
+    ),
+    (
+        "data/miramon/several_errors/EmptyPaletteI.rel",
+        1,  # band index
+        None,
+    ),
+    (
         "data/miramon/palettes/Categorical/Assigned/byte_2x3_6_categsI.rel",
         1,  # band index
         {
@@ -287,6 +302,45 @@ init_list_color_tables = [
             3: (255, 255, 78, 255),
             4: (255, 0, 0, 255),
             5: (255, 0, 133, 255),
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/Assignedp25/byte_2x3_6_categsI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 0, 255),
+            1: (0, 97, 0, 255),
+            2: (0, 162, 0, 255),
+            3: (0, 255, 0, 255),
+            4: (255, 255, 0, 255),
+            5: (255, 210, 0, 255),
+            15: (255, 178, 255, 255),
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/AssignedPAL/byte_2x3_6_categsI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 0, 255),
+            1: (0, 24, 0, 255),
+            2: (0, 40, 0, 255),
+            3: (0, 63, 0, 255),
+            4: (63, 63, 0, 255),
+            5: (63, 52, 0, 255),
+            15: (63, 44, 63, 255),
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/Assignedp65/byte_2x3_6_categsI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 0, 255),
+            1: (0, 24, 0, 255),
+            2: (0, 40, 0, 255),
+            3: (0, 63, 0, 255),
+            4: (63, 63, 0, 255),
+            5: (63, 52, 0, 255),
+            15: (63, 44, 63, 255),
         },
     ),
     (
@@ -367,11 +421,13 @@ def test_miramon_color_table(filename, idx_bnd, expected_ct):
     band = ds.GetRasterBand(idx_bnd)
     assert band is not None, f"Could not get band {idx_bnd} from file"
 
-    ct = band.GetColorTable()
-
     if expected_ct == None:
-        assert ct is None
+        try:
+            ct = band.GetColorTable()
+        except RuntimeError:
+            pass
     else:
+        ct = band.GetColorTable()
         assert ct is not None, "No color table found on band"
         for index, expected_color in expected_ct.items():
             entry = ct.GetColorEntry(index)

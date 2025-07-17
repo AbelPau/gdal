@@ -24,3 +24,10 @@
 "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\wrong_typeI.rel" "D:\tmp\kk.tiff" -if MiraMonRaster
 
 "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\wrong_band_nameI.rel" "D:\tmp\kk.tiff" -if MiraMonRaster
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\WrongPaletteI.rel" "D:\tmp\kk.tiff" -if MiraMonRaster
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\BigPaletteI.rel" "D:\tmp\kk.tiff" -if MiraMonRaster
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\several_errors\EmptyPaletteI.rel" "D:\tmp\kk.tiff" -if MiraMonRaster
+

@@ -18,12 +18,6 @@
 
 #include "miramon_rel.h"
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
-#else
-#include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
-#endif
-
 class MMRBand;
 
 constexpr auto pszExtRaster = ".img";
@@ -43,20 +37,6 @@ class MMRBand
 
     // indexed-RLE format
     std::vector<vsi_l_offset> aFileOffsets{};
-
-    // Palette info
-    std::array<std::vector<double>, 4> aadfPaletteColors{};
-    GDALColorEntry sDefaultColorRGB = {0, 0, 0, 127};
-
-    int nNoDataOriginaPalettelIndex;
-    bool bPaletteHasNodata;
-
-    std::array<std::vector<double>, 4> aadfPCT{};
-    int nNoDataPaletteIndex;
-    GDALColorEntry sNoDataColorRGB = {0, 0, 0, 0};
-
-    bool bConstantColor = false;
-    GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
 
     // Assigned Subdataset for this band.
     int nAssignedSDS;
@@ -135,26 +115,6 @@ class MMRBand
     void UpdateMinMaxValuesFromREL(const CPLString osSection);
     void UpdateMinMaxVisuValuesFromREL(const CPLString osSection);
     void UpdateFriendlyDescriptionFromREL(const CPLString osSection);
-
-    const std::vector<double> &GetPCT_Red() const
-    {
-        return aadfPCT[0];
-    }
-
-    const std::vector<double> &GetPCT_Green() const
-    {
-        return aadfPCT[1];
-    }
-
-    const std::vector<double> &GetPCT_Blue() const
-    {
-        return aadfPCT[2];
-    }
-
-    const std::vector<double> &GetPCT_Alpha() const
-    {
-        return aadfPCT[3];
-    }
 
     int GetAssignedSubDataSet()
     {
@@ -281,20 +241,6 @@ class MMRBand
     int PositionAtStartOfRowOffsetsInFile();
     bool FillRowOffsets();
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
-
-    void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
-    void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
-    CPLErr FromPaletteToTableCategoricalMode();
-    CPLErr FromPaletteToTableContinousMode();
-    CPLErr GetPCT();
-    CPLErr AssignUniformColorTable();
-    CPLErr ReadPalette(CPLString os_Color_Paleta_DBF);
-    static CPLErr GetPaletteColors_DBF_Indexs(
-        struct MM_DATA_BASE_XP &oColorTable, MM_EXT_DBF_N_FIELDS &nClauSimbol,
-        MM_EXT_DBF_N_FIELDS &nRIndex, MM_EXT_DBF_N_FIELDS &nGIndex,
-        MM_EXT_DBF_N_FIELDS &nBIndex);
-    CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
-    CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
     MMRInfo *hMMR = nullptr;  // Just a pointer. No need to be freed
 

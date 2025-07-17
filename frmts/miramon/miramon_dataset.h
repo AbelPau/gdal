@@ -17,6 +17,12 @@
 #include <vector>
 #include <optional>
 
+#ifdef MSVC
+#include "..\miramon_common\mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
+#else
+#include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
+#endif
+
 #include "gdal_pam.h"
 #include "gdal_rat.h"
 #include "miramon_rel.h"  // For MMRInfo
@@ -81,23 +87,57 @@ class MMRDataset final : public GDALPamDataset
 /*                            MMRRasterBand                             */
 /* ==================================================================== */
 /************************************************************************/
-
 class MMRRasterBand final : public GDALPamRasterBand
 {
     friend class MMRDataset;
 
-    CPLString osBandSection;  // Name of the band
+    CPLString osBandSection = "";  // Name of the band
 
-    GDALColorTable *poCT;
-
-    MMDataType eMMRDataTypeMiraMon;  // Arreglar nom
-    MMBytesPerPixel eMMBytesPerPixel;
+    MMDataType eMMRDataTypeMiraMon =
+        MMDataType::DATATYPE_AND_COMPR_UNDEFINED;  // Arreglar nom
+    MMBytesPerPixel eMMBytesPerPixel =
+        MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
     MMRInfo *hMMR = nullptr;  // Just a pointer. No need to be freed
 
-    bool bMetadataDirty;
+    bool bMetadataDirty = false;
 
-    GDALRasterAttributeTable *poDefaultRAT;
+    GDALRasterAttributeTable *poDefaultRAT = nullptr;
+
+    bool bTriedLoadColorTable = false;
+    GDALColorTable *poCT = nullptr;
+    // Palette info
+    std::array<std::vector<double>, 4> aadfPaletteColors{};
+    GDALColorEntry sDefaultColorRGB = {0, 0, 0, 127};
+
+    int nNoDataOriginaPalettelIndex = 0;
+    bool bPaletteHasNodata = false;
+
+    std::array<std::vector<double>, 4> aadfPCT{};
+    int nNoDataPaletteIndex = 0;
+    GDALColorEntry sNoDataColorRGB = {0, 0, 0, 0};
+
+    bool bConstantColor = false;
+    GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
+
+    void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
+    void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
+    CPLErr FromPaletteToTableCategoricalMode();
+    CPLErr FromPaletteToTableContinousMode();
+    CPLErr AssignUniformColorTable();
+    CPLErr ReadPalette(CPLString os_Color_Paleta_DBF, bool bCategoricalMode);
+    static CPLErr GetPaletteColors_DBF_Indexs(
+        struct MM_DATA_BASE_XP &oColorTable, MM_EXT_DBF_N_FIELDS &nClauSimbol,
+        MM_EXT_DBF_N_FIELDS &nRIndex, MM_EXT_DBF_N_FIELDS &nGIndex,
+        MM_EXT_DBF_N_FIELDS &nBIndex);
+    void AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
+                            char *pzsRecord, char *pzsField,
+                            MM_EXT_DBF_N_FIELDS &nRIndex,
+                            MM_EXT_DBF_N_FIELDS &nGIndex,
+                            MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);
+    CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF,
+                                bool bCategoricalMode);
+    CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
   public:
     MMRRasterBand(MMRDataset *, int);
@@ -126,6 +166,8 @@ class MMRRasterBand final : public GDALPamRasterBand
     virtual GDALRasterAttributeTable *GetDefaultRAT() override;
 
     void SetDataType();
+    CPLErr UpdateContinousColors();
+    CPLErr UpdateCategoricalColors();
     CPLErr FillRATFromDBF();
     CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
                                  CPLString &osDBFName,
@@ -133,6 +175,26 @@ class MMRRasterBand final : public GDALPamRasterBand
     CPLErr CreateAttributteTableFromDBF(CPLString osRELName,
                                         CPLString osDBFName,
                                         CPLString osAssociateRel);
+
+    const std::vector<double> &GetPCT_Red() const
+    {
+        return aadfPCT[0];
+    }
+
+    const std::vector<double> &GetPCT_Green() const
+    {
+        return aadfPCT[1];
+    }
+
+    const std::vector<double> &GetPCT_Blue() const
+    {
+        return aadfPCT[2];
+    }
+
+    const std::vector<double> &GetPCT_Alpha() const
+    {
+        return aadfPCT[3];
+    }
 };
 
 #endif  // MMRDATASET_H_INCLUDED
