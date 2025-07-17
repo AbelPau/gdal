@@ -262,7 +262,7 @@ GDALColorTable *MMRRasterBand::GetColorTable()
     */
     bTriedLoadColorTable = true;
 
-    if (CE_None != UpdateCategoricalColors())
+    if (CE_None != UpdateColors())
     {
         // No color table available
         delete poCT;
@@ -301,33 +301,7 @@ GDALColorTable *MMRRasterBand::GetColorTable()
     return poCT;
 }
 
-CPLErr MMRRasterBand::UpdateContinousColors()
-
-{
-    CPLString os_Color_TractamentVariable = hMMR->fRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
-
-    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
-        return CE_Failure;  // Color table instead
-
-    CPLString os_Color_Paleta = hMMR->fRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
-
-    if (os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
-        return CE_Failure;
-
-    CPLErr peErr = ReadPalette(os_Color_Paleta, false);
-    if (CE_None != peErr)
-        return peErr;
-
-    peErr = FromPaletteToTableCategoricalMode();
-    if (peErr != CE_None)
-        return peErr;
-
-    return CE_None;
-}
-
-CPLErr MMRRasterBand::UpdateCategoricalColors()
+CPLErr MMRRasterBand::UpdateColors()
 
 {
     CPLString os_Color_TractamentVariable = hMMR->fRel->GetMetadataValue(
@@ -339,8 +313,10 @@ CPLErr MMRRasterBand::UpdateCategoricalColors()
     if (os_Color_Const == "1")
         return AssignUniformColorTable();
 
-    if (!EQUAL(os_Color_TractamentVariable, "Categoric"))
-        return CE_Failure;  // Attribute table instead
+    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
+        bColorTableCategorical = true;
+    else
+        bColorTableCategorical = false;
 
     CPLString os_Color_Paleta = hMMR->fRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
@@ -348,7 +324,7 @@ CPLErr MMRRasterBand::UpdateCategoricalColors()
     if (os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
         return CE_Failure;
 
-    CPLErr peErr = ReadPalette(os_Color_Paleta, true);
+    CPLErr peErr = ReadPalette(os_Color_Paleta);
     if (CE_None != peErr)
         return peErr;
 
@@ -438,14 +414,13 @@ CPLErr MMRRasterBand::AssignUniformColorTable()
     return CE_None;
 }
 
-CPLErr MMRRasterBand::ReadPalette(CPLString os_Color_Paleta,
-                                  bool bCategoricalMode)
+CPLErr MMRRasterBand::ReadPalette(CPLString os_Color_Paleta)
 {
     CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta);
     if (osExtension.tolower() == "dbf")
     {
         CPLErr peErr;
-        peErr = GetPaletteColors_DBF(os_Color_Paleta, bCategoricalMode);
+        peErr = GetPaletteColors_DBF(os_Color_Paleta);
 
         if (CE_None != peErr)
             return peErr;
@@ -493,8 +468,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF_Indexs(
     return CE_None;
 }
 
-CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF,
-                                           bool bCategoricalMode)
+CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
 {
     // Getting the full path name of the DBF
@@ -561,7 +535,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF,
     char *pzsRecord = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
     char *pzsField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
 
-    if (bCategoricalMode)
+    if (bColorTableCategorical)
     {
         // In categorical mode, the maximum CLAUSIMBOL value is the last color to read.
 
@@ -635,7 +609,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF,
         }
     }
 
-    if (bCategoricalMode)
+    if (bColorTableCategorical)
     {
         // Each record's CLAUSIMBOL field matches a pixel value present in the raster,
         // enabling a direct mapping between raster values and color entries.

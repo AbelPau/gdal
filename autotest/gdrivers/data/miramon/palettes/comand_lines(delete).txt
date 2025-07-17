@@ -18,4 +18,4 @@
 "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Categorical\Assignedp65\byte_2x3_6_categsI.rel" "D:\tmp\kk.tiff" -if MiraMonRaster
 
 
-
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\DBF_nodata_endI.rel" "D:\tmp\kk.tiff" -if MiraMonRaster

@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <vector>
 #include <optional>
+#include <array>
 
 #ifdef MSVC
 #include "..\miramon_common\mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
@@ -104,6 +105,7 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     GDALRasterAttributeTable *poDefaultRAT = nullptr;
 
+    bool bColorTableCategorical = false;
     bool bTriedLoadColorTable = false;
     GDALColorTable *poCT = nullptr;
     // Palette info
@@ -125,7 +127,7 @@ class MMRRasterBand final : public GDALPamRasterBand
     CPLErr FromPaletteToTableCategoricalMode();
     CPLErr FromPaletteToTableContinousMode();
     CPLErr AssignUniformColorTable();
-    CPLErr ReadPalette(CPLString os_Color_Paleta_DBF, bool bCategoricalMode);
+    CPLErr ReadPalette(CPLString os_Color_Paleta_DBF);
     static CPLErr GetPaletteColors_DBF_Indexs(
         struct MM_DATA_BASE_XP &oColorTable, MM_EXT_DBF_N_FIELDS &nClauSimbol,
         MM_EXT_DBF_N_FIELDS &nRIndex, MM_EXT_DBF_N_FIELDS &nGIndex,
@@ -135,8 +137,7 @@ class MMRRasterBand final : public GDALPamRasterBand
                             MM_EXT_DBF_N_FIELDS &nRIndex,
                             MM_EXT_DBF_N_FIELDS &nGIndex,
                             MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);
-    CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF,
-                                bool bCategoricalMode);
+    CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
   public:
@@ -166,8 +167,7 @@ class MMRRasterBand final : public GDALPamRasterBand
     virtual GDALRasterAttributeTable *GetDefaultRAT() override;
 
     void SetDataType();
-    CPLErr UpdateContinousColors();
-    CPLErr UpdateCategoricalColors();
+    CPLErr UpdateColors();
     CPLErr FillRATFromDBF();
     CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
                                  CPLString &osDBFName,
