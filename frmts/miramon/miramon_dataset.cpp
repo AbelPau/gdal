@@ -609,6 +609,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         }
     }
 
+    VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset, SEEK_SET);
     if (bColorTableCategorical)
     {
         // Each record's CLAUSIMBOL field matches a pixel value present in the raster,
@@ -626,8 +627,6 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
         // Getting the indexs of the colors and assigning to aadfPaletteColors
         int nIPaletteIndex;
-        VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset,
-                  SEEK_SET);
         for (nIRecord = 0; nIRecord < oColorTable.nRecords; nIRecord++)
         {
             if (oColorTable.BytesPerRecord !=
