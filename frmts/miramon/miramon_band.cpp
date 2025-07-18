@@ -23,20 +23,8 @@
 /*                              MMRBand()                               */
 /************************************************************************/
 MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
-    : pfIMG(nullptr), pfRel(hMMRIn.fRel), nAssignedSDS(0),
-      osBandSection(osBandSectionIn), osRELFileName(""), osRawBandFileName(""),
-      osBandFileName(""), osBandName(""), osFriendlyDescription(""),
-      eMMDataType(
-          static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED)),
-      eMMBytesPerPixel(static_cast<MMBytesPerPixel>(
-          MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED)),
-      bIsCompressed(false), bMinSet(false), dfMin(0.0), bMaxSet(false),
-      dfMax(0.0), bMinVisuSet(false), dfVisuMin(0.0), bMaxVisuSet(false),
-      dfVisuMax(0.0), osRefSystem(""), dfBBMinX(0), dfBBMinY(0), dfBBMaxX(0),
-      dfBBMaxY(0), dfResolution(0), dfResolutionY(0), bSetResolution(false),
-      hMMR(&hMMRIn), nBlockXSize(0), nBlockYSize(1), nWidth(hMMRIn.nXSize),
-      nHeight(hMMRIn.nYSize), nBlocksPerRow(1), nBlocksPerColumn(1),
-      bNoDataSet(false), osNodataDef(""), dfNoData(0.0)
+    : pfRel(hMMRIn.fRel), osBandSection(osBandSectionIn), hMMR(&hMMRIn),
+      nWidth(hMMRIn.nXSize), nHeight(hMMRIn.nYSize)
 {
     // Getting band and band file name from metadata
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,

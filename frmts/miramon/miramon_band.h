@@ -191,80 +191,82 @@ class MMRBand
 
     MMRInfo *hMMR = nullptr;  // Just a pointer. No need to be freed
 
-    int nBlockXSize;
-    int nBlockYSize;
+    int nBlockXSize = 1;
+    int nBlockYSize = 1;
 
     int nWidth;   // Number of columns
     int nHeight;  // Number of rows
 
   private:
-    VSILFILE *pfIMG;  // Point to IMG file
-    MMRRel *pfRel;    // Rel where metadata is readed from
+    VSILFILE *pfIMG = nullptr;  // Point to IMG file
+    MMRRel *pfRel;              // Rel where metadata is readed from
 
-    int nBlocksPerRow;
-    int nBlocksPerColumn;
+    int nBlocksPerRow = 1;
+    int nBlocksPerColumn = 1;
 
     // indexed-RLE format
     std::vector<vsi_l_offset> aFileOffsets{};
 
     // Assigned Subdataset for this band.
-    int nAssignedSDS;
+    int nAssignedSDS = 0;
 
     // Section in REL file that give information about the band
     CPLString osBandSection;
     // REL file name that contains the band
-    CPLString osRELFileName;
+    CPLString osRELFileName = "";
     // File name relative to REL file with banda data
-    CPLString osRawBandFileName;
+    CPLString osRawBandFileName = "";
     // Friendly osRawBandFileName
-    CPLString osBandFileName;
+    CPLString osBandFileName = "";
     // Name of the band documented in REL metadata file.
-    CPLString osBandName;
+    CPLString osBandName = "";
     // Descripcion of the band, not the name
-    CPLString osFriendlyDescription;
+    CPLString osFriendlyDescription = "";
 
-    MMDataType eMMDataType;
-    MMBytesPerPixel eMMBytesPerPixel;
-    bool bIsCompressed;
+    MMDataType eMMDataType =
+        static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED);
+    MMBytesPerPixel eMMBytesPerPixel = static_cast<MMBytesPerPixel>(
+        MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED);
+    bool bIsCompressed = false;
 
     // Min and Max values from metadata:  This value should correspond
     // to the actual minimum and maximum, not to an approximation.
     // However, MiraMon is proof to approximate values. The minimum
     // and maximum values are useful, for example, to properly scale
     // colors, etc.
-    bool bMinSet;
-    double dfMin;
-    bool bMaxSet;
-    double dfMax;
+    bool bMinSet = false;
+    double dfMin = 0.0;
+    bool bMaxSet = false;
+    double dfMax = 0.0;
     // These values will be dfMin/dfMax if they don't exist in REL file
-    bool bMinVisuSet;
-    double dfVisuMin;  // Key Color_ValorColor_0 in COLOR_TEXT
-    bool bMaxVisuSet;
-    double dfVisuMax;  // Key Color_ValorColor_n_1 COLOR_TEXT
+    bool bMinVisuSet = false;
+    double dfVisuMin = 0.0;  // Key Color_ValorColor_0 in COLOR_TEXT
+    bool bMaxVisuSet = false;
+    double dfVisuMax = 0.0;  // Key Color_ValorColor_n_1 COLOR_TEXT
 
-    CPLString osRefSystem;
+    CPLString osRefSystem = "";
 
     // Extent values of the band:
     // They always refer to extreme outer coordinates,
     // not to cell centers.
 
-    double dfBBMinX;
-    double dfBBMinY;
-    double dfBBMaxX;
-    double dfBBMaxY;
+    double dfBBMinX = 0.0;
+    double dfBBMinY = 0.0;
+    double dfBBMaxX = 0.0;
+    double dfBBMaxY = 0.0;
 
     // Resolution of the pixel
-    double dfResolution;
-    double dfResolutionY;
+    double dfResolution = 0;
+    double dfResolutionY = 0;
 
     // Determines if dfResolution and dfResolutionY have been found
     // If is not found 1 is the defect value
-    bool bSetResolution;
+    bool bSetResolution = false;
 
     // Nodata stuff
-    bool bNoDataSet;        // There is nodata?
-    CPLString osNodataDef;  // Definition of nodata
-    double dfNoData;        // Value of nodata
+    bool bNoDataSet = false;     // There is nodata?
+    CPLString osNodataDef = "";  // Definition of nodata
+    double dfNoData = 0.0;       // Value of nodata
 };
 
 #endif /* ndef MM_BAND_INCLUDED */
