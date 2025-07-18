@@ -23,7 +23,7 @@
 /*                              MMRBand()                               */
 /************************************************************************/
 MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
-    : pfIMG(nullptr), pfRel(hMMRIn.fRel), nBlocks(0), nAssignedSDS(0),
+    : pfIMG(nullptr), pfRel(hMMRIn.fRel), nAssignedSDS(0),
       osBandSection(osBandSectionIn), osRELFileName(""), osRawBandFileName(""),
       osBandFileName(""), osBandName(""), osFriendlyDescription(""),
       eMMDataType(
@@ -160,7 +160,6 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
 
     // MiraMon IMG files are efficient in going to an specified row.
     // So le'ts configurate the blocks as line blocks.
-    nBlocks = nHeight;
     nBlockXSize = nWidth;
     nBlockYSize = 1;
     nBlocksPerRow = 1;
@@ -368,7 +367,7 @@ void MMRBand::UpdateNoDataValue(const CPLString osSection)
     }
     else
     {
-        dfNoData = atoi(osValue);
+        dfNoData = CPLAtof(osValue);
         bNoDataSet = true;
     }
 }

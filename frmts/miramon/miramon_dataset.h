@@ -105,6 +105,7 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     GDALRasterAttributeTable *poDefaultRAT = nullptr;
 
+    bool bPaletteColorsRead = false;
     bool bColorTableCategorical = false;
     bool bTriedLoadColorTable = false;
     GDALColorTable *poCT = nullptr;
@@ -112,20 +113,23 @@ class MMRRasterBand final : public GDALPamRasterBand
     std::array<std::vector<double>, 4> aadfPaletteColors{};
     GDALColorEntry sDefaultColorRGB = {0, 0, 0, 127};
 
-    int nNoDataOriginaPalettelIndex = 0;
     bool bPaletteHasNodata = false;
+    // index in the DBF that gives nodata color
+    int nNoDataPaletteIndex = 0;
+    // Default color for nodata
+    GDALColorEntry sNoDataColorRGB = {0, 0, 0, 0};
 
     std::array<std::vector<double>, 4> aadfPCT{};
-    int nNoDataPaletteIndex = 0;
-    GDALColorEntry sNoDataColorRGB = {0, 0, 0, 0};
 
     bool bConstantColor = false;
     GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
 
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
-    CPLErr FromPaletteToTableCategoricalMode();
-    CPLErr FromPaletteToTableContinousMode();
+    CPLErr FromPaletteToColorTableCategoricalMode();
+    CPLErr FromPaletteToColorTableContinousMode();
+    CPLErr FromPaletteToAttributeTableContinousMode();
+    CPLErr FromPaletteToAttributeTableCategoricalMode();
     CPLErr AssignUniformColorTable();
     CPLErr ReadPalette(CPLString os_Color_Paleta_DBF);
     static CPLErr GetPaletteColors_DBF_Indexs(
@@ -167,7 +171,9 @@ class MMRRasterBand final : public GDALPamRasterBand
     virtual GDALRasterAttributeTable *GetDefaultRAT() override;
 
     void SetDataType();
-    CPLErr UpdateColors();
+    CPLErr UpdateTableColorsFromPalette();
+    CPLErr UpdateAttributeColorsFromPalette();
+    void ConvertColorsFromPaletteToColorTable();
     CPLErr FillRATFromDBF();
     CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
                                  CPLString &osDBFName,

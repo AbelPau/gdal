@@ -1,0 +1,12 @@
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\uinteger_with_nodata.img" "D:\tmp\uinteger_with_nodata.tiff" -if MiraMonRaster
+
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\integer_with_nodata.img" "D:\tmp\integer_with_nodata.tiff" -if MiraMonRaster
+
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\long_with_nodata.img" "D:\tmp\long_with_nodata.tiff" -if MiraMonRaster
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\real_with_nodata.img" "D:\tmp\real_with_nodata.tiff" -if MiraMonRaster
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\double_with_nodata.img" "D:\tmp\double_with_nodata.tiff" -if MiraMonRaster
+

@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-#ifndef MMR_P_H_INCLUDED
-#define MMR_P_H_INCLUDED
+#ifndef MM_BAND_INCLUDED
+#define MM_BAND_INCLUDED
 
 #include <vector>
 #include <array>
@@ -30,10 +30,179 @@ constexpr auto pszExtREL = ".rel";
 
 class MMRBand
 {
+  public:
+    MMRBand(MMRInfo &, const char *pszSection);
+    MMRBand(const MMRBand &) =
+        delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
+    MMRBand &operator=(const MMRBand &) =
+        delete;  // I don't want to assing a MMRBand to another MMRBand (effc++)
+    ~MMRBand();
+
+    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+        const CPLString osSection, const char *pszKey, int *nValue,
+        const char *pszErrorMessage);
+    int UpdateDataTypeFromREL(const CPLString osSection);
+    void UpdateResolutionFromREL(const CPLString osSection);
+    void UpdateResolutionYFromREL(const CPLString osSection);
+    int UpdateColumnsNumberFromREL(const CPLString osSection);
+    int UpdateRowsNumberFromREL(const CPLString osSection);
+    void UpdateNoDataValue(const CPLString osSection);
+    void UpdateNoDataDefinitionFromREL(const CPLString osSection);
+    void UpdateBoundingBoxFromREL(const CPLString osSection);
+    void UpdateReferenceSystemFromREL();
+    void UpdateMinMaxValuesFromREL(const CPLString osSection);
+    void UpdateMinMaxVisuValuesFromREL(const CPLString osSection);
+    void UpdateFriendlyDescriptionFromREL(const CPLString osSection);
+    template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
+    CPLErr GetBlockData(void *rowBuffer);
+    int PositionAtStartOfRowOffsetsInFile();
+    bool FillRowOffsets();
+    CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
+
+    int GetAssignedSubDataSet()
+    {
+        return nAssignedSDS;
+    }
+
+    void AssignSubDataSet(int nAssignedSDSIn)
+    {
+        nAssignedSDS = nAssignedSDSIn;
+    }
+
+    const CPLString &GetBandName() const
+    {
+        return osBandName;
+    }
+
+    const CPLString &GetBandSection() const
+    {
+        return osBandSection;
+    }
+
+    const CPLString &GetRELFileName() const
+    {
+        return osRELFileName;
+    }
+
+    void SetRELFileName(CPLString osRELFileNameIn)
+    {
+        osRELFileName = osRELFileNameIn;
+    }
+
+    const CPLString &GetRawBandFileName() const
+    {
+        return osRawBandFileName;
+    }
+
+    const CPLString &GetFriendlyDescription() const
+    {
+        return osFriendlyDescription;
+    }
+
+    MMDataType GeteMMDataType() const
+    {
+        return eMMDataType;
+    }
+
+    MMBytesPerPixel GeteMMBytesPerPixel() const
+    {
+        return eMMBytesPerPixel;
+    }
+
+    bool GetMinSet() const
+    {
+        return bMinSet;
+    }
+
+    double GetMin() const
+    {
+        return dfMin;
+    }
+
+    bool GetMaxSet() const
+    {
+        return bMaxSet;
+    }
+
+    double GetMax() const
+    {
+        return dfMax;
+    }
+
+    bool GetMinVisuSet() const
+    {
+        return bMinVisuSet;
+    }
+
+    double GetVisuMin() const
+    {
+        return dfVisuMin;
+    }
+
+    bool GetMaxVisuSet() const
+    {
+        return bMaxVisuSet;
+    }
+
+    double GetVisuMax() const
+    {
+        return dfVisuMax;
+    }
+
+    double GetBoundingBoxMinX() const
+    {
+        return dfBBMinX;
+    }
+
+    double GetBoundingBoxMaxX() const
+    {
+        return dfBBMaxX;
+    }
+
+    double GetBoundingBoxMinY() const
+    {
+        return dfBBMinY;
+    }
+
+    double GetBoundingBoxMaxY() const
+    {
+        return dfBBMaxY;
+    }
+
+    double GetPixelResolution() const
+    {
+        return dfResolution;
+    }
+
+    double GetPixelResolutionY() const
+    {
+        return dfResolutionY;
+    }
+
+    bool BandHasNoData() const
+    {
+        return bNoDataSet;
+    }
+
+    double GetNoDataValue() const
+    {
+        return dfNoData;
+    }
+
+    MMRInfo *hMMR = nullptr;  // Just a pointer. No need to be freed
+
+    int nBlockXSize;
+    int nBlockYSize;
+
+    int nWidth;   // Number of columns
+    int nHeight;  // Number of rows
+
+  private:
     VSILFILE *pfIMG;  // Point to IMG file
     MMRRel *pfRel;    // Rel where metadata is readed from
 
-    int nBlocks;
+    int nBlocksPerRow;
+    int nBlocksPerColumn;
 
     // indexed-RLE format
     std::vector<vsi_l_offset> aFileOffsets{};
@@ -92,170 +261,10 @@ class MMRBand
     // If is not found 1 is the defect value
     bool bSetResolution;
 
-  public:
-    MMRBand(MMRInfo &, const char *pszSection);
-    MMRBand(const MMRBand &) =
-        delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
-    MMRBand &operator=(const MMRBand &) =
-        delete;  // I don't want to assing a MMRBand to another MMRBand (effc++)
-    ~MMRBand();
-
-    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
-        const CPLString osSection, const char *pszKey, int *nValue,
-        const char *pszErrorMessage);
-    int UpdateDataTypeFromREL(const CPLString osSection);
-    void UpdateResolutionFromREL(const CPLString osSection);
-    void UpdateResolutionYFromREL(const CPLString osSection);
-    int UpdateColumnsNumberFromREL(const CPLString osSection);
-    int UpdateRowsNumberFromREL(const CPLString osSection);
-    void UpdateNoDataValue(const CPLString osSection);
-    void UpdateNoDataDefinitionFromREL(const CPLString osSection);
-    void UpdateBoundingBoxFromREL(const CPLString osSection);
-    void UpdateReferenceSystemFromREL();
-    void UpdateMinMaxValuesFromREL(const CPLString osSection);
-    void UpdateMinMaxVisuValuesFromREL(const CPLString osSection);
-    void UpdateFriendlyDescriptionFromREL(const CPLString osSection);
-
-    int GetAssignedSubDataSet()
-    {
-        return nAssignedSDS;
-    }
-
-    void AssignSubDataSet(int nAssignedSDSIn)
-    {
-        nAssignedSDS = nAssignedSDSIn;
-    }
-
-    const CPLString &GetBandName() const
-    {
-        return osBandName;
-    }
-
-    const CPLString &GetBandSection() const
-    {
-        return osBandSection;
-    }
-
-    const CPLString &GetRELFileName() const
-    {
-        return osRELFileName;
-    }
-
-    void SetRELFileName(CPLString osRELFileNameIn)
-    {
-        osRELFileName = osRELFileNameIn;
-    }
-
-    const CPLString &GetRawBandFileName() const
-    {
-        return osRawBandFileName;
-    }
-
-    const CPLString &GetFriendlyDescription() const
-    {
-        return osFriendlyDescription;
-    }
-
-    MMDataType GeteMMDataType()
-    {
-        return eMMDataType;
-    }
-
-    MMBytesPerPixel GeteMMBytesPerPixel()
-    {
-        return eMMBytesPerPixel;
-    }
-
-    bool GetMinSet()
-    {
-        return bMinSet;
-    }
-
-    double GetMin()
-    {
-        return dfMin;
-    }
-
-    bool GetMaxSet()
-    {
-        return bMaxSet;
-    }
-
-    double GetMax()
-    {
-        return dfMax;
-    }
-
-    bool GetMinVisuSet()
-    {
-        return bMinVisuSet;
-    }
-
-    double GetVisuMin()
-    {
-        return dfVisuMin;
-    }
-
-    bool GetMaxVisuSet()
-    {
-        return bMaxVisuSet;
-    }
-
-    double GetVisuMax()
-    {
-        return dfVisuMax;
-    }
-
-    double GetBoundingBoxMinX()
-    {
-        return dfBBMinX;
-    }
-
-    double GetBoundingBoxMaxX()
-    {
-        return dfBBMaxX;
-    }
-
-    double GetBoundingBoxMinY()
-    {
-        return dfBBMinY;
-    }
-
-    double GetBoundingBoxMaxY()
-    {
-        return dfBBMaxY;
-    }
-
-    double GetPixelResolution()
-    {
-        return dfResolution;
-    }
-
-    double GetPixelResolutionY()
-    {
-        return dfResolutionY;
-    }
-
-    template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
-    CPLErr GetBlockData(void *rowBuffer);
-    int PositionAtStartOfRowOffsetsInFile();
-    bool FillRowOffsets();
-    CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
-
-    MMRInfo *hMMR = nullptr;  // Just a pointer. No need to be freed
-
-    int nBlockXSize;
-    int nBlockYSize;
-
-    int nWidth;   // Number of columns
-    int nHeight;  // Number of rows
-
-    int nBlocksPerRow;
-    int nBlocksPerColumn;
-
+    // Nodata stuff
     bool bNoDataSet;        // There is nodata?
     CPLString osNodataDef;  // Definition of nodata
     double dfNoData;        // Value of nodata
 };
 
-#endif /* ndef MMR_P_H_INCLUDED */
+#endif /* ndef MM_BAND_INCLUDED */

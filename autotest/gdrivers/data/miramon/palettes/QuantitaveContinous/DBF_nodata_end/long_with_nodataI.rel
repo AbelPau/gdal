@@ -7,37 +7,36 @@ SubVers=3
 [METADADES]
 language=cat
 MDIdiom=cat
-dateStamp=20250717 15461577+0200
+dateStamp=20250718 12362346+0200
 characterSet=006
 nOrganismes=1
-FileIdentifier=DBF_nodata_beg_26196
+FileIdentifier=long_with_nodataI_16466
 
 [METADADES:ORGANISME_1]
 role=009
 OrganisationName=Students and educational institutions
 
 [IDENTIFICATION]
-code=LC08_L1TP_20210812_BI_26268
+code=
 codeSpace=
-DatasetTitle=(densificat)
-topicCategory=010
-language=cat
+DatasetTitle=Fitxer extret de D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\long_with_nodata.txt
 
 [OVERVIEW:ASPECTES_TECNICS]
 columns=2
 rows=4
-comment1=Finestra de D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_beg.img densificada amb C:\MiraMon\DensRas_64.exe
-comment2=Tipus de remostreig utilitzat: Bilineal.
 
 [SPATIAL_REFERENCE_SYSTEM:HORIZONTAL]
-HorizontalSystemIdentifier=UTM-31N-WGS84
-resolution=30
+HorizontalSystemDefinition=Local
+HorizontalSystemIdentifier=plane
+unitats=pixels
+resolution=1
 
 [QUALITY:LINEAGE:PROCESS1]
 nOrganismes=1
-history=DensRas_64.exe D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_beg D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_beg\DBF_nodata_beg x x x x 3000 L /FORA_RANG=SATURA
-date=20250717 15461571+0200
-NomFitxer=C:\MiraMon\DensRas_64.exe
+history=ASCIIIMG.exe 0 D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\jj.txt D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\long_with_nodata.img 2 4 0 long -2147483648 NODATA
+purpose=Opció que interpreta la capçalera del format ESRI ASCII per fer la transformació.
+date=20250718 12362334+0200
+NomFitxer=C:\MiraMon\ASCIIIMG.exe
 
 [QUALITY:LINEAGE:PROCESS1:ORGANISME_1]
 OrganisationName=Students and educational institutions
@@ -52,96 +51,79 @@ ISSN=
 [QUALITY:LINEAGE:PROCESS1:INOUT1]
 identifier=Param1
 TypeValues=C
-ResultValue=D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_beg
+ResultValue=0
 ResultUnits=
 
 [QUALITY:LINEAGE:PROCESS1:INOUT2]
 identifier=Param2
 TypeValues=C
-ResultValue=D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_beg\DBF_nodata_beg
+ResultValue=D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\jj.txt
 ResultUnits=
 
 [QUALITY:LINEAGE:PROCESS1:INOUT3]
 identifier=Param3
 TypeValues=C
-ResultValue=x
+ResultValue=D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\long_with_nodata.img
 ResultUnits=
 
 [QUALITY:LINEAGE:PROCESS1:INOUT4]
 identifier=Param4
 TypeValues=C
-ResultValue=x
+ResultValue=2
 ResultUnits=
 
 [QUALITY:LINEAGE:PROCESS1:INOUT5]
 identifier=Param5
 TypeValues=C
-ResultValue=x
+ResultValue=4
 ResultUnits=
 
 [QUALITY:LINEAGE:PROCESS1:INOUT6]
 identifier=Param6
 TypeValues=C
-ResultValue=x
+ResultValue=0
 ResultUnits=
 
 [QUALITY:LINEAGE:PROCESS1:INOUT7]
 identifier=Param7
 TypeValues=C
-ResultValue=3000
+ResultValue=long
 ResultUnits=
 
 [QUALITY:LINEAGE:PROCESS1:INOUT8]
 identifier=Param8
 TypeValues=C
-ResultValue=L
+ResultValue=-2147483648
 ResultUnits=
 
 [QUALITY:LINEAGE:PROCESS1:INOUT9]
-identifier=FORA_RANG
+identifier=Param9
 TypeValues=C
-ResultValue=SATURA
+ResultValue=NODATA
 ResultUnits=
 
 [QUALITY:LINEAGE]
 processes=1
 
 [EXTENT]
-MinX=634605
-MaxX=640605
-MinY=4844145
-MaxY=4856145
 toler_env=0
 
 [OVERVIEW]
-CreationDate=20250717 15461571+0200
+CreationDate=20250718 12362329+0200
 
 [ATTRIBUTE_DATA]
-TipusCompressio=uinteger-RLE
-unitats=DN
-NODATA=0
-NODATADef=Sensedades
-IndexsNomsCamps=1-CA
-NomCamp_1-CA=1-CA
-unitatsWavelength=µm
-BitsPerValue=12
-ToneGradation=4095
-CalibRadiom=3
-unitatsL=W/(m²*sr*µm)
+TipusCompressio=long
+unitats=?
+MostrarUnitats=0
+NODATA=-2147483648
+NODATADef=NODATA
+IndexsNomsCamps=1
+NomCamp_1=1
 TipusRelacio=RELACIO_1_1_DICC
 
-[ATTRIBUTE_DATA:1-CA]
-descriptor=Banda 1 [litoral/aerosols 0.433-0.453 µm] (OLI)
-min=10654
-max=11785
-
-[ATTRIBUTE_DATA:1-CA:BAND]
-MinimumWavelength=0.433
-MaximumWavelength=0.453
-DN2L_ScaleFactorCoefficient=0.0122279213843196
-DN2L_OffsetCoefficient=-61.1396079213843
-MinL=-61.12738
-MaxL=740.21722
+[ATTRIBUTE_DATA:1]
+min=-2147483647
+max=2147483647
 
 [COLOR_TEXT]
 Simb_Vers=5
@@ -155,14 +137,14 @@ Color_Const=0
 Color_TractamentVariable=QuantitatiuContinu
 Color_Paleta=CMDEVerdMarro256.dbf
 Color_EscalatColor=lineal
-Color_ValorColor_0=10654
-Color_ValorColor_n_1=11785
+Color_ValorColor_0=-2147483647
+Color_ValorColor_n_1=2147483647
 
 [VISU_LLEGENDA]
 LlegSimb_Vers=4
 LlegSimb_SubVers=5
 Color_VisibleALleg=1
-Color_TitolLlegenda=Banda 1 [litoral/aerosols 0.433-0.453 µm] (OLI)
+Color_TitolLlegenda=Fitxer extret de D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_end\long_with_nodata.txt
 Color_CategAMostrar=N
 Color_N_ClassesLleg=256
 Color_InvertOrdPresentColorLleg=0

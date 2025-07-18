@@ -405,6 +405,20 @@ init_list_color_tables = [
             24: (0, 0, 0, 127),
         },
     ),
+    (
+        "data/miramon/palettes/QuantitaveContinous/DBF_nodata_end/DBF_nodata_endI.rel",
+        1,  # band index
+        {  # some colours are tested
+            0: (204, 217, 249, 255),
+            1: (212, 247, 255, 255),
+            10: (164, 106, 0, 255),
+            100: (164, 106, 0, 255),
+            1000: (212, 247, 255, 255),
+            10000: (212, 247, 255, 255),
+            65000: (171, 130, 34, 127),
+            65535: (171, 130, 34, 127),
+        },
+    ),
 ]
 
 

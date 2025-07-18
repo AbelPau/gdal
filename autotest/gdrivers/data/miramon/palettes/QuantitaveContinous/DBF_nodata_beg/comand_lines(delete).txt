@@ -1,0 +1,1 @@
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\QuantitaveContinous\DBF_nodata_beg\integer_with_nodata.img" "D:\tmp\beg_integer_with_nodata.tiff" -if MiraMonRaster
