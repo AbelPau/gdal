@@ -1127,18 +1127,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
     if (!bPaletteHasNodata)
         nNoDataPaletteIndex = nNPaletteColors;
 
-    double dfSlope = 1, dfIntercept = 0;
-
     // A scaling is applied between the minimum and maximum display values.
-    dfSlope =
-        nNPaletteColors / ((poBand->GetVisuMax() + 1 - poBand->GetVisuMin()));
-
-    if (bPaletteHasNodata &&
-        nNoDataPaletteIndex != 0)  // nodata at the end of the list
-        dfIntercept = -dfSlope * poBand->GetVisuMin();
-    else
-        dfIntercept = -dfSlope * poBand->GetVisuMin() + 1;
-
     double dfInterval =
         (poBand->GetVisuMax() - poBand->GetVisuMin()) / nNPaletteColors;
 
