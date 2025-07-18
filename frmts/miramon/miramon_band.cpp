@@ -23,7 +23,7 @@
 /*                              MMRBand()                               */
 /************************************************************************/
 MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
-    : pfRel(hMMRIn.fRel), osBandSection(osBandSectionIn), hMMR(&hMMRIn),
+    : hMMR(&hMMRIn), pfRel(hMMRIn.fRel), osBandSection(osBandSectionIn),
       nWidth(hMMRIn.nXSize), nHeight(hMMRIn.nYSize)
 {
     // Getting band and band file name from metadata
