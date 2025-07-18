@@ -1127,13 +1127,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
     if (!bPaletteHasNodata)
         nNoDataPaletteIndex = nNPaletteColors;
 
-    int nFirstValidPaletteIndex;
     double dfSlope = 1, dfIntercept = 0;
-
-    if (bPaletteHasNodata && nNoDataPaletteIndex == 0)
-        nFirstValidPaletteIndex = 1;
-    else
-        nFirstValidPaletteIndex = 0;
 
     // A scaling is applied between the minimum and maximum display values.
     dfSlope =
