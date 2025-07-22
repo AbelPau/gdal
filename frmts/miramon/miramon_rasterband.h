@@ -157,7 +157,7 @@ class MMRRasterBand final : public GDALPamRasterBand
     GDALRasterAttributeTable *poDefaultRAT = nullptr;
 
     // Color table
-    MMRColorTable ColorTable;
+    MMRColorTable ColorTable{};
 };
 
 #endif  // MMRRASTERBAND_H_INCLUDED
