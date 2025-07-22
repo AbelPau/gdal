@@ -86,8 +86,8 @@ CPLErr MMRRel::UpdateInfoFromREL(const CPLString osFileName)
     {
         // Getting the metadata file name. If it's already a REL file,
         // then same name is returned.
-        osRELFileNameIn = MMRRel::GetAssociatedMetadataFileName(
-            osFileName.c_str(), bIsAMiraMonFile);
+        osRELFileNameIn =
+            GetAssociatedMetadataFileName(osFileName.c_str(), bIsAMiraMonFile);
         if (osRELFileNameIn.empty())
         {
             if (bIsAMiraMonFile)

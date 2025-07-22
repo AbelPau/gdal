@@ -82,6 +82,8 @@ MMRDataset::~MMRDataset()
     }
     CPLFree(papoBands);
     papoBands = nullptr;
+
+    delete pfRel;
 }
 
 /************************************************************************/

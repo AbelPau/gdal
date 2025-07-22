@@ -23,20 +23,20 @@
 /************************************************************************/
 /*                              MMRBand()                               */
 /************************************************************************/
-MMRBand::MMRBand(MMRRel &pfRel, CPLString osRELFileNameIn,
+MMRBand::MMRBand(MMRRel &fRel, CPLString osRELFileNameIn,
                  CPLString osBandSectionIn)
-    : nWidth(pfRel.GetXSize()), nHeight(pfRel.GetYSize()),
+    : pfRel(&fRel), nWidth(fRel.GetXSize()), nHeight(fRel.GetYSize()),
       osBandSection(osBandSectionIn)
 
 {
     osRELFileName = osRELFileNameIn;
     // Getting band and band file name from metadata
-    osRawBandFileName = pfRel.GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                               osBandSectionIn, KEY_NomFitxer);
+    osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                                osBandSectionIn, KEY_NomFitxer);
 
     if (osRawBandFileName.empty())
     {
-        osBandFileName = pfRel.MMRGetFileNameFromRelName(osRELFileName);
+        osBandFileName = pfRel->MMRGetFileNameFromRelName(osRELFileName);
         if (osBandFileName.empty())
         {
             nWidth = 0;
@@ -55,7 +55,7 @@ MMRBand::MMRBand(MMRRel &pfRel, CPLString osRELFileNameIn,
     {
         osBandName = CPLGetBasenameSafe(osRawBandFileName);
         CPLString osAux =
-            CPLGetPathSafe(static_cast<const char *>(pfRel.GetRELNameChar()));
+            CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
         osBandFileName =
             CPLFormFilenameSafe(osAux.c_str(), osRawBandFileName.c_str(), "");
     }
@@ -100,8 +100,8 @@ MMRBand::MMRBand(MMRRel &pfRel, CPLString osRELFileNameIn,
         return;
     }
 
-    pfRel.SetXSize(nWidth);
-    pfRel.SetYSize(nHeight);
+    pfRel->SetXSize(nWidth);
+    pfRel->SetYSize(nHeight);
 
     // Getting data type and compression.
     // If error, message given inside.
