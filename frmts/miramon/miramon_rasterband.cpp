@@ -28,13 +28,9 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
 
     eAccess = poDSIn->GetAccess();
 
-    if (nBand < 0 || nBand > pfRel->GetNBands())
-    {
-        CPLAssert(false);
+    MMRBand *poBand = pfRel->GetLastBand();
+    if (poBand == nullptr)
         return;
-    }
-
-    MMRBand *poBand = pfRel->GetBand(nBand - 1);
 
     // Getting some band info
     osBandSection = poBand->GetBandSection();
@@ -58,10 +54,10 @@ MMRRasterBand::~MMRRasterBand()
 {
     FlushCache(true);
 
-    if (poCT != nullptr)
-        delete poCT;
+    if (ColorTable.poCT != nullptr)
+        delete ColorTable.poCT;
 
-    if (poDefaultRAT)
+    if (poDefaultRAT != nullptr)
         delete poDefaultRAT;
 }
 
@@ -124,13 +120,7 @@ double MMRRasterBand::GetNoDataValue(int *pbSuccess)
 {
     double dfNoData = 0.0;
 
-    if (nBand < 0 || (nBand - 1) > pfRel->GetNBands())
-    {
-        CPLAssert(false);
-        return dfNoData;
-    }
-
-    MMRBand *poBand = pfRel->GetBand(nBand - 1);
+    MMRBand *poBand = pfRel->GetLastBand();
     if (!poBand)
     {
         CPLAssert(false);
@@ -199,9 +189,12 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
     if (nBand < 1 || nBand > pfRel->GetNBands())
         return CE_Failure;
 
-    eErr = pfRel->GetBand(nBand - 1)->GetRasterBlock(
-        nBlockXOff, nBlockYOff, pImage,
-        nBlockXSize * nBlockYSize * GDALGetDataTypeSizeBytes(eDataType));
+    MMRBand *pBand = pfRel->GetBand(nBand - 1);
+    if (!pBand)
+        return CE_Failure;
+    eErr = pBand->GetRasterBlock(nBlockXOff, nBlockYOff, pImage,
+                                 nBlockXSize * nBlockYSize *
+                                     GDALGetDataTypeSizeBytes(eDataType));
 
     if (eErr == CE_None &&
         eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BIT)
@@ -227,10 +220,11 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 
 const char *MMRRasterBand::GetDescription() const
 {
-    if (nBand < 1 || nBand > pfRel->GetNBands())
+    MMRBand *pBand = pfRel->GetBand(nBand - 1);
+    if (!pBand)
         return "";
 
-    return pfRel->GetBand(nBand - 1)->GetBandName();
+    return pBand->GetBandName();
 }
 
 /************************************************************************/
@@ -240,7 +234,7 @@ const char *MMRRasterBand::GetDescription() const
 GDALColorInterp MMRRasterBand::GetColorInterpretation()
 
 {
-    if (poCT != nullptr)
+    if (ColorTable.poCT != nullptr)
         return GCI_PaletteIndex;
 
     return GCI_Undefined;
@@ -252,27 +246,27 @@ GDALColorInterp MMRRasterBand::GetColorInterpretation()
 
 GDALColorTable *MMRRasterBand::GetColorTable()
 {
-    if (poCT != nullptr || bTriedLoadColorTable)
-        return poCT;
+    if (ColorTable.poCT != nullptr || ColorTable.bTriedLoadColorTable)
+        return ColorTable.poCT;
 
-    poCT = new GDALColorTable();
+    ColorTable.poCT = new GDALColorTable();
 
     /*
     * GDALPaletteInterp
     */
-    bTriedLoadColorTable = true;
+    ColorTable.bTriedLoadColorTable = true;
 
     if (CE_None != UpdateTableColorsFromPalette())
     {
         // No color table available. Perhaps some attribute table with the colors?
-        delete poCT;
-        poCT = nullptr;
-        return poCT;
+        delete ColorTable.poCT;
+        ColorTable.poCT = nullptr;
+        return ColorTable.poCT;
     }
 
     ConvertColorsFromPaletteToColorTable();
 
-    return poCT;
+    return ColorTable.poCT;
 }
 
 void MMRRasterBand::ConvertColorsFromPaletteToColorTable()
@@ -302,7 +296,7 @@ void MMRRasterBand::ConvertColorsFromPaletteToColorTable()
                 break;
             }
 
-            poCT->SetColorEntry(iColor, &sEntry);
+            ColorTable.poCT->SetColorEntry(iColor, &sEntry);
         }
     }
 }
@@ -320,9 +314,9 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
         return AssignUniformColorTable();
 
     if (EQUAL(os_Color_TractamentVariable, "Categoric"))
-        bColorTableCategorical = true;
+        ColorTable.bColorTableCategorical = true;
     else
-        bColorTableCategorical = false;
+        ColorTable.bColorTableCategorical = false;
 
     CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
@@ -334,7 +328,7 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
     if (CE_None != peErr)
         return peErr;
 
-    if (bColorTableCategorical)
+    if (ColorTable.bColorTableCategorical)
         peErr = FromPaletteToColorTableCategoricalMode();
     else
         peErr = FromPaletteToColorTableContinousMode();
@@ -358,9 +352,9 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
         return AssignUniformColorTable();
 
     if (EQUAL(os_Color_TractamentVariable, "Categoric"))
-        bColorTableCategorical = true;
+        ColorTable.bColorTableCategorical = true;
     else
-        bColorTableCategorical = false;
+        ColorTable.bColorTableCategorical = false;
 
     CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
@@ -372,7 +366,7 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     if (CE_None != peErr)
         return peErr;
 
-    if (bColorTableCategorical)
+    if (ColorTable.bColorTableCategorical)
         peErr = FromPaletteToAttributeTableCategoricalMode();
     else
         peErr = FromPaletteToAttributeTableContinousMode();
@@ -386,11 +380,11 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
 CPLErr MMRRasterBand::AssignUniformColorTable()
 
 {
-    MMRBand *poBand = pfRel->GetBand(nBand - 1);
+    MMRBand *poBand = pfRel->GetLastBand();
     if (!poBand)
         return CE_Failure;
 
-    bConstantColor = true;
+    ColorTable.bConstantColor = true;
 
     // Example: Color_Smb=(255,0,255)
     CPLString os_Color_Smb =
@@ -409,10 +403,13 @@ CPLErr MMRRasterBand::AssignUniformColorTable()
                      "Invalid constant color: \"%s\"", pfRel->GetRELNameChar());
             return CE_Failure;
         }
-        sConstantColorRGB.c1 = static_cast<short>(atoi(papszTokens[0]));
-        sConstantColorRGB.c2 = static_cast<short>(atoi(papszTokens[1]));
-        sConstantColorRGB.c3 = static_cast<short>(atoi(papszTokens[2]));
-        sConstantColorRGB.c4 = 255;
+        ColorTable.sConstantColorRGB.c1 =
+            static_cast<short>(atoi(papszTokens[0]));
+        ColorTable.sConstantColorRGB.c2 =
+            static_cast<short>(atoi(papszTokens[1]));
+        ColorTable.sConstantColorRGB.c3 =
+            static_cast<short>(atoi(papszTokens[2]));
+        ColorTable.sConstantColorRGB.c4 = 255;
         CSLDestroy(papszTokens);
     }
 
@@ -429,7 +426,7 @@ CPLErr MMRRasterBand::AssignUniformColorTable()
     {
         try
         {
-            aadfPCT[iColumn].resize(nNPossibleValues);
+            ColorTable.aadfPCT[iColumn].resize(nNPossibleValues);
         }
         catch (std::bad_alloc &e)
         {
@@ -442,19 +439,22 @@ CPLErr MMRRasterBand::AssignUniformColorTable()
     {
         if (poBand->BandHasNoData() && nITableColor == poBand->GetNoDataValue())
         {
-            aadfPCT[0][nITableColor] = 0;
-            aadfPCT[1][nITableColor] = 0;
-            aadfPCT[2][nITableColor] = 0;
-            aadfPCT[3][nITableColor] = 0;
+            ColorTable.aadfPCT[0][nITableColor] = 0;
+            ColorTable.aadfPCT[1][nITableColor] = 0;
+            ColorTable.aadfPCT[2][nITableColor] = 0;
+            ColorTable.aadfPCT[3][nITableColor] = 0;
         }
         else
         {
             // Before the minimum, we apply the color of the first
             // element (as a placeholder).
-            aadfPCT[0][nITableColor] = sConstantColorRGB.c1;
-            aadfPCT[1][nITableColor] = sConstantColorRGB.c2;
-            aadfPCT[2][nITableColor] = sConstantColorRGB.c3;
-            aadfPCT[3][nITableColor] = 255;
+            ColorTable.aadfPCT[0][nITableColor] =
+                ColorTable.sConstantColorRGB.c1;
+            ColorTable.aadfPCT[1][nITableColor] =
+                ColorTable.sConstantColorRGB.c2;
+            ColorTable.aadfPCT[2][nITableColor] =
+                ColorTable.sConstantColorRGB.c3;
+            ColorTable.aadfPCT[3][nITableColor] = 255;
         }
     }
 
@@ -463,10 +463,10 @@ CPLErr MMRRasterBand::AssignUniformColorTable()
 
 CPLErr MMRRasterBand::ReadPalette(CPLString os_Color_Paleta)
 {
-    if (bPaletteColorsRead)
+    if (ColorTable.bPaletteColorsRead)
         return CE_None;
 
-    bPaletteColorsRead = true;
+    ColorTable.bPaletteColorsRead = true;
 
     CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta);
     if (osExtension.tolower() == "dbf")
@@ -587,7 +587,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     char *pzsRecord = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
     char *pzsField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
 
-    if (bColorTableCategorical)
+    if (ColorTable.bColorTableCategorical)
     {
         // In categorical mode, the maximum CLAUSIMBOL value is the last color to read.
 
@@ -615,16 +615,16 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             CPLString osField = pzsField;
             osField.replaceAll(" ", "");
             if (osField.empty())
-                bPaletteHasNodata = true;
+                ColorTable.bPaletteHasNodata = true;
             else if (nPCTColors < atoi(osField))
                 nPCTColors = atoi(osField);
         }
         nPCTColors++;  // Number is one more than the maximum
 
         // If there is nodata color, it has to be computed
-        if (bPaletteHasNodata)
+        if (ColorTable.bPaletteHasNodata)
         {
-            nNoDataPaletteIndex = nPCTColors;
+            ColorTable.nNoDataPaletteIndex = nPCTColors;
             nPCTColors++;
         }
     }
@@ -652,7 +652,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     {
         try
         {
-            aadfPaletteColors[iColumn].resize(nPCTColors, 0);
+            ColorTable.aadfPaletteColors[iColumn].resize(nPCTColors, 0);
         }
         catch (std::bad_alloc &e)
         {
@@ -662,7 +662,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     }
 
     VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset, SEEK_SET);
-    if (bColorTableCategorical)
+    if (ColorTable.bColorTableCategorical)
     {
         // Each record's CLAUSIMBOL field matches a pixel value present in the raster,
         // enabling a direct mapping between raster values and color entries.
@@ -671,13 +671,17 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         int nIPCTColors;
         for (nIPCTColors = 0; nIPCTColors < nPCTColors; nIPCTColors++)
         {
-            aadfPaletteColors[0][nIPCTColors] = sDefaultColorRGB.c1;
-            aadfPaletteColors[1][nIPCTColors] = sDefaultColorRGB.c2;
-            aadfPaletteColors[2][nIPCTColors] = sDefaultColorRGB.c3;
-            aadfPaletteColors[3][nIPCTColors] = sDefaultColorRGB.c4;
+            ColorTable.aadfPaletteColors[0][nIPCTColors] =
+                ColorTable.sDefaultColorRGB.c1;
+            ColorTable.aadfPaletteColors[1][nIPCTColors] =
+                ColorTable.sDefaultColorRGB.c2;
+            ColorTable.aadfPaletteColors[2][nIPCTColors] =
+                ColorTable.sDefaultColorRGB.c3;
+            ColorTable.aadfPaletteColors[3][nIPCTColors] =
+                ColorTable.sDefaultColorRGB.c4;
         }
 
-        // Getting the indexs of the colors and assigning to aadfPaletteColors
+        // Getting the indexs of the colors and assigning to ColorTable.aadfPaletteColors
         int nIPaletteIndex;
         for (nIRecord = 0; nIRecord < oColorTable.nRecords; nIRecord++)
         {
@@ -704,8 +708,9 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
             nIPaletteIndex = atoi(osField);
 
-            AssignColorFromDBF(oColorTable, pzsRecord, pzsField, nRIndex,
-                               nGIndex, nBIndex, nIPaletteIndex);
+            ColorTable.AssignColorFromDBF(oColorTable, pzsRecord, pzsField,
+                                          nRIndex, nGIndex, nBIndex,
+                                          nIPaletteIndex);
         }
     }
     else
@@ -739,12 +744,13 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             osField.replaceAll(" ", "");
             if (osField.empty())  // Nodata value
             {
-                bPaletteHasNodata = true;
-                nNoDataPaletteIndex = nIPCTColors;
+                ColorTable.bPaletteHasNodata = true;
+                ColorTable.nNoDataPaletteIndex = nIPCTColors;
             }
 
-            AssignColorFromDBF(oColorTable, pzsRecord, pzsField, nRIndex,
-                               nGIndex, nBIndex, nIPCTColors);
+            ColorTable.AssignColorFromDBF(oColorTable, pzsRecord, pzsField,
+                                          nRIndex, nGIndex, nBIndex,
+                                          nIPCTColors);
         }
     }
 
@@ -756,7 +762,8 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     return CE_None;
 }
 
-void MMRRasterBand::AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
+// Posar a un fitxer apart
+void MMRColorTable::AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
                                        char *pzsRecord, char *pzsField,
                                        MM_EXT_DBF_N_FIELDS &nRIndex,
                                        MM_EXT_DBF_N_FIELDS &nGIndex,
@@ -810,7 +817,7 @@ MMRRasterBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
         CPLFormFilenameSafe(osAux.c_str(), os_Color_Paleta_DBF.c_str(), "");
 
     // This kind of palette has not NoData color.
-    //bPaletteHasNodata = false;
+    //ColorTable.bPaletteHasNodata = false;
 
     CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta_DBF);
     int nNReadPaletteColors = 0;
@@ -829,7 +836,7 @@ MMRRasterBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
     {
         try
         {
-            aadfPaletteColors[iColumn].resize(nNPaletteColors, 0);
+            ColorTable.aadfPaletteColors[iColumn].resize(nNPaletteColors, 0);
         }
         catch (std::bad_alloc &e)
         {
@@ -868,16 +875,19 @@ MMRRasterBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
         // papszTokens[0] is ignored;
 
         // RED
-        aadfPaletteColors[0][nNReadPaletteColors] = CPLAtof(papszTokens[1]);
+        ColorTable.aadfPaletteColors[0][nNReadPaletteColors] =
+            CPLAtof(papszTokens[1]);
 
         // GREEN
-        aadfPaletteColors[1][nNReadPaletteColors] = CPLAtof(papszTokens[2]);
+        ColorTable.aadfPaletteColors[1][nNReadPaletteColors] =
+            CPLAtof(papszTokens[2]);
 
         // BLUE
-        aadfPaletteColors[2][nNReadPaletteColors] = CPLAtof(papszTokens[3]);
+        ColorTable.aadfPaletteColors[2][nNReadPaletteColors] =
+            CPLAtof(papszTokens[3]);
 
         // ALPHA
-        aadfPaletteColors[3][nNReadPaletteColors] = 255.0;
+        ColorTable.aadfPaletteColors[3][nNReadPaletteColors] = 255.0;
 
         CSLDestroy(papszTokens);
         nNReadPaletteColors++;
@@ -887,10 +897,14 @@ MMRRasterBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
     for (int nIColorIndex = nNReadPaletteColors; nIColorIndex < nNPaletteColors;
          nIColorIndex++)
     {
-        aadfPaletteColors[0][nNReadPaletteColors] = sDefaultColorRGB.c1;
-        aadfPaletteColors[1][nNReadPaletteColors] = sDefaultColorRGB.c2;
-        aadfPaletteColors[2][nNReadPaletteColors] = sDefaultColorRGB.c3;
-        aadfPaletteColors[3][nNReadPaletteColors] = sDefaultColorRGB.c4;
+        ColorTable.aadfPaletteColors[0][nNReadPaletteColors] =
+            ColorTable.sDefaultColorRGB.c1;
+        ColorTable.aadfPaletteColors[1][nNReadPaletteColors] =
+            ColorTable.sDefaultColorRGB.c2;
+        ColorTable.aadfPaletteColors[2][nNReadPaletteColors] =
+            ColorTable.sDefaultColorRGB.c3;
+        ColorTable.aadfPaletteColors[3][nNReadPaletteColors] =
+            ColorTable.sDefaultColorRGB.c4;
         nNReadPaletteColors++;
     }
 
@@ -909,18 +923,22 @@ MMRRasterBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
 void MMRRasterBand::AssignRGBColor(int nIndexDstCT, int nIndexSrcPalete)
 {
-    aadfPCT[0][nIndexDstCT] = aadfPaletteColors[0][nIndexSrcPalete];
-    aadfPCT[1][nIndexDstCT] = aadfPaletteColors[1][nIndexSrcPalete];
-    aadfPCT[2][nIndexDstCT] = aadfPaletteColors[2][nIndexSrcPalete];
-    aadfPCT[3][nIndexDstCT] = aadfPaletteColors[3][nIndexSrcPalete];
+    ColorTable.aadfPCT[0][nIndexDstCT] =
+        ColorTable.aadfPaletteColors[0][nIndexSrcPalete];
+    ColorTable.aadfPCT[1][nIndexDstCT] =
+        ColorTable.aadfPaletteColors[1][nIndexSrcPalete];
+    ColorTable.aadfPCT[2][nIndexDstCT] =
+        ColorTable.aadfPaletteColors[2][nIndexSrcPalete];
+    ColorTable.aadfPCT[3][nIndexDstCT] =
+        ColorTable.aadfPaletteColors[3][nIndexSrcPalete];
 }
 
 void MMRRasterBand::AssignRGBColorDirectly(int nIndexDstCT, double dfValue)
 {
-    aadfPCT[0][nIndexDstCT] = dfValue;
-    aadfPCT[1][nIndexDstCT] = dfValue;
-    aadfPCT[2][nIndexDstCT] = dfValue;
-    aadfPCT[3][nIndexDstCT] = dfValue;
+    ColorTable.aadfPCT[0][nIndexDstCT] = dfValue;
+    ColorTable.aadfPCT[1][nIndexDstCT] = dfValue;
+    ColorTable.aadfPCT[2][nIndexDstCT] = dfValue;
+    ColorTable.aadfPCT[3][nIndexDstCT] = dfValue;
 }
 
 // Converts pallete Colors to Colors of pixels
@@ -928,7 +946,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 
 {
     // If the palette is not loaded, then, ignore the conversion silently
-    if (aadfPaletteColors[0].size() == 0)
+    if (ColorTable.aadfPaletteColors[0].size() == 0)
         return CE_Failure;
 
     int nNPossibleValues = static_cast<int>(
@@ -937,7 +955,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
     {
         try
         {
-            aadfPCT[iColumn].resize(nNPossibleValues);
+            ColorTable.aadfPCT[iColumn].resize(nNPossibleValues);
         }
         catch (std::bad_alloc &e)
         {
@@ -948,7 +966,8 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 
     int nIPaletteColor = 0;
     // Giving color to the ones in the table
-    int nNPaletteColors = static_cast<int>(aadfPaletteColors[0].size());
+    int nNPaletteColors =
+        static_cast<int>(ColorTable.aadfPaletteColors[0].size());
 
     // No more colors than needed.
     if (nNPaletteColors > nNPossibleValues)
@@ -956,19 +975,23 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 
     for (nIPaletteColor = 0; nIPaletteColor < nNPaletteColors; nIPaletteColor++)
     {
-        aadfPCT[0][nIPaletteColor] = aadfPaletteColors[0][nIPaletteColor];
-        aadfPCT[1][nIPaletteColor] = aadfPaletteColors[1][nIPaletteColor];
-        aadfPCT[2][nIPaletteColor] = aadfPaletteColors[2][nIPaletteColor];
-        aadfPCT[3][nIPaletteColor] = aadfPaletteColors[3][nIPaletteColor];
+        ColorTable.aadfPCT[0][nIPaletteColor] =
+            ColorTable.aadfPaletteColors[0][nIPaletteColor];
+        ColorTable.aadfPCT[1][nIPaletteColor] =
+            ColorTable.aadfPaletteColors[1][nIPaletteColor];
+        ColorTable.aadfPCT[2][nIPaletteColor] =
+            ColorTable.aadfPaletteColors[2][nIPaletteColor];
+        ColorTable.aadfPCT[3][nIPaletteColor] =
+            ColorTable.aadfPaletteColors[3][nIPaletteColor];
     }
 
     // Rest of colors
     for (; nIPaletteColor < nNPossibleValues; nIPaletteColor++)
     {
-        aadfPCT[0][nIPaletteColor] = sDefaultColorRGB.c1;
-        aadfPCT[1][nIPaletteColor] = sDefaultColorRGB.c2;
-        aadfPCT[2][nIPaletteColor] = sDefaultColorRGB.c3;
-        aadfPCT[3][nIPaletteColor] = sDefaultColorRGB.c4;
+        ColorTable.aadfPCT[0][nIPaletteColor] = ColorTable.sDefaultColorRGB.c1;
+        ColorTable.aadfPCT[1][nIPaletteColor] = ColorTable.sDefaultColorRGB.c2;
+        ColorTable.aadfPCT[2][nIPaletteColor] = ColorTable.sDefaultColorRGB.c3;
+        ColorTable.aadfPCT[3][nIPaletteColor] = ColorTable.sDefaultColorRGB.c4;
     }
 
     return CE_None;
@@ -978,7 +1001,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
 
 {
-    MMRBand *poBand = pfRel->GetBand(nBand - 1);
+    MMRBand *poBand = pfRel->GetLastBand();
     if (!poBand)
         return CE_Failure;
 
@@ -995,7 +1018,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     {
         try
         {
-            aadfPCT[iColumn].resize(nNPossibleValues);
+            ColorTable.aadfPCT[iColumn].resize(nNPossibleValues);
         }
         catch (std::bad_alloc &e)
         {
@@ -1005,13 +1028,14 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     }
 
     // Number of real colors (appart from NoData)
-    int nNPaletteColors = static_cast<int>(aadfPaletteColors[0].size());
-    if (bPaletteHasNodata)
+    int nNPaletteColors =
+        static_cast<int>(ColorTable.aadfPaletteColors[0].size());
+    if (ColorTable.bPaletteHasNodata)
         nNPaletteColors--;
 
     // If palette doesn't have nodata last index is associated
-    if (!bPaletteHasNodata)
-        nNoDataPaletteIndex = nNPaletteColors;
+    if (!ColorTable.bPaletteHasNodata)
+        ColorTable.nNoDataPaletteIndex = nNPaletteColors;
 
     if (static_cast<int>(eMMBytesPerPixel) > 2 &&
         nNPaletteColors < nNPossibleValues)
@@ -1021,7 +1045,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     unsigned short nIndexColor;
     double dfSlope = 1, dfIntercept = 0;
 
-    if (bPaletteHasNodata && nNoDataPaletteIndex == 0)
+    if (ColorTable.bPaletteHasNodata && ColorTable.nNoDataPaletteIndex == 0)
         nFirstValidPaletteIndex = 1;
     else
         nFirstValidPaletteIndex = 0;
@@ -1032,8 +1056,9 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
         dfSlope = nNPaletteColors /
                   ((poBand->GetVisuMax() + 1 - poBand->GetVisuMin()));
 
-        if (bPaletteHasNodata &&
-            nNoDataPaletteIndex != 0)  // nodata at the end of the list
+        if (ColorTable.bPaletteHasNodata &&
+            ColorTable.nNoDataPaletteIndex !=
+                0)  // nodata at the end of the list
             dfIntercept = -dfSlope * poBand->GetVisuMin();
         else
             dfIntercept = -dfSlope * poBand->GetVisuMin() + 1;
@@ -1042,10 +1067,11 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     for (int nIPaletteColor = 0; nIPaletteColor < nNPossibleValues;
          nIPaletteColor++)
     {
-        if (poBand->BandHasNoData() && nIPaletteColor == nNoDataPaletteIndex)
+        if (poBand->BandHasNoData() &&
+            nIPaletteColor == ColorTable.nNoDataPaletteIndex)
         {
-            if (bPaletteHasNodata)
-                AssignRGBColor(nIPaletteColor, nNoDataPaletteIndex);
+            if (ColorTable.bPaletteHasNodata)
+                AssignRGBColor(nIPaletteColor, ColorTable.nNoDataPaletteIndex);
             else
                 AssignRGBColorDirectly(nIPaletteColor, 255);
         }
@@ -1091,7 +1117,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
 CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
 
 {
-    MMRBand *poBand = pfRel->GetBand(nBand - 1);
+    MMRBand *poBand = pfRel->GetLastBand();
     if (!poBand)
         return CE_Failure;
 
@@ -1100,9 +1126,10 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
         return CE_Failure;
 
     // Number of real colors (appart from NoData)
-    int nNPaletteColors = static_cast<int>(aadfPaletteColors[0].size());
+    int nNPaletteColors =
+        static_cast<int>(ColorTable.aadfPaletteColors[0].size());
     int nRealNPaletteColors = nNPaletteColors;
-    if (bPaletteHasNodata)
+    if (ColorTable.bPaletteHasNodata)
     {
         if (nNPaletteColors < 1)
             return CE_Failure;
@@ -1123,20 +1150,26 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
         static_cast<int>(nRealNPaletteColors));  // +1 for last element
 
     // If palette doesn't have nodata last index is associated
-    if (!bPaletteHasNodata)
-        nNoDataPaletteIndex = nNPaletteColors;
+    if (!ColorTable.bPaletteHasNodata)
+        ColorTable.nNoDataPaletteIndex = nNPaletteColors;
 
     // A scaling is applied between the minimum and maximum display values.
     double dfInterval =
         (poBand->GetVisuMax() - poBand->GetVisuMin()) / nNPaletteColors;
 
-    if (poBand->BandHasNoData() && bPaletteHasNodata)
+    if (poBand->BandHasNoData() && ColorTable.bPaletteHasNodata)
     {
         poDefaultRAT->SetValue(0, 0, poBand->GetNoDataValue());
         poDefaultRAT->SetValue(0, 1, poBand->GetNoDataValue());
-        poDefaultRAT->SetValue(0, 2, aadfPaletteColors[0][nNoDataPaletteIndex]);
-        poDefaultRAT->SetValue(0, 3, aadfPaletteColors[1][nNoDataPaletteIndex]);
-        poDefaultRAT->SetValue(0, 4, aadfPaletteColors[2][nNoDataPaletteIndex]);
+        poDefaultRAT->SetValue(
+            0, 2,
+            ColorTable.aadfPaletteColors[0][ColorTable.nNoDataPaletteIndex]);
+        poDefaultRAT->SetValue(
+            0, 3,
+            ColorTable.aadfPaletteColors[1][ColorTable.nNoDataPaletteIndex]);
+        poDefaultRAT->SetValue(
+            0, 4,
+            ColorTable.aadfPaletteColors[2][ColorTable.nNoDataPaletteIndex]);
     }
 
     int nIPaletteColor = 0;
@@ -1150,11 +1183,11 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
             poBand->GetVisuMin() +
                 dfInterval * (static_cast<double>(nIPaletteColor) + 1));
         poDefaultRAT->SetValue(nIPaletteColor + 1, 2,
-                               aadfPaletteColors[0][nIPaletteColor]);
+                               ColorTable.aadfPaletteColors[0][nIPaletteColor]);
         poDefaultRAT->SetValue(nIPaletteColor + 1, 3,
-                               aadfPaletteColors[1][nIPaletteColor]);
+                               ColorTable.aadfPaletteColors[1][nIPaletteColor]);
         poDefaultRAT->SetValue(nIPaletteColor + 1, 4,
-                               aadfPaletteColors[2][nIPaletteColor]);
+                               ColorTable.aadfPaletteColors[2][nIPaletteColor]);
     }
 
     // Last interval
@@ -1164,21 +1197,21 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
                                    (static_cast<double>(nNPaletteColors) - 1));
     poDefaultRAT->SetValue(nIPaletteColor, 1, poBand->GetVisuMax());
     poDefaultRAT->SetValue(nIPaletteColor, 2,
-                           aadfPaletteColors[0][nIPaletteColor - 1]);
+                           ColorTable.aadfPaletteColors[0][nIPaletteColor - 1]);
     poDefaultRAT->SetValue(nIPaletteColor, 3,
-                           aadfPaletteColors[1][nIPaletteColor - 1]);
+                           ColorTable.aadfPaletteColors[1][nIPaletteColor - 1]);
     poDefaultRAT->SetValue(nIPaletteColor, 4,
-                           aadfPaletteColors[2][nIPaletteColor - 1]);
+                           ColorTable.aadfPaletteColors[2][nIPaletteColor - 1]);
 
     // Last value
     poDefaultRAT->SetValue(nIPaletteColor + 1, 0, poBand->GetVisuMax());
     poDefaultRAT->SetValue(nIPaletteColor + 1, 1, poBand->GetVisuMax());
     poDefaultRAT->SetValue(nIPaletteColor + 1, 2,
-                           aadfPaletteColors[0][nIPaletteColor - 1]);
+                           ColorTable.aadfPaletteColors[0][nIPaletteColor - 1]);
     poDefaultRAT->SetValue(nIPaletteColor + 1, 3,
-                           aadfPaletteColors[1][nIPaletteColor - 1]);
+                           ColorTable.aadfPaletteColors[1][nIPaletteColor - 1]);
     poDefaultRAT->SetValue(nIPaletteColor + 1, 4,
-                           aadfPaletteColors[2][nIPaletteColor - 1]);
+                           ColorTable.aadfPaletteColors[2][nIPaletteColor - 1]);
 
     return CE_None;
 }
@@ -1189,7 +1222,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
 {
     // TODO aixo va a la taula d'atributs en mode categòric
     // If the palette is not loaded, then, ignore the conversion silently
-    if (aadfPaletteColors[0].size() == 0)
+    if (ColorTable.aadfPaletteColors[0].size() == 0)
         return CE_Failure;
 
     int nNPossibleValues = static_cast<int>(
@@ -1198,7 +1231,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
     {
         try
         {
-            aadfPCT[iColumn].resize(nNPossibleValues);
+            ColorTable.aadfPCT[iColumn].resize(nNPossibleValues);
         }
         catch (std::bad_alloc &e)
         {
@@ -1209,7 +1242,8 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
 
     int nIPaletteColor = 0;
     // Giving color to the ones in the table
-    int nNPaletteColors = static_cast<int>(aadfPaletteColors[0].size());
+    int nNPaletteColors =
+        static_cast<int>(ColorTable.aadfPaletteColors[0].size());
 
     // No more colors than needed.
     if (nNPaletteColors > nNPossibleValues)
@@ -1217,19 +1251,23 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
 
     for (nIPaletteColor = 0; nIPaletteColor < nNPaletteColors; nIPaletteColor++)
     {
-        aadfPCT[0][nIPaletteColor] = aadfPaletteColors[0][nIPaletteColor];
-        aadfPCT[1][nIPaletteColor] = aadfPaletteColors[1][nIPaletteColor];
-        aadfPCT[2][nIPaletteColor] = aadfPaletteColors[2][nIPaletteColor];
-        aadfPCT[3][nIPaletteColor] = aadfPaletteColors[3][nIPaletteColor];
+        ColorTable.aadfPCT[0][nIPaletteColor] =
+            ColorTable.aadfPaletteColors[0][nIPaletteColor];
+        ColorTable.aadfPCT[1][nIPaletteColor] =
+            ColorTable.aadfPaletteColors[1][nIPaletteColor];
+        ColorTable.aadfPCT[2][nIPaletteColor] =
+            ColorTable.aadfPaletteColors[2][nIPaletteColor];
+        ColorTable.aadfPCT[3][nIPaletteColor] =
+            ColorTable.aadfPaletteColors[3][nIPaletteColor];
     }
 
     // Rest of colors
     for (; nIPaletteColor < nNPossibleValues; nIPaletteColor++)
     {
-        aadfPCT[0][nIPaletteColor] = sDefaultColorRGB.c1;
-        aadfPCT[1][nIPaletteColor] = sDefaultColorRGB.c2;
-        aadfPCT[2][nIPaletteColor] = sDefaultColorRGB.c3;
-        aadfPCT[3][nIPaletteColor] = sDefaultColorRGB.c4;
+        ColorTable.aadfPCT[0][nIPaletteColor] = ColorTable.sDefaultColorRGB.c1;
+        ColorTable.aadfPCT[1][nIPaletteColor] = ColorTable.sDefaultColorRGB.c2;
+        ColorTable.aadfPCT[2][nIPaletteColor] = ColorTable.sDefaultColorRGB.c3;
+        ColorTable.aadfPCT[3][nIPaletteColor] = ColorTable.sDefaultColorRGB.c4;
     }
 
     return CE_None;
@@ -1295,9 +1333,6 @@ CPLErr MMRRasterBand::FillRATFromDBF()
             poDefaultRAT = nullptr;
             return CE_Failure;
         }
-
-        //UUU
-        //ConvertColorsFromPaletteToColorTable();
 
         return CE_None;
     }

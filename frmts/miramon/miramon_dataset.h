@@ -57,7 +57,7 @@ class MMRDataset final : public GDALPamDataset
     CPLErr SetMetadataItem(const char *, const char *,
                            const char * = "") override;
 
-    char GetIsValid() const
+    bool IsValid() const
     {
         return bIsValid;
     }

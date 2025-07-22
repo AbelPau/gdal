@@ -748,7 +748,7 @@ CPLErr MMRRel::ParseBandInfo()
 
         papoBand[nBands] = new MMRBand(*this, osBandSectionValue);
 
-        if (!papoBand[nBands]->GetIsValid())
+        if (!papoBand[nBands]->IsValid())
         {
             // This band is not been completed, so let's detele now
             // The rest of bands will be deleted by destructor.

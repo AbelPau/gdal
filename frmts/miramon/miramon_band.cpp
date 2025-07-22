@@ -94,8 +94,9 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osBandSectionIn)
         return;
     }
 
-    pfRel->SetXSize(nWidth);
-    pfRel->SetYSize(nHeight);
+    // Aixo va al constructor del REL
+    //pfRel->SetXSize(nWidth);
+    //pfRel->SetYSize(nHeight);
 
     // Getting data type and compression.
     // If error, message given inside.

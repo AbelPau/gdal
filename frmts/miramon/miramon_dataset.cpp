@@ -27,7 +27,7 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 
     // Creating the class MMRRel.
     auto pMMfRel = std::make_unique<MMRRel>(poOpenInfo->pszFilename);
-    if (!pMMfRel->GetIsValid())
+    if (!pMMfRel->IsValid())
     {
         if (pMMfRel->isAMiraMonFile())
         {
@@ -153,7 +153,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 
     // Create the Dataset (with bands or Subdatasets).
     auto poDS = std::make_unique<MMRDataset>(poOpenInfo);
-    if (!poDS->GetIsValid())
+    if (!poDS->IsValid())
         return nullptr;
 
     // Set description
@@ -219,6 +219,7 @@ int MMRDataset::GetDataSetBoundingBox()
         return 1;
     m_gt[0] = atof(osMinX);
 
+    // Això va al constructor del REL
     int nNCols = pfRel->GetColumnsNumberFromREL();
     if (nNCols <= 0)
         return 1;
@@ -259,11 +260,9 @@ int MMRDataset::GetBandBoundingBox(int nIBand)
     m_gt[4] = 0.0;
     m_gt[5] = 1.0;
 
-    if (!pfRel->GetBands() || nIBand >= pfRel->GetNBands() ||
-        !pfRel->GetBand(nIBand))
-        return 1;
-
     MMRBand *poBand = pfRel->GetBand(nIBand);
+    if (!poBand)
+        return 1;
 
     m_gt[0] = poBand->GetBoundingBoxMinX();
     m_gt[1] = (poBand->GetBoundingBoxMaxX() - m_gt[0]) / poBand->GetWidth();
@@ -332,6 +331,8 @@ bool MMRDataset::NextBandInANewDataSet(int nIBand)
 
     MMRBand *pThisBand = pfRel->GetBand(nIBand);
     MMRBand *pNextBand = pfRel->GetBand(nIBand + 1);
+    if (!pThisBand || !pNextBand)
+        return false;
 
     // Two images with different numbers of columns are assigned to different subdatasets
     if (pThisBand->GetWidth() != pNextBand->GetWidth())
@@ -376,16 +377,29 @@ void MMRDataset::AssignBandsToSubdataSets()
 
     nNSubdataSets = 1;
     int nIBand = 0;
-    pfRel->GetBand(nIBand)->AssignSubDataSet(nNSubdataSets);
+    MMRBand *pBand = pfRel->GetBand(nIBand);
+    if (!pBand)
+        return;
+
+    pBand->AssignSubDataSet(nNSubdataSets);
+    MMRBand *pNextBand;
     for (; nIBand < pfRel->GetNBands() - 1; nIBand++)
     {
         if (NextBandInANewDataSet(nIBand))
         {
             nNSubdataSets++;
-            pfRel->GetBand(nIBand + 1)->AssignSubDataSet(nNSubdataSets);
+            pNextBand = pfRel->GetBand(nIBand + 1);
+            if (!pNextBand)
+                return;
+            pNextBand->AssignSubDataSet(nNSubdataSets);
         }
         else
-            pfRel->GetBand(nIBand + 1)->AssignSubDataSet(nNSubdataSets);
+        {
+            pNextBand = pfRel->GetBand(nIBand + 1);
+            if (!pNextBand)
+                return;
+            pNextBand->AssignSubDataSet(nNSubdataSets);
+        }
     }
 
     // If there is only one subdataset, it means that
@@ -394,7 +408,12 @@ void MMRDataset::AssignBandsToSubdataSets()
     {
         nNSubdataSets = 0;
         for (nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
-            pfRel->GetBand(nIBand)->AssignSubDataSet(nNSubdataSets);
+        {
+            pBand = pfRel->GetBand(nIBand);
+            if (!pBand)
+                break;
+            pBand->AssignSubDataSet(nNSubdataSets);
+        }
     }
 }
 
@@ -403,34 +422,46 @@ void MMRDataset::CreateSubdatasetsFromBands()
     CPLStringList oSubdatasetList;
     CPLString osDSName;
     CPLString osDSDesc;
+    MMRBand *pBand;
 
     for (int iSubdataset = 1; iSubdataset <= nNSubdataSets; iSubdataset++)
     {
         int nIBand;
         for (nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
         {
-            if (pfRel->GetBand(nIBand)->GetAssignedSubDataSet() == iSubdataset)
+            pBand = pfRel->GetBand(nIBand);
+            if (!pBand)
+                return;
+            if (pBand->GetAssignedSubDataSet() == iSubdataset)
                 break;
         }
 
+        if (nIBand == pfRel->GetNBands())
+            break;
+
+        pBand = pfRel->GetBand(nIBand);
+        if (!pBand)
+            return;
         // ·$·TODO passar els noms a una funció que determini si calen cometes.
         osDSName.Printf("MiraMonRaster:\"%s\",\"%s\"",
-                        pfRel->GetBand(nIBand)->GetRELFileName().c_str(),
-                        pfRel->GetBand(nIBand)->GetRawBandFileName().c_str());
+                        pBand->GetRELFileName().c_str(),
+                        pBand->GetRawBandFileName().c_str());
         osDSDesc.Printf("Subdataset %d: \"%s\"", iSubdataset,
-                        pfRel->GetBand(nIBand)->GetBandName().c_str());
+                        pBand->GetBandName().c_str());
         nIBand++;
 
         for (; nIBand < pfRel->GetNBands(); nIBand++)
         {
-            if (pfRel->GetBand(nIBand)->GetAssignedSubDataSet() != iSubdataset)
+            pBand = pfRel->GetBand(nIBand);
+            if (!pBand)
+                return;
+            if (pBand->GetAssignedSubDataSet() != iSubdataset)
                 continue;
 
-            osDSName.append(CPLSPrintf(
-                ",\"%s\"",
-                pfRel->GetBand(nIBand)->GetRawBandFileName().c_str()));
-            osDSDesc.append(CPLSPrintf(
-                ",\"%s\"", pfRel->GetBand(nIBand)->GetBandName().c_str()));
+            osDSName.append(
+                CPLSPrintf(",\"%s\"", pBand->GetRawBandFileName().c_str()));
+            osDSDesc.append(
+                CPLSPrintf(",\"%s\"", pBand->GetBandName().c_str()));
         }
 
         oSubdatasetList.AddNameValue(
@@ -450,18 +481,20 @@ void MMRDataset::CreateSubdatasetsFromBands()
 
 void MMRDataset::AssignBands()
 {
+    MMRBand *pBand;
+
     for (int nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
     {
-        if (!pfRel->GetBand(nIBand))
-            continue;  // It's impoosible, but...
-
         // Establish raster info.
-        nRasterXSize = pfRel->GetBand(nIBand)->GetWidth();
-        nRasterYSize = pfRel->GetBand(nIBand)->GetHeight();
+        pBand = pfRel->GetBand(nIBand);
+        if (!pBand)
+            return;
+        nRasterXSize = pBand->GetWidth();
+        nRasterYSize = pBand->GetHeight();
         GetBandBoundingBox(nIBand);  // Fills adfGeoTransform for this band(s)
 
         MMRRasterBand *poRasterBand = new MMRRasterBand(this, nBands + 1);
-        if (!poRasterBand->GetIsValid())
+        if (!poRasterBand->IsValid())
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "Failed to create a RasterBand from '%s'",
@@ -473,11 +506,13 @@ void MMRDataset::AssignBands()
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
 
-        if (!pfRel->GetBand(nIBand)->GetFriendlyDescription().empty())
+        pBand = pfRel->GetBand(nIBand);
+        if (!pBand)
+            return;
+        if (!pBand->GetFriendlyDescription().empty())
         {
-            poBand->SetMetadataItem(
-                "DESCRIPTION",
-                pfRel->GetBand(nIBand)->GetFriendlyDescription());
+            poBand->SetMetadataItem("DESCRIPTION",
+                                    pBand->GetFriendlyDescription());
         }
 
         // Collect GDAL custom Metadata, and "auxiliary" metadata from

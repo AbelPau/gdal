@@ -93,7 +93,7 @@ class MMRBand
     const CPLString GetRELFileName() const;
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
 
-    char GetIsValid() const
+    bool IsValid() const
     {
         return bIsValid;
     }

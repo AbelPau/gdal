@@ -24,6 +24,35 @@
 #include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
 #include "miramon_rel.h"                          // For MMDataType
 
+class MMRColorTable
+{
+  public:
+    void AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
+                            char *pzsRecord, char *pzsField,
+                            MM_EXT_DBF_N_FIELDS &nRIndex,
+                            MM_EXT_DBF_N_FIELDS &nGIndex,
+                            MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);
+
+    bool bPaletteColorsRead = false;
+    bool bColorTableCategorical = false;
+    bool bTriedLoadColorTable = false;
+    GDALColorTable *poCT = nullptr;
+    // Palette info
+    std::array<std::vector<double>, 4> aadfPaletteColors{};
+    GDALColorEntry sDefaultColorRGB = {0, 0, 0, 127};
+
+    bool bPaletteHasNodata = false;
+    // index in the DBF that gives nodata color
+    int nNoDataPaletteIndex = 0;
+    // Default color for nodata
+    GDALColorEntry sNoDataColorRGB = {0, 0, 0, 0};
+
+    std::array<std::vector<double>, 4> aadfPCT{};
+
+    bool bConstantColor = false;
+    GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
+};
+
 /* ==================================================================== */
 /*                            MMRRasterBand                             */
 /* ==================================================================== */
@@ -62,7 +91,7 @@ class MMRRasterBand final : public GDALPamRasterBand
                                         CPLString osDBFName,
                                         CPLString osAssociateRel);
 
-    char GetIsValid() const
+    bool IsValid() const
     {
         return bIsValid;
     }
@@ -74,22 +103,22 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     const std::vector<double> &GetPCT_Red() const
     {
-        return aadfPCT[0];
+        return ColorTable.aadfPCT[0];
     }
 
     const std::vector<double> &GetPCT_Green() const
     {
-        return aadfPCT[1];
+        return ColorTable.aadfPCT[1];
     }
 
     const std::vector<double> &GetPCT_Blue() const
     {
-        return aadfPCT[2];
+        return ColorTable.aadfPCT[2];
     }
 
     const std::vector<double> &GetPCT_Alpha() const
     {
-        return aadfPCT[3];
+        return ColorTable.aadfPCT[3];
     }
 
     void SetMetadataDirty(bool isDirty)
@@ -110,11 +139,6 @@ class MMRRasterBand final : public GDALPamRasterBand
         struct MM_DATA_BASE_XP &oColorTable, MM_EXT_DBF_N_FIELDS &nClauSimbol,
         MM_EXT_DBF_N_FIELDS &nRIndex, MM_EXT_DBF_N_FIELDS &nGIndex,
         MM_EXT_DBF_N_FIELDS &nBIndex);
-    void AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
-                            char *pzsRecord, char *pzsField,
-                            MM_EXT_DBF_N_FIELDS &nRIndex,
-                            MM_EXT_DBF_N_FIELDS &nGIndex,
-                            MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
@@ -129,26 +153,11 @@ class MMRRasterBand final : public GDALPamRasterBand
     MMRRel *pfRel = nullptr;  // Pointer to info from rel. Do not free.
     bool bMetadataDirty = false;
 
+    // Attributte table
     GDALRasterAttributeTable *poDefaultRAT = nullptr;
 
-    bool bPaletteColorsRead = false;
-    bool bColorTableCategorical = false;
-    bool bTriedLoadColorTable = false;
-    GDALColorTable *poCT = nullptr;
-    // Palette info
-    std::array<std::vector<double>, 4> aadfPaletteColors{};
-    GDALColorEntry sDefaultColorRGB = {0, 0, 0, 127};
-
-    bool bPaletteHasNodata = false;
-    // index in the DBF that gives nodata color
-    int nNoDataPaletteIndex = 0;
-    // Default color for nodata
-    GDALColorEntry sNoDataColorRGB = {0, 0, 0, 0};
-
-    std::array<std::vector<double>, 4> aadfPCT{};
-
-    bool bConstantColor = false;
-    GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
+    // Color table
+    MMRColorTable ColorTable;
 };
 
 #endif  // MMRRASTERBAND_H_INCLUDED

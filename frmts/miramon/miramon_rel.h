@@ -71,7 +71,7 @@ class MMRRel
     int GetColumnsNumberFromREL() const;
     int GetRowsNumberFromREL() const;
 
-    char GetIsValid() const
+    bool IsValid() const
     {
         return bIsValid;
     }
@@ -119,6 +119,16 @@ class MMRRel
             return nullptr;
         }
         return papoBand[nIBand];
+    }
+
+    MMRBand *GetLastBand() const
+    {
+        if (nBands < 1)
+        {
+            CPLAssert(false);
+            return nullptr;
+        }
+        return papoBand[nBands - 1];
     }
 
     int isAMiraMonFile() const
