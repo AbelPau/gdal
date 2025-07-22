@@ -5,11 +5,9 @@ add_gdal_driver(
           miramon_rasterband.h
           miramon_rel.h
           miramon_dataset.h
-          miramon_info.h
           miramon_band.cpp
           miramon_rasterband.cpp
           miramon_rel.cpp
-          miramon_info.cpp
           miramon_dataset.cpp
   PLUGIN_CAPABLE
   NO_DEPS

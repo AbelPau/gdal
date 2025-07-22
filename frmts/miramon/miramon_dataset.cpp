@@ -29,12 +29,12 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 {
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
-    // Creating the class MMRInfo.
-    auto pMMInfo = std::make_unique<MMRInfo>(poOpenInfo->pszFilename);
+    // Creating the class MMRRel.
+    auto pMMfRel = std::make_unique<MMRRel>(poOpenInfo->pszFilename);
 
-    if (pMMInfo->nBands == 0)
+    if (pMMfRel->GetNBands() == 0)
     {
-        if (pMMInfo->bIsAMiraMonFile)
+        if (pMMfRel->isAMiraMonFile())
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "Unable to open %s, it has zero usable bands.",
@@ -43,11 +43,11 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
         return;
     }
 
-    hMMR = pMMInfo.release();
+    pfRel = pMMfRel.release();
 
     // General Dataset information available
-    nRasterXSize = hMMR->nXSize;
-    nRasterYSize = hMMR->nYSize;
+    nRasterXSize = pfRel->GetXSize();
+    nRasterYSize = pfRel->GetYSize();
     GetDataSetBoundingBox();  // Fills adfGeoTransform
     ReadProjection();
     nBands = 0;
@@ -82,8 +82,6 @@ MMRDataset::~MMRDataset()
     }
     CPLFree(papoBands);
     papoBands = nullptr;
-
-    delete hMMR;
 }
 
 /************************************************************************/
@@ -92,10 +90,10 @@ MMRDataset::~MMRDataset()
 CPLErr MMRDataset::ReadProjection()
 
 {
-    if (!hMMR->fRel)
+    if (!pfRel)
         return CE_Failure;
 
-    CPLString osSRS = hMMR->fRel->GetMetadataValue(
+    CPLString osSRS = pfRel->GetMetadataValue(
         "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
 
     char szResult[MM_MAX_ID_SNY + 10];
@@ -144,7 +142,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 
     // Create the Dataset (with bands or Subdatasets).
     auto poDS = std::make_unique<MMRDataset>(poOpenInfo);
-    if (poDS->hMMR == nullptr)
+    if (poDS->pfRel == nullptr)
         return nullptr;
 
     // Set description
@@ -202,34 +200,34 @@ int MMRDataset::GetDataSetBoundingBox()
     m_gt[4] = 0.0;
     m_gt[5] = 1.0;
 
-    if (!hMMR || !hMMR->fRel)
+    if (!pfRel)
         return 1;
 
-    CPLString osMinX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MinX");
+    CPLString osMinX = pfRel->GetMetadataValue(SECTION_EXTENT, "MinX");
     if (osMinX.empty())
         return 1;
     m_gt[0] = atof(osMinX);
 
-    int nNCols = hMMR->fRel->GetColumnsNumberFromREL();
+    int nNCols = pfRel->GetColumnsNumberFromREL();
     if (nNCols <= 0)
         return 1;
 
-    CPLString osMaxX = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
+    CPLString osMaxX = pfRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
     if (osMaxX.empty())
         return 1;
 
     m_gt[1] = (atof(osMaxX) - m_gt[0]) / nNCols;
     m_gt[2] = 0.0;  // No rotation in MiraMon rasters
 
-    CPLString osMinY = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MinY");
+    CPLString osMinY = pfRel->GetMetadataValue(SECTION_EXTENT, "MinY");
     if (osMinY.empty())
         return 1;
 
-    CPLString osMaxY = hMMR->fRel->GetMetadataValue(SECTION_EXTENT, "MaxY");
+    CPLString osMaxY = pfRel->GetMetadataValue(SECTION_EXTENT, "MaxY");
     if (osMaxY.empty())
         return 1;
 
-    int nNRows = hMMR->fRel->GetRowsNumberFromREL();
+    int nNRows = pfRel->GetRowsNumberFromREL();
     if (nNRows <= 0)
         return 1;
 
@@ -250,11 +248,11 @@ int MMRDataset::GetBandBoundingBox(int nIBand)
     m_gt[4] = 0.0;
     m_gt[5] = 1.0;
 
-    if (!hMMR || !hMMR->papoBand || nIBand >= hMMR->nBands ||
-        !hMMR->papoBand[nIBand])
+    if (!pfRel->GetBands() || nIBand >= pfRel->GetNBands() ||
+        !pfRel->GetBand(nIBand))
         return 1;
 
-    MMRBand *poBand = hMMR->papoBand[nIBand];
+    MMRBand *poBand = pfRel->GetBand(nIBand);
 
     m_gt[0] = poBand->GetBoundingBoxMinX();
     m_gt[1] = (poBand->GetBoundingBoxMaxX() - m_gt[0]) / poBand->nWidth;
@@ -353,11 +351,11 @@ bool MMRDataset::NextBandInANewDataSet(int nIBand)
     if (nIBand < 0)
         return false;
 
-    if (nIBand + 1 >= hMMR->nBands)
+    if (nIBand + 1 >= pfRel->GetNBands())
         return false;
 
-    MMRBand *pThisBand = hMMR->papoBand[nIBand];
-    MMRBand *pNextBand = hMMR->papoBand[nIBand + 1];
+    MMRBand *pThisBand = pfRel->GetBand(nIBand);
+    MMRBand *pNextBand = pfRel->GetBand(nIBand + 1);
 
     // Two images with different numbers of columns are assigned to different subdatasets
     if (pThisBand->nWidth != pNextBand->nWidth)
@@ -397,21 +395,21 @@ bool MMRDataset::NextBandInANewDataSet(int nIBand)
 void MMRDataset::AssignBandsToSubdataSets()
 {
     nNSubdataSets = 0;
-    if (!hMMR->papoBand)
+    if (!pfRel->GetBands())
         return;
 
     nNSubdataSets = 1;
     int nIBand = 0;
-    hMMR->papoBand[nIBand]->AssignSubDataSet(nNSubdataSets);
-    for (; nIBand < hMMR->nBands - 1; nIBand++)
+    pfRel->GetBand(nIBand)->AssignSubDataSet(nNSubdataSets);
+    for (; nIBand < pfRel->GetNBands() - 1; nIBand++)
     {
         if (NextBandInANewDataSet(nIBand))
         {
             nNSubdataSets++;
-            hMMR->papoBand[nIBand + 1]->AssignSubDataSet(nNSubdataSets);
+            pfRel->GetBand(nIBand + 1)->AssignSubDataSet(nNSubdataSets);
         }
         else
-            hMMR->papoBand[nIBand + 1]->AssignSubDataSet(nNSubdataSets);
+            pfRel->GetBand(nIBand + 1)->AssignSubDataSet(nNSubdataSets);
     }
 
     // If there is only one subdataset, it means that
@@ -419,8 +417,8 @@ void MMRDataset::AssignBandsToSubdataSets()
     if (nNSubdataSets == 1)
     {
         nNSubdataSets = 0;
-        for (nIBand = 0; nIBand < hMMR->nBands; nIBand++)
-            hMMR->papoBand[nIBand]->AssignSubDataSet(nNSubdataSets);
+        for (nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
+            pfRel->GetBand(nIBand)->AssignSubDataSet(nNSubdataSets);
     }
 }
 
@@ -433,30 +431,30 @@ void MMRDataset::CreateSubdatasetsFromBands()
     for (int iSubdataset = 1; iSubdataset <= nNSubdataSets; iSubdataset++)
     {
         int nIBand;
-        for (nIBand = 0; nIBand < hMMR->nBands; nIBand++)
+        for (nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
         {
-            if (hMMR->papoBand[nIBand]->GetAssignedSubDataSet() == iSubdataset)
+            if (pfRel->GetBand(nIBand)->GetAssignedSubDataSet() == iSubdataset)
                 break;
         }
 
         // ·$·TODO passar els noms a una funció que determini si calen cometes.
         osDSName.Printf("MiraMonRaster:\"%s\",\"%s\"",
-                        hMMR->papoBand[nIBand]->GetRELFileName().c_str(),
-                        hMMR->papoBand[nIBand]->GetRawBandFileName().c_str());
+                        pfRel->GetBand(nIBand)->GetRELFileName().c_str(),
+                        pfRel->GetBand(nIBand)->GetRawBandFileName().c_str());
         osDSDesc.Printf("Subdataset %d: \"%s\"", iSubdataset,
-                        hMMR->papoBand[nIBand]->GetBandName().c_str());
+                        pfRel->GetBand(nIBand)->GetBandName().c_str());
         nIBand++;
 
-        for (; nIBand < hMMR->nBands; nIBand++)
+        for (; nIBand < pfRel->GetNBands(); nIBand++)
         {
-            if (hMMR->papoBand[nIBand]->GetAssignedSubDataSet() != iSubdataset)
+            if (pfRel->GetBand(nIBand)->GetAssignedSubDataSet() != iSubdataset)
                 continue;
 
             osDSName.append(CPLSPrintf(
                 ",\"%s\"",
-                hMMR->papoBand[nIBand]->GetRawBandFileName().c_str()));
+                pfRel->GetBand(nIBand)->GetRawBandFileName().c_str()));
             osDSDesc.append(CPLSPrintf(
-                ",\"%s\"", hMMR->papoBand[nIBand]->GetBandName().c_str()));
+                ",\"%s\"", pfRel->GetBand(nIBand)->GetBandName().c_str()));
         }
 
         oSubdatasetList.AddNameValue(
@@ -476,14 +474,14 @@ void MMRDataset::CreateSubdatasetsFromBands()
 
 void MMRDataset::AssignBands()
 {
-    for (int nIBand = 0; nIBand < hMMR->nBands; nIBand++)
+    for (int nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
     {
-        if (!hMMR->papoBand[nIBand])
+        if (!pfRel->GetBand(nIBand))
             continue;  // It's impoosible, but...
 
         // Establish raster info.
-        nRasterXSize = hMMR->papoBand[nIBand]->nWidth;
-        nRasterYSize = hMMR->papoBand[nIBand]->nHeight;
+        nRasterXSize = pfRel->GetBand(nIBand)->nWidth;
+        nRasterYSize = pfRel->GetBand(nIBand)->nHeight;
         GetBandBoundingBox(nIBand);  // Fills adfGeoTransform for this band(s)
 
         SetBand(nBands + 1, new MMRRasterBand(this, nBands + 1));
@@ -491,11 +489,11 @@ void MMRDataset::AssignBands()
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
 
-        if (!hMMR->papoBand[nIBand]->GetFriendlyDescription().empty())
+        if (!pfRel->GetBand(nIBand)->GetFriendlyDescription().empty())
         {
             poBand->SetMetadataItem(
                 "DESCRIPTION",
-                hMMR->papoBand[nIBand]->GetFriendlyDescription());
+                pfRel->GetBand(nIBand)->GetFriendlyDescription());
         }
 
         // Collect GDAL custom Metadata, and "auxiliary" metadata from

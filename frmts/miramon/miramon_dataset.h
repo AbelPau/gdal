@@ -18,15 +18,11 @@
 #include <optional>
 #include <array>
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
-#else
-#include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
-#endif
-
 #include "gdal_pam.h"
 #include "gdal_rat.h"
-#include "miramon_info.h"  // For MMRInfo
+
+#include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
+#include "miramon_rel.h"
 
 /************************************************************************/
 /* ==================================================================== */
@@ -35,6 +31,7 @@
 /************************************************************************/
 
 class MMRRasterBand;
+class MMRRel;
 
 class MMRDataset final : public GDALPamDataset
 {
@@ -56,16 +53,13 @@ class MMRDataset final : public GDALPamDataset
     int GetDataSetBoundingBox();
     int GetBandBoundingBox(int nIBand);
 
-    MMRInfo *GetMMRInfo()
-    {
-        return hMMR;
-    }
-
     const OGRSpatialReference *GetSpatialRef() const override;
     virtual CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
     virtual CPLErr SetMetadata(char **, const char * = "") override;
     virtual CPLErr SetMetadataItem(const char *, const char *,
                                    const char * = "") override;
+
+    MMRRel *pfRel;
 
   private:
     GDALGeoTransform m_gt{};
@@ -73,8 +67,6 @@ class MMRDataset final : public GDALPamDataset
     CPLErr ReadProjection();
 
     bool NextBandInANewDataSet(int nIBand);
-
-    MMRInfo *hMMR = nullptr;  //owner
 
     bool bMetadataDirty = false;
     std::vector<gdal::GCP> m_aoGCPs{};

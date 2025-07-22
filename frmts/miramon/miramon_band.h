@@ -1,7 +1,8 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements MMRBand
+ * Purpose:  Implements MMRBand to get informatino from REL file and use in any
+ *           moment.
  * Author:   Abel Pau
  *
  ******************************************************************************
@@ -17,21 +18,50 @@
 #include <array>
 
 #include "miramon_rel.h"
-
-class MMRBand;
-
-constexpr auto pszExtRaster = ".img";
-constexpr auto pszExtRasterREL = "I.rel";
-constexpr auto pszExtREL = ".rel";
+class MMRRel;
 
 /************************************************************************/
 /*                               MMRBand                                */
 /************************************************************************/
+enum class MMDataType
+{
+    DATATYPE_AND_COMPR_UNDEFINED = -1,
+    DATATYPE_AND_COMPR_MIN = 0,
+    DATATYPE_AND_COMPR_STRING = 0,
+    DATATYPE_AND_COMPR_BIT = 1,
+    DATATYPE_AND_COMPR_BIT_VELL = 2,  // Not supported
+    DATATYPE_AND_COMPR_BYTE = 3,
+    DATATYPE_AND_COMPR_INTEGER = 4,
+    DATATYPE_AND_COMPR_UINTEGER = 5,
+    DATATYPE_AND_COMPR_LONG = 6,
+    DATATYPE_AND_COMPR_INTEGER_ASCII = 7,
+    DATATYPE_AND_COMPR_REAL = 8,
+    DATATYPE_AND_COMPR_DOUBLE = 9,
+    DATATYPE_AND_COMPR_REAL_ASCII = 10,
+    DATATYPE_AND_COMPR_BYTE_RLE = 11,
+    DATATYPE_AND_COMPR_INTEGER_RLE = 12,
+    DATATYPE_AND_COMPR_UINTEGER_RLE = 13,
+    DATATYPE_AND_COMPR_LONG_RLE = 14,
+    DATATYPE_AND_COMPR_REAL_RLE = 15,
+    DATATYPE_AND_COMPR_DOUBLE_RLE = 16,
+    DATATYPE_AND_COMPR_MAX = 16
+};
+
+enum class MMBytesPerPixel
+{
+    TYPE_BYTES_PER_PIXEL_UNDEFINED = -1,
+    TYPE_BYTES_PER_PIXEL_STRING = 0,
+    TYPE_BYTES_PER_PIXEL_BIT = 0,
+    TYPE_BYTES_PER_PIXEL_BYTE_I_RLE = 1,
+    TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE = 2,
+    TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE = 4,
+    TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE = 8
+};
 
 class MMRBand
 {
   public:
-    MMRBand(MMRInfo &, const char *pszSection);
+    MMRBand(MMRRel &pfRel, CPLString osRELFileName, CPLString osSection);
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
     MMRBand &operator=(const MMRBand &) =
@@ -41,6 +71,9 @@ class MMRBand
     int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         const CPLString osSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
+    static int UpdateDataTypeAndBytesPerPixel(const char *pszCompType,
+                                              MMDataType *nCompressionType,
+                                              MMBytesPerPixel *nBytesPerPixel);
     int UpdateDataTypeFromREL(const CPLString osSection);
     void UpdateResolutionFromREL(const CPLString osSection);
     void UpdateResolutionYFromREL(const CPLString osSection);
@@ -188,8 +221,6 @@ class MMRBand
     {
         return dfNoData;
     }
-
-    MMRInfo *hMMR = nullptr;  // Just a pointer. No need to be freed
 
     int nBlockXSize = 1;
     int nBlockYSize = 1;

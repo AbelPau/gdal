@@ -25,20 +25,20 @@
 /*                           MMRRasterBand()                            */
 /************************************************************************/
 MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
-    : hMMR(poDSIn->GetMMRInfo())
+    : pfRel(poDSIn->pfRel)
 {
     poDS = poDSIn;
     nBand = nBandIn;
 
     eAccess = poDSIn->GetAccess();
 
-    if (nBand < 0 || nBand > hMMR->nBands)
+    if (nBand < 0 || nBand > pfRel->GetNBands())
     {
         CPLAssert(false);
         return;
     }
 
-    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
 
     // Getting some band info
     osBandSection = poBand->GetBandSection();
@@ -125,13 +125,13 @@ double MMRRasterBand::GetNoDataValue(int *pbSuccess)
 {
     double dfNoData = 0.0;
 
-    if (nBand < 0 || (nBand - 1) > hMMR->nBands)
+    if (nBand < 0 || (nBand - 1) > pfRel->GetNBands())
     {
         CPLAssert(false);
         return dfNoData;
     }
 
-    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
     {
         CPLAssert(false);
@@ -197,10 +197,10 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 {
     CPLErr eErr = CE_None;
 
-    if (nBand < 1 || nBand > hMMR->nBands)
+    if (nBand < 1 || nBand > pfRel->GetNBands())
         return CE_Failure;
 
-    eErr = hMMR->papoBand[nBand - 1]->GetRasterBlock(
+    eErr = pfRel->GetBand(nBand - 1)->GetRasterBlock(
         nBlockXOff, nBlockYOff, pImage,
         nBlockXSize * nBlockYSize * GDALGetDataTypeSizeBytes(eDataType));
 
@@ -228,10 +228,10 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 
 const char *MMRRasterBand::GetDescription() const
 {
-    if (nBand < 1 || nBand > hMMR->nBands)
+    if (nBand < 1 || nBand > pfRel->GetNBands())
         return "";
 
-    return hMMR->papoBand[nBand - 1]->GetBandName();
+    return pfRel->GetBand(nBand - 1)->GetBandName();
 }
 
 /************************************************************************/
@@ -311,10 +311,10 @@ void MMRRasterBand::ConvertColorsFromPaletteToColorTable()
 CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
 
 {
-    CPLString os_Color_TractamentVariable = hMMR->fRel->GetMetadataValue(
+    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
 
-    CPLString os_Color_Const = hMMR->fRel->GetMetadataValue(
+    CPLString os_Color_Const = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Const");
 
     if (os_Color_Const == "1")
@@ -325,7 +325,7 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
     else
         bColorTableCategorical = false;
 
-    CPLString os_Color_Paleta = hMMR->fRel->GetMetadataValue(
+    CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
 
     if (os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
@@ -349,10 +349,10 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
 CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
 
 {
-    CPLString os_Color_TractamentVariable = hMMR->fRel->GetMetadataValue(
+    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
 
-    CPLString os_Color_Const = hMMR->fRel->GetMetadataValue(
+    CPLString os_Color_Const = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Const");
 
     if (os_Color_Const == "1")
@@ -363,7 +363,7 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     else
         bColorTableCategorical = false;
 
-    CPLString os_Color_Paleta = hMMR->fRel->GetMetadataValue(
+    CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
 
     if (os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
@@ -387,15 +387,15 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
 CPLErr MMRRasterBand::AssignUniformColorTable()
 
 {
-    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 
     bConstantColor = true;
 
     // Example: Color_Smb=(255,0,255)
-    CPLString os_Color_Smb = hMMR->fRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_Smb");
+    CPLString os_Color_Smb =
+        pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection, "Color_Smb");
     os_Color_Smb.replaceAll(" ", "");
     if (!os_Color_Smb.empty() && os_Color_Smb.size() >= 7 &&
         os_Color_Smb[0] == '(' && os_Color_Smb[os_Color_Smb.size() - 1] == ')')
@@ -407,8 +407,7 @@ CPLErr MMRRasterBand::AssignUniformColorTable()
         {
             CSLDestroy(papszTokens);
             CPLError(CE_Failure, CPLE_AppDefined,
-                     "Invalid constant color: \"%s\"",
-                     hMMR->fRel->GetRELNameChar());
+                     "Invalid constant color: \"%s\"", pfRel->GetRELNameChar());
             return CE_Failure;
         }
         sConstantColorRGB.c1 = static_cast<short>(atoi(papszTokens[0]));
@@ -527,7 +526,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 {
     // Getting the full path name of the DBF
     CPLString osAux =
-        CPLGetPathSafe(static_cast<const char *>(hMMR->fRel->GetRELNameChar()));
+        CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
     CPLString osColorTableFileName =
         CPLFormFilenameSafe(osAux.c_str(), os_Color_Paleta_DBF.c_str(), "");
 
@@ -537,7 +536,7 @@ CPLErr MMRRasterBand::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
     if (MM_ReadExtendedDBFHeaderFromFile(
             osColorTableFileName.c_str(), &oColorTable,
-            static_cast<const char *>(hMMR->fRel->GetRELNameChar())))
+            static_cast<const char *>(pfRel->GetRELNameChar())))
     {
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "Invalid color table:"
@@ -807,7 +806,7 @@ MMRRasterBand::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
 {
     CPLString osAux =
-        CPLGetPathSafe(static_cast<const char *>(hMMR->fRel->GetRELNameChar()));
+        CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
     CPLString osColorTableFileName =
         CPLFormFilenameSafe(osAux.c_str(), os_Color_Paleta_DBF.c_str(), "");
 
@@ -980,7 +979,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
 
 {
-    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 
@@ -1093,7 +1092,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
 CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
 
 {
-    MMRBand *poBand = hMMR->papoBand[nBand - 1];
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 
@@ -1286,7 +1285,7 @@ GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
 CPLErr MMRRasterBand::FillRATFromDBF()
 
 {
-    CPLString os_IndexJoin = hMMR->fRel->GetMetadataValue(
+    CPLString os_IndexJoin = pfRel->GetMetadataValue(
         SECTION_ATTRIBUTE_DATA, osBandSection, "IndexsJoinTaula");
 
     if (os_IndexJoin.empty())
@@ -1554,8 +1553,8 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
     os_Join.append("_");
     os_Join.append(papszToken);
 
-    CPLString osTableNameSection_value = hMMR->fRel->GetMetadataValue(
-        SECTION_ATTRIBUTE_DATA, osBandSection, os_Join);
+    CPLString osTableNameSection_value =
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSection, os_Join);
 
     if (osTableNameSection_value.empty())
         return CE_Failure;  // No attribute available
@@ -1564,15 +1563,15 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
     osTableNameSection.append(osTableNameSection_value);
 
     CPLString osShortRELName =
-        hMMR->fRel->GetMetadataValue(osTableNameSection, "NomFitxer");
+        pfRel->GetMetadataValue(osTableNameSection, "NomFitxer");
 
     CPLString osExtension = CPLGetExtensionSafe(osShortRELName);
     if (osExtension.tolower() == "rel")
     {
         // Get path relative to REL file
-        osRELName = CPLFormFilenameSafe(
-            CPLGetPathSafe(hMMR->fRel->GetRELNameChar()).c_str(),
-            osShortRELName, "");
+        osRELName =
+            CPLFormFilenameSafe(CPLGetPathSafe(pfRel->GetRELNameChar()).c_str(),
+                                osShortRELName, "");
 
         // Getting information from the associated REL
         MMRRel *fLocalRel = new MMRRel(osRELName);
@@ -1619,12 +1618,12 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
     if (osExtension.tolower() == "dbf")
     {
         // Get path relative to REL file
-        osDBFName = CPLFormFilenameSafe(
-            CPLGetPathSafe(hMMR->fRel->GetRELNameChar()).c_str(),
-            osShortRELName, "");
+        osDBFName =
+            CPLFormFilenameSafe(CPLGetPathSafe(pfRel->GetRELNameChar()).c_str(),
+                                osShortRELName, "");
 
         osAssociateREL =
-            hMMR->fRel->GetMetadataValue(osTableNameSection, "AssociatRel");
+            pfRel->GetMetadataValue(osTableNameSection, "AssociatRel");
 
         return CE_None;
     }

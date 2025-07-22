@@ -14,15 +14,10 @@
 #include "cpl_port.h"
 #include "gdal_priv.h"
 
+#include "miramon_rel.h"
 #include "miramon_band.h"
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-//#include "..\miramon_common\mm_gdal_constants.h"
-#else
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-//#include "../miramon_common/mm_gdal_constants.h"
-#endif
 
 /************************************************************************/
 /*                              MMRRel()                               */
@@ -30,6 +25,9 @@
 
 MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
 {
+    // Sets the info from that REL
+    if (CE_None != UpdateInfoFromREL(osRELFilenameIn))
+        return;
 }
 
 /************************************************************************/
@@ -38,28 +36,31 @@ MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
 
 MMRRel::~MMRRel()
 {
+    for (int i = 0; i < nBands; i++)
+        delete papoBand[i];
+
+    delete[] papoBand;
 }
 
 /************************************************************************/
 /*                              UpdateInfoFromREL()                        */
 /************************************************************************/
 
-CPLErr MMRRel::UpdateInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
+CPLErr MMRRel::UpdateInfoFromREL(const CPLString osFileName)
 
 {
     CPLString osRELFileNameIn;
 
     // Getting the name of the REL
     const CPLString osMMRPrefix = "MiraMonRaster:";
-    if (STARTS_WITH(pszFileName, osMMRPrefix))
+    if (STARTS_WITH(osFileName, osMMRPrefix))
     {
         // SUBDATASET case: gets the names of the bands in the subdataset
-        CPLString osFilename = pszFileName;
-        size_t nPos = osFilename.ifind(osMMRPrefix);
+        size_t nPos = osFileName.ifind(osMMRPrefix);
         if (nPos != 0)
             return CE_Failure;
 
-        CPLString osSDSReL = osFilename.substr(osMMRPrefix.size());
+        CPLString osSDSReL = osFileName.substr(osMMRPrefix.size());
 
         // Getting the internal names of the bands
         char **papszTokens = CSLTokenizeString2(osSDSReL, ",", 0);
@@ -77,7 +78,7 @@ CPLErr MMRRel::UpdateInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
             // Raw band name
             CPLString osBandName = papszTokens[nIBand + 1];
             osBandName.replaceAll("\"", "");
-            hMMR.papoSDSBands.emplace_back(osBandName);
+            papoSDSBands.emplace_back(osBandName);
         }
         CSLDestroy(papszTokens);
     }
@@ -86,13 +87,14 @@ CPLErr MMRRel::UpdateInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
         // Getting the metadata file name. If it's already a REL file,
         // then same name is returned.
         osRELFileNameIn = MMRRel::GetAssociatedMetadataFileName(
-            pszFileName, hMMR.bIsAMiraMonFile);
+            osFileName.c_str(), bIsAMiraMonFile);
         if (osRELFileNameIn.empty())
         {
-            if (hMMR.bIsAMiraMonFile)
+            if (bIsAMiraMonFile)
             {
                 CPLError(CE_Failure, CPLE_OpenFailed,
-                         "Metadata file for %s should exist.", pszFileName);
+                         "Metadata file for %s should exist.",
+                         osFileName.c_str());
             }
             return CE_Failure;
         }
@@ -102,13 +104,13 @@ CPLErr MMRRel::UpdateInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
             VSILFILE *pF = VSIFOpenL(osRELFileNameIn, "r");
             VSIFSeekL(pF, 0, SEEK_END);
             if (VSIFTellL(pF))
-                hMMR.bIsAMiraMonFile = true;
+                bIsAMiraMonFile = true;
             else
             {
                 CPLError(
                     CE_Failure, CPLE_OpenFailed,
                     "Metadata file for %s should have some information in.",
-                    pszFileName);
+                    osFileName.c_str());
 
                 VSIFCloseL(pF);
                 return CE_Failure;
@@ -120,10 +122,9 @@ CPLErr MMRRel::UpdateInfoFromREL(const char *pszFileName, MMRInfo &hMMR)
     // If rel name was not a REL name, we update that
     // from the one found from IMG file.
     UpdateRELNameChar(osRELFileNameIn);
-    hMMR.osRELFileName = osRELFileNameIn;
 
     // Collect band information
-    if (ParseBandInfo(hMMR) != CE_None)
+    if (ParseBandInfo() != CE_None)
         return CE_Failure;
 
     return CE_None;
@@ -592,95 +593,6 @@ int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
     return GDAL_IDENTIFY_TRUE;
 }
 
-int MMRRel::UpdateDataTypeAndBytesPerPixel(const char *pszCompType,
-                                           MMDataType *nCompressionType,
-                                           MMBytesPerPixel *nBytesPerPixel)
-{
-    if (!nCompressionType || !nBytesPerPixel || !pszCompType)
-        return 1;
-
-    if (EQUAL(pszCompType, "bit"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BIT;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "byte"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BYTE;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "byte-RLE"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BYTE_RLE;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "integer"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_INTEGER;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "integer-RLE"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "uinteger"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_UINTEGER;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "uinteger-RLE"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "long"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_LONG;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "long-RLE"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_LONG_RLE;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "real"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_REAL;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "real-RLE"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_REAL_RLE;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "double"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_DOUBLE;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE;
-        return 0;
-    }
-    if (EQUAL(pszCompType, "double-RLE"))
-    {
-        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE;
-        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE;
-        return 0;
-    }
-
-    return 1;
-}
-
 /************************************************************************/
 /*                     GetMetadataValue()                               */
 /************************************************************************/
@@ -776,24 +688,19 @@ void MMRRel::UpdateRELNameChar(CPLString osRelFileNameIn)
 /************************************************************************/
 /*                          ParseBandInfo()                             */
 /************************************************************************/
-CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
+CPLErr MMRRel::ParseBandInfo()
 {
-    if (!hMMR.fRel)
-        return CE_Fatal;
+    nBands = 0;
 
-    hMMR.nBands = 0;
-
-    CPLString pszRELFileName = hMMR.osRELFileName;
-
-    CPLString osFieldNames = hMMR.fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                         Key_IndexsNomsCamps);
+    CPLString osFieldNames =
+        GetMetadataValue(SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
 
     if (osFieldNames.empty())
     {
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "%s-%s section-key should exist in %s.",
                  SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps,
-                 pszRELFileName.c_str());
+                 osRelFileName.c_str());
         return CE_Failure;
     }
 
@@ -804,7 +711,7 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
     if (!nMaxBands)
     {
         CPLError(CE_Failure, CPLE_AssertionFailed, "No bands in file %s.",
-                 pszRELFileName.c_str());
+                 osRelFileName.c_str());
         return CE_Failure;
     }
 
@@ -812,12 +719,12 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
     CPLString osBandSectionValue;
 
     int nNBand;
-    if (hMMR.papoSDSBands.size())
-        nNBand = static_cast<int>(hMMR.papoSDSBands.size());
+    if (papoSDSBands.size())
+        nNBand = static_cast<int>(papoSDSBands.size());
     else
         nNBand = nMaxBands;
 
-    hMMR.papoBand = new MMRBand *[nNBand];
+    papoBand = new MMRBand *[nNBand];
 
     for (int i = 0; i < nMaxBands; i++)
     {
@@ -825,49 +732,48 @@ CPLErr MMRRel::ParseBandInfo(MMRInfo &hMMR)
         osBandSectionKey.append("_");
         osBandSectionKey.append(papszTokens[i]);
 
-        osBandSectionValue = hMMR.fRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                         osBandSectionKey);
+        osBandSectionValue =
+            GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSectionKey);
 
         if (osBandSectionValue.empty())
             continue;
 
-        if (hMMR.papoSDSBands.size())
+        if (papoSDSBands.size())
         {
-            CPLString osRawBandFileName = hMMR.fRel->GetMetadataValue(
+            CPLString osRawBandFileName = GetMetadataValue(
                 SECTION_ATTRIBUTE_DATA, osBandSectionValue, KEY_NomFitxer);
 
             // I'm in a Subataset
             size_t nISDSBand;
-            for (nISDSBand = 0; nISDSBand < hMMR.papoSDSBands.size();
-                 nISDSBand++)
+            for (nISDSBand = 0; nISDSBand < papoSDSBands.size(); nISDSBand++)
             {
-                if (hMMR.papoSDSBands[nISDSBand] == osRawBandFileName)
+                if (papoSDSBands[nISDSBand] == osRawBandFileName)
                     break;
             }
-            if (nISDSBand == hMMR.papoSDSBands.size())
+            if (nISDSBand == papoSDSBands.size())
                 continue;
         }
 
         osBandSectionValue =
             RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
-        if (hMMR.nBands >= nNBand)
+        if (nBands >= nNBand)
             break;
 
-        hMMR.papoBand[hMMR.nBands] = new MMRBand(hMMR, osBandSectionValue);
+        papoBand[nBands] =
+            new MMRBand(*this, osRelFileName, osBandSectionValue);
 
-        if (hMMR.papoBand[hMMR.nBands]->nWidth == 0)
+        if (papoBand[nBands]->nWidth == 0)
         {
             // This band is not been comleted, so let's detele now
             // The rest of bands will be deleted by destructor.
-            delete hMMR.papoBand[hMMR.nBands];
+            delete papoBand[nBands];
             CSLDestroy(papszTokens);
             return CE_Failure;
         }
 
-        hMMR.papoBand[static_cast<size_t>(hMMR.nBands)]->SetRELFileName(
-            pszRELFileName);
-        hMMR.nBands++;
+        papoBand[static_cast<size_t>(nBands)]->SetRELFileName(osRelFileName);
+        nBands++;
     }
 
     CSLDestroy(papszTokens);

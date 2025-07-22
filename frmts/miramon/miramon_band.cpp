@@ -11,6 +11,7 @@
  ****************************************************************************/
 #include <algorithm>
 
+#include "miramon_rel.h"
 #include "miramon_band.h"
 
 #ifdef MSVC
@@ -22,18 +23,20 @@
 /************************************************************************/
 /*                              MMRBand()                               */
 /************************************************************************/
-MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
-    : hMMR(&hMMRIn), nWidth(hMMRIn.nXSize), nHeight(hMMRIn.nYSize),
-      pfRel(hMMRIn.fRel), osBandSection(osBandSectionIn)
+MMRBand::MMRBand(MMRRel &pfRel, CPLString osRELFileNameIn,
+                 CPLString osBandSectionIn)
+    : nWidth(pfRel.GetXSize()), nHeight(pfRel.GetYSize()),
+      osBandSection(osBandSectionIn)
 
 {
+    osRELFileName = osRELFileNameIn;
     // Getting band and band file name from metadata
-    osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                osBandSectionIn, KEY_NomFitxer);
+    osRawBandFileName = pfRel.GetMetadataValue(SECTION_ATTRIBUTE_DATA,
+                                               osBandSectionIn, KEY_NomFitxer);
 
     if (osRawBandFileName.empty())
     {
-        osBandFileName = pfRel->MMRGetFileNameFromRelName(hMMRIn.osRELFileName);
+        osBandFileName = pfRel.MMRGetFileNameFromRelName(osRELFileName);
         if (osBandFileName.empty())
         {
             nWidth = 0;
@@ -41,7 +44,7 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
             CPLError(CE_Failure, CPLE_AssertionFailed,
                      "The REL file '%s' contains a documented \
                 band with no explicit name. Section [%s] or [%s:%s].\n",
-                     hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                     osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
                      SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
             return;
         }
@@ -52,7 +55,7 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
     {
         osBandName = CPLGetBasenameSafe(osRawBandFileName);
         CPLString osAux =
-            CPLGetPathSafe(static_cast<const char *>(pfRel->GetRELNameChar()));
+            CPLGetPathSafe(static_cast<const char *>(pfRel.GetRELNameChar()));
         osBandFileName =
             CPLFormFilenameSafe(osAux.c_str(), osRawBandFileName.c_str(), "");
     }
@@ -65,7 +68,7 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "The REL file '%s' contains a documented \
             band with no explicit name. Section [%s] or [%s:%s].\n",
-                 hMMRIn.osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                 osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
                  SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
         return;
     }
@@ -97,8 +100,8 @@ MMRBand::MMRBand(MMRInfo &hMMRIn, const char *osBandSectionIn)
         return;
     }
 
-    hMMRIn.nXSize = nWidth;
-    hMMRIn.nYSize = nHeight;
+    pfRel.SetXSize(nWidth);
+    pfRel.SetYSize(nHeight);
 
     // Getting data type and compression.
     // If error, message given inside.
@@ -255,6 +258,95 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
     return 0;
 }
 
+int MMRBand::UpdateDataTypeAndBytesPerPixel(const char *pszCompType,
+                                            MMDataType *nCompressionType,
+                                            MMBytesPerPixel *nBytesPerPixel)
+{
+    if (!nCompressionType || !nBytesPerPixel || !pszCompType)
+        return 1;
+
+    if (EQUAL(pszCompType, "bit"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BIT;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "byte"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BYTE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "byte-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_BYTE_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "integer"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_INTEGER;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "integer-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "uinteger"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_UINTEGER;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "uinteger-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "long"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_LONG;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "long-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_LONG_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "real"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_REAL;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "real-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_REAL_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "double"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_DOUBLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE;
+        return 0;
+    }
+    if (EQUAL(pszCompType, "double-RLE"))
+    {
+        *nCompressionType = MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE;
+        *nBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE;
+        return 0;
+    }
+
+    return 1;
+}
+
 // Getting data type from metadata
 int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
 {
@@ -273,8 +365,8 @@ int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
         return 1;
     }
 
-    if (pfRel->UpdateDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
-                                              &eMMBytesPerPixel) == 1)
+    if (UpdateDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
+                                       &eMMBytesPerPixel) == 1)
     {
         nWidth = 0;
         nHeight = 0;
