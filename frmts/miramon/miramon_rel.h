@@ -42,7 +42,6 @@ class MMRRel
     explicit MMRRel(CPLString);
     ~MMRRel();
 
-    CPLErr UpdateInfoFromREL(const CPLString osFileName);
     static CPLString GetAssociatedMetadataFileName(const char *pszFileName,
                                                    bool &bIsAMiraMonFile);
     static int IdentifySubdataSetFile(const CPLString pszFileName);
@@ -59,7 +58,7 @@ class MMRRel
     static CPLString GetMetadataValueDirectly(const char *pszRELFile,
                                               const char *pszSection,
                                               const char *pszKey);
-    const char *GetRELNameChar() const;
+
     static CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
     void UpdateRELNameChar(CPLString osRelFileNameIn);
     CPLErr ParseBandInfo();
@@ -67,6 +66,26 @@ class MMRRel
     RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
     int GetColumnsNumberFromREL() const;
     int GetRowsNumberFromREL() const;
+
+    char GetIsValid() const
+    {
+        return bIsValid;
+    }
+
+    void SetIsValid(bool bIsValidIn)
+    {
+        bIsValid = bIsValidIn;
+    }
+
+    const char *GetRELNameChar() const
+    {
+        return osRelFileName.c_str();
+    }
+
+    const char *GetRELName() const
+    {
+        return osRelFileName;
+    }
 
     int GetXSize() const
     {
@@ -127,6 +146,7 @@ class MMRRel
                                                bool &bIsAMiraMonFile);
 
     CPLString osRelFileName = "";
+    bool bIsValid = false;  // Determines if the created object is valid or not.
     bool bIsAMiraMonFile = false;
 
     int nXSize = 0;

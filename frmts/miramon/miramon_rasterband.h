@@ -18,25 +18,17 @@
 #include <optional>
 #include <array>
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
-#else
-#include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
-#endif
-
 #include "gdal_pam.h"
 #include "gdal_rat.h"
-#include "miramon_rel.h"  // For MMDataType
 
-/************************************************************************/
+#include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
+#include "miramon_rel.h"                          // For MMDataType
+
 /* ==================================================================== */
 /*                            MMRRasterBand                             */
 /* ==================================================================== */
-/************************************************************************/
 class MMRRasterBand final : public GDALPamRasterBand
 {
-    friend class MMRDataset;
-
   public:
     MMRRasterBand(MMRDataset *, int);
 
@@ -44,24 +36,19 @@ class MMRRasterBand final : public GDALPamRasterBand
         delete;  // I don't want to construct a MMRRasterBand from another MMRRasterBand (effc++)
     MMRRasterBand &operator=(const MMRRasterBand &) =
         delete;  // I don't want to assing a MMRRasterBand to another MMRRasterBand (effc++)
-    virtual ~MMRRasterBand();
+    ~MMRRasterBand();
 
-    virtual CPLErr IReadBlock(int, int, void *) override;
-
-    virtual const char *GetDescription() const override;
-
-    virtual GDALColorInterp GetColorInterpretation() override;
-    virtual GDALColorTable *GetColorTable() override;
-
-    virtual double GetMinimum(int *pbSuccess = nullptr) override;
-    virtual double GetMaximum(int *pbSuccess = nullptr) override;
-    virtual double GetNoDataValue(int *pbSuccess = nullptr) override;
-
-    virtual CPLErr SetMetadata(char **, const char * = "") override;
-    virtual CPLErr SetMetadataItem(const char *, const char *,
-                                   const char * = "") override;
-
-    virtual GDALRasterAttributeTable *GetDefaultRAT() override;
+    CPLErr IReadBlock(int, int, void *) override;
+    const char *GetDescription() const override;
+    GDALColorInterp GetColorInterpretation() override;
+    GDALColorTable *GetColorTable() override;
+    double GetMinimum(int *pbSuccess = nullptr) override;
+    double GetMaximum(int *pbSuccess = nullptr) override;
+    double GetNoDataValue(int *pbSuccess = nullptr) override;
+    CPLErr SetMetadata(char **, const char * = "") override;
+    CPLErr SetMetadataItem(const char *, const char *,
+                           const char * = "") override;
+    GDALRasterAttributeTable *GetDefaultRAT() override;
 
     void SetDataType();
     CPLErr UpdateTableColorsFromPalette();
@@ -74,6 +61,16 @@ class MMRRasterBand final : public GDALPamRasterBand
     CPLErr CreateAttributteTableFromDBF(CPLString osRELName,
                                         CPLString osDBFName,
                                         CPLString osAssociateRel);
+
+    char GetIsValid() const
+    {
+        return bIsValid;
+    }
+
+    void SetIsValid(bool bIsValidIn)
+    {
+        bIsValid = bIsValidIn;
+    }
 
     const std::vector<double> &GetPCT_Red() const
     {
@@ -95,7 +92,10 @@ class MMRRasterBand final : public GDALPamRasterBand
         return aadfPCT[3];
     }
 
-    MMRRel *pfRel;  // Pointer to info from rel. Do not free.
+    void SetMetadataDirty(bool isDirty)
+    {
+        bMetadataDirty = isDirty;
+    }
 
   private:
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
@@ -118,12 +118,15 @@ class MMRRasterBand final : public GDALPamRasterBand
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
+    bool bIsValid = false;  // Determines if the created object is valid or not.
+
     CPLString osBandSection = "";  // Name of the band
 
     MMDataType eMMRDataTypeMiraMon = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     MMBytesPerPixel eMMBytesPerPixel =
         MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
+    MMRRel *pfRel = nullptr;  // Pointer to info from rel. Do not free.
     bool bMetadataDirty = false;
 
     GDALRasterAttributeTable *poDefaultRAT = nullptr;

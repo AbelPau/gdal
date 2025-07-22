@@ -15,17 +15,13 @@
 #include "miramon_rasterband.h"
 #include "miramon_band.h"  // Per a MMRBand
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-#else
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-#endif
 
 /************************************************************************/
 /*                           MMRRasterBand()                            */
 /************************************************************************/
 MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
-    : pfRel(poDSIn->pfRel)
+    : pfRel(poDSIn->GetRel())
 {
     poDS = poDSIn;
     nBand = nBandIn;
@@ -44,10 +40,13 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     osBandSection = poBand->GetBandSection();
     eMMRDataTypeMiraMon = poBand->GeteMMDataType();
     eMMBytesPerPixel = poBand->GeteMMBytesPerPixel();
-    nBlockXSize = poBand->nBlockXSize;
-    nBlockYSize = poBand->nBlockYSize;
+    nBlockXSize = poBand->GetBlockXSize();
+    nBlockYSize = poBand->GetBlockYSize();
 
     SetDataType();
+
+    // We have a valid RasterBand.
+    SetIsValid(true);
 }
 
 /************************************************************************/

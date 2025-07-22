@@ -14,29 +14,23 @@
 #include "miramon_rel.h"
 #include "miramon_band.h"
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_driver_structs.h"  // For SECTION_ATTRIBUTE_DATA
-#else
 #include "../miramon_common/mm_gdal_driver_structs.h"  // For SECTION_ATTRIBUTE_DATA
-#endif
 
 /************************************************************************/
 /*                              MMRBand()                               */
 /************************************************************************/
-MMRBand::MMRBand(MMRRel &fRel, CPLString osRELFileNameIn,
-                 CPLString osBandSectionIn)
+MMRBand::MMRBand(MMRRel &fRel, CPLString osBandSectionIn)
     : pfRel(&fRel), nWidth(fRel.GetXSize()), nHeight(fRel.GetYSize()),
       osBandSection(osBandSectionIn)
 
 {
-    osRELFileName = osRELFileNameIn;
     // Getting band and band file name from metadata
     osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
                                                 osBandSectionIn, KEY_NomFitxer);
 
     if (osRawBandFileName.empty())
     {
-        osBandFileName = pfRel->MMRGetFileNameFromRelName(osRELFileName);
+        osBandFileName = pfRel->MMRGetFileNameFromRelName(pfRel->GetRELName());
         if (osBandFileName.empty())
         {
             nWidth = 0;
@@ -44,7 +38,7 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osRELFileNameIn,
             CPLError(CE_Failure, CPLE_AssertionFailed,
                      "The REL file '%s' contains a documented \
                 band with no explicit name. Section [%s] or [%s:%s].\n",
-                     osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                     pfRel->GetRELNameChar(), SECTION_ATTRIBUTE_DATA,
                      SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
             return;
         }
@@ -68,7 +62,7 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osRELFileNameIn,
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "The REL file '%s' contains a documented \
             band with no explicit name. Section [%s] or [%s:%s].\n",
-                 osRELFileName.c_str(), SECTION_ATTRIBUTE_DATA,
+                 pfRel->GetRELNameChar(), SECTION_ATTRIBUTE_DATA,
                  SECTION_ATTRIBUTE_DATA, osBandSection.c_str());
         return;
     }
@@ -168,6 +162,9 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osRELFileNameIn,
                  osBandFileName.c_str());
         return;
     }
+
+    // We have a valid MMRBand.
+    SetIsValid(true);
 }
 
 /************************************************************************/
@@ -178,6 +175,13 @@ MMRBand::~MMRBand()
 {
     if (pfIMG != nullptr)
         CPL_IGNORE_RET_VAL(VSIFCloseL(pfIMG));
+}
+
+const CPLString MMRBand::GetRELFileName() const
+{
+    if (!pfRel)
+        return "";
+    return pfRel->GetRELName();
 }
 
 /************************************************************************/

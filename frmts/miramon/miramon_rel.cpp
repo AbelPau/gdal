@@ -25,52 +25,28 @@
 
 MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
 {
-    // Sets the info from that REL
-    if (CE_None != UpdateInfoFromREL(osRELFilenameIn))
-        return;
-}
-
-/************************************************************************/
-/*                              ~MMRRel()                              */
-/************************************************************************/
-
-MMRRel::~MMRRel()
-{
-    for (int i = 0; i < nBands; i++)
-        delete papoBand[i];
-
-    delete[] papoBand;
-}
-
-/************************************************************************/
-/*                              UpdateInfoFromREL()                        */
-/************************************************************************/
-
-CPLErr MMRRel::UpdateInfoFromREL(const CPLString osFileName)
-
-{
-    CPLString osRELFileNameIn;
+    CPLString osRelCandidate = osRELFilenameIn;
 
     // Getting the name of the REL
     const CPLString osMMRPrefix = "MiraMonRaster:";
-    if (STARTS_WITH(osFileName, osMMRPrefix))
+    if (STARTS_WITH(osRelCandidate, osMMRPrefix))
     {
         // SUBDATASET case: gets the names of the bands in the subdataset
-        size_t nPos = osFileName.ifind(osMMRPrefix);
+        size_t nPos = osRelCandidate.ifind(osMMRPrefix);
         if (nPos != 0)
-            return CE_Failure;
+            return;
 
-        CPLString osSDSReL = osFileName.substr(osMMRPrefix.size());
+        CPLString osSDSReL = osRelCandidate.substr(osMMRPrefix.size());
 
         // Getting the internal names of the bands
         char **papszTokens = CSLTokenizeString2(osSDSReL, ",", 0);
         const int nTokens = CSLCount(papszTokens);
 
         if (nTokens < 1)
-            return CE_Failure;
+            return;
 
-        osRELFileNameIn = papszTokens[0];
-        osRELFileNameIn.replaceAll("\"", "");
+        osRelCandidate = papszTokens[0];
+        osRelCandidate.replaceAll("\"", "");
 
         // Getting the list of bands in the subdataset
         for (int nIBand = 0; nIBand < nTokens - 1; nIBand++)
@@ -86,22 +62,22 @@ CPLErr MMRRel::UpdateInfoFromREL(const CPLString osFileName)
     {
         // Getting the metadata file name. If it's already a REL file,
         // then same name is returned.
-        osRELFileNameIn =
-            GetAssociatedMetadataFileName(osFileName.c_str(), bIsAMiraMonFile);
-        if (osRELFileNameIn.empty())
+        osRelCandidate = GetAssociatedMetadataFileName(osRelFileName.c_str(),
+                                                       bIsAMiraMonFile);
+        if (osRelCandidate.empty())
         {
             if (bIsAMiraMonFile)
             {
                 CPLError(CE_Failure, CPLE_OpenFailed,
                          "Metadata file for %s should exist.",
-                         osFileName.c_str());
+                         osRelFileName.c_str());
             }
-            return CE_Failure;
+            return;
         }
         else
         {
             // It's a REL and it's not empty, so it's a MiraMon file
-            VSILFILE *pF = VSIFOpenL(osRELFileNameIn, "r");
+            VSILFILE *pF = VSIFOpenL(osRelCandidate, "r");
             VSIFSeekL(pF, 0, SEEK_END);
             if (VSIFTellL(pF))
                 bIsAMiraMonFile = true;
@@ -110,10 +86,10 @@ CPLErr MMRRel::UpdateInfoFromREL(const CPLString osFileName)
                 CPLError(
                     CE_Failure, CPLE_OpenFailed,
                     "Metadata file for %s should have some information in.",
-                    osFileName.c_str());
+                    osRelFileName.c_str());
 
                 VSIFCloseL(pF);
-                return CE_Failure;
+                return;
             }
             VSIFCloseL(pF);
         }
@@ -121,13 +97,28 @@ CPLErr MMRRel::UpdateInfoFromREL(const CPLString osFileName)
 
     // If rel name was not a REL name, we update that
     // from the one found from IMG file.
-    UpdateRELNameChar(osRELFileNameIn);
+    UpdateRELNameChar(osRelCandidate);
 
     // Collect band information
     if (ParseBandInfo() != CE_None)
-        return CE_Failure;
+        return;
 
-    return CE_None;
+    // We have a valid REL.
+    SetIsValid(true);
+
+    return;
+}
+
+/************************************************************************/
+/*                              ~MMRRel()                              */
+/************************************************************************/
+
+MMRRel::~MMRRel()
+{
+    for (int i = 0; i < nBands; i++)
+        delete papoBand[i];
+
+    delete[] papoBand;
 }
 
 // Converts FileNameI.rel to FileName.img
@@ -675,11 +666,6 @@ CPLString MMRRel::GetMetadataValue(const CPLString osSection,
     return "";
 }
 
-const char *MMRRel::GetRELNameChar() const
-{
-    return osRelFileName.c_str();
-}
-
 void MMRRel::UpdateRELNameChar(CPLString osRelFileNameIn)
 {
     osRelFileName = osRelFileNameIn;
@@ -760,19 +746,17 @@ CPLErr MMRRel::ParseBandInfo()
         if (nBands >= nNBand)
             break;
 
-        papoBand[nBands] =
-            new MMRBand(*this, osRelFileName, osBandSectionValue);
+        papoBand[nBands] = new MMRBand(*this, osBandSectionValue);
 
-        if (papoBand[nBands]->nWidth == 0)
+        if (!papoBand[nBands]->GetIsValid())
         {
-            // This band is not been comleted, so let's detele now
+            // This band is not been completed, so let's detele now
             // The rest of bands will be deleted by destructor.
             delete papoBand[nBands];
             CSLDestroy(papszTokens);
             return CE_Failure;
         }
 
-        papoBand[static_cast<size_t>(nBands)]->SetRELFileName(osRelFileName);
         nBands++;
     }
 

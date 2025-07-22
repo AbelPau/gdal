@@ -61,7 +61,7 @@ enum class MMBytesPerPixel
 class MMRBand
 {
   public:
-    MMRBand(MMRRel &pfRel, CPLString osRELFileName, CPLString osSection);
+    MMRBand(MMRRel &pfRel, CPLString osSection);
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
     MMRBand &operator=(const MMRBand &) =
@@ -90,7 +90,18 @@ class MMRBand
     CPLErr GetBlockData(void *rowBuffer);
     int PositionAtStartOfRowOffsetsInFile();
     bool FillRowOffsets();
+    const CPLString GetRELFileName() const;
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
+
+    char GetIsValid() const
+    {
+        return bIsValid;
+    }
+
+    void SetIsValid(bool bIsValidIn)
+    {
+        bIsValid = bIsValidIn;
+    }
 
     int GetAssignedSubDataSet()
     {
@@ -110,16 +121,6 @@ class MMRBand
     const CPLString &GetBandSection() const
     {
         return osBandSection;
-    }
-
-    const CPLString &GetRELFileName() const
-    {
-        return osRELFileName;
-    }
-
-    void SetRELFileName(CPLString osRELFileNameIn)
-    {
-        osRELFileName = osRELFileNameIn;
     }
 
     const CPLString &GetRawBandFileName() const
@@ -222,15 +223,37 @@ class MMRBand
         return dfNoData;
     }
 
+    int GetWidth() const
+    {
+        return nWidth;
+    }
+
+    int GetHeight() const
+    {
+        return nHeight;
+    }
+
+    int GetBlockXSize() const
+    {
+        return nBlockXSize;
+    }
+
+    int GetBlockYSize() const
+    {
+        return nBlockYSize;
+    }
+
+  private:
+    bool bIsValid = false;  // Determines if the created object is valid or not.
+
+    VSILFILE *pfIMG = nullptr;  // Point to IMG file
+    MMRRel *pfRel = nullptr;    // Rel where metadata is readed from
+
     int nBlockXSize = 1;
     int nBlockYSize = 1;
 
-    int nWidth;   // Number of columns
-    int nHeight;  // Number of rows
-
-  private:
-    VSILFILE *pfIMG = nullptr;  // Point to IMG file
-    MMRRel *pfRel;              // Rel where metadata is readed from
+    int nWidth = 0;   // Number of columns
+    int nHeight = 0;  // Number of rows
 
     int nBlocksPerRow = 1;
     int nBlocksPerColumn = 1;
@@ -243,8 +266,6 @@ class MMRBand
 
     // Section in REL file that give information about the band
     CPLString osBandSection;
-    // REL file name that contains the band
-    CPLString osRELFileName = "";
     // File name relative to REL file with banda data
     CPLString osRawBandFileName = "";
     // Friendly osRawBandFileName
@@ -287,8 +308,8 @@ class MMRBand
     double dfBBMaxY = 0.0;
 
     // Resolution of the pixel
-    double dfResolution = 0;
-    double dfResolutionY = 0;
+    double dfResolution = 0.0;
+    double dfResolutionY = 0.0;
 
     // Determines if dfResolution and dfResolutionY have been found
     // If is not found 1 is the defect value

@@ -15,11 +15,7 @@
 #include "miramon_rasterband.h"
 #include "miramon_band.h"  // Per a MMRBand
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-#else
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
-#endif
 
 /************************************************************************/
 /*                            MMRDataset()                            */
@@ -31,6 +27,16 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 
     // Creating the class MMRRel.
     auto pMMfRel = std::make_unique<MMRRel>(poOpenInfo->pszFilename);
+    if (!pMMfRel->GetIsValid())
+    {
+        if (pMMfRel->isAMiraMonFile())
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Unable to open %s, some internal problem has occured.",
+                     poOpenInfo->pszFilename);
+        }
+        return;
+    }
 
     if (pMMfRel->GetNBands() == 0)
     {
@@ -63,6 +69,9 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
         CreateSubdatasetsFromBands();
     else
         AssignBands();
+
+    // We have a valid DataSet.
+    SetIsValid(true);
 }
 
 /************************************************************************/
@@ -144,7 +153,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 
     // Create the Dataset (with bands or Subdatasets).
     auto poDS = std::make_unique<MMRDataset>(poOpenInfo);
-    if (poDS->pfRel == nullptr)
+    if (!poDS->GetIsValid())
         return nullptr;
 
     // Set description
@@ -257,11 +266,11 @@ int MMRDataset::GetBandBoundingBox(int nIBand)
     MMRBand *poBand = pfRel->GetBand(nIBand);
 
     m_gt[0] = poBand->GetBoundingBoxMinX();
-    m_gt[1] = (poBand->GetBoundingBoxMaxX() - m_gt[0]) / poBand->nWidth;
+    m_gt[1] = (poBand->GetBoundingBoxMaxX() - m_gt[0]) / poBand->GetWidth();
     m_gt[2] = 0.0;  // No rotation in MiraMon rasters
     m_gt[3] = poBand->GetBoundingBoxMaxY();
     m_gt[4] = 0.0;
-    m_gt[5] = (poBand->GetBoundingBoxMinY() - m_gt[3]) / poBand->nHeight;
+    m_gt[5] = (poBand->GetBoundingBoxMinY() - m_gt[3]) / poBand->GetWidth();
 
     return 0;
 }
@@ -278,41 +287,6 @@ CPLErr MMRDataset::GetGeoTransform(GDALGeoTransform &gt) const
     //return GDALPamDataset::GetGeoTransform(padfTransform);
     return GDALDataset::GetGeoTransform(gt);
 }
-
-/************************************************************************/
-/*                            GetGCPCount()                             */
-/************************************************************************/
-/*
-int MMRDataset::GetGCPCount()
-{
-    const int nPAMCount = GDALPamDataset::GetGCPCount();
-    return nPAMCount > 0 ? nPAMCount : static_cast<int>(m_aoGCPs.size());
-}*/
-
-/************************************************************************/
-/*                          GetGCPSpatialRef()                          */
-/************************************************************************/
-/*
-const OGRSpatialReference *MMRDataset::GetGCPSpatialRef() const
-
-{
-    const OGRSpatialReference *poSRS = GDALPamDataset::GetGCPSpatialRef();
-    if (poSRS)
-        return poSRS;
-    return !m_aoGCPs.empty() && !m_oSRS.IsEmpty() ? &m_oSRS : nullptr;
-}*/
-
-/************************************************************************/
-/*                               GetGCPs()                              */
-/************************************************************************/
-/*
-const GDAL_GCP *MMRDataset::GetGCPs()
-{
-    const GDAL_GCP *psPAMGCPs = GDALPamDataset::GetGCPs();
-    if (psPAMGCPs)
-        return psPAMGCPs;
-    return gdal::GCP::c_ptr(m_aoGCPs);
-}*/
 
 /************************************************************************/
 /*                GDALRegister_MiraMon()                                */
@@ -360,11 +334,11 @@ bool MMRDataset::NextBandInANewDataSet(int nIBand)
     MMRBand *pNextBand = pfRel->GetBand(nIBand + 1);
 
     // Two images with different numbers of columns are assigned to different subdatasets
-    if (pThisBand->nWidth != pNextBand->nWidth)
+    if (pThisBand->GetWidth() != pNextBand->GetWidth())
         return true;
 
     // Two images with different numbers of rows are assigned to different subdatasets
-    if (pThisBand->nHeight != pNextBand->nHeight)
+    if (pThisBand->GetHeight() != pNextBand->GetHeight())
         return true;
 
     // Two images with different resolution are assigned to different subdatasets
@@ -482,11 +456,19 @@ void MMRDataset::AssignBands()
             continue;  // It's impoosible, but...
 
         // Establish raster info.
-        nRasterXSize = pfRel->GetBand(nIBand)->nWidth;
-        nRasterYSize = pfRel->GetBand(nIBand)->nHeight;
+        nRasterXSize = pfRel->GetBand(nIBand)->GetWidth();
+        nRasterYSize = pfRel->GetBand(nIBand)->GetHeight();
         GetBandBoundingBox(nIBand);  // Fills adfGeoTransform for this band(s)
 
-        SetBand(nBands + 1, new MMRRasterBand(this, nBands + 1));
+        MMRRasterBand *poRasterBand = new MMRRasterBand(this, nBands + 1);
+        if (!poRasterBand->GetIsValid())
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Failed to create a RasterBand from '%s'",
+                     pfRel->GetRELNameChar());
+        }
+
+        SetBand(nBands + 1, poRasterBand);
 
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
@@ -547,7 +529,7 @@ void MMRDataset::AssignBands()
     {
         MMRRasterBand *poBand =
             static_cast<MMRRasterBand *>(GetRasterBand(i + 1));
-        poBand->bMetadataDirty = false;
+        poBand->SetMetadataDirty(false);
     }
     bMetadataDirty = false;
 }

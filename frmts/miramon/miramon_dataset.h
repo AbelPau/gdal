@@ -24,11 +24,9 @@
 #include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
 #include "miramon_rel.h"
 
-/************************************************************************/
 /* ==================================================================== */
 /*                              MMRDataset                              */
 /* ==================================================================== */
-/************************************************************************/
 
 class MMRRasterBand;
 class MMRRel;
@@ -41,7 +39,7 @@ class MMRDataset final : public GDALPamDataset
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRDataset &operator=(const MMRDataset &) =
         delete;  // I don't want to assing a MMRDataset to another MMRDataset (effc++)
-    virtual ~MMRDataset();
+    ~MMRDataset();
 
     static int Identify(GDALOpenInfo *);
     static GDALDataset *Open(GDALOpenInfo *);
@@ -54,12 +52,25 @@ class MMRDataset final : public GDALPamDataset
     int GetBandBoundingBox(int nIBand);
 
     const OGRSpatialReference *GetSpatialRef() const override;
-    virtual CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
-    virtual CPLErr SetMetadata(char **, const char * = "") override;
-    virtual CPLErr SetMetadataItem(const char *, const char *,
-                                   const char * = "") override;
+    CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
+    CPLErr SetMetadata(char **, const char * = "") override;
+    CPLErr SetMetadataItem(const char *, const char *,
+                           const char * = "") override;
 
-    MMRRel *pfRel;
+    char GetIsValid() const
+    {
+        return bIsValid;
+    }
+
+    void SetIsValid(bool bIsValidIn)
+    {
+        bIsValid = bIsValidIn;
+    }
+
+    MMRRel *GetRel()
+    {
+        return pfRel;
+    }
 
   private:
     GDALGeoTransform m_gt{};
@@ -67,6 +78,9 @@ class MMRDataset final : public GDALPamDataset
     CPLErr ReadProjection();
 
     bool NextBandInANewDataSet(int nIBand);
+
+    bool bIsValid = false;  // Determines if the created object is valid or not.
+    MMRRel *pfRel = nullptr;
 
     bool bMetadataDirty = false;
     std::vector<gdal::GCP> m_aoGCPs{};
