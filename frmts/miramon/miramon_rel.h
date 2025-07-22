@@ -40,6 +40,10 @@ class MMRRel
 {
   public:
     explicit MMRRel(CPLString);
+    MMRRel(const MMRRel &) =
+        delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
+    MMRRel &operator=(const MMRRel &) =
+        delete;  // I don't want to assing a MMRDataset to another MMRDataset (effc++)
     ~MMRRel();
 
     static CPLString GetAssociatedMetadataFileName(const char *pszFileName,
