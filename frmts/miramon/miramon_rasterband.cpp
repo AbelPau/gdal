@@ -393,14 +393,14 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     if (!Palette)
         return CE_None;
 
-    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
-
     CPLString os_Color_Const = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Const");
 
     if (os_Color_Const == "1")
         return AssignUniformColorTable();
+
+    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
+        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
 
     if (EQUAL(os_Color_TractamentVariable, "Categoric"))
         Palette->SetIsCategorical(true);

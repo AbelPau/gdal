@@ -104,10 +104,8 @@ class MMRRel
     MMRBand *GetBand(int nIBand) const
     {
         if (nIBand < 0 || nIBand > nBands)
-        {
-            CPLAssert(false);
             return nullptr;
-        }
+
         return papoBand[nIBand];
     }
 

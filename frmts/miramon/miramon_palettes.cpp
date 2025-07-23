@@ -27,6 +27,13 @@ MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
         return;
     }
 
+    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
+        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
+    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
+        SetIsCategorical(true);
+    else
+        SetIsCategorical(false);
+
     CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta);
     if (osExtension.tolower() == "dbf")
     {
@@ -146,7 +153,7 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         return CE_Failure;
     }
 
-    // Getting indices of fiels that determine the colors.
+    // Getting indices of fields that determine the colors.
     MM_EXT_DBF_N_FIELDS nClauSimbol, nRIndex, nGIndex, nBIndex;
     if (CE_Failure == GetPaletteColors_DBF_Indexs(oColorTable, nClauSimbol,
                                                   nRIndex, nGIndex, nBIndex))
