@@ -91,16 +91,6 @@ class MMRRel
         return osRelFileName;
     }
 
-    int GetXSize() const
-    {
-        return nXSize;
-    }
-
-    int GetYSize() const
-    {
-        return nYSize;
-    }
-
     int GetNBands() const
     {
         return nBands;
@@ -136,16 +126,6 @@ class MMRRel
         return bIsAMiraMonFile;
     }
 
-    void SetXSize(int nXSizeIn)
-    {
-        nXSize = nXSizeIn;
-    }
-
-    void SetYSize(int nYSizeIn)
-    {
-        nYSize = nYSizeIn;
-    }
-
   private:
     static CPLErr CheckBandInRel(const char *pszRELFileName,
                                  const char *pszIMGFile);
@@ -162,9 +142,6 @@ class MMRRel
     CPLString osRelFileName = "";
     bool bIsValid = false;  // Determines if the created object is valid or not.
     bool bIsAMiraMonFile = false;
-
-    int nXSize = 0;
-    int nYSize = 0;
 
     // List of rawBandNames in a subdataset
     std::vector<CPLString> papoSDSBands{};

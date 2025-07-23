@@ -20,8 +20,7 @@
 /*                              MMRBand()                               */
 /************************************************************************/
 MMRBand::MMRBand(MMRRel &fRel, CPLString osBandSectionIn)
-    : pfRel(&fRel), nWidth(fRel.GetXSize()), nHeight(fRel.GetYSize()),
-      osBandSection(osBandSectionIn)
+    : pfRel(&fRel), nWidth(0), nHeight(0), osBandSection(osBandSectionIn)
 
 {
     // Getting band and band file name from metadata
@@ -93,10 +92,6 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osBandSectionIn)
                  "MMRBand::MMRBand : (nWidth <= 0 || nHeight <= 0)");
         return;
     }
-
-    // Aixo va al constructor del REL
-    //pfRel->SetXSize(nWidth);
-    //pfRel->SetYSize(nHeight);
 
     // Getting data type and compression.
     // If error, message given inside.
@@ -572,6 +567,18 @@ void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
     }
     else
         dfBBMaxY = atof(osValue);
+}
+
+int MMRBand::UpdateGeoTransform()
+{
+    m_gt[0] = GetBoundingBoxMinX();
+    m_gt[1] = (GetBoundingBoxMaxX() - m_gt[0]) / GetWidth();
+    m_gt[2] = 0.0;  // No rotation in MiraMon rasters
+    m_gt[3] = GetBoundingBoxMaxY();
+    m_gt[4] = 0.0;
+    m_gt[5] = (GetBoundingBoxMinY() - m_gt[3]) / GetHeight();
+
+    return 0;
 }
 
 /************************************************************************/

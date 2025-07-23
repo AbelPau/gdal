@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Project:  MiraMon Raster Driver
- * Purpose:  Implements MMRDataset and MMRRasterBand class 
+ * Purpose:  Implements MMRRasterBand class 
  * Author:   Abel Pau
  *
  ******************************************************************************
@@ -23,35 +23,7 @@
 
 #include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
 #include "miramon_rel.h"                          // For MMDataType
-
-class MMRColorTable
-{
-  public:
-    void AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
-                            char *pzsRecord, char *pzsField,
-                            MM_EXT_DBF_N_FIELDS &nRIndex,
-                            MM_EXT_DBF_N_FIELDS &nGIndex,
-                            MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);
-
-    bool bPaletteColorsRead = false;
-    bool bColorTableCategorical = false;
-    bool bTriedLoadColorTable = false;
-    GDALColorTable *poCT = nullptr;
-    // Palette info
-    std::array<std::vector<double>, 4> aadfPaletteColors{};
-    GDALColorEntry sDefaultColorRGB = {0, 0, 0, 127};
-
-    bool bPaletteHasNodata = false;
-    // index in the DBF that gives nodata color
-    int nNoDataPaletteIndex = 0;
-    // Default color for nodata
-    GDALColorEntry sNoDataColorRGB = {0, 0, 0, 0};
-
-    std::array<std::vector<double>, 4> aadfPCT{};
-
-    bool bConstantColor = false;
-    GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
-};
+#include "miramon_palettes.h"
 
 /* ==================================================================== */
 /*                            MMRRasterBand                             */
@@ -80,16 +52,42 @@ class MMRRasterBand final : public GDALPamRasterBand
     GDALRasterAttributeTable *GetDefaultRAT() override;
 
     void SetDataType();
-    CPLErr UpdateTableColorsFromPalette();
-    CPLErr UpdateAttributeColorsFromPalette();
-    void ConvertColorsFromPaletteToColorTable();
     CPLErr FillRATFromDBF();
+    CPLErr FromPaletteToAttributeTableContinousMode();
+    CPLErr FromPaletteToAttributeTableCategoricalMode();
+    void ConvertColorsFromPaletteToColorTable();
     CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
                                  CPLString &osDBFName,
                                  CPLString &osAssociateREL);
+    CPLErr UpdateAttributeColorsFromPalette();
     CPLErr CreateAttributteTableFromDBF(CPLString osRELName,
                                         CPLString osDBFName,
                                         CPLString osAssociateRel);
+
+    CPLErr AssignUniformColorTable();
+    CPLErr FromPaletteToColorTableCategoricalMode();
+    CPLErr FromPaletteToColorTableContinousMode();
+    CPLErr UpdateTableColorsFromPalette();
+
+    const std::vector<double> &GetPCT_Red() const
+    {
+        return aadfPCT[0];
+    }
+
+    const std::vector<double> &GetPCT_Green() const
+    {
+        return aadfPCT[1];
+    }
+
+    const std::vector<double> &GetPCT_Blue() const
+    {
+        return aadfPCT[2];
+    }
+
+    const std::vector<double> &GetPCT_Alpha() const
+    {
+        return aadfPCT[3];
+    }
 
     bool IsValid() const
     {
@@ -101,48 +99,21 @@ class MMRRasterBand final : public GDALPamRasterBand
         bIsValid = bIsValidIn;
     }
 
-    const std::vector<double> &GetPCT_Red() const
-    {
-        return ColorTable.aadfPCT[0];
-    }
-
-    const std::vector<double> &GetPCT_Green() const
-    {
-        return ColorTable.aadfPCT[1];
-    }
-
-    const std::vector<double> &GetPCT_Blue() const
-    {
-        return ColorTable.aadfPCT[2];
-    }
-
-    const std::vector<double> &GetPCT_Alpha() const
-    {
-        return ColorTable.aadfPCT[3];
-    }
-
     void SetMetadataDirty(bool isDirty)
     {
         bMetadataDirty = isDirty;
     }
 
+    GDALColorTable *poCT = nullptr;
+
   private:
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
-    CPLErr FromPaletteToColorTableCategoricalMode();
-    CPLErr FromPaletteToColorTableContinousMode();
-    CPLErr FromPaletteToAttributeTableContinousMode();
-    CPLErr FromPaletteToAttributeTableCategoricalMode();
-    CPLErr AssignUniformColorTable();
-    CPLErr ReadPalette(CPLString os_Color_Paleta_DBF);
-    static CPLErr GetPaletteColors_DBF_Indexs(
-        struct MM_DATA_BASE_XP &oColorTable, MM_EXT_DBF_N_FIELDS &nClauSimbol,
-        MM_EXT_DBF_N_FIELDS &nRIndex, MM_EXT_DBF_N_FIELDS &nGIndex,
-        MM_EXT_DBF_N_FIELDS &nBIndex);
-    CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
-    CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
+    bool bTriedLoadColorTable = false;
     bool bIsValid = false;  // Determines if the created object is valid or not.
+
+    std::array<std::vector<double>, 4> aadfPCT{};
 
     CPLString osBandSection = "";  // Name of the band
 
@@ -156,8 +127,8 @@ class MMRRasterBand final : public GDALPamRasterBand
     // Attributte table
     GDALRasterAttributeTable *poDefaultRAT = nullptr;
 
-    // Color table
-    MMRColorTable ColorTable{};
+    // Palettes
+    MMRPalettes *Palette = nullptr;
 };
 
 #endif  // MMRRASTERBAND_H_INCLUDED

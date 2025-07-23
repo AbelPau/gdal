@@ -52,9 +52,8 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     pfRel = pMMfRel.release();
 
     // General Dataset information available
-    nRasterXSize = pfRel->GetXSize();
-    nRasterYSize = pfRel->GetYSize();
-    GetDataSetBoundingBox();  // Fills adfGeoTransform
+    nRasterXSize = pfRel->GetColumnsNumberFromREL();
+    nRasterYSize = pfRel->GetRowsNumberFromREL();
     ReadProjection();
     nBands = 0;
 
@@ -66,9 +65,22 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 
     // Create subdatasets or add bands, as needed
     if (nNSubdataSets)
+    {
         CreateSubdatasetsFromBands();
+        // Fills adfGeoTransform if documented
+        UpdateGeoTransform();
+    }
     else
-        AssignBands();
+    {
+        CreateRasterBands();
+        // Fills adfGeoTransform if documented. If not, then gets one from last band.
+        if (1 == UpdateGeoTransform())
+        {
+            MMRBand *poBand = pfRel->GetLastBand();
+            if (poBand)
+                memcpy(&m_gt, &poBand->m_gt, sizeof(m_gt));
+        }
+    }
 
     // We have a valid DataSet.
     SetIsValid(true);
@@ -197,9 +209,9 @@ CPLErr MMRDataset::SetMetadataItem(const char *pszTag, const char *pszValue,
 }
 
 /************************************************************************/
-/*                          GetDataSetBoundingBox()                     */
+/*                          UpdateGeoTransform()                     */
 /************************************************************************/
-int MMRDataset::GetDataSetBoundingBox()
+int MMRDataset::UpdateGeoTransform()
 {
     // Bounding box of the band
     // Section [EXTENT] in rel file
@@ -246,30 +258,6 @@ int MMRDataset::GetDataSetBoundingBox()
     m_gt[3] = atof(osMaxY);
     m_gt[4] = 0.0;
     m_gt[5] = (atof(osMinY) - m_gt[3]) / nNRows;
-
-    return 0;
-}
-
-int MMRDataset::GetBandBoundingBox(int nIBand)
-{
-    // Bounding box of the band
-    m_gt[0] = 0.0;
-    m_gt[1] = 1.0;
-    m_gt[2] = 0.0;
-    m_gt[3] = 0.0;
-    m_gt[4] = 0.0;
-    m_gt[5] = 1.0;
-
-    MMRBand *poBand = pfRel->GetBand(nIBand);
-    if (!poBand)
-        return 1;
-
-    m_gt[0] = poBand->GetBoundingBoxMinX();
-    m_gt[1] = (poBand->GetBoundingBoxMaxX() - m_gt[0]) / poBand->GetWidth();
-    m_gt[2] = 0.0;  // No rotation in MiraMon rasters
-    m_gt[3] = poBand->GetBoundingBoxMaxY();
-    m_gt[4] = 0.0;
-    m_gt[5] = (poBand->GetBoundingBoxMinY() - m_gt[3]) / poBand->GetWidth();
 
     return 0;
 }
@@ -479,19 +467,19 @@ void MMRDataset::CreateSubdatasetsFromBands()
     }
 }
 
-void MMRDataset::AssignBands()
+void MMRDataset::CreateRasterBands()
 {
     MMRBand *pBand;
 
     for (int nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
     {
-        // Establish raster info.
+        // Establish raster band info.
         pBand = pfRel->GetBand(nIBand);
         if (!pBand)
             return;
         nRasterXSize = pBand->GetWidth();
         nRasterYSize = pBand->GetHeight();
-        GetBandBoundingBox(nIBand);  // Fills adfGeoTransform for this band(s)
+        pBand->UpdateGeoTransform();  // Fills adfGeoTransform for this band
 
         MMRRasterBand *poRasterBand = new MMRRasterBand(this, nBands + 1);
         if (!poRasterBand->IsValid())

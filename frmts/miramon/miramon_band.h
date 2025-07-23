@@ -82,6 +82,7 @@ class MMRBand
     void UpdateNoDataValue(const CPLString osSection);
     void UpdateNoDataDefinitionFromREL(const CPLString osSection);
     void UpdateBoundingBoxFromREL(const CPLString osSection);
+    int UpdateGeoTransform();
     void UpdateReferenceSystemFromREL();
     void UpdateMinMaxValuesFromREL(const CPLString osSection);
     void UpdateMinMaxVisuValuesFromREL(const CPLString osSection);
@@ -242,6 +243,8 @@ class MMRBand
     {
         return nBlockYSize;
     }
+
+    GDALGeoTransform m_gt{};  // Bounding box for this band
 
   private:
     bool bIsValid = false;  // Determines if the created object is valid or not.

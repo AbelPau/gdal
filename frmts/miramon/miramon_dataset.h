@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Project:  MiraMon Raster Driver
- * Purpose:  Implements MMRDataset and MMRRasterBand class 
+ * Purpose:  Implements MMRDataset class 
  * Author:   Abel Pau
  *
  ******************************************************************************
@@ -46,10 +46,9 @@ class MMRDataset final : public GDALPamDataset
 
     void AssignBandsToSubdataSets();
     void CreateSubdatasetsFromBands();
-    void AssignBands();
+    void CreateRasterBands();
 
-    int GetDataSetBoundingBox();
-    int GetBandBoundingBox(int nIBand);
+    int UpdateGeoTransform();
 
     const OGRSpatialReference *GetSpatialRef() const override;
     CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
