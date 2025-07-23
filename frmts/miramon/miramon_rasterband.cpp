@@ -54,7 +54,8 @@ MMRRasterBand::~MMRRasterBand()
 {
     FlushCache(true);
 
-    delete Palette;
+    if (Palette != nullptr)
+        delete Palette;
 
     if (poDefaultRAT != nullptr)
         delete poDefaultRAT;
@@ -251,6 +252,10 @@ GDALColorTable *MMRRasterBand::GetColorTable()
     bTriedLoadColorTable = true;
 
     Palette = new MMRPalettes(*pfRel, osBandSection);
+
+    if (!Palette->IsValid())
+        return poCT;
+
     poCT = new GDALColorTable();
 
     /*
@@ -307,12 +312,12 @@ GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
 
     poDefaultRAT = new GDALDefaultRasterAttributeTable();
 
-    FillRATFromDBF();
+    FillRATFromPalette();
 
     return poDefaultRAT;
 }
 
-CPLErr MMRRasterBand::FillRATFromDBF()
+CPLErr MMRRasterBand::FillRATFromPalette()
 
 {
     CPLString os_IndexJoin = pfRel->GetMetadataValue(
@@ -635,10 +640,7 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
     else
         peErr = FromPaletteToColorTableContinousMode();
 
-    if (peErr != CE_None)
-        return peErr;
-
-    return CE_None;
+    return peErr;
 }
 
 CPLErr MMRRasterBand::AssignUniformColorTable()

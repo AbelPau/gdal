@@ -133,7 +133,6 @@ class MMRPalettes
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
-    bool bPaletteColorsRead = false;
     bool bIsCategorical = false;
 
     // Palette info

@@ -12,6 +12,7 @@
 ###############################################################################
 
 
+import os
 import struct
 
 import pytest
@@ -411,7 +412,14 @@ init_list_color_tables = [
 @pytest.mark.parametrize(
     "filename,idx_bnd,expected_ct",
     init_list_color_tables,
-    ids=[tup[0].split("/")[-1].split(".")[0] for tup in init_list_color_tables],
+    # ids=[tup[0].split("/")[-1].split(".")[0] for tup in init_list_color_tables],
+    ids=[
+        os.path.join(
+            os.path.basename(os.path.dirname(tup[0])),
+            os.path.splitext(os.path.basename(tup[0]))[0],
+        )
+        for tup in init_list_color_tables
+    ],
 )
 @pytest.mark.require_driver("MiraMonRaster")
 def test_miramon_color_table(filename, idx_bnd, expected_ct):

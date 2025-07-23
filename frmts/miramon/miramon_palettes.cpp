@@ -20,11 +20,6 @@
 MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
     : pfRel(&fRel), osBandSection(osBandSectionIn)
 {
-    if (bPaletteColorsRead)
-        return;
-
-    bPaletteColorsRead = true;
-
     CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
 
@@ -52,8 +47,6 @@ MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
         bIsValid = true;
         return;
     }
-
-    return;  // A wrong given name
 }
 
 MMRPalettes::~MMRPalettes()

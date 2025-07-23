@@ -52,7 +52,7 @@ class MMRRasterBand final : public GDALPamRasterBand
     GDALRasterAttributeTable *GetDefaultRAT() override;
 
     void SetDataType();
-    CPLErr FillRATFromDBF();
+    CPLErr FillRATFromPalette();
     CPLErr FromPaletteToAttributeTableContinousMode();
     CPLErr FromPaletteToAttributeTableCategoricalMode();
     void ConvertColorsFromPaletteToColorTable();
