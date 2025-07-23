@@ -10,7 +10,6 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-//#include "cpl_port.h"
 #include "miramon_dataset.h"
 #include "miramon_rasterband.h"
 #include "miramon_band.h"  // Per a MMRBand
@@ -39,10 +38,10 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     nBlockXSize = poBand->GetBlockXSize();
     nBlockYSize = poBand->GetBlockYSize();
 
-    SetDataType();
+    UpdateDataType();
 
     // We have a valid RasterBand.
-    SetIsValid(true);
+    bIsValid = true;
 }
 
 /************************************************************************/
@@ -62,9 +61,9 @@ MMRRasterBand::~MMRRasterBand()
 }
 
 /************************************************************************/
-/*                             SetDataType()                         */
+/*                             UpdateDataType()                         */
 /************************************************************************/
-void MMRRasterBand::SetDataType()
+void MMRRasterBand::UpdateDataType()
 {
     switch (eMMRDataTypeMiraMon)
     {
@@ -726,7 +725,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 
 {
     // If the palette is not loaded, then, ignore the conversion silently
-    if (Palette->aadfPaletteColors[0].size() == 0)
+    if (Palette->GetSizeOfPaletteColors() == 0)
         return CE_Failure;
 
     int nNPossibleValues = static_cast<int>(
@@ -746,8 +745,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 
     int nIPaletteColor = 0;
     // Giving color to the ones in the table
-    int nNPaletteColors =
-        static_cast<int>(Palette->aadfPaletteColors[0].size());
+    int nNPaletteColors = Palette->GetSizeOfPaletteColors();
 
     // No more colors than needed.
     if (nNPaletteColors > nNPossibleValues)
@@ -756,13 +754,13 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
     for (nIPaletteColor = 0; nIPaletteColor < nNPaletteColors; nIPaletteColor++)
     {
         aadfPCT[0][nIPaletteColor] =
-            Palette->aadfPaletteColors[0][nIPaletteColor];
+            Palette->GetPaletteColorsValue(0, nIPaletteColor);
         aadfPCT[1][nIPaletteColor] =
-            Palette->aadfPaletteColors[1][nIPaletteColor];
+            Palette->GetPaletteColorsValue(1, nIPaletteColor);
         aadfPCT[2][nIPaletteColor] =
-            Palette->aadfPaletteColors[2][nIPaletteColor];
+            Palette->GetPaletteColorsValue(2, nIPaletteColor);
         aadfPCT[3][nIPaletteColor] =
-            Palette->aadfPaletteColors[3][nIPaletteColor];
+            Palette->GetPaletteColorsValue(3, nIPaletteColor);
     }
 
     // Rest of colors
@@ -808,8 +806,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     }
 
     // Number of real colors (appart from NoData)
-    int nNPaletteColors =
-        static_cast<int>(Palette->aadfPaletteColors[0].size());
+    int nNPaletteColors = Palette->GetSizeOfPaletteColors();
     if (Palette->HasNodata())
         nNPaletteColors--;
 
@@ -999,8 +996,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
         return CE_Failure;
 
     // Number of real colors (appart from NoData)
-    int nNPaletteColors =
-        static_cast<int>(Palette->aadfPaletteColors[0].size());
+    int nNPaletteColors = Palette->GetSizeOfPaletteColors();
     int nRealNPaletteColors = nNPaletteColors;
     if (Palette->HasNodata())
     {
@@ -1034,15 +1030,15 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
     {
         poDefaultRAT->SetValue(0, 0, poBand->GetNoDataValue());
         poDefaultRAT->SetValue(0, 1, poBand->GetNoDataValue());
-        poDefaultRAT->SetValue(
-            0, 2,
-            Palette->aadfPaletteColors[0][Palette->GetNoDataPaletteIndex()]);
-        poDefaultRAT->SetValue(
-            0, 3,
-            Palette->aadfPaletteColors[1][Palette->GetNoDataPaletteIndex()]);
-        poDefaultRAT->SetValue(
-            0, 4,
-            Palette->aadfPaletteColors[2][Palette->GetNoDataPaletteIndex()]);
+        poDefaultRAT->SetValue(0, 2,
+                               Palette->GetPaletteColorsValue(
+                                   0, Palette->GetNoDataPaletteIndex()));
+        poDefaultRAT->SetValue(0, 3,
+                               Palette->GetPaletteColorsValue(
+                                   1, Palette->GetNoDataPaletteIndex()));
+        poDefaultRAT->SetValue(0, 4,
+                               Palette->GetPaletteColorsValue(
+                                   2, Palette->GetNoDataPaletteIndex()));
     }
 
     int nIPaletteColor = 0;
@@ -1055,12 +1051,15 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
             nIPaletteColor + 1, 1,
             poBand->GetVisuMin() +
                 dfInterval * (static_cast<double>(nIPaletteColor) + 1));
-        poDefaultRAT->SetValue(nIPaletteColor + 1, 2,
-                               Palette->aadfPaletteColors[0][nIPaletteColor]);
-        poDefaultRAT->SetValue(nIPaletteColor + 1, 3,
-                               Palette->aadfPaletteColors[1][nIPaletteColor]);
-        poDefaultRAT->SetValue(nIPaletteColor + 1, 4,
-                               Palette->aadfPaletteColors[2][nIPaletteColor]);
+        poDefaultRAT->SetValue(
+            nIPaletteColor + 1, 2,
+            Palette->GetPaletteColorsValue(0, nIPaletteColor));
+        poDefaultRAT->SetValue(
+            nIPaletteColor + 1, 3,
+            Palette->GetPaletteColorsValue(1, nIPaletteColor));
+        poDefaultRAT->SetValue(
+            nIPaletteColor + 1, 4,
+            Palette->GetPaletteColorsValue(2, nIPaletteColor));
     }
 
     // Last interval
@@ -1069,22 +1068,28 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
                                dfInterval *
                                    (static_cast<double>(nNPaletteColors) - 1));
     poDefaultRAT->SetValue(nIPaletteColor, 1, poBand->GetVisuMax());
-    poDefaultRAT->SetValue(nIPaletteColor, 2,
-                           Palette->aadfPaletteColors[0][nIPaletteColor - 1]);
-    poDefaultRAT->SetValue(nIPaletteColor, 3,
-                           Palette->aadfPaletteColors[1][nIPaletteColor - 1]);
-    poDefaultRAT->SetValue(nIPaletteColor, 4,
-                           Palette->aadfPaletteColors[2][nIPaletteColor - 1]);
+    poDefaultRAT->SetValue(
+        nIPaletteColor, 2,
+        Palette->GetPaletteColorsValue(0, nIPaletteColor - 1));
+    poDefaultRAT->SetValue(
+        nIPaletteColor, 3,
+        Palette->GetPaletteColorsValue(1, nIPaletteColor - 1));
+    poDefaultRAT->SetValue(
+        nIPaletteColor, 4,
+        Palette->GetPaletteColorsValue(2, nIPaletteColor - 1));
 
     // Last value
     poDefaultRAT->SetValue(nIPaletteColor + 1, 0, poBand->GetVisuMax());
     poDefaultRAT->SetValue(nIPaletteColor + 1, 1, poBand->GetVisuMax());
-    poDefaultRAT->SetValue(nIPaletteColor + 1, 2,
-                           Palette->aadfPaletteColors[0][nIPaletteColor - 1]);
-    poDefaultRAT->SetValue(nIPaletteColor + 1, 3,
-                           Palette->aadfPaletteColors[1][nIPaletteColor - 1]);
-    poDefaultRAT->SetValue(nIPaletteColor + 1, 4,
-                           Palette->aadfPaletteColors[2][nIPaletteColor - 1]);
+    poDefaultRAT->SetValue(
+        nIPaletteColor + 1, 2,
+        Palette->GetPaletteColorsValue(0, nIPaletteColor - 1));
+    poDefaultRAT->SetValue(
+        nIPaletteColor + 1, 3,
+        Palette->GetPaletteColorsValue(1, nIPaletteColor - 1));
+    poDefaultRAT->SetValue(
+        nIPaletteColor + 1, 4,
+        Palette->GetPaletteColorsValue(2, nIPaletteColor - 1));
 
     return CE_None;
 }
@@ -1095,7 +1100,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
 {
     // TODO: aixo va a la taula d'atributs en mode categòric
     // If the palette is not loaded, then, ignore the conversion silently
-    if (Palette->aadfPaletteColors[0].size() == 0)
+    if (Palette->GetSizeOfPaletteColors() == 0)
         return CE_Failure;
 
     int nNPossibleValues = static_cast<int>(
@@ -1115,8 +1120,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
 
     int nIPaletteColor = 0;
     // Giving color to the ones in the table
-    int nNPaletteColors =
-        static_cast<int>(Palette->aadfPaletteColors[0].size());
+    int nNPaletteColors = static_cast<int>(Palette->GetSizeOfPaletteColors());
 
     // No more colors than needed.
     if (nNPaletteColors > nNPossibleValues)
@@ -1125,13 +1129,13 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
     for (nIPaletteColor = 0; nIPaletteColor < nNPaletteColors; nIPaletteColor++)
     {
         aadfPCT[0][nIPaletteColor] =
-            Palette->aadfPaletteColors[0][nIPaletteColor];
+            Palette->GetPaletteColorsValue(0, nIPaletteColor);
         aadfPCT[1][nIPaletteColor] =
-            Palette->aadfPaletteColors[1][nIPaletteColor];
+            Palette->GetPaletteColorsValue(1, nIPaletteColor);
         aadfPCT[2][nIPaletteColor] =
-            Palette->aadfPaletteColors[2][nIPaletteColor];
+            Palette->GetPaletteColorsValue(2, nIPaletteColor);
         aadfPCT[3][nIPaletteColor] =
-            Palette->aadfPaletteColors[3][nIPaletteColor];
+            Palette->GetPaletteColorsValue(3, nIPaletteColor);
     }
 
     // Rest of colors
@@ -1178,10 +1182,14 @@ void MMRRasterBand::ConvertColorsFromPaletteToColorTable()
 
 void MMRRasterBand::AssignRGBColor(int nIndexDstCT, int nIndexSrcPalete)
 {
-    aadfPCT[0][nIndexDstCT] = Palette->aadfPaletteColors[0][nIndexSrcPalete];
-    aadfPCT[1][nIndexDstCT] = Palette->aadfPaletteColors[1][nIndexSrcPalete];
-    aadfPCT[2][nIndexDstCT] = Palette->aadfPaletteColors[2][nIndexSrcPalete];
-    aadfPCT[3][nIndexDstCT] = Palette->aadfPaletteColors[3][nIndexSrcPalete];
+    aadfPCT[0][nIndexDstCT] =
+        Palette->GetPaletteColorsValue(0, nIndexSrcPalete);
+    aadfPCT[1][nIndexDstCT] =
+        Palette->GetPaletteColorsValue(1, nIndexSrcPalete);
+    aadfPCT[2][nIndexDstCT] =
+        Palette->GetPaletteColorsValue(2, nIndexSrcPalete);
+    aadfPCT[3][nIndexDstCT] =
+        Palette->GetPaletteColorsValue(3, nIndexSrcPalete);
 }
 
 void MMRRasterBand::AssignRGBColorDirectly(int nIndexDstCT, double dfValue)

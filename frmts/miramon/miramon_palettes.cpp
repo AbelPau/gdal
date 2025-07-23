@@ -10,8 +10,6 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-//#include "cpl_port.h"
-//#include "miramon_dataset.h"
 #include "miramon_rel.h"
 #include "miramon_palettes.h"
 
@@ -83,9 +81,6 @@ void MMRPalettes::AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
         aadfPaletteColors[1][nIPaletteIndex] == -1 &&
         aadfPaletteColors[2][nIPaletteIndex] == -1)
     {
-        // (-1, -1, -1) is like nodata color
-        bHasNodata = true;
-
         // Transparent (white or whatever color)
         aadfPaletteColors[0][nIPaletteIndex] = sNoDataColorRGB.c1;
         aadfPaletteColors[1][nIPaletteIndex] = sNoDataColorRGB.c2;

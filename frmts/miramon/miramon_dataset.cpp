@@ -10,7 +10,6 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-//#include "cpl_port.h"
 #include "miramon_dataset.h"
 #include "miramon_rasterband.h"
 #include "miramon_band.h"  // Per a MMRBand
@@ -83,7 +82,7 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     }
 
     // We have a valid DataSet.
-    SetIsValid(true);
+    bIsValid = true;
 }
 
 /************************************************************************/
@@ -93,17 +92,6 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 MMRDataset::~MMRDataset()
 
 {
-    // Destroy the raster bands if they exist.  We forcibly clean
-    // them up now to avoid any effort to write to them after the
-    // file is closed.
-    for (int i = 0; i < nBands && papoBands != nullptr; i++)
-    {
-        if (papoBands[i] != nullptr)
-            delete papoBands[i];
-    }
-    CPLFree(papoBands);
-    papoBands = nullptr;
-
     delete pfRel;
 }
 
@@ -309,7 +297,7 @@ void GDALRegister_MiraMon()
     GetGDALDriverManager()->RegisterDriver(poDriver);
 }
 
-bool MMRDataset::NextBandInANewDataSet(int nIBand)
+bool MMRDataset::IsNextBandInANewDataSet(int nIBand)
 {
     if (nIBand < 0)
         return false;
@@ -373,7 +361,7 @@ void MMRDataset::AssignBandsToSubdataSets()
     MMRBand *pNextBand;
     for (; nIBand < pfRel->GetNBands() - 1; nIBand++)
     {
-        if (NextBandInANewDataSet(nIBand))
+        if (IsNextBandInANewDataSet(nIBand))
         {
             nNSubdataSets++;
             pNextBand = pfRel->GetBand(nIBand + 1);

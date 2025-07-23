@@ -61,11 +61,6 @@ class MMRDataset final : public GDALPamDataset
         return bIsValid;
     }
 
-    void SetIsValid(bool bIsValidIn)
-    {
-        bIsValid = bIsValidIn;
-    }
-
     MMRRel *GetRel()
     {
         return pfRel;
@@ -76,7 +71,7 @@ class MMRDataset final : public GDALPamDataset
     OGRSpatialReference m_oSRS{};
     CPLErr ReadProjection();
 
-    bool NextBandInANewDataSet(int nIBand);
+    bool IsNextBandInANewDataSet(int nIBand);
 
     bool bIsValid = false;  // Determines if the created object is valid or not.
     MMRRel *pfRel = nullptr;

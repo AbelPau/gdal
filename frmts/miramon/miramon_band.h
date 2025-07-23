@@ -71,9 +71,9 @@ class MMRBand
     int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         const CPLString osSection, const char *pszKey, int *nValue,
         const char *pszErrorMessage);
-    static int UpdateDataTypeAndBytesPerPixel(const char *pszCompType,
-                                              MMDataType *nCompressionType,
-                                              MMBytesPerPixel *nBytesPerPixel);
+    static int GetDataTypeAndBytesPerPixel(const char *pszCompType,
+                                           MMDataType *nCompressionType,
+                                           MMBytesPerPixel *nBytesPerPixel);
     int UpdateDataTypeFromREL(const CPLString osSection);
     void UpdateResolutionFromREL(const CPLString osSection);
     void UpdateResolutionYFromREL(const CPLString osSection);
@@ -97,11 +97,6 @@ class MMRBand
     bool IsValid() const
     {
         return bIsValid;
-    }
-
-    void SetIsValid(bool bIsValidIn)
-    {
-        bIsValid = bIsValidIn;
     }
 
     int GetAssignedSubDataSet()

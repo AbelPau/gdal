@@ -13,15 +13,9 @@
 #ifndef MMRPALETTES_H_INCLUDED
 #define MMRPALETTES_H_INCLUDED
 
-#include <cstddef>
-#include <vector>
-#include <optional>
-#include <array>
-
-//#include "gdal_pam.h"
-#include "gdal_rat.h"
-
 #include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
+
+class MMRRel;
 
 /* ==================================================================== */
 /*                            MMRPalettes                             */
@@ -46,11 +40,6 @@ class MMRPalettes
     bool IsValid() const
     {
         return bIsValid;
-    }
-
-    void SetIsValid(bool bIsValidIn)
-    {
-        bIsValid = bIsValidIn;
     }
 
     bool IsCategorical() const
@@ -123,7 +112,15 @@ class MMRPalettes
         nNoDataPaletteIndex = nNoDataPaletteIndexIn;
     }
 
-    std::array<std::vector<double>, 4> aadfPaletteColors{};
+    double GetPaletteColorsValue(int nIComponent, int nIColor) const
+    {
+        return aadfPaletteColors[nIComponent][nIColor];
+    }
+
+    int GetSizeOfPaletteColors() const
+    {
+        return static_cast<int>(aadfPaletteColors[0].size());
+    }
 
   private:
     static CPLErr GetPaletteColors_DBF_Indexs(
@@ -133,6 +130,7 @@ class MMRPalettes
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
 
+    std::array<std::vector<double>, 4> aadfPaletteColors{};
     bool bIsCategorical = false;
 
     // Palette info

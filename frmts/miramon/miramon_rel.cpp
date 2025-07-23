@@ -104,7 +104,7 @@ MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
         return;
 
     // We have a valid REL.
-    SetIsValid(true);
+    bIsValid = true;
 
     return;
 }

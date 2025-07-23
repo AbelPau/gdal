@@ -160,7 +160,7 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osBandSectionIn)
     }
 
     // We have a valid MMRBand.
-    SetIsValid(true);
+    bIsValid = true;
 }
 
 /************************************************************************/
@@ -258,9 +258,9 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
     return 0;
 }
 
-int MMRBand::UpdateDataTypeAndBytesPerPixel(const char *pszCompType,
-                                            MMDataType *nCompressionType,
-                                            MMBytesPerPixel *nBytesPerPixel)
+int MMRBand::GetDataTypeAndBytesPerPixel(const char *pszCompType,
+                                         MMDataType *nCompressionType,
+                                         MMBytesPerPixel *nBytesPerPixel)
 {
     if (!nCompressionType || !nBytesPerPixel || !pszCompType)
         return 1;
@@ -365,8 +365,8 @@ int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
         return 1;
     }
 
-    if (UpdateDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
-                                       &eMMBytesPerPixel) == 1)
+    if (GetDataTypeAndBytesPerPixel(osValue.c_str(), &eMMDataType,
+                                    &eMMBytesPerPixel) == 1)
     {
         nWidth = 0;
         nHeight = 0;

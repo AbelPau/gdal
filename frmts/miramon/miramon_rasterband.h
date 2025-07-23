@@ -25,6 +25,8 @@
 #include "miramon_rel.h"                          // For MMDataType
 #include "miramon_palettes.h"
 
+class MMRDataset;
+
 /* ==================================================================== */
 /*                            MMRRasterBand                             */
 /* ==================================================================== */
@@ -51,7 +53,7 @@ class MMRRasterBand final : public GDALPamRasterBand
                            const char * = "") override;
     GDALRasterAttributeTable *GetDefaultRAT() override;
 
-    void SetDataType();
+    void UpdateDataType();
     CPLErr FillRATFromPalette();
     CPLErr FromPaletteToAttributeTableContinousMode();
     CPLErr FromPaletteToAttributeTableCategoricalMode();
@@ -94,21 +96,16 @@ class MMRRasterBand final : public GDALPamRasterBand
         return bIsValid;
     }
 
-    void SetIsValid(bool bIsValidIn)
-    {
-        bIsValid = bIsValidIn;
-    }
-
     void SetMetadataDirty(bool isDirty)
     {
         bMetadataDirty = isDirty;
     }
 
-    GDALColorTable *poCT = nullptr;
-
   private:
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
+
+    GDALColorTable *poCT = nullptr;
 
     bool bTriedLoadColorTable = false;
     bool bIsValid = false;  // Determines if the created object is valid or not.
