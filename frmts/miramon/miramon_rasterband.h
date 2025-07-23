@@ -42,7 +42,6 @@ class MMRRasterBand final : public GDALPamRasterBand
     ~MMRRasterBand();
 
     CPLErr IReadBlock(int, int, void *) override;
-    const char *GetDescription() const override;
     GDALColorInterp GetColorInterpretation() override;
     GDALColorTable *GetColorTable() override;
     double GetMinimum(int *pbSuccess = nullptr) override;

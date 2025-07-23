@@ -214,19 +214,6 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 }
 
 /************************************************************************/
-/*                         GetDescription()                             */
-/************************************************************************/
-
-const char *MMRRasterBand::GetDescription() const
-{
-    MMRBand *pBand = pfRel->GetBand(nBand - 1);
-    if (!pBand)
-        return "";
-
-    return pBand->GetBandName();
-}
-
-/************************************************************************/
 /*                       GetColorInterpretation()                       */
 /************************************************************************/
 
