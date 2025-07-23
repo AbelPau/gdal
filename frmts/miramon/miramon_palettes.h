@@ -13,6 +13,8 @@
 #ifndef MMRPALETTES_H_INCLUDED
 #define MMRPALETTES_H_INCLUDED
 
+#include <array>
+
 #include "../miramon_common/mm_gdal_constants.h"  // For MM_EXT_DBF_N_FIELDS
 
 class MMRRel;
