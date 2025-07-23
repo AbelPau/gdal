@@ -53,6 +53,12 @@ MMRRasterBand::~MMRRasterBand()
 {
     FlushCache(true);
 
+    if (poCT != nullptr)
+    {
+        delete poCT;
+        poCT = nullptr;
+    }
+
     if (Palette != nullptr)
         delete Palette;
 
@@ -240,7 +246,11 @@ GDALColorTable *MMRRasterBand::GetColorTable()
     Palette = new MMRPalettes(*pfRel, osBandSection);
 
     if (!Palette->IsValid())
+    {
+        delete Palette;
+        Palette = nullptr;
         return poCT;
+    }
 
     poCT = new GDALColorTable();
 
@@ -253,6 +263,8 @@ GDALColorTable *MMRRasterBand::GetColorTable()
         // No color table available. Perhaps some attribute table with the colors?
         delete poCT;
         poCT = nullptr;
+        delete Palette;
+        Palette = nullptr;
         return poCT;
     }
 
