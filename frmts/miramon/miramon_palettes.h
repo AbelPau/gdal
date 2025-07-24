@@ -34,7 +34,7 @@ class MMRPalettes
     ~MMRPalettes();
 
     void AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
-                            char *pzsRecord, char *pzsField,
+                            char *pzsRecord, char *pszField,
                             MM_EXT_DBF_N_FIELDS &nRIndex,
                             MM_EXT_DBF_N_FIELDS &nGIndex,
                             MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);

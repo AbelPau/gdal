@@ -263,8 +263,6 @@ GDALColorTable *MMRRasterBand::GetColorTable()
         // No color table available. Perhaps some attribute table with the colors?
         delete poCT;
         poCT = nullptr;
-        delete Palette;
-        Palette = nullptr;
         return poCT;
     }
 
@@ -310,7 +308,11 @@ GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
 
     poDefaultRAT = new GDALDefaultRasterAttributeTable();
 
-    FillRATFromPalette();
+    if (CE_None != FillRATFromPalette())
+    {
+        delete poDefaultRAT;
+        poDefaultRAT = nullptr;
+    }
 
     return poDefaultRAT;
 }
@@ -324,11 +326,7 @@ CPLErr MMRRasterBand::FillRATFromPalette()
     if (os_IndexJoin.empty())
     {
         if (CE_None != UpdateAttributeColorsFromPalette())
-        {
-            delete poDefaultRAT;
-            poDefaultRAT = nullptr;
             return CE_Failure;
-        }
 
         return CE_None;
     }
@@ -339,48 +337,23 @@ CPLErr MMRRasterBand::FillRATFromPalette()
     if (nTokens < 1)
     {
         CSLDestroy(papszTokens);
-        delete poDefaultRAT;
-        poDefaultRAT = nullptr;
         return CE_Failure;
     }
 
-    // TODO: només una de les taules
-    for (int nIAttTable = 0; nIAttTable < nTokens; nIAttTable++)
+    CPLString osRELName, osDBFName, osAssociateRel;
+    if (CE_None !=
+            GetRATName(papszTokens[0], osRELName, osDBFName, osAssociateRel) ||
+        osDBFName.empty() || osAssociateRel.empty())
     {
-        CPLString osRELName, osDBFName, osAssociateRel;
-        if (CE_None != GetAttributeTableName(papszTokens[nIAttTable], osRELName,
-                                             osDBFName, osAssociateRel))
-        {
-            CSLDestroy(papszTokens);
-            delete poDefaultRAT;
-            poDefaultRAT = nullptr;
-            return CE_Failure;
-        }
+        CSLDestroy(papszTokens);
+        return CE_Failure;
+    }
 
-        if (osDBFName.empty())
-        {
-            CSLDestroy(papszTokens);
-            delete poDefaultRAT;
-            poDefaultRAT = nullptr;
-            return CE_Failure;
-        }
-
-        if (osAssociateRel.empty())
-        {
-            CSLDestroy(papszTokens);
-            delete poDefaultRAT;
-            poDefaultRAT = nullptr;
-            return CE_Failure;
-        }
-
-        if (CE_None !=
-            CreateAttributteTableFromDBF(osRELName, osDBFName, osAssociateRel))
-        {
-            CSLDestroy(papszTokens);
-            delete poDefaultRAT;
-            poDefaultRAT = nullptr;
-            return CE_Failure;
-        }
+    if (CE_None !=
+        CreateCategoricalRATFromDBF(osRELName, osDBFName, osAssociateRel))
+    {
+        CSLDestroy(papszTokens);
+        return CE_Failure;
     }
     CSLDestroy(papszTokens);
     return CE_None;
@@ -389,9 +362,20 @@ CPLErr MMRRasterBand::FillRATFromPalette()
 CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
 
 {
+    // If there is no palette, let's get one
     if (!Palette)
-        return CE_None;
+    {
+        Palette = new MMRPalettes(*pfRel, osBandSection);
 
+        if (!Palette->IsValid())
+        {
+            delete Palette;
+            Palette = nullptr;
+            return CE_None;
+        }
+    }
+
+    // Let's get the link to the palette
     CPLString os_Color_Const = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Const");
 
@@ -418,9 +402,9 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     return CE_None;
 }
 
-CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
-                                                   CPLString osDBFName,
-                                                   CPLString osAssociateRel)
+CPLErr MMRRasterBand::CreateCategoricalRATFromDBF(CPLString osRELName,
+                                                  CPLString osDBFName,
+                                                  CPLString osAssociateRel)
 {
     struct MM_DATA_BASE_XP oAttributteTable;
     memset(&oAttributteTable, 0, sizeof(oAttributteTable));
@@ -480,6 +464,7 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
         return CE_Failure;
     }
 
+    int nNRATColumns = 0;
     // 0 column: category value
     if (oAttributteTable.pField[nFieldIndex].DecimalsIfFloat)
     {
@@ -487,6 +472,8 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
                            oAttributteTable.pField[nFieldIndex].FieldName,
                            GFT_Real, GFU_MinMax))
             return CE_Failure;
+
+        nNRATColumns++;
     }
     else
     {
@@ -494,10 +481,13 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
                            oAttributteTable.pField[nFieldIndex].FieldName,
                            GFT_Integer, GFU_MinMax))
             return CE_Failure;
+
+        nNRATColumns++;
     }
 
     GDALRATFieldUsage eFieldUsage;
     GDALRATFieldType eFieldType;
+
     for (nIField = 0; nIField < oAttributteTable.nFields; nIField++)
     {
         if (nIField == nFieldIndex)
@@ -519,31 +509,22 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
         if (nIField == nCategIndex)
             eFieldUsage = GFU_Name;
 
-        /*if(*oAttributteTable.pField[nIField].FieldDescription[0] != '\0')
-        {
-            if (CE_None != poDefaultRAT->CreateColumn(
-                oAttributteTable.pField[nIField].FieldDescription[0],
-                eFieldType, eFieldUsage))
-                return CE_Failure;
-        }
-        else
-        */
-        {
-            if (CE_None != poDefaultRAT->CreateColumn(
-                               oAttributteTable.pField[nIField].FieldName,
-                               eFieldType, eFieldUsage))
-                return CE_Failure;
-        }
+        if (CE_None != poDefaultRAT->CreateColumn(
+                           oAttributteTable.pField[nIField].FieldName,
+                           eFieldType, eFieldUsage))
+            return CE_Failure;
+
+        nNRATColumns++;
     }
 
     VSIFSeekL(oAttributteTable.pfDataBase, oAttributteTable.FirstRecordOffset,
               SEEK_SET);
-    poDefaultRAT->SetRowCount(static_cast<int>(oAttributteTable.nRecords));
+    poDefaultRAT->SetRowCount(nNRATColumns);
 
     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize =
         oAttributteTable.BytesPerRecord + 1;
     char *pzsRecord = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
-    char *pzsField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
+    char *pszField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
 
     for (int nIRecord = 0;
          nIRecord < static_cast<int>(oAttributteTable.nRecords); nIRecord++)
@@ -559,13 +540,13 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
         }
 
         // Category index
-        memcpy(pzsField,
+        memcpy(pszField,
                pzsRecord +
                    oAttributteTable.pField[nFieldIndex].AccumulatedBytes,
                oAttributteTable.pField[nFieldIndex].BytesPerField);
-        pzsField[oAttributteTable.pField[nFieldIndex].BytesPerField] = '\0';
-        CPLString osField = pzsField;
-        poDefaultRAT->SetValue(nIRecord, 0, osField);
+        pszField[oAttributteTable.pField[nFieldIndex].BytesPerField] = '\0';
+        CPLString osCatField = pszField;
+        poDefaultRAT->SetValue(atoi(osCatField), 0, osCatField);
 
         int nIOrderedField = 1;
         for (nIField = 0; nIField < oAttributteTable.nFields; nIField++)
@@ -574,31 +555,31 @@ CPLErr MMRRasterBand::CreateAttributteTableFromDBF(CPLString osRELName,
                 continue;
 
             // Category value
-            memcpy(pzsField,
+            memcpy(pszField,
                    pzsRecord +
                        oAttributteTable.pField[nIField].AccumulatedBytes,
                    oAttributteTable.pField[nIField].BytesPerField);
-            pzsField[oAttributteTable.pField[nIField].BytesPerField] = '\0';
-            if (oAttributteTable.CharSet == MM_JOC_CARAC_OEM850_DBASE)
-                MM_oemansi(pzsField);
+            pszField[oAttributteTable.pField[nIField].BytesPerField] = '\0';
 
-            if (oAttributteTable.CharSet != MM_JOC_CARAC_UTF8_DBF)
+            if (oAttributteTable.CharSet == MM_JOC_CARAC_OEM850_DBASE)
+                MM_oemansi(pszField);
+
+            CPLString osField = pszField;
+            osField.Trim();
+
+            if (oAttributteTable.CharSet != MM_JOC_CARAC_UTF8_DBF &&
+                oAttributteTable.pField[nIField].FieldType != 'N')
             {
                 // MiraMon encoding is ISO 8859-1 (Latin1) -> Recode to UTF-8
-                char *pszFieldRecoded =
-                    CPLRecode(pzsField, CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
-                poDefaultRAT->SetValue(nIRecord, nIOrderedField,
-                                       pszFieldRecoded);
-                CPLFree(pszFieldRecoded);
+                osField.Recode(CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
             }
-            else
-                poDefaultRAT->SetValue(nIRecord, nIOrderedField, pzsField);
 
+            poDefaultRAT->SetValue(atoi(osCatField), nIOrderedField, osField);
             nIOrderedField++;
         }
     }
 
-    VSIFree(pzsField);
+    VSIFree(pszField);
     VSIFree(pzsRecord);
     VSIFCloseL(oAttributteTable.pfDataBase);
     MM_ReleaseMainFields(&oAttributteTable);
@@ -889,10 +870,9 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     return CE_None;
 }
 
-CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
-                                            CPLString &osRELName,
-                                            CPLString &osDBFName,
-                                            CPLString &osAssociateREL)
+CPLErr MMRRasterBand::GetRATName(char *papszToken, CPLString &osRELName,
+                                 CPLString &osDBFName,
+                                 CPLString &osAssociateREL)
 {
     CPLString os_Join = "JoinTaula";
     os_Join.append("_");
@@ -953,7 +933,11 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
         if (osTactVar == "Categoric")
             poDefaultRAT->SetTableType(GRTT_THEMATIC);
         else
-            poDefaultRAT->SetTableType(GRTT_ATHEMATIC);
+        {
+            osRELName = "";
+            delete fLocalRel;
+            return CE_Failure;
+        }
 
         delete fLocalRel;
         return CE_None;
@@ -969,6 +953,7 @@ CPLErr MMRRasterBand::GetAttributeTableName(char *papszToken,
 
         osAssociateREL =
             pfRel->GetMetadataValue(osTableNameSection, "AssociatRel");
+        poDefaultRAT->SetTableType(GRTT_THEMATIC);
 
         return CE_None;
     }

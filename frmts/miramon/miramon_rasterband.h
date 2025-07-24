@@ -57,13 +57,11 @@ class MMRRasterBand final : public GDALPamRasterBand
     CPLErr FromPaletteToAttributeTableContinousMode();
     CPLErr FromPaletteToAttributeTableCategoricalMode();
     void ConvertColorsFromPaletteToColorTable();
-    CPLErr GetAttributeTableName(char *papszToken, CPLString &osRELName,
-                                 CPLString &osDBFName,
-                                 CPLString &osAssociateREL);
+    CPLErr GetRATName(char *papszToken, CPLString &osRELName,
+                      CPLString &osDBFName, CPLString &osAssociateREL);
     CPLErr UpdateAttributeColorsFromPalette();
-    CPLErr CreateAttributteTableFromDBF(CPLString osRELName,
-                                        CPLString osDBFName,
-                                        CPLString osAssociateRel);
+    CPLErr CreateCategoricalRATFromDBF(CPLString osRELName, CPLString osDBFName,
+                                       CPLString osAssociateRel);
 
     CPLErr AssignUniformColorTable();
     CPLErr FromPaletteToColorTableCategoricalMode();
@@ -104,8 +102,6 @@ class MMRRasterBand final : public GDALPamRasterBand
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
 
-    GDALColorTable *poCT = nullptr;
-
     bool bTriedLoadColorTable = false;
     bool bIsValid = false;  // Determines if the created object is valid or not.
 
@@ -119,6 +115,9 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     MMRRel *pfRel = nullptr;  // Pointer to info from rel. Do not free.
     bool bMetadataDirty = false;
+
+    // Color table
+    GDALColorTable *poCT = nullptr;
 
     // Attributte table
     GDALRasterAttributeTable *poDefaultRAT = nullptr;

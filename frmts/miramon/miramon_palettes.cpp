@@ -59,29 +59,29 @@ MMRPalettes::~MMRPalettes()
 }
 
 void MMRPalettes::AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
-                                     char *pzsRecord, char *pzsField,
+                                     char *pzsRecord, char *pszField,
                                      MM_EXT_DBF_N_FIELDS &nRIndex,
                                      MM_EXT_DBF_N_FIELDS &nGIndex,
                                      MM_EXT_DBF_N_FIELDS &nBIndex,
                                      int nIPaletteIndex)
 {
     // RED
-    memcpy(pzsField, pzsRecord + oColorTable.pField[nRIndex].AccumulatedBytes,
+    memcpy(pszField, pzsRecord + oColorTable.pField[nRIndex].AccumulatedBytes,
            oColorTable.pField[nRIndex].BytesPerField);
-    pzsField[oColorTable.pField[nRIndex].BytesPerField] = '\0';
-    aadfPaletteColors[0][nIPaletteIndex] = CPLAtof(pzsField);
+    pszField[oColorTable.pField[nRIndex].BytesPerField] = '\0';
+    aadfPaletteColors[0][nIPaletteIndex] = CPLAtof(pszField);
 
     // GREEN
-    memcpy(pzsField, pzsRecord + oColorTable.pField[nGIndex].AccumulatedBytes,
+    memcpy(pszField, pzsRecord + oColorTable.pField[nGIndex].AccumulatedBytes,
            oColorTable.pField[nGIndex].BytesPerField);
-    pzsField[oColorTable.pField[nGIndex].BytesPerField] = '\0';
-    aadfPaletteColors[1][nIPaletteIndex] = CPLAtof(pzsField);
+    pszField[oColorTable.pField[nGIndex].BytesPerField] = '\0';
+    aadfPaletteColors[1][nIPaletteIndex] = CPLAtof(pszField);
 
     // BLUE
-    memcpy(pzsField, pzsRecord + oColorTable.pField[nBIndex].AccumulatedBytes,
+    memcpy(pszField, pzsRecord + oColorTable.pField[nBIndex].AccumulatedBytes,
            oColorTable.pField[nBIndex].BytesPerField);
-    pzsField[oColorTable.pField[nBIndex].BytesPerField] = '\0';
-    aadfPaletteColors[2][nIPaletteIndex] = CPLAtof(pzsField);
+    pszField[oColorTable.pField[nBIndex].BytesPerField] = '\0';
+    aadfPaletteColors[2][nIPaletteIndex] = CPLAtof(pszField);
 
     // ALPHA
     if (aadfPaletteColors[0][nIPaletteIndex] == -1 &&
@@ -193,7 +193,7 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     MM_EXT_DBF_N_RECORDS nIRecord;
     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = oColorTable.BytesPerRecord + 1;
     char *pzsRecord = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
-    char *pzsField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
+    char *pszField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
 
     if (bIsCategorical)
     {
@@ -216,11 +216,11 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                 return CE_Failure;
             }
 
-            memcpy(pzsField,
+            memcpy(pszField,
                    pzsRecord + oColorTable.pField[nClauSimbol].AccumulatedBytes,
                    oColorTable.pField[nClauSimbol].BytesPerField);
-            pzsField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
-            CPLString osField = pzsField;
+            pszField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
+            CPLString osField = pszField;
             osField.replaceAll(" ", "");
             if (osField.empty())
                 bHasNodata = true;
@@ -303,16 +303,16 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             }
 
             // Nodata identification
-            memcpy(pzsField,
+            memcpy(pszField,
                    pzsRecord + oColorTable.pField[nClauSimbol].AccumulatedBytes,
                    oColorTable.pField[nClauSimbol].BytesPerField);
-            pzsField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
-            CPLString osField = pzsField;
+            pszField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
+            CPLString osField = pszField;
             osField.replaceAll(" ", "");
 
             nIPaletteIndex = atoi(osField);
 
-            AssignColorFromDBF(oColorTable, pzsRecord, pzsField, nRIndex,
+            AssignColorFromDBF(oColorTable, pzsRecord, pszField, nRIndex,
                                nGIndex, nBIndex, nIPaletteIndex);
         }
     }
@@ -339,11 +339,11 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             }
 
             // Nodata identification
-            memcpy(pzsField,
+            memcpy(pszField,
                    pzsRecord + oColorTable.pField[nClauSimbol].AccumulatedBytes,
                    oColorTable.pField[nClauSimbol].BytesPerField);
-            pzsField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
-            CPLString osField = pzsField;
+            pszField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
+            CPLString osField = pszField;
             osField.replaceAll(" ", "");
             if (osField.empty())  // Nodata value
             {
@@ -351,12 +351,12 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                 nNoDataPaletteIndex = nIPCTColors;
             }
 
-            AssignColorFromDBF(oColorTable, pzsRecord, pzsField, nRIndex,
+            AssignColorFromDBF(oColorTable, pzsRecord, pszField, nRIndex,
                                nGIndex, nBIndex, nIPCTColors);
         }
     }
 
-    VSIFree(pzsField);
+    VSIFree(pszField);
     VSIFree(pzsRecord);
     VSIFCloseL(oColorTable.pfDataBase);
     MM_ReleaseMainFields(&oColorTable);

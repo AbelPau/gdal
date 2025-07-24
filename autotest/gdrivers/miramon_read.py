@@ -12,6 +12,7 @@
 ###############################################################################
 
 
+import math
 import os
 import struct
 
@@ -274,7 +275,7 @@ init_list_color_tables = [
         },
     ),
     (
-        "data/miramon/palettes/Categorical/Authomatic/byte_2x3_6_categsI.rel",
+        "data/miramon/palettes/Categorical/Automatic/byte_2x3_6_categsI.rel",
         1,  # band index
         None,
     ),
@@ -445,3 +446,102 @@ def test_miramon_color_table(filename, idx_bnd, expected_ct):
             assert (
                 tuple(entry) == expected_color
             ), f"Color entry for index {index} does not match: got {entry}, expected {expected_color}"
+
+
+###### Testing attribute table
+init_list_attribute_tables = [
+    (
+        "data/miramon/palettes/Continous/DBF_nodata_end/double_with_nodataI.rel",
+        1,  # band index
+        {
+            (0, "MIN"): 1.7e308,
+            (0, "MAX"): 1.7e308,
+            (0, "Red"): 204,
+            (0, "Green"): 217,
+            (0, "Blue"): 249,
+            (2, "MIN"): -2130640638.003922,
+            (2, "MAX"): -2113797629.007843,
+            (2, "Red"): 144,
+            (2, "Green"): 178,
+            (2, "Blue"): 109,
+            (52, "MIN"): -1288490188.2,
+            (52, "MAX"): -1271647179.203922,
+            (52, "Red"): 192,
+            (52, "Green"): 171,
+            (52, "Blue"): 89,
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/ThematicNoDataBeg/MUCSC_2002_30_m_v_6_retI.rel",
+        1,  # band index
+        {
+            (1, "CODI_USCOB"): 1,
+            (1, "DESC_USCOB"): "Aigües marines",
+            (1, "CAMPEXTRA1"): "extra1",
+            (1, "CAMPEXTRA2"): 2,
+            (1, "CAMPEXTRA3"): "20250110",
+            (1, "CAMPEXTRA4"): "T",
+            (2, "CODI_USCOB"): 2,
+            (2, "DESC_USCOB"): "Aigües continentals",
+            (2, "CAMPEXTRA1"): "extra11",
+            (2, "CAMPEXTRA2"): 3,
+            (2, "CAMPEXTRA3"): "20250710",
+            (2, "CAMPEXTRA4"): "F",
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "filename,idx_bnd,expected_rat",
+    init_list_attribute_tables,
+    # ids=[tup[0].split("/")[-1].split(".")[0] for tup in init_list_attribute_tables],
+    ids=[
+        os.path.join(
+            os.path.basename(os.path.dirname(tup[0])),
+            os.path.splitext(os.path.basename(tup[0]))[0],
+        )
+        for tup in init_list_attribute_tables
+    ],
+)
+@pytest.mark.require_driver("MiraMonRaster")
+def test_miramon_default_rat(filename, idx_bnd, expected_rat):
+    ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
+    assert ds is not None, f"Could not open file: {filename}"
+
+    band = ds.GetRasterBand(idx_bnd)
+    assert band is not None, f"Could not get band {idx_bnd} from file"
+
+    rat = band.GetDefaultRAT()
+    assert rat is not None, "No Raster Attribute Table (RAT) found on band"
+
+    col_name_to_idx = {rat.GetNameOfCol(i): i for i in range(rat.GetColumnCount())}
+
+    for (row_idx, col_name), expected_val in expected_rat.items():
+        assert 0 <= row_idx < rat.GetRowCount(), f"Row {row_idx} out of bounds"
+        assert col_name in col_name_to_idx, f"Column '{col_name}' not found in RAT"
+
+        col_idx = col_name_to_idx[col_name]
+        gdal_type = rat.GetTypeOfCol(col_idx)
+
+        if gdal_type == gdal.GFT_Integer:
+            val = rat.GetValueAsInt(row_idx, col_idx)
+        elif gdal_type == gdal.GFT_Real:
+            val = rat.GetValueAsDouble(row_idx, col_idx)
+        elif gdal_type == gdal.GFT_String:
+            val = rat.GetValueAsString(row_idx, col_idx)
+        else:
+            raise ValueError(
+                f"Unsupported field type {gdal_type} for column '{col_name}'"
+            )
+
+        if isinstance(expected_val, float):
+            assert math.isclose(val, expected_val, rel_tol=1e-6, abs_tol=1e-12), (
+                f"Float mismatch at row {row_idx}, column '{col_name}': "
+                f"got {val}, expected {expected_val}"
+            )
+        else:
+            assert val == expected_val, (
+                f"Value mismatch at row {row_idx}, column '{col_name}': "
+                f"got {val}, expected {expected_val}"
+            )
