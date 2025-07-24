@@ -124,13 +124,12 @@ double MMRRasterBand::GetNoDataValue(int *pbSuccess)
 
 {
     double dfNoData = 0.0;
+    if (pbSuccess)
+        *pbSuccess = FALSE;
 
     MMRBand *poBand = pfRel->GetLastBand();
     if (!poBand)
-    {
-        CPLAssert(false);
         return dfNoData;
-    }
 
     if (!poBand->BandHasNoData())
     {
@@ -151,16 +150,17 @@ double MMRRasterBand::GetNoDataValue(int *pbSuccess)
 double MMRRasterBand::GetMinimum(int *pbSuccess)
 
 {
-    const char *pszValue = GetMetadataItem("STATISTICS_MINIMUM");
+    if (pbSuccess)
+        *pbSuccess = FALSE;
 
-    if (pszValue != nullptr)
-    {
-        if (pbSuccess)
-            *pbSuccess = TRUE;
-        return CPLAtofM(pszValue);
-    }
+    MMRBand *poBand = pfRel->GetLastBand();
+    if (!poBand || !poBand->GetMinSet())
+        return 0.0;
 
-    return GDALRasterBand::GetMinimum(pbSuccess);
+    if (pbSuccess)
+        *pbSuccess = TRUE;
+
+    return poBand->GetMin();
 }
 
 /************************************************************************/
@@ -170,16 +170,17 @@ double MMRRasterBand::GetMinimum(int *pbSuccess)
 double MMRRasterBand::GetMaximum(int *pbSuccess)
 
 {
-    const char *pszValue = GetMetadataItem("STATISTICS_MAXIMUM");
+    if (pbSuccess)
+        *pbSuccess = FALSE;
 
-    if (pszValue != nullptr)
-    {
-        if (pbSuccess)
-            *pbSuccess = TRUE;
-        return CPLAtofM(pszValue);
-    }
+    MMRBand *poBand = pfRel->GetLastBand();
+    if (!poBand || !poBand->GetMaxSet())
+        return 0.0;
 
-    return GDALRasterBand::GetMaximum(pbSuccess);
+    if (pbSuccess)
+        *pbSuccess = TRUE;
+
+    return poBand->GetMax();
 }
 
 /************************************************************************/
@@ -269,31 +270,6 @@ GDALColorTable *MMRRasterBand::GetColorTable()
     ConvertColorsFromPaletteToColorTable();
 
     return poCT;
-}
-
-/************************************************************************/
-/*                            SetMetadata()                             */
-/************************************************************************/
-
-CPLErr MMRRasterBand::SetMetadata(char **papszMDIn, const char *pszDomain)
-
-{
-    bMetadataDirty = true;
-
-    return GDALPamRasterBand::SetMetadata(papszMDIn, pszDomain);
-}
-
-/************************************************************************/
-/*                        SetMetadataItem()                             */
-/************************************************************************/
-
-CPLErr MMRRasterBand::SetMetadataItem(const char *pszTag, const char *pszValue,
-                                      const char *pszDomain)
-
-{
-    bMetadataDirty = true;
-
-    return GDALPamRasterBand::SetMetadataItem(pszTag, pszValue, pszDomain);
 }
 
 /************************************************************************/
@@ -415,9 +391,7 @@ CPLErr MMRRasterBand::CreateCategoricalRATFromDBF(CPLString osRELName,
     CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
 
-    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
-        Palette->SetIsCategorical(true);
-    else
+    if (!EQUAL(os_Color_TractamentVariable, "Categoric"))
         return CE_Failure;  // Don't consider continous RAT's
 
     struct MM_DATA_BASE_XP oAttributteTable;

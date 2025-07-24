@@ -47,9 +47,6 @@ class MMRRasterBand final : public GDALPamRasterBand
     double GetMinimum(int *pbSuccess = nullptr) override;
     double GetMaximum(int *pbSuccess = nullptr) override;
     double GetNoDataValue(int *pbSuccess = nullptr) override;
-    CPLErr SetMetadata(char **, const char * = "") override;
-    CPLErr SetMetadataItem(const char *, const char *,
-                           const char * = "") override;
     GDALRasterAttributeTable *GetDefaultRAT() override;
 
     void UpdateDataType();
