@@ -489,6 +489,60 @@ init_list_attribute_tables = [
             (2, "CAMPEXTRA4"): "F",
         },
     ),
+    (
+        "data/miramon/palettes/Categorical/ThematicNoDataEnd/MUCSC_2002_30_m_v_6_retI.rel",
+        1,  # band index
+        {
+            (1, "CODI_USCOB"): 1,
+            (1, "DESC_USCOB"): "Aigües marines",
+            (1, "CAMPEXTRA1"): "extra1",
+            (1, "CAMPEXTRA2"): 2,
+            (1, "CAMPEXTRA3"): "20250110",
+            (1, "CAMPEXTRA4"): "T",
+            (2, "CODI_USCOB"): 2,
+            (2, "DESC_USCOB"): "Aigües continentals",
+            (2, "CAMPEXTRA1"): "extra11",
+            (2, "CAMPEXTRA2"): 3,
+            (2, "CAMPEXTRA3"): "20250710",
+            (2, "CAMPEXTRA4"): "F",
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/ThematicNoDataMiddle/MUCSC_2002_30_m_v_6_retI.rel",
+        1,  # band index
+        {
+            (1, "CODI_USCOB"): 1,
+            (1, "DESC_USCOB"): "Aigües marines",
+            (1, "CAMPEXTRA1"): "extra1",
+            (1, "CAMPEXTRA2"): 2,
+            (1, "CAMPEXTRA3"): "20250110",
+            (1, "CAMPEXTRA4"): "T",
+            (2, "CODI_USCOB"): 2,
+            (2, "DESC_USCOB"): "Aigües continentals",
+            (2, "CAMPEXTRA1"): "extra11",
+            (2, "CAMPEXTRA2"): 3,
+            (2, "CAMPEXTRA3"): "20250710",
+            (2, "CAMPEXTRA4"): "F",
+        },
+    ),
+    (
+        "data/miramon/palettes/Categorical/ThematicLessColors/MUCSC_2002_30_m_v_6_retI.rel",
+        1,  # band index
+        {
+            (1, "CODI_USCOB"): 1,
+            (1, "DESC_USCOB"): "Aigües marines",
+            (1, "CAMPEXTRA1"): "extra1",
+            (1, "CAMPEXTRA2"): 2,
+            (1, "CAMPEXTRA3"): "20250110",
+            (1, "CAMPEXTRA4"): "T",
+            (2, "CODI_USCOB"): 2,
+            (2, "DESC_USCOB"): "Aigües continentals",
+            (2, "CAMPEXTRA1"): "extra11",
+            (2, "CAMPEXTRA2"): 3,
+            (2, "CAMPEXTRA3"): "20250710",
+            (2, "CAMPEXTRA4"): "F",
+        },
+    ),
 ]
 
 

@@ -325,12 +325,16 @@ CPLErr MMRRasterBand::FillRATFromPalette()
 
     if (os_IndexJoin.empty())
     {
+        // I don't have any associated attribute table but
+        // perhaps I can create an attribute table with
+        // the colors (if I have them) assigned to the pixels
         if (CE_None != UpdateAttributeColorsFromPalette())
             return CE_Failure;
 
         return CE_None;
     }
 
+    // Here I have some attribute table. I want to expose to RAT.
     char **papszTokens = CSLTokenizeString2(os_IndexJoin, ",", 0);
     const int nTokens = CSLCount(papszTokens);
 
@@ -340,6 +344,7 @@ CPLErr MMRRasterBand::FillRATFromPalette()
         return CE_Failure;
     }
 
+    // Let's see the conditions to have one.
     CPLString osRELName, osDBFName, osAssociateRel;
     if (CE_None !=
             GetRATName(papszTokens[0], osRELName, osDBFName, osAssociateRel) ||
@@ -349,6 +354,7 @@ CPLErr MMRRasterBand::FillRATFromPalette()
         return CE_Failure;
     }
 
+    // Let's create and fill the RAT
     if (CE_None !=
         CreateCategoricalRATFromDBF(osRELName, osDBFName, osAssociateRel))
     {
@@ -406,6 +412,14 @@ CPLErr MMRRasterBand::CreateCategoricalRATFromDBF(CPLString osRELName,
                                                   CPLString osDBFName,
                                                   CPLString osAssociateRel)
 {
+    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
+        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
+
+    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
+        Palette->SetIsCategorical(true);
+    else
+        return CE_Failure;  // Don't consider continous RAT's
+
     struct MM_DATA_BASE_XP oAttributteTable;
     memset(&oAttributteTable, 0, sizeof(oAttributteTable));
 
