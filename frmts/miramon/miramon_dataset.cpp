@@ -17,6 +17,34 @@
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
 
 /************************************************************************/
+/*                GDALRegister_MiraMon()                                */
+/************************************************************************/
+void GDALRegister_MiraMon()
+
+{
+    if (GDALGetDriverByName("MiraMonRaster") != nullptr)
+        return;
+
+    GDALDriver *poDriver = new GDALDriver();
+
+    poDriver->SetDescription("MiraMonRaster");
+    poDriver->SetMetadataItem(GDAL_DCAP_RASTER, "YES");
+    poDriver->SetMetadataItem(GDAL_DMD_LONGNAME, "MiraMon Raster Images");
+    poDriver->SetMetadataItem(GDAL_DMD_HELPTOPIC,
+                              "drivers/raster/miramon.html");
+    poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "rel");
+    poDriver->SetMetadataItem(GDAL_DMD_EXTENSIONS, "rel img");
+
+    poDriver->SetMetadataItem(GDAL_DCAP_VIRTUALIO, "YES");
+    poDriver->SetMetadataItem(GDAL_DMD_SUBDATASETS, "YES");
+
+    poDriver->pfnOpen = MMRDataset::Open;
+    poDriver->pfnIdentify = MMRDataset::Identify;
+
+    GetGDALDriverManager()->RegisterDriver(poDriver);
+}
+
+/************************************************************************/
 /*                            MMRDataset()                            */
 /************************************************************************/
 
@@ -96,28 +124,6 @@ MMRDataset::~MMRDataset()
 }
 
 /************************************************************************/
-/*                           ReadProjection()                           */
-/************************************************************************/
-CPLErr MMRDataset::ReadProjection()
-
-{
-    if (!pfRel)
-        return CE_Failure;
-
-    CPLString osSRS = pfRel->GetMetadataValue(
-        "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
-
-    char szResult[MM_MAX_ID_SNY + 10];
-    int nResult = ReturnEPSGCodeSRSFromMMIDSRS(osSRS.c_str(), szResult);
-    if (nResult == 1 || szResult[0] == '\0')
-        return CE_Failure;
-
-    m_oSRS.importFromEPSG(atoi(szResult));
-
-    return m_oSRS.IsEmpty() ? CE_Failure : CE_None;
-}
-
-/************************************************************************/
 /*                              Identify()                              */
 /************************************************************************/
 int MMRDataset::Identify(GDALOpenInfo *poOpenInfo)
@@ -162,188 +168,66 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     return poDS.release();
 }
 
-/************************************************************************/
-/*                          GetSpatialRef()                             */
-/************************************************************************/
-
-const OGRSpatialReference *MMRDataset::GetSpatialRef() const
+void MMRDataset::CreateRasterBands()
 {
-    return m_oSRS.IsEmpty() ? nullptr : &m_oSRS;
-}
+    MMRBand *pBand;
 
-/************************************************************************/
-/*                            SetMetadata()                             */
-/************************************************************************/
-
-CPLErr MMRDataset::SetMetadata(char **papszMDIn, const char *pszDomain)
-
-{
-    bMetadataDirty = true;
-
-    return GDALPamDataset::SetMetadata(papszMDIn, pszDomain);
-}
-
-/************************************************************************/
-/*                            SetMetadata()                             */
-/************************************************************************/
-
-CPLErr MMRDataset::SetMetadataItem(const char *pszTag, const char *pszValue,
-                                   const char *pszDomain)
-
-{
-    bMetadataDirty = true;
-
-    return GDALPamDataset::SetMetadataItem(pszTag, pszValue, pszDomain);
-}
-
-/************************************************************************/
-/*                          UpdateGeoTransform()                     */
-/************************************************************************/
-int MMRDataset::UpdateGeoTransform()
-{
-    // Bounding box of the band
-    // Section [EXTENT] in rel file
-
-    m_gt[0] = 0.0;
-    m_gt[1] = 1.0;
-    m_gt[2] = 0.0;
-    m_gt[3] = 0.0;
-    m_gt[4] = 0.0;
-    m_gt[5] = 1.0;
-
-    if (!pfRel)
-        return 1;
-
-    CPLString osMinX = pfRel->GetMetadataValue(SECTION_EXTENT, "MinX");
-    if (osMinX.empty())
-        return 1;
-    m_gt[0] = atof(osMinX);
-
-    // Això va al constructor del REL
-    int nNCols = pfRel->GetColumnsNumberFromREL();
-    if (nNCols <= 0)
-        return 1;
-
-    CPLString osMaxX = pfRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
-    if (osMaxX.empty())
-        return 1;
-
-    m_gt[1] = (atof(osMaxX) - m_gt[0]) / nNCols;
-    m_gt[2] = 0.0;  // No rotation in MiraMon rasters
-
-    CPLString osMinY = pfRel->GetMetadataValue(SECTION_EXTENT, "MinY");
-    if (osMinY.empty())
-        return 1;
-
-    CPLString osMaxY = pfRel->GetMetadataValue(SECTION_EXTENT, "MaxY");
-    if (osMaxY.empty())
-        return 1;
-
-    int nNRows = pfRel->GetRowsNumberFromREL();
-    if (nNRows <= 0)
-        return 1;
-
-    m_gt[3] = atof(osMaxY);
-    m_gt[4] = 0.0;
-    m_gt[5] = (atof(osMinY) - m_gt[3]) / nNRows;
-
-    return 0;
-}
-
-CPLErr MMRDataset::GetGeoTransform(GDALGeoTransform &gt) const
-{
-    if (m_gt[0] != 0.0 || m_gt[1] != 1.0 || m_gt[2] != 0.0 || m_gt[3] != 0.0 ||
-        m_gt[4] != 0.0 || m_gt[5] != 1.0)
+    for (int nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
     {
-        gt = m_gt;
-        return CE_None;
+        // Establish raster band info.
+        pBand = pfRel->GetBand(nIBand);
+        if (!pBand)
+            return;
+        nRasterXSize = pBand->GetWidth();
+        nRasterYSize = pBand->GetHeight();
+        pBand->UpdateGeoTransform();  // Fills adfGeoTransform for this band
+
+        MMRRasterBand *poRasterBand = new MMRRasterBand(this, nBands + 1);
+        if (!poRasterBand->IsValid())
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Failed to create a RasterBand from '%s'",
+                     pfRel->GetRELNameChar());
+        }
+
+        SetBand(nBands + 1, poRasterBand);
+
+        MMRRasterBand *poBand =
+            static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
+
+        pBand = pfRel->GetBand(nIBand);
+        if (!pBand)
+            return;
+        if (!pBand->GetFriendlyDescription().empty())
+        {
+            poBand->SetMetadataItem("DESCRIPTION",
+                                    pBand->GetFriendlyDescription());
+        }
     }
+}
 
-    //return GDALPamDataset::GetGeoTransform(padfTransform);
-    return GDALDataset::GetGeoTransform(gt);
+CPLErr MMRDataset::ReadProjection()
+
+{
+    if (!pfRel)
+        return CE_Failure;
+
+    CPLString osSRS = pfRel->GetMetadataValue(
+        "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
+
+    char szResult[MM_MAX_ID_SNY + 10];
+    int nResult = ReturnEPSGCodeSRSFromMMIDSRS(osSRS.c_str(), szResult);
+    if (nResult == 1 || szResult[0] == '\0')
+        return CE_Failure;
+
+    m_oSRS.importFromEPSG(atoi(szResult));
+
+    return m_oSRS.IsEmpty() ? CE_Failure : CE_None;
 }
 
 /************************************************************************/
-/*                GDALRegister_MiraMon()                                */
+/*                           SUBDATASETS                                */
 /************************************************************************/
-
-void GDALRegister_MiraMon()
-
-{
-    if (GDALGetDriverByName("MiraMonRaster") != nullptr)
-        return;
-
-    GDALDriver *poDriver = new GDALDriver();
-
-    poDriver->SetDescription("MiraMonRaster");
-    poDriver->SetMetadataItem(GDAL_DCAP_RASTER, "YES");
-    poDriver->SetMetadataItem(GDAL_DMD_LONGNAME, "MiraMon Raster Images");
-    poDriver->SetMetadataItem(GDAL_DMD_HELPTOPIC,
-                              "drivers/raster/miramon.html");
-    poDriver->SetMetadataItem(GDAL_DMD_EXTENSION, "rel");
-    poDriver->SetMetadataItem(GDAL_DMD_EXTENSIONS, "rel img");
-    // For the writing part
-    // poDriver->SetMetadataItem(
-    //    GDAL_DMD_CREATIONDATATYPES,
-    //    "Byte Int8 Int16 UInt16 Int32 UInt32 Float32 Float64 "
-    //    "CFloat32 CFloat64");
-
-    poDriver->SetMetadataItem(GDAL_DCAP_VIRTUALIO, "YES");
-    poDriver->SetMetadataItem(GDAL_DMD_SUBDATASETS, "YES");
-
-    poDriver->pfnOpen = MMRDataset::Open;
-    poDriver->pfnIdentify = MMRDataset::Identify;
-
-    GetGDALDriverManager()->RegisterDriver(poDriver);
-}
-
-bool MMRDataset::IsNextBandInANewDataSet(int nIBand)
-{
-    if (nIBand < 0)
-        return false;
-
-    if (nIBand + 1 >= pfRel->GetNBands())
-        return false;
-
-    MMRBand *pThisBand = pfRel->GetBand(nIBand);
-    MMRBand *pNextBand = pfRel->GetBand(nIBand + 1);
-    if (!pThisBand || !pNextBand)
-        return false;
-
-    // Two images with different numbers of columns are assigned to different subdatasets
-    if (pThisBand->GetWidth() != pNextBand->GetWidth())
-        return true;
-
-    // Two images with different numbers of rows are assigned to different subdatasets
-    if (pThisBand->GetHeight() != pNextBand->GetHeight())
-        return true;
-
-    // Two images with different resolution are assigned to different subdatasets
-    if (pThisBand->GetPixelResolution() != pNextBand->GetPixelResolution())
-        return true;
-
-    // Two images with different bounding box are assigned to different subdatasets
-    if (pThisBand->GetBoundingBoxMinX() != pNextBand->GetBoundingBoxMinX())
-        return true;
-    if (pThisBand->GetBoundingBoxMaxX() != pNextBand->GetBoundingBoxMaxX())
-        return true;
-    if (pThisBand->GetBoundingBoxMinY() != pNextBand->GetBoundingBoxMinY())
-        return true;
-    if (pThisBand->GetBoundingBoxMaxY() != pNextBand->GetBoundingBoxMaxY())
-        return true;
-
-    // One image has NoData values and the other does not;
-    // they are assigned to different subdatasets
-    if (pThisBand->BandHasNoData() != pNextBand->BandHasNoData())
-        return true;
-
-    // Two images with different NoData values are assigned to different subdatasets
-    if (pThisBand->GetNoDataValue() != pNextBand->GetNoDataValue())
-        return true;
-
-    return false;
-}
-
 // Assigns every band to a subdataset
 void MMRDataset::AssignBandsToSubdataSets()
 {
@@ -451,96 +335,123 @@ void MMRDataset::CreateSubdatasetsFromBands()
         // Afegir al metadades del dataset principal
         SetMetadata(oSubdatasetList.List(), "SUBDATASETS");
         oSubdatasetList.Clear();
-        bMetadataDirty = false;
     }
 }
 
-void MMRDataset::CreateRasterBands()
+bool MMRDataset::IsNextBandInANewDataSet(int nIBand)
 {
-    MMRBand *pBand;
+    if (nIBand < 0)
+        return false;
 
-    for (int nIBand = 0; nIBand < pfRel->GetNBands(); nIBand++)
+    if (nIBand + 1 >= pfRel->GetNBands())
+        return false;
+
+    MMRBand *pThisBand = pfRel->GetBand(nIBand);
+    MMRBand *pNextBand = pfRel->GetBand(nIBand + 1);
+    if (!pThisBand || !pNextBand)
+        return false;
+
+    // Two images with different numbers of columns are assigned to different subdatasets
+    if (pThisBand->GetWidth() != pNextBand->GetWidth())
+        return true;
+
+    // Two images with different numbers of rows are assigned to different subdatasets
+    if (pThisBand->GetHeight() != pNextBand->GetHeight())
+        return true;
+
+    // Two images with different resolution are assigned to different subdatasets
+    if (pThisBand->GetPixelResolution() != pNextBand->GetPixelResolution())
+        return true;
+
+    // Two images with different bounding box are assigned to different subdatasets
+    if (pThisBand->GetBoundingBoxMinX() != pNextBand->GetBoundingBoxMinX())
+        return true;
+    if (pThisBand->GetBoundingBoxMaxX() != pNextBand->GetBoundingBoxMaxX())
+        return true;
+    if (pThisBand->GetBoundingBoxMinY() != pNextBand->GetBoundingBoxMinY())
+        return true;
+    if (pThisBand->GetBoundingBoxMaxY() != pNextBand->GetBoundingBoxMaxY())
+        return true;
+
+    // One image has NoData values and the other does not;
+    // they are assigned to different subdatasets
+    if (pThisBand->BandHasNoData() != pNextBand->BandHasNoData())
+        return true;
+
+    // Two images with different NoData values are assigned to different subdatasets
+    if (pThisBand->GetNoDataValue() != pNextBand->GetNoDataValue())
+        return true;
+
+    return false;
+}
+
+/************************************************************************/
+/*                          UpdateGeoTransform()                     */
+/************************************************************************/
+int MMRDataset::UpdateGeoTransform()
+{
+    // Bounding box of the band
+    // Section [EXTENT] in rel file
+
+    m_gt[0] = 0.0;
+    m_gt[1] = 1.0;
+    m_gt[2] = 0.0;
+    m_gt[3] = 0.0;
+    m_gt[4] = 0.0;
+    m_gt[5] = 1.0;
+
+    if (!pfRel)
+        return 1;
+
+    CPLString osMinX = pfRel->GetMetadataValue(SECTION_EXTENT, "MinX");
+    if (osMinX.empty())
+        return 1;
+    m_gt[0] = atof(osMinX);
+
+    // Això va al constructor del REL
+    int nNCols = pfRel->GetColumnsNumberFromREL();
+    if (nNCols <= 0)
+        return 1;
+
+    CPLString osMaxX = pfRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
+    if (osMaxX.empty())
+        return 1;
+
+    m_gt[1] = (atof(osMaxX) - m_gt[0]) / nNCols;
+    m_gt[2] = 0.0;  // No rotation in MiraMon rasters
+
+    CPLString osMinY = pfRel->GetMetadataValue(SECTION_EXTENT, "MinY");
+    if (osMinY.empty())
+        return 1;
+
+    CPLString osMaxY = pfRel->GetMetadataValue(SECTION_EXTENT, "MaxY");
+    if (osMaxY.empty())
+        return 1;
+
+    int nNRows = pfRel->GetRowsNumberFromREL();
+    if (nNRows <= 0)
+        return 1;
+
+    m_gt[3] = atof(osMaxY);
+    m_gt[4] = 0.0;
+    m_gt[5] = (atof(osMinY) - m_gt[3]) / nNRows;
+
+    return 0;
+}
+
+const OGRSpatialReference *MMRDataset::GetSpatialRef() const
+{
+    return m_oSRS.IsEmpty() ? nullptr : &m_oSRS;
+}
+
+CPLErr MMRDataset::GetGeoTransform(GDALGeoTransform &gt) const
+{
+    if (m_gt[0] != 0.0 || m_gt[1] != 1.0 || m_gt[2] != 0.0 || m_gt[3] != 0.0 ||
+        m_gt[4] != 0.0 || m_gt[5] != 1.0)
     {
-        // Establish raster band info.
-        pBand = pfRel->GetBand(nIBand);
-        if (!pBand)
-            return;
-        nRasterXSize = pBand->GetWidth();
-        nRasterYSize = pBand->GetHeight();
-        pBand->UpdateGeoTransform();  // Fills adfGeoTransform for this band
-
-        MMRRasterBand *poRasterBand = new MMRRasterBand(this, nBands + 1);
-        if (!poRasterBand->IsValid())
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Failed to create a RasterBand from '%s'",
-                     pfRel->GetRELNameChar());
-        }
-
-        SetBand(nBands + 1, poRasterBand);
-
-        MMRRasterBand *poBand =
-            static_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
-
-        pBand = pfRel->GetBand(nIBand);
-        if (!pBand)
-            return;
-        if (!pBand->GetFriendlyDescription().empty())
-        {
-            poBand->SetMetadataItem("DESCRIPTION",
-                                    pBand->GetFriendlyDescription());
-        }
-
-        // Collect GDAL custom Metadata, and "auxiliary" metadata from
-        // well known MMR structures for the bands.  We defer this till
-        // now to ensure that the bands are properly setup before
-        // interacting with PAM.
-        //·$·TODO ens saltem aixo de moment.
-
-        /*char**papszMD = MMRGetMetadata(hMMR, i + 1);
-        if (papszMD != nullptr)
-        {
-            poBand->SetMetadata(papszMD);
-            CSLDestroy(papszMD);
-        }*/
-
-        //poBand->ReadAuxMetadata();
-        //poBand->ReadHistogramMetadata();
+        gt = m_gt;
+        return CE_None;
     }
 
-    /*
-    // Check for GDAL style metadata.
-    char**papszMD = MMRGetMetadata(hMMR, 0);
-    if (papszMD != nullptr)
-    {
-        SetMetadata(papszMD);
-        CSLDestroy(papszMD);
-    }
-
-    // Read the elevation metadata, if present.
-    for (int iBand = 0; iBand < nBands; iBand++)
-    {
-        MMRRasterBand *poBand =
-            static_cast<MMRRasterBand *>(GetRasterBand(iBand + 1));
-        const char* pszEU = MMRReadElevationUnit(hMMR, iBand);
-
-        if (pszEU != nullptr)
-        {
-            poBand->SetUnitType(pszEU);
-            if (nBands == 1)
-            {
-                SetMetadataItem("ELEVATION_UNITS", pszEU);
-            }
-        }
-    }
-    */
-
-    // Clear dirty metadata flags.
-    for (int i = 0; i < nBands; i++)
-    {
-        MMRRasterBand *poBand =
-            static_cast<MMRRasterBand *>(GetRasterBand(i + 1));
-        poBand->SetMetadataDirty(false);
-    }
-    bMetadataDirty = false;
+    return GDALDataset::GetGeoTransform(gt);
 }

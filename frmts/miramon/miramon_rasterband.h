@@ -49,22 +49,6 @@ class MMRRasterBand final : public GDALPamRasterBand
     double GetNoDataValue(int *pbSuccess = nullptr) override;
     GDALRasterAttributeTable *GetDefaultRAT() override;
 
-    void UpdateDataType();
-    CPLErr FillRATFromPalette();
-    CPLErr FromPaletteToAttributeTableContinousMode();
-    CPLErr FromPaletteToAttributeTableCategoricalMode();
-    void ConvertColorsFromPaletteToColorTable();
-    CPLErr GetRATName(char *papszToken, CPLString &osRELName,
-                      CPLString &osDBFName, CPLString &osAssociateREL);
-    CPLErr UpdateAttributeColorsFromPalette();
-    CPLErr CreateCategoricalRATFromDBF(CPLString osRELName, CPLString osDBFName,
-                                       CPLString osAssociateRel);
-
-    CPLErr AssignUniformColorTable();
-    CPLErr FromPaletteToColorTableCategoricalMode();
-    CPLErr FromPaletteToColorTableContinousMode();
-    CPLErr UpdateTableColorsFromPalette();
-
     const std::vector<double> &GetPCT_Red() const
     {
         return aadfPCT[0];
@@ -90,14 +74,24 @@ class MMRRasterBand final : public GDALPamRasterBand
         return bIsValid;
     }
 
-    void SetMetadataDirty(bool isDirty)
-    {
-        bMetadataDirty = isDirty;
-    }
-
   private:
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
+    void UpdateDataType();
+    CPLErr FillRATFromPalette();
+    CPLErr FromPaletteToAttributeTableContinousMode();
+    CPLErr FromPaletteToAttributeTableCategoricalMode();
+    void ConvertColorsFromPaletteToColorTable();
+    CPLErr GetRATName(char *papszToken, CPLString &osRELName,
+                      CPLString &osDBFName, CPLString &osAssociateREL);
+    CPLErr UpdateAttributeColorsFromPalette();
+    CPLErr CreateCategoricalRATFromDBF(CPLString osRELName, CPLString osDBFName,
+                                       CPLString osAssociateRel);
+
+    CPLErr AssignUniformColorTable();
+    CPLErr FromPaletteToColorTableCategoricalMode();
+    CPLErr FromPaletteToColorTableContinousMode();
+    CPLErr UpdateTableColorsFromPalette();
 
     bool bTriedLoadColorTable = false;
     bool bIsValid = false;  // Determines if the created object is valid or not.
@@ -111,7 +105,6 @@ class MMRRasterBand final : public GDALPamRasterBand
         MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
     MMRRel *pfRel = nullptr;  // Pointer to info from rel. Do not free.
-    bool bMetadataDirty = false;
 
     // Color table
     GDALColorTable *poCT = nullptr;

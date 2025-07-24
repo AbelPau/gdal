@@ -44,39 +44,33 @@ class MMRDataset final : public GDALPamDataset
     static int Identify(GDALOpenInfo *);
     static GDALDataset *Open(GDALOpenInfo *);
 
-    void AssignBandsToSubdataSets();
-    void CreateSubdatasetsFromBands();
-    void CreateRasterBands();
-
-    int UpdateGeoTransform();
-
-    const OGRSpatialReference *GetSpatialRef() const override;
-    CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
-    CPLErr SetMetadata(char **, const char * = "") override;
-    CPLErr SetMetadataItem(const char *, const char *,
-                           const char * = "") override;
-
-    bool IsValid() const
-    {
-        return bIsValid;
-    }
-
     MMRRel *GetRel()
     {
         return pfRel;
     }
 
   private:
+    CPLErr ReadProjection();
+    void AssignBandsToSubdataSets();
+    void CreateSubdatasetsFromBands();
+    void CreateRasterBands();
+    bool IsNextBandInANewDataSet(int nIBand);
+
+    int UpdateGeoTransform();
+    const OGRSpatialReference *GetSpatialRef() const override;
+    CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
+
+    bool IsValid() const
+    {
+        return bIsValid;
+    }
+
     GDALGeoTransform m_gt{};
     OGRSpatialReference m_oSRS{};
-    CPLErr ReadProjection();
-
-    bool IsNextBandInANewDataSet(int nIBand);
 
     bool bIsValid = false;  // Determines if the created object is valid or not.
     MMRRel *pfRel = nullptr;
 
-    bool bMetadataDirty = false;
     std::vector<gdal::GCP> m_aoGCPs{};
 
     // Numbers of subdatasets (if any) in this dataset.

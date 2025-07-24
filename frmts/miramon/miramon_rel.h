@@ -46,10 +46,6 @@ class MMRRel
         delete;  // I don't want to assing a MMRDataset to another MMRDataset (effc++)
     ~MMRRel();
 
-    static CPLString GetAssociatedMetadataFileName(const char *pszFileName,
-                                                   bool &bIsAMiraMonFile);
-    static int IdentifySubdataSetFile(const CPLString pszFileName);
-    static int IdentifyFile(GDALOpenInfo *poOpenInfo);
     CPLString GetMetadataValue(const CPLString osMainSection,
                                const CPLString osSubSection,
                                const CPLString osSubSubSection,
@@ -64,12 +60,10 @@ class MMRRel
                                               const char *pszKey);
 
     static CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
-    void UpdateRELNameChar(CPLString osRelFileNameIn);
-    CPLErr ParseBandInfo();
-    static CPLString
-    RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
     int GetColumnsNumberFromREL() const;
     int GetRowsNumberFromREL() const;
+    static int IdentifySubdataSetFile(const CPLString pszFileName);
+    static int IdentifyFile(GDALOpenInfo *poOpenInfo);
 
     bool IsValid() const
     {
@@ -136,6 +130,14 @@ class MMRRel
     static CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
                                                const char *pszRELFile,
                                                bool &bIsAMiraMonFile);
+
+    static CPLString GetAssociatedMetadataFileName(const char *pszFileName,
+                                                   bool &bIsAMiraMonFile);
+
+    void UpdateRELNameChar(CPLString osRelFileNameIn);
+    CPLErr ParseBandInfo();
+    static CPLString
+    RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
 
     CPLString osRelFileName = "";
     bool bIsValid = false;  // Determines if the created object is valid or not.

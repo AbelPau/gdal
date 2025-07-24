@@ -33,12 +33,6 @@ class MMRPalettes
         delete;  // I don't want to assing a MMRPalettes to another MMRBand (effc++)
     ~MMRPalettes();
 
-    void AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
-                            char *pzsRecord, char *pszField,
-                            MM_EXT_DBF_N_FIELDS &nRIndex,
-                            MM_EXT_DBF_N_FIELDS &nGIndex,
-                            MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);
-
     bool IsValid() const
     {
         return bIsValid;
@@ -131,6 +125,11 @@ class MMRPalettes
         MM_EXT_DBF_N_FIELDS &nBIndex);
     CPLErr GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF);
     CPLErr GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF);
+    void AssignColorFromDBF(struct MM_DATA_BASE_XP &oColorTable,
+                            char *pzsRecord, char *pszField,
+                            MM_EXT_DBF_N_FIELDS &nRIndex,
+                            MM_EXT_DBF_N_FIELDS &nGIndex,
+                            MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);
 
     std::array<std::vector<double>, 4> aadfPaletteColors{};
     bool bIsCategorical = false;

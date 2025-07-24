@@ -68,36 +68,10 @@ class MMRBand
         delete;  // I don't want to assing a MMRBand to another MMRBand (effc++)
     ~MMRBand();
 
-    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
-        const CPLString osSection, const char *pszKey, int *nValue,
-        const char *pszErrorMessage);
-    static int GetDataTypeAndBytesPerPixel(const char *pszCompType,
-                                           MMDataType *nCompressionType,
-                                           MMBytesPerPixel *nBytesPerPixel);
-    int UpdateDataTypeFromREL(const CPLString osSection);
-    void UpdateResolutionFromREL(const CPLString osSection);
-    void UpdateResolutionYFromREL(const CPLString osSection);
-    int UpdateColumnsNumberFromREL(const CPLString osSection);
-    int UpdateRowsNumberFromREL(const CPLString osSection);
-    void UpdateNoDataValue(const CPLString osSection);
-    void UpdateNoDataDefinitionFromREL(const CPLString osSection);
-    void UpdateBoundingBoxFromREL(const CPLString osSection);
-    int UpdateGeoTransform();
-    void UpdateReferenceSystemFromREL();
-    void UpdateMinMaxValuesFromREL(const CPLString osSection);
-    void UpdateMinMaxVisuValuesFromREL(const CPLString osSection);
-    void UpdateFriendlyDescriptionFromREL(const CPLString osSection);
-    template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
-    CPLErr GetBlockData(void *rowBuffer);
-    int PositionAtStartOfRowOffsetsInFile();
-    bool FillRowOffsets();
     const CPLString GetRELFileName() const;
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
 
-    bool IsValid() const
-    {
-        return bIsValid;
-    }
+    int UpdateGeoTransform();
 
     int GetAssignedSubDataSet()
     {
@@ -239,9 +213,38 @@ class MMRBand
         return nBlockYSize;
     }
 
+    bool IsValid() const
+    {
+        return bIsValid;
+    }
+
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
   private:
+    int Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
+        const CPLString osSection, const char *pszKey, int *nValue,
+        const char *pszErrorMessage);
+    static int GetDataTypeAndBytesPerPixel(const char *pszCompType,
+                                           MMDataType *nCompressionType,
+                                           MMBytesPerPixel *nBytesPerPixel);
+    int UpdateDataTypeFromREL(const CPLString osSection);
+    void UpdateResolutionFromREL(const CPLString osSection);
+    void UpdateResolutionYFromREL(const CPLString osSection);
+    int UpdateColumnsNumberFromREL(const CPLString osSection);
+    int UpdateRowsNumberFromREL(const CPLString osSection);
+    void UpdateNoDataValue(const CPLString osSection);
+    void UpdateNoDataDefinitionFromREL(const CPLString osSection);
+    void UpdateBoundingBoxFromREL(const CPLString osSection);
+    void UpdateReferenceSystemFromREL();
+    void UpdateMinMaxValuesFromREL(const CPLString osSection);
+    void UpdateMinMaxVisuValuesFromREL(const CPLString osSection);
+    void UpdateFriendlyDescriptionFromREL(const CPLString osSection);
+
+    template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
+    CPLErr GetBlockData(void *rowBuffer);
+    int PositionAtStartOfRowOffsetsInFile();
+    bool FillRowOffsets();
+
     bool bIsValid = false;  // Determines if the created object is valid or not.
 
     VSILFILE *pfIMG = nullptr;  // Point to IMG file

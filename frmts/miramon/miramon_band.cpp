@@ -228,6 +228,18 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
     return GetBlockData(pData);
 }
 
+int MMRBand::UpdateGeoTransform()
+{
+    m_gt[0] = GetBoundingBoxMinX();
+    m_gt[1] = (GetBoundingBoxMaxX() - m_gt[0]) / GetWidth();
+    m_gt[2] = 0.0;  // No rotation in MiraMon rasters
+    m_gt[3] = GetBoundingBoxMaxY();
+    m_gt[4] = 0.0;
+    m_gt[5] = (GetBoundingBoxMinY() - m_gt[3]) / GetHeight();
+
+    return 0;
+}
+
 /************************************************************************/
 /*           Functions that update class members                        */
 /************************************************************************/
@@ -567,18 +579,6 @@ void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
     }
     else
         dfBBMaxY = atof(osValue);
-}
-
-int MMRBand::UpdateGeoTransform()
-{
-    m_gt[0] = GetBoundingBoxMinX();
-    m_gt[1] = (GetBoundingBoxMaxX() - m_gt[0]) / GetWidth();
-    m_gt[2] = 0.0;  // No rotation in MiraMon rasters
-    m_gt[3] = GetBoundingBoxMaxY();
-    m_gt[4] = 0.0;
-    m_gt[5] = (GetBoundingBoxMinY() - m_gt[3]) / GetHeight();
-
-    return 0;
 }
 
 /************************************************************************/
