@@ -250,7 +250,7 @@ GDALColorTable *MMRRasterBand::GetColorTable()
     {
         delete Palette;
         Palette = nullptr;
-        return poCT;
+        return nullptr;
     }
 
     poCT = new GDALColorTable();
@@ -303,7 +303,8 @@ CPLErr MMRRasterBand::FillRATFromPalette()
     {
         // I don't have any associated attribute table but
         // perhaps I can create an attribute table with
-        // the colors (if I have them) assigned to the pixels
+        // the colors (if I have them and are not at the color table)
+        // assigned to the pixels.
         if (CE_None != UpdateAttributeColorsFromPalette())
             return CE_Failure;
 
@@ -372,11 +373,6 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     else
         Palette->SetIsCategorical(false);
 
-    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
-        Palette->SetIsCategorical(true);
-    else
-        Palette->SetIsCategorical(false);
-
     Palette->UpdateColorInfo();
 
     CPLErr peErr;
@@ -385,10 +381,7 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     else
         peErr = FromPaletteToAttributeTableContinousMode();
 
-    if (peErr != CE_None)
-        return peErr;
-
-    return CE_None;
+    return peErr;
 }
 
 CPLErr MMRRasterBand::CreateCategoricalRATFromDBF(CPLString osRELName,
@@ -591,10 +584,14 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
     if (os_Color_Const == "1")
         return AssignUniformColorTable();
 
+    if (!Palette)
+        return CE_Failure;
+
     CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
 
-    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
+    if (os_Color_TractamentVariable.empty() ||
+        EQUAL(os_Color_TractamentVariable, "Categoric"))
         Palette->SetIsCategorical(true);
     else
         Palette->SetIsCategorical(false);
@@ -605,9 +602,6 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
 
     if (os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
-        return CE_Failure;
-
-    if (!Palette)
         return CE_Failure;
 
     CPLErr peErr;
@@ -713,8 +707,25 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
     else if (Palette->ColorScaling != ColorTreatment::DIRECT_ASSIGNATION)
         return CE_Failure;
 
-    int nNPossibleValues = static_cast<int>(
-        pow(2, static_cast<double>(8) * static_cast<int>(eMMBytesPerPixel)));
+    // Getting number of color in the palette
+    int nNPaletteColors = Palette->GetSizeOfPaletteColors();
+    int nNPossibleValues;
+
+    if (eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_BYTE &&
+        eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_BYTE_RLE &&
+        eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_UINTEGER &&
+        eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
+    {
+        // Rare case where its a not byte or uinteger img file
+        // but it has a categorical palettte.
+        nNPossibleValues = nNPaletteColors;
+    }
+    else
+    {
+        nNPossibleValues = static_cast<int>(pow(
+            2, static_cast<double>(8) * static_cast<int>(eMMBytesPerPixel)));
+    }
+
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
         try
@@ -728,14 +739,11 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
         }
     }
 
-    int nIPaletteColor = 0;
-    // Giving color to the ones in the table
-    int nNPaletteColors = Palette->GetSizeOfPaletteColors();
-
     // No more colors than needed.
     if (nNPaletteColors > nNPossibleValues)
         nNPaletteColors = nNPossibleValues;
 
+    int nIPaletteColor = 0;
     for (nIPaletteColor = 0; nIPaletteColor < nNPaletteColors; nIPaletteColor++)
     {
         aadfPCT[0][nIPaletteColor] =
@@ -777,7 +785,9 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
         return CE_Failure;
 
     if (eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_BYTE &&
-        eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_UINTEGER)
+        eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_BYTE_RLE &&
+        eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_UINTEGER &&
+        eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
         return CE_Failure;  // Attribute table
 
     // Some necessary information
