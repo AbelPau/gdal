@@ -373,7 +373,7 @@ init_list_color_tables = [
         None,
     ),
     (
-        "data/miramon/palettes/Continous/DBF_nodata_end/uinteger_with_nodataI.rel",
+        "data/miramon/palettes/Continous/ColorTable/uinteger_with_nodataI.rel",
         1,  # band index
         None,
     ),
