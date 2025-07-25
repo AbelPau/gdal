@@ -470,3 +470,23 @@ CPLErr MMRPalettes::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
     return CE_None;
 }
+
+void MMRPalettes::UpdateColorInfo()
+{
+    CPLString os_Color_EscalatColor = pfRel->GetMetadataValue(
+        SECTION_COLOR_TEXT, osBandSection, "Color_EscalatColor");
+
+    if (!os_Color_EscalatColor.empty())
+    {
+        if (os_Color_EscalatColor.compare("AssigDirecta") == 0)
+            ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
+        else if (os_Color_EscalatColor.compare("DespOrigen") == 0)
+            ColorScaling = ColorTreatment::ORIGIN_DISPLACEMENT;
+        else if (os_Color_EscalatColor.compare("lineal") == 0)
+            ColorScaling = ColorTreatment::LINEAR_SCALING;
+        else if (os_Color_EscalatColor.compare("log_10") == 0)
+            ColorScaling = ColorTreatment::LOG_10_SCALING;
+        else if (os_Color_EscalatColor.compare("IntervalsUsuari") == 0)
+            ColorScaling = ColorTreatment::USER_INTERVALS;
+    }
+}

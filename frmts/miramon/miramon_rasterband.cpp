@@ -372,6 +372,13 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     else
         Palette->SetIsCategorical(false);
 
+    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
+        Palette->SetIsCategorical(true);
+    else
+        Palette->SetIsCategorical(false);
+
+    Palette->UpdateColorInfo();
+
     CPLErr peErr;
     if (Palette->IsCategorical())
         peErr = FromPaletteToAttributeTableCategoricalMode();
@@ -588,32 +595,11 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
         SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
 
     if (EQUAL(os_Color_TractamentVariable, "Categoric"))
-    {
-        ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
         Palette->SetIsCategorical(true);
-    }
     else
-    {
-        ColorScaling = ColorTreatment::LINEAR_SCALING;
         Palette->SetIsCategorical(false);
-    }
 
-    CPLString os_Color_EscalatColor = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_EscalatColor");
-
-    if (!os_Color_EscalatColor.empty())
-    {
-        if (os_Color_EscalatColor.compare("AssigDirecta"))
-            ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
-        else if (os_Color_EscalatColor.compare("DespOrigen"))
-            ColorScaling = ColorTreatment::ORIGIN_DISPLACEMENT;
-        else if (os_Color_EscalatColor.compare("lineal"))
-            ColorScaling = ColorTreatment::LINEAR_SCALING;
-        else if (os_Color_EscalatColor.compare("log_10"))
-            ColorScaling = ColorTreatment::LOG_10_SCALING;
-        else if (os_Color_EscalatColor.compare("IntervalsUsuari"))
-            ColorScaling = ColorTreatment::USER_INTERVALS;
-    }
+    Palette->UpdateColorInfo();
 
     CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
@@ -715,11 +701,16 @@ CPLErr MMRRasterBand::AssignUniformColorTable()
 CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 
 {
+    if (!Palette)
+        return CE_Failure;
+
     // If the palette is not loaded, then, ignore the conversion silently
     if (Palette->GetSizeOfPaletteColors() == 0)
         return CE_Failure;
 
-    if (ColorScaling != ColorTreatment::DIRECT_ASSIGNATION)
+    if (Palette->ColorScaling == ColorTreatment::DEFAULT_SCALING)
+        Palette->ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
+    else if (Palette->ColorScaling != ColorTreatment::DIRECT_ASSIGNATION)
         return CE_Failure;
 
     int nNPossibleValues = static_cast<int>(
@@ -773,7 +764,12 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
 
 {
-    if (ColorScaling != ColorTreatment::LINEAR_SCALING)
+    if (!Palette)
+        return CE_Failure;
+
+    if (Palette->ColorScaling == ColorTreatment::DEFAULT_SCALING)
+        Palette->ColorScaling = ColorTreatment::LINEAR_SCALING;
+    else if (Palette->ColorScaling != ColorTreatment::LINEAR_SCALING)
         return CE_Failure;
 
     MMRBand *poBand = pfRel->GetLastBand();
@@ -989,6 +985,11 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
     if (!Palette)
         return CE_None;
 
+    if (Palette->ColorScaling == ColorTreatment::DEFAULT_SCALING)
+        Palette->ColorScaling = ColorTreatment::LINEAR_SCALING;
+    else if (Palette->ColorScaling != ColorTreatment::LINEAR_SCALING)
+        return CE_Failure;
+
     MMRBand *poBand = pfRel->GetLastBand();
     if (!poBand)
         return CE_Failure;
@@ -1110,9 +1111,12 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
 CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
 
 {
-    // TODO: aixo va a la taula d'atributs en mode categòric
-    // If the palette is not loaded, then, ignore the conversion silently
     if (Palette->GetSizeOfPaletteColors() == 0)
+        return CE_Failure;
+
+    if (Palette->ColorScaling == ColorTreatment::DEFAULT_SCALING)
+        Palette->ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
+    else if (Palette->ColorScaling != ColorTreatment::DIRECT_ASSIGNATION)
         return CE_Failure;
 
     int nNPossibleValues = static_cast<int>(

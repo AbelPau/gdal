@@ -19,6 +19,16 @@
 
 class MMRRel;
 
+enum class ColorTreatment
+{
+    DEFAULT_SCALING = 0,
+    DIRECT_ASSIGNATION = 1,
+    ORIGIN_DISPLACEMENT = 2,
+    LINEAR_SCALING = 3,
+    LOG_10_SCALING = 4,
+    USER_INTERVALS = 5
+};
+
 /* ==================================================================== */
 /*                            MMRPalettes                             */
 /* ==================================================================== */
@@ -117,6 +127,10 @@ class MMRPalettes
     {
         return static_cast<int>(aadfPaletteColors[0].size());
     }
+
+    void UpdateColorInfo();
+
+    ColorTreatment ColorScaling = ColorTreatment::DEFAULT_SCALING;
 
   private:
     static CPLErr GetPaletteColors_DBF_Indexs(
