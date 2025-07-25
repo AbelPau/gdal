@@ -588,9 +588,15 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
         SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
 
     if (EQUAL(os_Color_TractamentVariable, "Categoric"))
+    {
+        ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
         Palette->SetIsCategorical(true);
+    }
     else
+    {
+        ColorScaling = ColorTreatment::LINEAR_SCALING;
         Palette->SetIsCategorical(false);
+    }
 
     CPLString os_Color_EscalatColor = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_EscalatColor");
@@ -713,6 +719,9 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
     if (Palette->GetSizeOfPaletteColors() == 0)
         return CE_Failure;
 
+    if (ColorScaling != ColorTreatment::DIRECT_ASSIGNATION)
+        return CE_Failure;
+
     int nNPossibleValues = static_cast<int>(
         pow(2, static_cast<double>(8) * static_cast<int>(eMMBytesPerPixel)));
     for (int iColumn = 0; iColumn < 4; iColumn++)
@@ -764,6 +773,9 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
 CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
 
 {
+    if (ColorScaling != ColorTreatment::LINEAR_SCALING)
+        return CE_Failure;
+
     MMRBand *poBand = pfRel->GetLastBand();
     if (!poBand)
         return CE_Failure;
@@ -812,8 +824,6 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
         nFirstValidPaletteIndex = 1;
     else
         nFirstValidPaletteIndex = 0;
-
-    // TODO: use: ColorScaling
 
     if (static_cast<int>(eMMBytesPerPixel) == 2)
     {
