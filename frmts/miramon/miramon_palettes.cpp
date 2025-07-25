@@ -15,8 +15,10 @@
 
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
 
-MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
-    : pfRel(&fRel), osBandSection(osBandSectionIn)
+MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn,
+                         MMDataType eMMRDataTypeMiraMonIn)
+    : pfRel(&fRel), osBandSection(osBandSectionIn),
+      eMMRDataTypeMiraMon(eMMRDataTypeMiraMonIn)
 {
     CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
@@ -33,6 +35,8 @@ MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
         SetIsCategorical(true);
     else
         SetIsCategorical(false);
+
+    UpdateColorInfo();
 
     CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta);
     if (osExtension.tolower() == "dbf")
@@ -488,5 +492,17 @@ void MMRPalettes::UpdateColorInfo()
             ColorScaling = ColorTreatment::LOG_10_SCALING;
         else if (os_Color_EscalatColor.compare("IntervalsUsuari") == 0)
             ColorScaling = ColorTreatment::USER_INTERVALS;
+    }
+    else
+    {
+        if (IsCategorical() ||
+            (eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE &&
+             eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE &&
+             eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER &&
+             eMMRDataTypeMiraMon ==
+                 MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE))
+            ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
+        else
+            ColorScaling = ColorTreatment::LINEAR_SCALING;
     }
 }

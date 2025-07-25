@@ -244,7 +244,7 @@ GDALColorTable *MMRRasterBand::GetColorTable()
 
     bTriedLoadColorTable = true;
 
-    Palette = new MMRPalettes(*pfRel, osBandSection);
+    Palette = new MMRPalettes(*pfRel, osBandSection, eMMRDataTypeMiraMon);
 
     if (!Palette->IsValid())
     {
@@ -348,7 +348,7 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     // If there is no palette, let's get one
     if (!Palette)
     {
-        Palette = new MMRPalettes(*pfRel, osBandSection);
+        Palette = new MMRPalettes(*pfRel, osBandSection, eMMRDataTypeMiraMon);
 
         if (!Palette->IsValid())
         {
@@ -365,16 +365,6 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     if (os_Color_Const == "1")
         return AssignUniformColorTable();
 
-    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
-
-    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
-        Palette->SetIsCategorical(true);
-    else
-        Palette->SetIsCategorical(false);
-
-    Palette->UpdateColorInfo();
-
     CPLErr peErr;
     if (Palette->IsCategorical())
         peErr = FromPaletteToAttributeTableCategoricalMode();
@@ -388,11 +378,11 @@ CPLErr MMRRasterBand::CreateCategoricalRATFromDBF(CPLString osRELName,
                                                   CPLString osDBFName,
                                                   CPLString osAssociateRel)
 {
-    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
+    if (!Palette)
+        return CE_Failure;
 
-    if (!EQUAL(os_Color_TractamentVariable, "Categoric"))
-        return CE_Failure;  // Don't consider continous RAT's
+    if (!Palette->IsCategorical())
+        return CE_Failure;
 
     struct MM_DATA_BASE_XP oAttributteTable;
     memset(&oAttributteTable, 0, sizeof(oAttributteTable));
@@ -587,17 +577,6 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
     if (!Palette)
         return CE_Failure;
 
-    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
-
-    if (os_Color_TractamentVariable.empty() ||
-        EQUAL(os_Color_TractamentVariable, "Categoric"))
-        Palette->SetIsCategorical(true);
-    else
-        Palette->SetIsCategorical(false);
-
-    Palette->UpdateColorInfo();
-
     CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
 
@@ -698,6 +677,9 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
     if (!Palette)
         return CE_Failure;
 
+    if (!Palette->IsCategorical())
+        return CE_Failure;
+
     // If the palette is not loaded, then, ignore the conversion silently
     if (Palette->GetSizeOfPaletteColors() == 0)
         return CE_Failure;
@@ -775,9 +757,11 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     if (!Palette)
         return CE_Failure;
 
-    if (Palette->ColorScaling == ColorTreatment::DEFAULT_SCALING)
-        Palette->ColorScaling = ColorTreatment::LINEAR_SCALING;
-    else if (Palette->ColorScaling != ColorTreatment::LINEAR_SCALING)
+    if (Palette->IsCategorical())
+        return CE_Failure;
+
+    // TODO: more types of scaling
+    if (Palette->ColorScaling != ColorTreatment::LINEAR_SCALING)
         return CE_Failure;
 
     MMRBand *poBand = pfRel->GetLastBand();
@@ -995,9 +979,8 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
     if (!Palette)
         return CE_None;
 
-    if (Palette->ColorScaling == ColorTreatment::DEFAULT_SCALING)
-        Palette->ColorScaling = ColorTreatment::LINEAR_SCALING;
-    else if (Palette->ColorScaling != ColorTreatment::LINEAR_SCALING)
+    // TODO: more types of scaling
+    if (Palette->ColorScaling != ColorTreatment::LINEAR_SCALING)
         return CE_Failure;
 
     MMRBand *poBand = pfRel->GetLastBand();
@@ -1124,9 +1107,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableCategoricalMode()
     if (Palette->GetSizeOfPaletteColors() == 0)
         return CE_Failure;
 
-    if (Palette->ColorScaling == ColorTreatment::DEFAULT_SCALING)
-        Palette->ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
-    else if (Palette->ColorScaling != ColorTreatment::DIRECT_ASSIGNATION)
+    if (Palette->ColorScaling != ColorTreatment::DIRECT_ASSIGNATION)
         return CE_Failure;
 
     int nNPossibleValues = static_cast<int>(

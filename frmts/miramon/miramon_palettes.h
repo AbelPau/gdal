@@ -36,7 +36,8 @@ enum class ColorTreatment
 class MMRPalettes
 {
   public:
-    MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn);
+    MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn,
+                MMDataType eMMRDataTypeMiraMonIn);
     MMRPalettes(const MMRPalettes &) =
         delete;  // I don't want to construct a MMRPalettes from another MMRBand (effc++)
     MMRPalettes &operator=(const MMRPalettes &) =
@@ -162,6 +163,8 @@ class MMRPalettes
 
     MMRRel *pfRel = nullptr;  // Rel where metadata is readed from
     CPLString osBandSection;
+    MMDataType eMMRDataTypeMiraMon;
+
     bool bIsValid = false;  // Determines if the created object is valid or not.
 };
 
