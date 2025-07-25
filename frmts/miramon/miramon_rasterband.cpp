@@ -592,6 +592,23 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
     else
         Palette->SetIsCategorical(false);
 
+    CPLString os_Color_EscalatColor = pfRel->GetMetadataValue(
+        SECTION_COLOR_TEXT, osBandSection, "Color_EscalatColor");
+
+    if (!os_Color_EscalatColor.empty())
+    {
+        if (os_Color_EscalatColor.compare("AssigDirecta"))
+            ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
+        else if (os_Color_EscalatColor.compare("DespOrigen"))
+            ColorScaling = ColorTreatment::ORIGIN_DISPLACEMENT;
+        else if (os_Color_EscalatColor.compare("lineal"))
+            ColorScaling = ColorTreatment::LINEAR_SCALING;
+        else if (os_Color_EscalatColor.compare("log_10"))
+            ColorScaling = ColorTreatment::LOG_10_SCALING;
+        else if (os_Color_EscalatColor.compare("IntervalsUsuari"))
+            ColorScaling = ColorTreatment::USER_INTERVALS;
+    }
+
     CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
 
@@ -751,7 +768,8 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     if (!poBand)
         return CE_Failure;
 
-    if (static_cast<int>(eMMBytesPerPixel) > 2)
+    if (eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_BYTE &&
+        eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_UINTEGER)
         return CE_Failure;  // Attribute table
 
     // Some necessary information
@@ -794,6 +812,8 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
         nFirstValidPaletteIndex = 1;
     else
         nFirstValidPaletteIndex = 0;
+
+    // TODO: use: ColorScaling
 
     if (static_cast<int>(eMMBytesPerPixel) == 2)
     {
@@ -1016,13 +1036,23 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
     int nIPaletteColor = 0;
     for (; nIPaletteColor < nNPaletteColors; nIPaletteColor++)
     {
-        poDefaultRAT->SetValue(nIPaletteColor + 1, 0,
-                               poBand->GetVisuMin() +
-                                   dfInterval * nIPaletteColor);
+        if (nIPaletteColor == 0)
+        {
+            poDefaultRAT->SetValue(nIPaletteColor + 1, 0,
+                                   poBand->GetVisuMin() +
+                                       dfInterval * nIPaletteColor);
+        }
+        else
+        {
+            poDefaultRAT->SetValue(
+                nIPaletteColor + 1, 0,
+                ceil(poBand->GetVisuMin() + dfInterval * nIPaletteColor));
+        }
+
         poDefaultRAT->SetValue(
             nIPaletteColor + 1, 1,
-            poBand->GetVisuMin() +
-                dfInterval * (static_cast<double>(nIPaletteColor) + 1));
+            ceil(poBand->GetVisuMin() +
+                 dfInterval * (static_cast<double>(nIPaletteColor) + 1)));
         poDefaultRAT->SetValue(
             nIPaletteColor + 1, 2,
             Palette->GetPaletteColorsValue(0, nIPaletteColor));
@@ -1035,10 +1065,10 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableContinousMode()
     }
 
     // Last interval
-    poDefaultRAT->SetValue(nIPaletteColor, 0,
-                           poBand->GetVisuMin() +
-                               dfInterval *
-                                   (static_cast<double>(nNPaletteColors) - 1));
+    poDefaultRAT->SetValue(
+        nIPaletteColor, 0,
+        ceil(poBand->GetVisuMin() +
+             dfInterval * (static_cast<double>(nNPaletteColors) - 1)));
     poDefaultRAT->SetValue(nIPaletteColor, 1, poBand->GetVisuMax());
     poDefaultRAT->SetValue(
         nIPaletteColor, 2,

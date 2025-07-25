@@ -27,6 +27,15 @@
 
 class MMRDataset;
 
+enum class ColorTreatment
+{
+    DIRECT_ASSIGNATION = 0,
+    ORIGIN_DISPLACEMENT = 1,
+    LINEAR_SCALING = 2,
+    LOG_10_SCALING = 3,
+    USER_INTERVALS = 4
+};
+
 /* ==================================================================== */
 /*                            MMRRasterBand                             */
 /* ==================================================================== */
@@ -114,6 +123,7 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     // Palettes
     MMRPalettes *Palette = nullptr;
+    ColorTreatment ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
 };
 
 #endif  // MMRRASTERBAND_H_INCLUDED
