@@ -496,11 +496,10 @@ void MMRPalettes::UpdateColorInfo()
     else
     {
         if (IsCategorical() ||
-            (eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE &&
-             eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE &&
-             eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER &&
-             eMMRDataTypeMiraMon ==
-                 MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE))
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
             ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
         else
             ColorScaling = ColorTreatment::LINEAR_SCALING;
