@@ -134,7 +134,7 @@ class MMRPalettes
     }
 
     // Real means with no nodata.
-    int GetNumberOfRealColors() const
+    int GetNumberOfColorsIncludingNodata() const
     {
         return nRealNPaletteColors;
     }

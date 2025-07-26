@@ -761,17 +761,11 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
         }
     }
 
-    // Number of real colors (appart from NoData)
-    int nNPaletteColors = Palette->GetSizeOfPaletteColors();
-    if (Palette->HasNodata())
-        nNPaletteColors--;
-
-    // If palette doesn't have nodata last index is associated
-    if (!Palette->HasNodata())
-        Palette->SetNoDataPaletteIndex(nNPaletteColors);
-
     if (static_cast<int>(eMMBytesPerPixel) > 2 &&
-        nNPaletteColors < nNPossibleValues)
+        Palette->GetNumberOfColors() < nNPossibleValues)
+        return CE_Failure;
+
+    if (Palette->GetNumberOfColors() < 1)
         return CE_Failure;
 
     int nFirstValidPaletteIndex;
@@ -783,24 +777,27 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     else
         nFirstValidPaletteIndex = 0;
 
+    int nIPaletteColorNoData = 0;
     if (static_cast<int>(eMMBytesPerPixel) == 2)
     {
         // A scaling is applied between the minimum and maximum display values.
-        dfSlope = nNPaletteColors /
-                  ((poBand->GetVisuMax() + 1 - poBand->GetVisuMin()));
+        dfSlope = (static_cast<double>(Palette->GetNumberOfColors()) - 1) /
+                  (poBand->GetVisuMax() - poBand->GetVisuMin());
 
-        if (Palette->HasNodata() && Palette->GetNoDataPaletteIndex() !=
-                                        0)  // nodata at the end of the list
-            dfIntercept = -dfSlope * poBand->GetVisuMin();
-        else
-            dfIntercept = -dfSlope * poBand->GetVisuMin() + 1;
+        dfIntercept = -dfSlope * poBand->GetVisuMin();
+
+        if (poBand->BandHasNoData())
+        {
+            if (Palette->GetNoDataPaletteIndex() ==
+                Palette->GetNumberOfColors())
+                nIPaletteColorNoData = nNPossibleValues - 1;
+        }
     }
 
     for (int nIPaletteColor = 0; nIPaletteColor < nNPossibleValues;
          nIPaletteColor++)
     {
-        if (poBand->BandHasNoData() &&
-            nIPaletteColor == Palette->GetNoDataPaletteIndex())
+        if (poBand->BandHasNoData() && nIPaletteColor == nIPaletteColorNoData)
         {
             if (Palette->HasNodata())
                 AssignRGBColor(nIPaletteColor,
@@ -830,15 +827,19 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
                 {
                     // The value is applied according to the scaling.
                     nIndexColor = static_cast<unsigned short>(
-                        dfSlope * nIPaletteColor + dfIntercept);
+                        round(dfSlope * nIPaletteColor + dfIntercept));
+                    if (nIndexColor > Palette->GetNumberOfColors())
+                        nIndexColor = static_cast<unsigned short>(
+                            Palette->GetNumberOfColors());
                     AssignRGBColor(nIPaletteColor, nIndexColor);
                 }
             }
             else
             {
                 // After the maximum, we apply the value of the last
-                // element(as a placeholder).
-                AssignRGBColor(nIPaletteColor, nNPaletteColors - 1);
+                // element (as a placeholder).
+                AssignRGBColor(nIPaletteColor,
+                               Palette->GetNumberOfColors() - 1);
             }
         }
     }
@@ -1026,7 +1027,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableDirectAssig()
     poDefaultRAT->CreateColumn("Blue", GFT_Integer, GFU_Blue);
 
     poDefaultRAT->SetRowCount(static_cast<int>(
-        Palette->GetNumberOfRealColors()));  // +1 for last element
+        Palette->GetNumberOfColorsIncludingNodata()));  // +1 for last element
 
     // Nodata color assignation
     int nIRow = 0;
@@ -1083,7 +1084,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableLinear()
     poDefaultRAT->CreateColumn("Green", GFT_Integer, GFU_Green);
     poDefaultRAT->CreateColumn("Blue", GFT_Integer, GFU_Blue);
 
-    poDefaultRAT->SetRowCount(Palette->GetNumberOfRealColors() +
+    poDefaultRAT->SetRowCount(Palette->GetNumberOfColorsIncludingNodata() +
                               1);  // +1 for last element
 
     // Nodata color assignation
@@ -1105,13 +1106,21 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableLinear()
     }
 
     double dfInterval = (poBand->GetVisuMax() - poBand->GetVisuMin()) /
-                        Palette->GetNumberOfRealColors();
+                        (static_cast<double>(Palette->GetNumberOfColors()) + 1);
+
+    int nIPaletteColorNoData = 0;
+    if (poBand->BandHasNoData())
+    {
+        if (Palette->GetNoDataPaletteIndex() == Palette->GetNumberOfColors())
+            nIPaletteColorNoData = Palette->GetNumberOfColorsIncludingNodata();
+    }
 
     bool bFirstIteration = true;
     int nIPaletteColor = 0;
-    for (; nIPaletteColor < Palette->GetNumberOfColors(); nIPaletteColor++)
+    for (; nIPaletteColor < Palette->GetNumberOfColors() - 1; nIPaletteColor++)
     {
-        if (nIPaletteColor == Palette->GetNoDataPaletteIndex())
+        if (poBand->BandHasNoData() && Palette->HasNodata() &&
+            nIPaletteColor == nIPaletteColorNoData)
             continue;
         if (bFirstIteration)
         {
