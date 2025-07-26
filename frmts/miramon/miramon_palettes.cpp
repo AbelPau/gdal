@@ -15,26 +15,48 @@
 
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
 
-MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn,
-                         MMDataType eMMRDataTypeMiraMonIn)
-    : pfRel(&fRel), osBandSection(osBandSectionIn),
-      eMMRDataTypeMiraMon(eMMRDataTypeMiraMonIn)
+MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
+    : pfRel(&fRel), osBandSection(osBandSectionIn)
 {
     CPLString os_Color_Paleta = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
 
+    // Is a constant color, and which colors is it?
+    CPLString os_Color_Const = pfRel->GetMetadataValue(
+        SECTION_COLOR_TEXT, osBandSection, "Color_Const");
+
+    if (os_Color_Const == "1")
+        bIsConstantColor = true;
+
+    if (CE_None != UpdateConstantColor())
+        return;  // The constant color indicated is wrong
+
     if (os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
     {
         bIsValid = true;
+        ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
         return;
     }
 
+    // Treatment of the color variable
     CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
         SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
-    if (EQUAL(os_Color_TractamentVariable, "Categoric"))
-        SetIsCategorical(true);
+    if (os_Color_TractamentVariable.empty())
+    {
+        CPLString os_TractamentVariable = pfRel->GetMetadataValue(
+            SECTION_ATTRIBUTE_DATA, "TractamentVariable");
+        if (EQUAL(os_TractamentVariable, "Categoric"))
+            SetIsCategorical(true);
+        else
+            SetIsCategorical(false);
+    }
     else
-        SetIsCategorical(false);
+    {
+        if (EQUAL(os_Color_TractamentVariable, "Categoric"))
+            SetIsCategorical(true);
+        else
+            SetIsCategorical(false);
+    }
 
     UpdateColorInfo();
 
@@ -45,16 +67,29 @@ MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn,
             return;
 
         bIsValid = true;
-        return;
     }
-    if (osExtension.tolower() == "pal" || osExtension.tolower() == "p25" ||
-        osExtension.tolower() == "p65")
+    else if (osExtension.tolower() == "pal" || osExtension.tolower() == "p25" ||
+             osExtension.tolower() == "p65")
     {
         if (CE_None != GetPaletteColors_PAL_P25_P65(os_Color_Paleta))
             return;
 
         bIsValid = true;
+    }
+    else
         return;
+
+    nRealNPaletteColors = nNPaletteColors;
+    if (HasNodata())
+    {
+        if (nNPaletteColors < 1)
+            return;
+        nNPaletteColors--;
+    }
+    else
+    {
+        // If palette doesn't have nodata let's set some index
+        nNoDataPaletteIndex = nRealNPaletteColors;
     }
 }
 
@@ -132,6 +167,7 @@ CPLErr MMRPalettes::GetPaletteColors_DBF_Indexs(
     return CE_None;
 }
 
+// Updates nNPaletteColors
 CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 
 {
@@ -193,7 +229,6 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     }
 
     // Guessing or reading the number of colors of the palette.
-    int nPCTColors;
     MM_EXT_DBF_N_RECORDS nIRecord;
     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = oColorTable.BytesPerRecord + 1;
     char *pzsRecord = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
@@ -203,7 +238,7 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     {
         // In categorical mode, the maximum CLAUSIMBOL value is the last color to read.
 
-        nPCTColors = 0;
+        nNPaletteColors = 0;
 
         VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset,
                   SEEK_SET);
@@ -228,31 +263,32 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             osField.replaceAll(" ", "");
             if (osField.empty())
                 bHasNodata = true;
-            else if (nPCTColors < atoi(osField))
-                nPCTColors = atoi(osField);
+            else if (nNPaletteColors < atoi(osField))
+                nNPaletteColors = atoi(osField);
         }
-        nPCTColors++;  // Number is one more than the maximum
+        nNPaletteColors++;  // Number is one more than the maximum
 
         // If there is nodata color, it has to be computed
         if (bHasNodata)
         {
-            nNoDataPaletteIndex = nPCTColors;
-            nPCTColors++;
+            nNoDataPaletteIndex = nNPaletteColors;
+            nNPaletteColors++;
         }
     }
     else
     {
         // In continous mode the number of the records is the number of te colors.
-        nPCTColors = static_cast<int>(oColorTable.nRecords);  // Safe cast
+        nNPaletteColors = static_cast<int>(oColorTable.nRecords);  // Safe cast
     }
 
     // Checking the size of the palette.
-    if (nPCTColors < 0 || nPCTColors > 65536)
+    if (nNPaletteColors < 0 || nNPaletteColors > 65536)
     {
+        nNPaletteColors = 0;
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Invalid number of colors: %d "
                  "in color table \"%s\".",
-                 nPCTColors, osColorTableFileName.c_str());
+                 nNPaletteColors, osColorTableFileName.c_str());
 
         VSIFCloseL(oColorTable.pfDataBase);
         MM_ReleaseMainFields(&oColorTable);
@@ -264,7 +300,7 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     {
         try
         {
-            aadfPaletteColors[iColumn].resize(nPCTColors, 0);
+            aadfPaletteColors[iColumn].resize(nNPaletteColors, 0);
         }
         catch (std::bad_alloc &e)
         {
@@ -280,13 +316,14 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         // enabling a direct mapping between raster values and color entries.
         //
         // Inicialization to black (semi-transparent)
-        int nIPCTColors;
-        for (nIPCTColors = 0; nIPCTColors < nPCTColors; nIPCTColors++)
+        int nIPaletteColors;
+        for (nIPaletteColors = 0; nIPaletteColors < nNPaletteColors;
+             nIPaletteColors++)
         {
-            aadfPaletteColors[0][nIPCTColors] = sDefaultColorRGB.c1;
-            aadfPaletteColors[1][nIPCTColors] = sDefaultColorRGB.c2;
-            aadfPaletteColors[2][nIPCTColors] = sDefaultColorRGB.c3;
-            aadfPaletteColors[3][nIPCTColors] = sDefaultColorRGB.c4;
+            aadfPaletteColors[0][nIPaletteColors] = sDefaultColorRGB.c1;
+            aadfPaletteColors[1][nIPaletteColors] = sDefaultColorRGB.c2;
+            aadfPaletteColors[2][nIPaletteColors] = sDefaultColorRGB.c3;
+            aadfPaletteColors[3][nIPaletteColors] = sDefaultColorRGB.c4;
         }
 
         // Getting the indexs of the colors and assigning to aadfPaletteColors
@@ -330,7 +367,8 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                 - Linear scaling
                 - Logarithmic scaling
          */
-        for (int nIPCTColors = 0; nIPCTColors < nPCTColors; nIPCTColors++)
+        for (int nIPaletteColors = 0; nIPaletteColors < nNPaletteColors;
+             nIPaletteColors++)
         {
             if (oColorTable.BytesPerRecord !=
                 VSIFReadL(pzsRecord, sizeof(unsigned char),
@@ -352,11 +390,11 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             if (osField.empty())  // Nodata value
             {
                 bHasNodata = true;
-                nNoDataPaletteIndex = nIPCTColors;
+                nNoDataPaletteIndex = nIPaletteColors;
             }
 
             AssignColorFromDBF(oColorTable, pzsRecord, pszField, nRIndex,
-                               nGIndex, nBIndex, nIPCTColors);
+                               nGIndex, nBIndex, nIPaletteColors);
         }
     }
 
@@ -369,6 +407,7 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
 }
 
 // Colors in a PAL, P25 or P65 format files
+// Updates nNPaletteColors
 CPLErr MMRPalettes::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
 {
@@ -382,7 +421,7 @@ CPLErr MMRPalettes::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
     CPLString osExtension = CPLGetExtensionSafe(os_Color_Paleta_DBF);
     int nNReadPaletteColors = 0;
-    int nNPaletteColors = 0;
+    nNPaletteColors = 0;
 
     if (osExtension.tolower() == "pal")
         nNPaletteColors = 64;
@@ -495,13 +534,41 @@ void MMRPalettes::UpdateColorInfo()
     }
     else
     {
-        if (IsCategorical() ||
+        if (IsCategorical()/* ||
             eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE ||
             eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE ||
             eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER ||
-            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE*/)
             ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
         else
             ColorScaling = ColorTreatment::LINEAR_SCALING;
     }
+}
+
+CPLErr MMRPalettes::UpdateConstantColor()
+{
+    // Example: Color_Smb=(255,0,255)
+    CPLString os_Color_Smb =
+        pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection, "Color_Smb");
+    os_Color_Smb.replaceAll(" ", "");
+    if (!os_Color_Smb.empty() && os_Color_Smb.size() >= 7 &&
+        os_Color_Smb[0] == '(' && os_Color_Smb[os_Color_Smb.size() - 1] == ')')
+    {
+        os_Color_Smb.replaceAll("(", "");
+        os_Color_Smb.replaceAll(")", "");
+        char **papszTokens = CSLTokenizeString2(os_Color_Smb, ",", 0);
+        if (CSLCount(papszTokens) != 3)
+        {
+            CSLDestroy(papszTokens);
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid constant color: \"%s\"", pfRel->GetRELNameChar());
+            return CE_Failure;
+        }
+        SetConstantColorRGB(static_cast<short>(atoi(papszTokens[0])),
+                            static_cast<short>(atoi(papszTokens[1])),
+                            static_cast<short>(atoi(papszTokens[2])));
+
+        CSLDestroy(papszTokens);
+    }
+    return CE_None;
 }

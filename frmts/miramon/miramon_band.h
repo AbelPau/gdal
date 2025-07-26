@@ -133,7 +133,7 @@ class MMRBand
         return dfMax;
     }
 
-    bool GetMinVisuSet() const
+    bool GetVisuMinSet() const
     {
         return bMinVisuSet;
     }
@@ -143,7 +143,7 @@ class MMRBand
         return dfVisuMin;
     }
 
-    bool GetMaxVisuSet() const
+    bool GetVisuMaxSet() const
     {
         return bMaxVisuSet;
     }

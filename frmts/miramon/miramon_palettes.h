@@ -36,8 +36,7 @@ enum class ColorTreatment
 class MMRPalettes
 {
   public:
-    MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn,
-                MMDataType eMMRDataTypeMiraMonIn);
+    MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn);
     MMRPalettes(const MMRPalettes &) =
         delete;  // I don't want to construct a MMRPalettes from another MMRBand (effc++)
     MMRPalettes &operator=(const MMRPalettes &) =
@@ -59,14 +58,9 @@ class MMRPalettes
         bIsCategorical = bIsCategoricalIn;
     }
 
-    bool IsIsConstantColor() const
+    bool IsConstantColor() const
     {
         return bIsConstantColor;
-    }
-
-    void SetIsConstantColor(bool bIsConstantColorIn)
-    {
-        bIsConstantColor = bIsConstantColorIn;
     }
 
     GDALColorEntry GetDefaultColorRGB() const
@@ -119,6 +113,11 @@ class MMRPalettes
         nNoDataPaletteIndex = nNoDataPaletteIndexIn;
     }
 
+    GDALColorEntry GetNoDataDefaultColor() const
+    {
+        return sNoDataColorRGB;
+    }
+
     double GetPaletteColorsValue(int nIComponent, int nIColor) const
     {
         return aadfPaletteColors[nIComponent][nIColor];
@@ -127,6 +126,17 @@ class MMRPalettes
     int GetSizeOfPaletteColors() const
     {
         return static_cast<int>(aadfPaletteColors[0].size());
+    }
+
+    int GetNumberOfColors() const
+    {
+        return nNPaletteColors;
+    }
+
+    // Real means with no nodata.
+    int GetNumberOfRealColors() const
+    {
+        return nRealNPaletteColors;
     }
 
     void UpdateColorInfo();
@@ -145,6 +155,7 @@ class MMRPalettes
                             MM_EXT_DBF_N_FIELDS &nRIndex,
                             MM_EXT_DBF_N_FIELDS &nGIndex,
                             MM_EXT_DBF_N_FIELDS &nBIndex, int nIPaletteIndex);
+    CPLErr UpdateConstantColor();
 
     std::array<std::vector<double>, 4> aadfPaletteColors{};
     bool bIsCategorical = false;
@@ -161,9 +172,11 @@ class MMRPalettes
     bool bIsConstantColor = false;
     GDALColorEntry sConstantColorRGB = {0, 0, 0, 0};
 
+    int nNPaletteColors = 0;
+    int nRealNPaletteColors = 0;  // Without nodata
+
     MMRRel *pfRel = nullptr;  // Rel where metadata is readed from
     CPLString osBandSection;
-    MMDataType eMMRDataTypeMiraMon;
 
     bool bIsValid = false;  // Determines if the created object is valid or not.
 };

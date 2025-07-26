@@ -79,8 +79,10 @@ class MMRRasterBand final : public GDALPamRasterBand
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);
     void UpdateDataType();
     CPLErr FillRATFromPalette();
-    CPLErr FromPaletteToAttributeTableContinousMode();
-    CPLErr FromPaletteToAttributeTableCategoricalMode();
+    CPLErr FromPaletteToAttributeTable();
+    CPLErr FromPaletteToAttributeTableConstant();
+    CPLErr FromPaletteToAttributeTableDirectAssig();
+    CPLErr FromPaletteToAttributeTableLinear();
     void ConvertColorsFromPaletteToColorTable();
     CPLErr GetRATName(char *papszToken, CPLString &osRELName,
                       CPLString &osDBFName, CPLString &osAssociateREL);
