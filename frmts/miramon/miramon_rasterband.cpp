@@ -221,19 +221,6 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 }
 
 /************************************************************************/
-/*                       GetColorInterpretation()                       */
-/************************************************************************/
-
-GDALColorInterp MMRRasterBand::GetColorInterpretation()
-
-{
-    if (poCT != nullptr)
-        return GCI_PaletteIndex;
-
-    return GCI_Undefined;
-}
-
-/************************************************************************/
 /*                           GetColorTable()                            */
 /************************************************************************/
 

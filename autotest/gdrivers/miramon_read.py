@@ -18,7 +18,7 @@ import struct
 
 import pytest
 
-from osgeo import gdal
+from osgeo import gdal, osr
 
 gdal_to_struct = {
     gdal.GDT_Byte: ("B", 1),
@@ -31,8 +31,19 @@ gdal_to_struct = {
 }
 
 ###### Testing IMG/REL normal files
-def check_raster(ds, band_idx, expected, checksum, exp_min, exp_max):
+def check_raster(ds, band_idx, expected, checksum, exp_min, exp_max, exp_gt):
     band = ds.GetRasterBand(band_idx)
+
+    # Dataset geotransform
+    gt = ds.GetGeoTransform()
+    assert gt is not None, "GeoTransform not found"
+    if gt is not None and exp_gt is not None:
+        for i in range(6):
+            assert (
+                abs(gt[i] - exp_gt[i]) < 1e-6
+            ), f"GeoTransform element {i} mismatch: got {gt[i]}, expected {exp_gt[i]}"
+
+    # Bands
     assert band is not None, f"Error opening band {band_idx}"
     rchecksum = band.Checksum()
 
@@ -64,21 +75,135 @@ def check_raster(ds, band_idx, expected, checksum, exp_min, exp_max):
         ), f"Unexpected pixel value at index {i}: got {values[i]}, expected {exp}"
 
 
+expected_gt = (516792.0, 2.0, 0.0, 4638260.0, 0.0, -2.0)
+expected_gt2 = (0.0, 1.0, 0.0, 8.0, 0.0, -1)
 init_list = [
-    ("data/miramon/normal/byte_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/byte_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/integer_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/integer_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/uinteger_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/uinteger_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/long_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/long_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/real_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/real_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/double_2x3_6_categs.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/double_2x3_6_categsI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/byte_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/byte_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
+    (
+        "data/miramon/normal/byte_2x3_6_categs.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/byte_2x3_6_categsI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/integer_2x3_6_categs.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/integer_2x3_6_categsI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/uinteger_2x3_6_categs.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/uinteger_2x3_6_categsI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/long_2x3_6_categs.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/long_2x3_6_categsI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/real_2x3_6_categs.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/real_2x3_6_categsI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/double_2x3_6_categs.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/double_2x3_6_categsI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/byte_2x3_6_categs_RLE.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/byte_2x3_6_categs_RLEI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
     (
         "data/miramon/normal/byte_2x3_6_categs_RLE_no_ind.img",
         1,
@@ -86,6 +211,7 @@ init_list = [
         15,
         0,
         5,
+        expected_gt,
     ),
     (
         "data/miramon/normal/byte_2x3_6_categs_RLE_no_indI.rel",
@@ -94,6 +220,7 @@ init_list = [
         15,
         0,
         5,
+        expected_gt,
     ),
     (
         "data/miramon/normal/integer_2x3_6_categs_RLE.img",
@@ -102,6 +229,7 @@ init_list = [
         15,
         0,
         5,
+        expected_gt,
     ),
     (
         "data/miramon/normal/integer_2x3_6_categs_RLEI.rel",
@@ -110,6 +238,7 @@ init_list = [
         15,
         0,
         5,
+        expected_gt,
     ),
     (
         "data/miramon/normal/uinteger_2x3_6_categs_RLE.img",
@@ -118,6 +247,7 @@ init_list = [
         15,
         0,
         5,
+        expected_gt,
     ),
     (
         "data/miramon/normal/uinteger_2x3_6_categs_RLEI.rel",
@@ -126,11 +256,44 @@ init_list = [
         15,
         0,
         5,
+        expected_gt,
     ),
-    ("data/miramon/normal/long_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/long_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/real_2x3_6_categs_RLE.img", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
-    ("data/miramon/normal/real_2x3_6_categs_RLEI.rel", 1, [0, 1, 2, 3, 4, 5], 15, 0, 5),
+    (
+        "data/miramon/normal/long_2x3_6_categs_RLE.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/long_2x3_6_categs_RLEI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/real_2x3_6_categs_RLE.img",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
+    (
+        "data/miramon/normal/real_2x3_6_categs_RLEI.rel",
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        5,
+        expected_gt,
+    ),
     (
         "data/miramon/normal/double_2x3_6_categs_RLE.img",
         1,
@@ -138,6 +301,7 @@ init_list = [
         15,
         0,
         5,
+        expected_gt,
     ),
     (
         "data/miramon/normal/double_2x3_6_categs_RLEI.rel",
@@ -146,6 +310,7 @@ init_list = [
         15,
         0,
         5,
+        expected_gt,
     ),
     (
         "data/miramon/normal/chess_bit.img",
@@ -154,6 +319,7 @@ init_list = [
         32,
         0,
         1,
+        expected_gt2,
     ),
     (
         "data/miramon/normal/chess_bitI.rel",
@@ -162,23 +328,24 @@ init_list = [
         32,
         0,
         1,
+        expected_gt2,
     ),
 ]
 
 
 @pytest.mark.parametrize(
-    "filename,band_idx,expected,checksum,exp_min,exp_max",
+    "filename,band_idx,expected,checksum,exp_min,exp_max,exp_gt",
     init_list,
     ids=[tup[0].split(".")[0] for tup in init_list],
 )
 @pytest.mark.require_driver("MiraMonRaster")
 def test_miramon_test_012345_raster(
-    filename, band_idx, expected, checksum, exp_min, exp_max
+    filename, band_idx, expected, checksum, exp_min, exp_max, exp_gt
 ):
     # ds = gdal.Open(filename)
     ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
     assert ds is not None, "Could not open the file"
-    check_raster(ds, band_idx, expected, checksum, exp_min, exp_max)
+    check_raster(ds, band_idx, expected, checksum, exp_min, exp_max, exp_gt)
 
 
 ###### Testing IMG/REL files with errors
@@ -335,7 +502,7 @@ def test_miramon_subdatasets_detection(
             nodata == expected_nodata
         ), f"Unexpected nodata value : got {nodata}, expected {expected_nodata}"
 
-    check_raster(subds, idx_bnd, expected, checksum, exp_min, exp_max)
+    check_raster(subds, idx_bnd, expected, checksum, exp_min, exp_max, None)
 
 
 ###### Testing color table
@@ -343,7 +510,7 @@ init_list_color_tables = [
     (
         "data/miramon/palettes/Constant/byte_2x3_6_categsI.rel",
         1,  # band index
-        {
+        {  # color table
             0: (255, 0, 255, 255),
             1: (255, 0, 255, 255),
             2: (255, 0, 255, 255),
@@ -351,35 +518,42 @@ init_list_color_tables = [
             4: (255, 0, 255, 255),
             5: (0, 0, 0, 0),
         },
+        "25831",  # reference system
     ),
     (
         "data/miramon/palettes/Categorical/Automatic/byte_2x3_6_categsI.rel",
         1,  # band index
         None,
+        "25831",
     ),
     (
         "data/miramon/several_errors/WrongPaletteI.rel",
         1,  # band index
         None,
+        "25831",
     ),
     (
         "data/miramon/several_errors/NonExistantPaletteI.rel",
         1,  # band index
         None,
+        "25831",
     ),
     (
         "data/miramon/several_errors/EmptyPaletteI.rel",
         1,  # band index
         None,
+        "25831",
     ),
     (
         "data/miramon/palettes/Continous/ColorTable/uinteger_with_nodataI.rel",
         1,  # band index
         None,
+        None,
     ),
     (
         "data/miramon/palettes/Continous/ColorTable/double_with_nodataI.rel",
         1,  # band index
+        None,
         None,
     ),
     (
@@ -393,6 +567,7 @@ init_list_color_tables = [
             4: (255, 0, 0, 255),
             5: (255, 0, 133, 255),
         },
+        "25831",
     ),
     (
         "data/miramon/palettes/Categorical/Assigned/real_2x3_6_categsI.rel",
@@ -405,6 +580,7 @@ init_list_color_tables = [
             4: (255, 0, 0, 255),
             5: (255, 0, 133, 255),
         },
+        "25831",
     ),
     (
         "data/miramon/palettes/Categorical/Assignedp25/byte_2x3_6_categsI.rel",
@@ -418,6 +594,7 @@ init_list_color_tables = [
             5: (255, 210, 0, 255),
             15: (255, 178, 255, 255),
         },
+        "25831",
     ),
     (
         "data/miramon/palettes/Categorical/AssignedPAL/byte_2x3_6_categsI.rel",
@@ -431,6 +608,7 @@ init_list_color_tables = [
             5: (63, 52, 0, 255),
             15: (63, 44, 63, 255),
         },
+        "25831",
     ),
     (
         "data/miramon/palettes/Categorical/Assignedp65/byte_2x3_6_categsI.rel",
@@ -444,6 +622,7 @@ init_list_color_tables = [
             5: (63, 52, 0, 255),
             15: (63, 44, 63, 255),
         },
+        "25831",
     ),
     (
         "data/miramon/palettes/Categorical/ThematicNoDataBeg/MUCSC_2002_30_m_v_6_retI.rel",
@@ -461,6 +640,7 @@ init_list_color_tables = [
             21: (128, 0, 128, 255),
             24: (201, 232, 163, 255),
         },
+        "25831",
     ),
     (
         "data/miramon/palettes/Categorical/ThematicNoDataEnd/MUCSC_2002_30_m_v_6_retI.rel",
@@ -478,6 +658,7 @@ init_list_color_tables = [
             21: (128, 0, 128, 255),
             24: (201, 232, 163, 255),
         },
+        "25831",
     ),
     (
         "data/miramon/palettes/Categorical/ThematicNoDataMiddle/MUCSC_2002_30_m_v_6_retI.rel",
@@ -495,6 +676,7 @@ init_list_color_tables = [
             21: (128, 0, 128, 255),
             24: (201, 232, 163, 255),
         },
+        "25831",
     ),
     (
         "data/miramon/palettes/Categorical/ThematicLessColors/MUCSC_2002_30_m_v_6_retI.rel",
@@ -506,12 +688,13 @@ init_list_color_tables = [
             16: (0, 0, 0, 127),
             24: (0, 0, 0, 127),
         },
+        "25831",
     ),
 ]
 
 
 @pytest.mark.parametrize(
-    "filename,idx_bnd,expected_ct",
+    "filename,idx_bnd,expected_ct,exp_epsg",
     init_list_color_tables,
     # ids=[tup[0].split("/")[-1].split(".")[0] for tup in init_list_color_tables],
     ids=[
@@ -523,10 +706,18 @@ init_list_color_tables = [
     ],
 )
 @pytest.mark.require_driver("MiraMonRaster")
-def test_miramon_color_table(filename, idx_bnd, expected_ct):
+def test_miramon_epsg_and_color_table(filename, idx_bnd, expected_ct, exp_epsg):
     ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
     assert ds is not None, f"Could not open file: {filename}"
 
+    # Comparing reference system
+    if exp_epsg is not None:
+        srs = osr.SpatialReference()
+        srs.ImportFromWkt(ds.GetProjection())
+        epsg_code = srs.GetAuthorityCode("PROJCS") or srs.GetAuthorityCode("GEOGCS")
+        assert epsg_code == exp_epsg, f"incorrect EPSG: {epsg_code}, waited {exp_epsg}"
+
+    # Comparing color table
     band = ds.GetRasterBand(idx_bnd)
     assert band is not None, f"Could not get band {idx_bnd} from file"
 
