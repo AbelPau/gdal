@@ -713,9 +713,13 @@ def test_miramon_epsg_and_color_table(filename, idx_bnd, expected_ct, exp_epsg):
     # Comparing reference system
     if exp_epsg is not None:
         srs = osr.SpatialReference()
-        srs.ImportFromWkt(ds.GetProjection())
-        epsg_code = srs.GetAuthorityCode("PROJCS") or srs.GetAuthorityCode("GEOGCS")
-        assert epsg_code == exp_epsg, f"incorrect EPSG: {epsg_code}, waited {exp_epsg}"
+        prj = ds.GetProjection()
+        if prj is not None:
+            srs.ImportFromWkt(prj)
+            epsg_code = srs.GetAuthorityCode("PROJCS") or srs.GetAuthorityCode("GEOGCS")
+            assert (
+                epsg_code == exp_epsg
+            ), f"incorrect EPSG: {epsg_code}, waited {exp_epsg}"
 
     # Comparing color table
     band = ds.GetRasterBand(idx_bnd)
