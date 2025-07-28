@@ -59,7 +59,7 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
         if (pMMfRel->isAMiraMonFile())
         {
             CPLError(CE_Failure, CPLE_AppDefined,
-                     "Unable to open %s, some internal problem has occured.",
+                     "Unable to open %s, probably it's not a MiraMon file.",
                      poOpenInfo->pszFilename);
         }
         return;
@@ -108,6 +108,9 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
                 memcpy(&m_gt, &poBand->m_gt, sizeof(m_gt));
         }
     }
+
+    // Make sure we don't try to do any pam stuff with this dataset.
+    nPamFlags |= GPF_NOSAVE;
 
     // We have a valid DataSet.
     bIsValid = true;

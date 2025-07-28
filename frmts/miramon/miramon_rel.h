@@ -130,7 +130,8 @@ class MMRRel
     static bool SameFile(CPLString osFile1, CPLString osFile2);
     MMRNomFitxerState MMRStateOfNomFitxerInSection(CPLString osLayerName,
                                                    CPLString osSection,
-                                                   CPLString osRELFile);
+                                                   CPLString osRELFile,
+                                                   bool bNomFitxerMustExtist);
     CPLString MMRGetAReferenceToIMGFile(CPLString osLayerName,
                                         CPLString osRELFile);
 

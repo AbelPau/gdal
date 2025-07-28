@@ -18,7 +18,7 @@ import struct
 
 import pytest
 
-from osgeo import gdal, osr
+from osgeo import gdal
 
 gdal_to_struct = {
     gdal.GDT_Byte: ("B", 1),
@@ -362,7 +362,7 @@ def test_miramon_test_012345_raster(
         ),
         (
             "data/miramon/several_errors/empy_img.img",
-            "not recognized as being in a supported file format",
+            "probably it's not a MiraMon file",
         ),
         (
             "data/miramon/several_errors/empy_relI.rel",
@@ -374,7 +374,7 @@ def test_miramon_test_012345_raster(
         ),
         (
             "data/miramon/several_errors/no_assoc_rel.img",
-            "not recognized as being in a supported file format",
+            "probably it's not a MiraMon file",
         ),
         (
             "data/miramon/several_errors/no_colI.rel",
@@ -712,14 +712,9 @@ def test_miramon_epsg_and_color_table(filename, idx_bnd, expected_ct, exp_epsg):
 
     # Comparing reference system
     if exp_epsg is not None:
-        srs = osr.SpatialReference()
-        prj = ds.GetProjection()
-        if prj is not None:
-            srs.ImportFromWkt(prj)
-            epsg_code = srs.GetAuthorityCode("PROJCS") or srs.GetAuthorityCode("GEOGCS")
-            assert (
-                epsg_code == exp_epsg
-            ), f"incorrect EPSG: {epsg_code}, waited {exp_epsg}"
+        srs = ds.GetSpatialRef()
+        epsg_code = srs.GetAuthorityCode("PROJCS") or srs.GetAuthorityCode("GEOGCS")
+        assert epsg_code == exp_epsg, f"incorrect EPSG: {epsg_code}, waited {exp_epsg}"
 
     # Comparing color table
     band = ds.GetRasterBand(idx_bnd)

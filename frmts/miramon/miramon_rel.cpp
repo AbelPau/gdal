@@ -212,9 +212,10 @@ bool MMRRel::SameFile(CPLString osFile1, CPLString osFile2)
 // specified section
 // [pszSection]
 // NomFitxer=Value
-MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(CPLString osLayerName,
-                                                       CPLString osSection,
-                                                       CPLString osRELFile)
+MMRNomFitxerState
+MMRRel::MMRStateOfNomFitxerInSection(CPLString osLayerName, CPLString osSection,
+                                     CPLString osRELFile,
+                                     bool bNomFitxerMustExtist)
 {
     CPLString osDocumentedLayerName =
         GetAndExcludeMetadataValueDirectly(osRELFile, osSection, KEY_NomFitxer);
@@ -225,7 +226,10 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(CPLString osLayerName,
         if (SameFile(osIIMGFromREL, osLayerName))
             return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
 
-        return MMRNomFitxerState::NOMFITXER_NOT_FOUND;
+        if (bNomFitxerMustExtist)
+            return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
+        else
+            return MMRNomFitxerState::NOMFITXER_NOT_FOUND;
     }
 
     CPLString osFileAux = CPLFormFilenameSafe(CPLGetPathSafe(osRELFile).c_str(),
@@ -258,7 +262,7 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(CPLString osLayerName,
     // It should be empty but if it's not, at least,
     // the value has to be osLayerName
     MMRNomFitxerState iState = MMRStateOfNomFitxerInSection(
-        osLayerName, SECTION_ATTRIBUTE_DATA, osRELFile);
+        osLayerName, SECTION_ATTRIBUTE_DATA, osRELFile, false);
 
     if (iState == MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED ||
         iState == MMRNomFitxerState::NOMFITXER_VALUE_EMPTY)
@@ -333,8 +337,8 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(CPLString osLayerName,
 
         // Let's see if this band contains the expected name
         // or none (in monoband case)
-        iState = MMRStateOfNomFitxerInSection(
-            osLayerName, osAtributeDataName.c_str(), osRELFile);
+        iState = MMRStateOfNomFitxerInSection(osLayerName, osAtributeDataName,
+                                              osRELFile, true);
         if (iState == MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED)
         {
             CSLDestroy(papszTokens);
@@ -405,7 +409,7 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const CPLString osFileName)
     // Checking if the file exists
     VSIStatBufL sStat;
     if (VSIStatExL(osRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
-        return MMRGetAReferenceToIMGFile(osFileName, osRELFile.c_str());
+        return MMRGetAReferenceToIMGFile(osFileName, osRELFile);
 
     // If the file I.rel doesn't exist then it has to be found
     // in the same folder than the .img file.
@@ -423,7 +427,7 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const CPLString osFileName)
         const CPLString osFilePath =
             CPLFormFilenameSafe(osPath, folder[i], nullptr);
 
-        osRELFile = MMRGetAReferenceToIMGFile(osFileName, osFilePath.c_str());
+        osRELFile = MMRGetAReferenceToIMGFile(osFileName, osFilePath);
         if (!osRELFile.empty())
         {
             CSLDestroy(folder);

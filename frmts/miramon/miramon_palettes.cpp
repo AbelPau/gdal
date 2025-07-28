@@ -252,6 +252,11 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                          "Invalid color table:"
                          "\"%s\".",
                          osColorTableFileName.c_str());
+
+                VSIFree(pszField);
+                VSIFree(pzsRecord);
+                VSIFCloseL(oColorTable.pfDataBase);
+                MM_ReleaseMainFields(&oColorTable);
                 return CE_Failure;
             }
 
@@ -290,6 +295,8 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                  "in color table \"%s\".",
                  nNPaletteColors, osColorTableFileName.c_str());
 
+        VSIFree(pszField);
+        VSIFree(pzsRecord);
         VSIFCloseL(oColorTable.pfDataBase);
         MM_ReleaseMainFields(&oColorTable);
         return CE_Failure;
@@ -305,6 +312,10 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
         catch (std::bad_alloc &e)
         {
             CPLError(CE_Failure, CPLE_AppDefined, "%s", e.what());
+            VSIFree(pszField);
+            VSIFree(pzsRecord);
+            VSIFCloseL(oColorTable.pfDataBase);
+            MM_ReleaseMainFields(&oColorTable);
             return CE_Failure;
         }
     }
@@ -338,6 +349,8 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                          "Invalid color table:"
                          "\"%s\".",
                          osColorTableFileName.c_str());
+                VSIFree(pszField);
+                VSIFree(pzsRecord);
                 VSIFCloseL(oColorTable.pfDataBase);
                 MM_ReleaseMainFields(&oColorTable);
                 return CE_Failure;
@@ -377,6 +390,10 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
                 CPLError(CE_Failure, CPLE_AppDefined,
                          "Invalid color table: \"%s\"",
                          osColorTableFileName.c_str());
+                VSIFree(pszField);
+                VSIFree(pzsRecord);
+                VSIFCloseL(oColorTable.pfDataBase);
+                MM_ReleaseMainFields(&oColorTable);
                 return CE_Failure;
             }
 
