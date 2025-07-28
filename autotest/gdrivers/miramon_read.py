@@ -362,7 +362,7 @@ def test_miramon_test_012345_raster(
         ),
         (
             "data/miramon/several_errors/empy_img.img",
-            "probably it's not a MiraMon file",
+            "not recognized as being in a supported file format",
         ),
         (
             "data/miramon/several_errors/empy_relI.rel",
@@ -374,7 +374,7 @@ def test_miramon_test_012345_raster(
         ),
         (
             "data/miramon/several_errors/no_assoc_rel.img",
-            "probably it's not a MiraMon file",
+            "not recognized as being in a supported file format",
         ),
         (
             "data/miramon/several_errors/no_colI.rel",
@@ -438,6 +438,17 @@ init_list_subdatasets = [
         5,
     ),
     (
+        "data/miramon/multiband/byte_2x3_6_categs.img",
+        3,
+        0,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        None,
+        0,
+        5,
+    ),
+    (
         "data/miramon/multiband/byte_2x3_6_multibandI.rel",
         3,
         1,
@@ -449,7 +460,29 @@ init_list_subdatasets = [
         4,
     ),
     (
+        "data/miramon/multiband/byte_2x3_0_to_4_categs_NoData_255.img",
+        3,
+        1,
+        1,
+        [0, 1, 2, 3, 4, 255],
+        10,
+        255,
+        0,
+        4,
+    ),
+    (
         "data/miramon/multiband/byte_2x3_6_multibandI.rel",
+        3,
+        2,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        0,
+        1,
+        5,
+    ),
+    (
+        "data/miramon/multiband/byte_2x3_1_to_5_categs_NoData_0.img",
         3,
         2,
         1,
