@@ -162,7 +162,7 @@ class MMRRel
 
     // List of excluded pairs {Section, Key} to be added to metadata
     // Empty Key means all section
-    std::set<ExcludedEntry> ExcludedSectionKey;
+    std::set<ExcludedEntry> ExcludedSectionKey = {};
 };
 
 #endif /* ndef MMR_REL_H_INCLUDED */
