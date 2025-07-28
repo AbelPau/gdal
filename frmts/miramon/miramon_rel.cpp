@@ -73,7 +73,6 @@ MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
                          "Metadata file for %s should exist.",
                          osRelFileName.c_str());
             }
-            bIsAMiraMonFile = true;
             return;
         }
         else
@@ -94,7 +93,6 @@ MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
                 return;
             }
             VSIFCloseL(pF);
-            bIsAMiraMonFile = true;
         }
     }
 
