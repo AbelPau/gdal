@@ -58,13 +58,13 @@ MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
             papoSDSBands.emplace_back(osBandName);
         }
         CSLDestroy(papszTokens);
+        bIsAMiraMonFile = true;
     }
     else
     {
         // Getting the metadata file name. If it's already a REL file,
         // then same name is returned.
-        osRelCandidate = GetAssociatedMetadataFileName(osRelFileName.c_str(),
-                                                       bIsAMiraMonFile);
+        osRelCandidate = GetAssociatedMetadataFileName(osRelFileName.c_str());
         if (osRelCandidate.empty())
         {
             if (bIsAMiraMonFile)
@@ -73,6 +73,7 @@ MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
                          "Metadata file for %s should exist.",
                          osRelFileName.c_str());
             }
+            bIsAMiraMonFile = true;
             return;
         }
         else
@@ -93,6 +94,7 @@ MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
                 return;
             }
             VSIFCloseL(pF);
+            bIsAMiraMonFile = true;
         }
     }
 
@@ -123,12 +125,12 @@ MMRRel::~MMRRel()
 }
 
 // Converts FileNameI.rel to FileName.img
-CPLString MMRRel::MMRGetFileNameFromRelName(const char *pszRELFile)
+CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString osRELFile)
 {
-    if (!pszRELFile)
+    if (osRELFile.empty())
         return "";
 
-    CPLString osFile = CPLString(CPLResetExtensionSafe(pszRELFile, "").c_str());
+    CPLString osFile = CPLString(CPLResetExtensionSafe(osRELFile, "").c_str());
 
     if (osFile.length() < 2)
         return "";
@@ -140,14 +142,14 @@ CPLString MMRRel::MMRGetFileNameFromRelName(const char *pszRELFile)
 }
 
 // Converts FileName.img to FileNameI.rel
-CPLString MMRRel::MMRGetSimpleMetadataName(const char *pszLayerName)
+CPLString MMRRel::MMRGetSimpleMetadataName(const CPLString osLayerName)
 {
-    if (!pszLayerName)
+    if (osLayerName.empty())
         return "";
 
     // Extract extension
     CPLString osRELFile =
-        CPLString(CPLResetExtensionSafe(pszLayerName, "").c_str());
+        CPLString(CPLResetExtensionSafe(osLayerName, "").c_str());
 
     if (!osRELFile.length())
         return "";
@@ -161,12 +163,21 @@ CPLString MMRRel::MMRGetSimpleMetadataName(const char *pszLayerName)
 }
 
 // Gets the value from a section-key accessind directly to the file
-CPLString MMRRel::GetMetadataValueDirectly(const char *pszRELFile,
-                                           const char *pszSection,
-                                           const char *pszKey)
+CPLString MMRRel::GetAndExcludeMetadataValueDirectly(const CPLString osRELFile,
+                                                     const CPLString osSection,
+                                                     const CPLString osKey)
+{
+    addExcludedSectionKey(osSection, osKey);
+    return GetMetadataValueDirectly(osRELFile, osSection, osKey);
+}
+
+CPLString MMRRel::GetMetadataValueDirectly(const CPLString osRELFile,
+                                           const CPLString osSection,
+                                           const CPLString osKey)
 {
     char *pszValue =
-        MMReturnValueFromSectionINIFile(pszRELFile, pszSection, pszKey);
+        MMReturnValueFromSectionINIFile(osRELFile, osSection, osKey);
+
     if (!pszValue)
         return "";
     else
@@ -201,31 +212,31 @@ bool MMRRel::SameFile(CPLString osFile1, CPLString osFile2)
 // specified section
 // [pszSection]
 // NomFitxer=Value
-MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
-                                                       const char *pszSection,
-                                                       const char *pszRELFile)
+MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(CPLString osLayerName,
+                                                       CPLString osSection,
+                                                       CPLString osRELFile)
 {
     CPLString osDocumentedLayerName =
-        GetMetadataValueDirectly(pszRELFile, pszSection, KEY_NomFitxer);
+        GetAndExcludeMetadataValueDirectly(osRELFile, osSection, KEY_NomFitxer);
 
     if (osDocumentedLayerName.empty())
     {
-        CPLString osIIMGFromREL = MMRGetFileNameFromRelName(pszRELFile);
-        if (SameFile(osIIMGFromREL, pszLayerName))
+        CPLString osIIMGFromREL = MMRGetFileNameFromRelName(osRELFile);
+        if (SameFile(osIIMGFromREL, osLayerName))
             return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
 
-        return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
+        return MMRNomFitxerState::NOMFITXER_NOT_FOUND;
     }
 
-    CPLString osFileAux = CPLFormFilenameSafe(
-        CPLGetPathSafe(pszRELFile).c_str(), osDocumentedLayerName, "");
+    CPLString osFileAux = CPLFormFilenameSafe(CPLGetPathSafe(osRELFile).c_str(),
+                                              osDocumentedLayerName, "");
 
     osDocumentedLayerName =
         RemoveWhitespacesFromEndOfString(osDocumentedLayerName);
     if (*osDocumentedLayerName == '*' || *osDocumentedLayerName == '?')
         return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
 
-    if (SameFile(osFileAux, pszLayerName))
+    if (SameFile(osFileAux, osLayerName))
         return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
 
     return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
@@ -233,11 +244,10 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(const char *pszLayerName,
 
 // Tries to find a reference to the IMG file 'pszLayerName'
 // we are opening in the REL file 'pszRELFile'
-CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
-                                            const char *pszRELFile,
-                                            bool &bIsAMiraMonFile)
+CPLString MMRRel::MMRGetAReferenceToIMGFile(CPLString osLayerName,
+                                            CPLString osRELFile)
 {
-    if (!pszRELFile)
+    if (osRELFile.empty())
     {
         CPLError(CE_Failure, CPLE_OpenFailed, "Expected File name.");
         return "";
@@ -246,14 +256,14 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
     // [ATTRIBUTE_DATA]
     // NomFitxer=
     // It should be empty but if it's not, at least,
-    // the value has to be pszLayerName
+    // the value has to be osLayerName
     MMRNomFitxerState iState = MMRStateOfNomFitxerInSection(
-        pszLayerName, SECTION_ATTRIBUTE_DATA, pszRELFile);
+        osLayerName, SECTION_ATTRIBUTE_DATA, osRELFile);
 
     if (iState == MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED ||
         iState == MMRNomFitxerState::NOMFITXER_VALUE_EMPTY)
     {
-        return pszRELFile;
+        return osRELFile;
     }
     else if (iState == MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED)
     {
@@ -263,60 +273,58 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
                 CE_Failure, CPLE_OpenFailed,
                 "Unexpected value for SECTION_ATTRIBUTE_DATA [NomFitxer] in "
                 "%s file.",
-                pszRELFile);
+                osRELFile.c_str());
         }
         return "";
     }
 
     // Discarting not supported via SDE (some files
     // could have this otpion)
-    CPLString osVia =
-        GetMetadataValueDirectly(pszRELFile, SECTION_ATTRIBUTE_DATA, KEY_via);
+    CPLString osVia = GetAndExcludeMetadataValueDirectly(
+        osRELFile, SECTION_ATTRIBUTE_DATA, KEY_via);
+
     if (!osVia.empty() && !EQUAL(osVia, "SDE"))
     {
         if (bIsAMiraMonFile)
         {
             CPLError(CE_Failure, CPLE_OpenFailed, "Unexpected Via in %s file",
-                     pszRELFile);
+                     osRELFile.c_str());
         }
         return "";
     }
 
-    CPLString osFieldNames = GetMetadataValueDirectly(
-        pszRELFile, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
+    CPLString osFieldNames = GetAndExcludeMetadataValueDirectly(
+        osRELFile, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
 
     if (osFieldNames.empty())
     {
         if (bIsAMiraMonFile)
         {
             CPLError(CE_Failure, CPLE_OpenFailed,
-                     "IndexsNomsCamps not found in %s file", pszRELFile);
+                     "IndexsNomsCamps not found in %s file", osRELFile.c_str());
         }
         return "";
     }
 
     // Getting the internal names of the bands
     char **papszTokens = CSLTokenizeString2(osFieldNames, ",", 0);
-    const int nBands = CSLCount(papszTokens);
+    const int nTokenBands = CSLCount(papszTokens);
 
     CPLString osBandSectionKey;
     CPLString osAtributeDataName;
-    for (int nIBand = 0; nIBand < nBands; nIBand++)
+    for (int nIBand = 0; nIBand < nTokenBands; nIBand++)
     {
         osBandSectionKey = KEY_NomCamp;
         osBandSectionKey.append("_");
         osBandSectionKey.append(papszTokens[nIBand]);
 
-        CPLString osBandSectionValue = GetMetadataValueDirectly(
-            pszRELFile, SECTION_ATTRIBUTE_DATA, osBandSectionKey);
+        CPLString osBandSectionValue = GetAndExcludeMetadataValueDirectly(
+            osRELFile, SECTION_ATTRIBUTE_DATA, osBandSectionKey);
 
         if (!osBandSectionValue)
             continue;  // A band without name (·$· unexpected)
 
-        char *pszBandSectionValue = CPLStrdup(osBandSectionValue);
-        MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
-        osBandSectionValue = pszBandSectionValue;
-        VSIFree(pszBandSectionValue);
+        RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
         // Example: [ATTRIBUTE_DATA:G1]
         osAtributeDataName = SECTION_ATTRIBUTE_DATA;
@@ -326,11 +334,11 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
         // Let's see if this band contains the expected name
         // or none (in monoband case)
         iState = MMRStateOfNomFitxerInSection(
-            pszLayerName, osAtributeDataName.c_str(), pszRELFile);
+            osLayerName, osAtributeDataName.c_str(), osRELFile);
         if (iState == MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED)
         {
             CSLDestroy(papszTokens);
-            return pszRELFile;
+            return osRELFile;
         }
         else if (iState == MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED)
         {
@@ -338,10 +346,10 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
         }
 
         // If there is only one band is accepted NOMFITXER_NOT_FOUND/EMPTY iState result
-        if (nBands == 1)
+        if (nTokenBands == 1)
         {
             CSLDestroy(papszTokens);
-            return pszRELFile;
+            return osRELFile;
         }
     }
 
@@ -349,16 +357,16 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(const char *pszLayerName,
     if (bIsAMiraMonFile)
     {
         CPLError(CE_Failure, CPLE_OpenFailed,
-                 "REL search failed for all bands in %s file", pszRELFile);
+                 "REL search failed for all bands in %s file",
+                 osRELFile.c_str());
     }
     return "";
 }
 
-// Finds the metadata filename associated to pszFileName (usually an IMG file)
-CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
-                                                bool &bIsAMiraMonFile)
+// Finds the metadata filename associated to osFileName (usually an IMG file)
+CPLString MMRRel::GetAssociatedMetadataFileName(const CPLString osFileName)
 {
-    if (!pszFileName)
+    if (osFileName.empty())
     {
         if (bIsAMiraMonFile)
             CPLError(CE_Failure, CPLE_OpenFailed, "Expected File name.");
@@ -367,29 +375,29 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
 
     // If the string finishes in "I.rel" we consider it can be
     // the associated file to all bands that are documented in this file.
-    if (strlen(pszFileName) >= strlen(pszExtRasterREL) &&
-        EQUAL(pszFileName + strlen(pszFileName) - strlen(pszExtRasterREL),
+    if (strlen(osFileName) >= strlen(pszExtRasterREL) &&
+        EQUAL(osFileName + strlen(osFileName) - strlen(pszExtRasterREL),
               pszExtRasterREL))
     {
         bIsAMiraMonFile = true;
-        return CPLString(pszFileName);
+        return osFileName;
     }
 
     // If the file is not a REL file, let's try to find the associated REL
     // It must be a IMG file.
-    CPLString osExtension = CPLString(CPLGetExtensionSafe(pszFileName).c_str());
+    CPLString osExtension = CPLString(CPLGetExtensionSafe(osFileName).c_str());
     if (!EQUAL(osExtension, pszExtRaster + 1))
         return "";
 
     // Converting FileName.img to FileNameI.rel
-    CPLString osRELFile = MMRGetSimpleMetadataName(pszFileName);
+    CPLString osRELFile = MMRGetSimpleMetadataName(osFileName);
     if (osRELFile.empty())
     {
         if (bIsAMiraMonFile)
         {
             CPLError(CE_Failure, CPLE_OpenFailed,
                      "Failing in conversion from .img to I.rel for %s file",
-                     pszFileName);
+                     osFileName.c_str());
         }
         return "";
     }
@@ -397,12 +405,11 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
     // Checking if the file exists
     VSIStatBufL sStat;
     if (VSIStatExL(osRELFile.c_str(), &sStat, VSI_STAT_EXISTS_FLAG) == 0)
-        return MMRGetAReferenceToIMGFile(pszFileName, osRELFile.c_str(),
-                                         bIsAMiraMonFile);
+        return MMRGetAReferenceToIMGFile(osFileName, osRELFile.c_str());
 
     // If the file I.rel doesn't exist then it has to be found
     // in the same folder than the .img file.
-    const CPLString osPath = CPLGetPathSafe(pszFileName);
+    const CPLString osPath = CPLGetPathSafe(osFileName);
     char **folder = VSIReadDir(osPath.c_str());
     int size = folder ? CSLCount(folder) : 0;
 
@@ -416,8 +423,7 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
         const CPLString osFilePath =
             CPLFormFilenameSafe(osPath, folder[i], nullptr);
 
-        osRELFile = MMRGetAReferenceToIMGFile(pszFileName, osFilePath.c_str(),
-                                              bIsAMiraMonFile);
+        osRELFile = MMRGetAReferenceToIMGFile(osFileName, osFilePath.c_str());
         if (!osRELFile.empty())
         {
             CSLDestroy(folder);
@@ -429,7 +435,7 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
     if (bIsAMiraMonFile)
     {
         CPLError(CE_Failure, CPLE_OpenFailed, "REL search failed for %s file",
-                 pszFileName);
+                 osFileName.c_str());
     }
 
     return "";
@@ -438,12 +444,12 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const char *pszFileName,
 /************************************************************************/
 /*                         CheckBandInRel()                             */
 /************************************************************************/
-CPLErr MMRRel::CheckBandInRel(const char *pszRELFileName,
-                              const char *pszIMGFile)
+CPLErr MMRRel::CheckBandInRel(const CPLString osRELFileName,
+                              const CPLString osIMGFile)
 
 {
     CPLString osFieldNames = GetMetadataValueDirectly(
-        pszRELFileName, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
+        osRELFileName, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
 
     if (osFieldNames.empty())
         return CE_Failure;
@@ -464,7 +470,7 @@ CPLErr MMRRel::CheckBandInRel(const char *pszRELFileName,
         osBandSectionKey.append(papszTokens[i]);
 
         osBandSectionValue = GetMetadataValueDirectly(
-            pszRELFileName, SECTION_ATTRIBUTE_DATA, osBandSectionKey);
+            osRELFileName, SECTION_ATTRIBUTE_DATA, osBandSectionKey);
 
         if (osBandSectionValue.empty())
             return CE_Failure;
@@ -477,18 +483,17 @@ CPLErr MMRRel::CheckBandInRel(const char *pszRELFileName,
         osAtributeDataName.append(osBandSectionValue);
 
         CPLString osRawBandFileName = GetMetadataValueDirectly(
-            pszRELFileName, osAtributeDataName, KEY_NomFitxer);
+            osRELFileName, osAtributeDataName, KEY_NomFitxer);
 
         if (osRawBandFileName.empty())
         {
-            CPLString osBandFileName =
-                MMRGetFileNameFromRelName(pszRELFileName);
+            CPLString osBandFileName = MMRGetFileNameFromRelName(osRELFileName);
             if (osBandFileName.empty())
                 return CE_Failure;
         }
         else
         {
-            if (!EQUAL(osRawBandFileName, pszIMGFile))
+            if (!EQUAL(osRawBandFileName, osIMGFile))
                 continue;
             break;  // Found
         }
@@ -533,7 +538,7 @@ int MMRRel::IdentifySubdataSetFile(const CPLString pszFileName)
     if (MMCheck_REL_FILE(osRELName))
         return GDAL_IDENTIFY_FALSE;
 
-    // Let's see if the specifieds bands are in the REL file
+    // Let's see if the specified bands are in the REL file
     // Getting the index + internal names of the bands
     for (int nIBand = 1; nIBand < nTokens; nIBand++)
     {
@@ -593,6 +598,9 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
                                    const CPLString osSubSubSection,
                                    const CPLString osKey)
 {
+    if (!isAMiraMonFile())
+        CPLAssert(false);  // Trying to access metadata from the wrong way
+
     // Searches in [pszMainSection:pszSubSection]
     CPLString osAtributeDataName;
     osAtributeDataName = osMainSection;
@@ -615,6 +623,7 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
     // If the value is not found then searches in [pszMainSection]
     pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
                                                osSubSubSection, osKey);
+    addExcludedSectionKey(osSubSubSection, osKey);
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -628,6 +637,9 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
                                    const CPLString osSubSection,
                                    const CPLString osKey)
 {
+    if (!isAMiraMonFile())
+        CPLAssert(false);  // Trying to access metadata from the wrong way
+
     // Searches in [pszMainSection:pszSubSection]
     CPLString osAtributeDataName;
     osAtributeDataName = osMainSection;
@@ -647,6 +659,7 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
     // If the value is not found then searches in [pszMainSection]
     pszValue =
         MMReturnValueFromSectionINIFile(GetRELNameChar(), osMainSection, osKey);
+    addExcludedSectionKey(osMainSection, osKey);
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -659,6 +672,9 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
 CPLString MMRRel::GetMetadataValue(const CPLString osSection,
                                    const CPLString osKey)
 {
+    if (!isAMiraMonFile())
+        CPLAssert(false);  // Trying to access metadata from the wrong way
+
     char *pszValue =
         MMReturnValueFromSectionINIFile(GetRELNameChar(), osSection, osKey);
 
@@ -848,12 +864,15 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             // Saves last key
             if (!pendingKey.empty())
             {
-                CPLString fullKey =
-                    currentSection + SecKeySeparator + pendingKey;
                 if (!isExcluded(currentSection, pendingKey))
+                {
+                    CPLString fullKey =
+                        currentSection + SecKeySeparator + pendingKey;
+
                     poDS->SetMetadataItem(fullKey.c_str(),
                                           pendingValue.Trim().c_str(),
                                           kMetadataDomain);
+                }
                 pendingKey.clear();
                 pendingValue.clear();
             }
@@ -869,12 +888,15 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             // Desa clau anterior
             if (!pendingKey.empty())
             {
-                CPLString fullKey =
-                    currentSection + SecKeySeparator + pendingKey;
                 if (!isExcluded(currentSection, pendingKey))
+                {
+                    CPLString fullKey =
+                        currentSection + SecKeySeparator + pendingKey;
+
                     poDS->SetMetadataItem(fullKey.c_str(),
                                           pendingValue.Trim().c_str(),
                                           kMetadataDomain);
+                }
             }
 
             pendingKey = rawLine.substr(0, equalPos);

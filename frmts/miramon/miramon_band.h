@@ -233,7 +233,6 @@ class MMRBand
     int UpdateColumnsNumberFromREL(const CPLString osSection);
     int UpdateRowsNumberFromREL(const CPLString osSection);
     void UpdateNoDataValue(const CPLString osSection);
-    void UpdateNoDataDefinitionFromREL(const CPLString osSection);
     void UpdateBoundingBoxFromREL(const CPLString osSection);
     void UpdateReferenceSystemFromREL();
     void UpdateMinMaxValuesFromREL(const CPLString osSection);

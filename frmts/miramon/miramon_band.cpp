@@ -131,8 +131,6 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osBandSectionIn)
 
     // Getting NoData value and definition
     UpdateNoDataValue(osBandSection);
-    UpdateNoDataDefinitionFromREL(
-        osBandSection);  // ·$·TODO put it in metadata MIRAMON subdomain?
 
     // Getting reference system and coordinates of the geographic bounding box
     UpdateReferenceSystemFromREL();
@@ -463,16 +461,6 @@ void MMRBand::UpdateNoDataValue(const CPLString osSection)
         dfNoData = CPLAtof(osValue);
         bNoDataSet = true;
     }
-}
-
-// Getting nodata value from metadata
-void MMRBand::UpdateNoDataDefinitionFromREL(const CPLString osSection)
-{
-    if (!bNoDataSet)
-        return;
-
-    osNodataDef =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "NODATADef");
 }
 
 void MMRBand::UpdateMinMaxValuesFromREL(const CPLString osSection)

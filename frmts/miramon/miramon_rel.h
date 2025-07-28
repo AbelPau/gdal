@@ -57,15 +57,18 @@ class MMRRel
                                const CPLString osKey);
     CPLString GetMetadataValue(const CPLString osSection,
                                const CPLString osKey);
-    static CPLString GetMetadataValueDirectly(const char *pszRELFile,
-                                              const char *pszSection,
-                                              const char *pszKey);
+    CPLString GetAndExcludeMetadataValueDirectly(const CPLString osRELFile,
+                                                 const CPLString osSection,
+                                                 const CPLString osKey);
+    static CPLString GetMetadataValueDirectly(const CPLString osRELFile,
+                                              const CPLString osSection,
+                                              const CPLString osKey);
     void RELToGDALMetadata(GDALDataset *poDS);
 
-    static CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
+    static CPLString MMRGetFileNameFromRelName(const CPLString osRELFile);
     int GetColumnsNumberFromREL();
     int GetRowsNumberFromREL();
-    static int IdentifySubdataSetFile(const CPLString pszFileName);
+    static int IdentifySubdataSetFile(const CPLString osFileName);
     static int IdentifyFile(GDALOpenInfo *poOpenInfo);
 
     bool IsValid() const
@@ -83,7 +86,7 @@ class MMRRel
         return osRelFileName.c_str();
     }
 
-    const char *GetRELName() const
+    CPLString GetRELName() const
     {
         return osRelFileName;
     }
@@ -122,20 +125,16 @@ class MMRRel
     }
 
   private:
-    static CPLErr CheckBandInRel(const char *pszRELFileName,
-                                 const char *pszIMGFile);
-    static CPLString MMRGetSimpleMetadataName(const char *pszLayerName);
+    static CPLErr CheckBandInRel(CPLString osRELFileName, CPLString osIMGFile);
+    static CPLString MMRGetSimpleMetadataName(CPLString osLayerName);
     static bool SameFile(CPLString osFile1, CPLString osFile2);
-    static MMRNomFitxerState
-    MMRStateOfNomFitxerInSection(const char *pszLayerName,
-                                 const char *pszSection,
-                                 const char *pszRELFile);
-    static CPLString MMRGetAReferenceToIMGFile(const char *pszLayerName,
-                                               const char *pszRELFile,
-                                               bool &bIsAMiraMonFile);
+    MMRNomFitxerState MMRStateOfNomFitxerInSection(CPLString osLayerName,
+                                                   CPLString osSection,
+                                                   CPLString osRELFile);
+    CPLString MMRGetAReferenceToIMGFile(CPLString osLayerName,
+                                        CPLString osRELFile);
 
-    static CPLString GetAssociatedMetadataFileName(const char *pszFileName,
-                                                   bool &bIsAMiraMonFile);
+    CPLString GetAssociatedMetadataFileName(CPLString osFileName);
 
     void UpdateRELNameChar(CPLString osRelFileNameIn);
     CPLErr ParseBandInfo();
@@ -159,7 +158,7 @@ class MMRRel
 
     // Used to join Section and Key in a single
     // name for SetMetadataItem(Name, Value)
-    const char *SecKeySeparator = "$$$";
+    const char *SecKeySeparator = "[$$$]";
 
     // List of excluded pairs {Section, Key} to be added to metadata
     // Empty Key means all section
