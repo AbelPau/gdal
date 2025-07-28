@@ -13,6 +13,7 @@
 
 #include "cpl_port.h"
 #include "gdal_priv.h"
+#include "cpl_string.h"
 
 #include "miramon_rel.h"
 #include "miramon_band.h"
@@ -590,7 +591,7 @@ int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
 CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
                                    const CPLString osSubSection,
                                    const CPLString osSubSubSection,
-                                   const CPLString osKey) const
+                                   const CPLString osKey)
 {
     // Searches in [pszMainSection:pszSubSection]
     CPLString osAtributeDataName;
@@ -602,6 +603,8 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
 
     char *pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
                                                      osAtributeDataName, osKey);
+    addExcludedSectionKey(osAtributeDataName, osKey);
+
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -623,7 +626,7 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
 
 CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
                                    const CPLString osSubSection,
-                                   const CPLString osKey) const
+                                   const CPLString osKey)
 {
     // Searches in [pszMainSection:pszSubSection]
     CPLString osAtributeDataName;
@@ -633,6 +636,7 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
 
     char *pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
                                                      osAtributeDataName, osKey);
+    addExcludedSectionKey(osAtributeDataName, osKey);
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -653,10 +657,13 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
 }
 
 CPLString MMRRel::GetMetadataValue(const CPLString osSection,
-                                   const CPLString osKey) const
+                                   const CPLString osKey)
 {
     char *pszValue =
         MMReturnValueFromSectionINIFile(GetRELNameChar(), osSection, osKey);
+
+    addExcludedSectionKey(osSection, osKey);
+
     if (pszValue)
     {
         CPLString osValue = pszValue;
@@ -774,7 +781,7 @@ CPLString MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
     return osInputWithSpaces;
 }
 
-int MMRRel::GetColumnsNumberFromREL() const
+int MMRRel::GetColumnsNumberFromREL()
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
@@ -787,7 +794,7 @@ int MMRRel::GetColumnsNumberFromREL() const
     return atoi(osValue);
 }
 
-int MMRRel::GetRowsNumberFromREL() const
+int MMRRel::GetRowsNumberFromREL()
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
@@ -798,4 +805,97 @@ int MMRRel::GetRowsNumberFromREL() const
         return 0;  // Default value
 
     return atoi(osValue);
+}
+
+/************************************************************************/
+/*                     Preserving metadata                              */
+/************************************************************************/
+
+void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
+{
+
+    VSILFILE *fp = VSIFOpenL(osRelFileName, "rb");
+    if (!fp)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "REL file cannot be opened: \"%s\"", osRelFileName.c_str());
+        return;
+    }
+
+    CPLString currentSection;
+    CPLString pendingKey, pendingValue;
+
+    auto isExcluded = [&](const CPLString &section, const CPLString &key)
+    {
+        return GetExcludedMetadata().count({section, key}) ||
+               GetExcludedMetadata().count({section, ""});
+    };
+
+    const char *pszLine;
+
+    while ((pszLine = CPLReadLine2L(fp, 10000, nullptr)) != nullptr)
+    {
+        CPLString rawLine = pszLine;
+
+        rawLine.Recode(CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
+        rawLine.Trim();
+
+        if (rawLine.empty() || rawLine[0] == ';' || rawLine[0] == '#')
+            continue;
+
+        if (rawLine[0] == '[' && rawLine[rawLine.size() - 1] == ']')
+        {
+            // Saves last key
+            if (!pendingKey.empty())
+            {
+                CPLString fullKey =
+                    currentSection + SecKeySeparator + pendingKey;
+                if (!isExcluded(currentSection, pendingKey))
+                    poDS->SetMetadataItem(fullKey.c_str(),
+                                          pendingValue.Trim().c_str(),
+                                          kMetadataDomain);
+                pendingKey.clear();
+                pendingValue.clear();
+            }
+
+            currentSection = rawLine.substr(1, rawLine.size() - 2);
+            currentSection.Trim();
+            continue;
+        }
+
+        size_t equalPos = rawLine.find('=');
+        if (equalPos != CPLString::npos)
+        {
+            // Desa clau anterior
+            if (!pendingKey.empty())
+            {
+                CPLString fullKey =
+                    currentSection + SecKeySeparator + pendingKey;
+                if (!isExcluded(currentSection, pendingKey))
+                    poDS->SetMetadataItem(fullKey.c_str(),
+                                          pendingValue.Trim().c_str(),
+                                          kMetadataDomain);
+            }
+
+            pendingKey = rawLine.substr(0, equalPos);
+            pendingValue = rawLine.substr(equalPos + 1);
+            pendingKey.Trim();
+            pendingValue.Trim();
+        }
+        else if (!pendingKey.empty())
+        {
+            pendingValue += "\n" + rawLine;
+        }
+    }
+
+    // Saves last key
+    if (!pendingKey.empty())
+    {
+        CPLString fullKey = currentSection + SecKeySeparator + pendingKey;
+        if (!isExcluded(currentSection, pendingKey))
+            poDS->SetMetadataItem(fullKey.c_str(), pendingValue.Trim().c_str(),
+                                  kMetadataDomain);
+    }
+
+    VSIFCloseL(fp);
 }

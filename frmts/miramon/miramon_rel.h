@@ -36,6 +36,8 @@ enum class MMRNomFitxerState
     NOMFITXER_VALUE_UNEXPECTED  // The NomFitxer value is unexpected
 };
 
+using ExcludedEntry = std::pair<CPLString, CPLString>;
+
 class MMRRel
 {
   public:
@@ -49,19 +51,20 @@ class MMRRel
     CPLString GetMetadataValue(const CPLString osMainSection,
                                const CPLString osSubSection,
                                const CPLString osSubSubSection,
-                               const CPLString osKey) const;
+                               const CPLString osKey);
     CPLString GetMetadataValue(const CPLString osMainSection,
                                const CPLString osSubSection,
-                               const CPLString osKey) const;
+                               const CPLString osKey);
     CPLString GetMetadataValue(const CPLString osSection,
-                               const CPLString osKey) const;
+                               const CPLString osKey);
     static CPLString GetMetadataValueDirectly(const char *pszRELFile,
                                               const char *pszSection,
                                               const char *pszKey);
+    void RELToGDALMetadata(GDALDataset *poDS);
 
     static CPLString MMRGetFileNameFromRelName(const char *pszRELFile);
-    int GetColumnsNumberFromREL() const;
-    int GetRowsNumberFromREL() const;
+    int GetColumnsNumberFromREL();
+    int GetRowsNumberFromREL();
     static int IdentifySubdataSetFile(const CPLString pszFileName);
     static int IdentifyFile(GDALOpenInfo *poOpenInfo);
 
@@ -97,25 +100,25 @@ class MMRRel
 
     MMRBand *GetBand(int nIBand) const
     {
-        if (nIBand < 0 || nIBand > nBands)
+        if (nIBand < 0 || nIBand >= nBands)
             return nullptr;
 
         return papoBand[nIBand];
     }
 
-    MMRBand *GetLastBand() const
-    {
-        if (nBands < 1)
-        {
-            CPLAssert(false);
-            return nullptr;
-        }
-        return papoBand[nBands - 1];
-    }
-
     int isAMiraMonFile() const
     {
         return bIsAMiraMonFile;
+    }
+
+    void addExcludedSectionKey(const CPLString section, const CPLString key)
+    {
+        ExcludedSectionKey.emplace(section, key);
+    }
+
+    std::set<ExcludedEntry> GetExcludedMetadata() const
+    {
+        return ExcludedSectionKey;
     }
 
   private:
@@ -148,6 +151,19 @@ class MMRRel
 
     int nBands = 0;
     MMRBand **papoBand = nullptr;
+
+    // Preserving metadata
+
+    // Domain
+    const char *kMetadataDomain = "MIRAMON";
+
+    // Used to join Section and Key in a single
+    // name for SetMetadataItem(Name, Value)
+    const char *SecKeySeparator = "$$$";
+
+    // List of excluded pairs {Section, Key} to be added to metadata
+    // Empty Key means all section
+    std::set<ExcludedEntry> ExcludedSectionKey;
 };
 
 #endif /* ndef MMR_REL_H_INCLUDED */

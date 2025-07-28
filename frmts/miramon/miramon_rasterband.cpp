@@ -27,7 +27,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
 
     eAccess = poDSIn->GetAccess();
 
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (poBand == nullptr)
         return;
 
@@ -127,7 +127,7 @@ double MMRRasterBand::GetNoDataValue(int *pbSuccess)
     if (pbSuccess)
         *pbSuccess = FALSE;
 
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return dfNoData;
 
@@ -153,7 +153,7 @@ double MMRRasterBand::GetMinimum(int *pbSuccess)
     if (pbSuccess)
         *pbSuccess = FALSE;
 
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand || !poBand->GetMinSet())
         return 0.0;
 
@@ -173,7 +173,7 @@ double MMRRasterBand::GetMaximum(int *pbSuccess)
     if (pbSuccess)
         *pbSuccess = FALSE;
 
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand || !poBand->GetMaxSet())
         return 0.0;
 
@@ -576,7 +576,7 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
 CPLErr MMRRasterBand::AssignUniformColorTable()
 
 {
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 
@@ -719,7 +719,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
     if (Palette->ColorScaling != ColorTreatment::LINEAR_SCALING)
         return CE_Failure;
 
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 
@@ -940,7 +940,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTable()
         Palette->ColorScaling != ColorTreatment::DIRECT_ASSIGNATION)
         return CE_Failure;
 
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 
@@ -959,7 +959,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTable()
 
 CPLErr MMRRasterBand::FromPaletteToAttributeTableConstant()
 {
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 
@@ -1002,7 +1002,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableConstant()
 
 CPLErr MMRRasterBand::FromPaletteToAttributeTableDirectAssig()
 {
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 
@@ -1056,7 +1056,7 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableDirectAssig()
 
 CPLErr MMRRasterBand::FromPaletteToAttributeTableLinear()
 {
-    MMRBand *poBand = pfRel->GetLastBand();
+    MMRBand *poBand = pfRel->GetBand(nBand - 1);
     if (!poBand)
         return CE_Failure;
 

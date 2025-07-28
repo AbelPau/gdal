@@ -103,7 +103,7 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
         // Fills adfGeoTransform if documented. If not, then gets one from last band.
         if (1 == UpdateGeoTransform())
         {
-            MMRBand *poBand = pfRel->GetLastBand();
+            MMRBand *poBand = pfRel->GetBand(pfRel->GetNBands() - 1);
             if (poBand)
                 memcpy(&m_gt, &poBand->m_gt, sizeof(m_gt));
         }
@@ -204,6 +204,9 @@ void MMRDataset::CreateRasterBands()
                                     pBand->GetFriendlyDescription());
         }
     }
+    // Some metadata items must be preserved just in case to be restored
+    // if they are preserved through translations.
+    pfRel->RELToGDALMetadata(this);
 }
 
 CPLErr MMRDataset::ReadProjection()
