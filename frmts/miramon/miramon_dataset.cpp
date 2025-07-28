@@ -53,7 +53,7 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     // Creating the class MMRRel.
-    auto pMMfRel = std::make_unique<MMRRel>(poOpenInfo->pszFilename);
+    auto pMMfRel = std::make_unique<MMRRel>(poOpenInfo->pszFilename, true);
     if (!pMMfRel->IsValid())
     {
         if (pMMfRel->isAMiraMonFile())

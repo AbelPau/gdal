@@ -41,7 +41,7 @@ using ExcludedEntry = std::pair<CPLString, CPLString>;
 class MMRRel
 {
   public:
-    explicit MMRRel(CPLString);
+    MMRRel(CPLString, bool);
     MMRRel(const MMRRel &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRRel &operator=(const MMRRel &) =

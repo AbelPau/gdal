@@ -24,7 +24,8 @@
 /*                              MMRRel()                               */
 /************************************************************************/
 
-MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
+MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
+    : osRelFileName(osRELFilenameIn)
 {
     CPLString osRelCandidate = osRELFilenameIn;
 
@@ -72,6 +73,12 @@ MMRRel::MMRRel(CPLString osRELFilenameIn) : osRelFileName(osRELFilenameIn)
                 CPLError(CE_Failure, CPLE_OpenFailed,
                          "Metadata file for %s should exist.",
                          osRelFileName.c_str());
+            }
+            if (!bIMGMustExist)
+            {
+                // Simulates that we have a MiraMon file
+                // and we can ask things to this Rel file.
+                bIsAMiraMonFile = true;
             }
             return;
         }

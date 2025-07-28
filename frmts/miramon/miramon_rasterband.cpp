@@ -863,7 +863,7 @@ CPLErr MMRRasterBand::GetRATName(char *papszToken, CPLString &osRELName,
                                 osShortRELName, "");
 
         // Getting information from the associated REL
-        MMRRel *fLocalRel = new MMRRel(osRELName);
+        MMRRel *fLocalRel = new MMRRel(osRELName, false);
         CPLString osShortDBFName =
             fLocalRel->GetMetadataValue("TAULA_PRINCIPAL", "NomFitxer");
 
