@@ -212,11 +212,11 @@ void MMRDataset::CreateRasterBands()
     pfRel->RELToGDALMetadata(this);
 }
 
-CPLErr MMRDataset::ReadProjection()
+void MMRDataset::ReadProjection()
 
 {
     if (!pfRel)
-        return CE_Failure;
+        return;
 
     CPLString osSRS = pfRel->GetMetadataValue(
         "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
@@ -224,11 +224,11 @@ CPLErr MMRDataset::ReadProjection()
     char szResult[MM_MAX_ID_SNY + 10];
     int nResult = ReturnEPSGCodeSRSFromMMIDSRS(osSRS.c_str(), szResult);
     if (nResult == 1 || szResult[0] == '\0')
-        return CE_Failure;
+        return;
 
     m_oSRS.importFromEPSG(atoi(szResult));
 
-    return m_oSRS.IsEmpty() ? CE_Failure : CE_None;
+    return;
 }
 
 /************************************************************************/
@@ -308,7 +308,7 @@ void MMRDataset::CreateSubdatasetsFromBands()
         pBand = pfRel->GetBand(nIBand);
         if (!pBand)
             return;
-        // ·$·TODO passar els noms a una funció que determini si calen cometes.
+
         osDSName.Printf("MiraMonRaster:\"%s\",\"%s\"",
                         pBand->GetRELFileName().c_str(),
                         pBand->GetRawBandFileName().c_str());
@@ -338,7 +338,7 @@ void MMRDataset::CreateSubdatasetsFromBands()
 
     if (oSubdatasetList.Count() > 0)
     {
-        // Afegir al metadades del dataset principal
+        // Add metadata to the main dataset
         SetMetadata(oSubdatasetList.List(), "SUBDATASETS");
         oSubdatasetList.Clear();
     }

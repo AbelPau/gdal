@@ -50,7 +50,7 @@ class MMRDataset final : public GDALPamDataset
     }
 
   private:
-    CPLErr ReadProjection();
+    void ReadProjection();
     void AssignBandsToSubdataSets();
     void CreateSubdatasetsFromBands();
     void CreateRasterBands();
