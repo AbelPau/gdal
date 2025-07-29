@@ -25,11 +25,9 @@
 /************************************************************************/
 
 MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
-    : osRelFileName(osRELFilenameIn)
+    : osRelFileName(osRELFilenameIn), szImprobableRELChain("@#&%$|``|$%&#@")
 {
     CPLString osRelCandidate = osRELFilenameIn;
-
-    szImprobableRELChain = "@#&%$|``|$%&#@";
 
     // Getting the name of the REL
     const CPLString osMMRPrefix = "MiraMonRaster:";
