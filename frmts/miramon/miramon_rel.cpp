@@ -78,7 +78,10 @@ MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
             {
                 // Simulates that we have a MiraMon file
                 // and we can ask things to this Rel file.
+                UpdateRELNameChar(osRelFileName);
                 bIsAMiraMonFile = true;
+                if (!OpenRELFile())
+                    return;
             }
             return;
         }
@@ -107,6 +110,7 @@ MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
     // from the one found from IMG file.
     UpdateRELNameChar(osRelCandidate);
 
+    // We let it be opened
     if (!OpenRELFile())
         return;
 
