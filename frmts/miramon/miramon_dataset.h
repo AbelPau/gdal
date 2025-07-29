@@ -46,7 +46,7 @@ class MMRDataset final : public GDALPamDataset
 
     MMRRel *GetRel()
     {
-        return pfRel;
+        return pMMRRel;
     }
 
   private:
@@ -69,7 +69,7 @@ class MMRDataset final : public GDALPamDataset
     OGRSpatialReference m_oSRS{};
 
     bool bIsValid = false;  // Determines if the created object is valid or not.
-    MMRRel *pfRel = nullptr;
+    MMRRel *pMMRRel = nullptr;
 
     std::vector<gdal::GCP> m_aoGCPs{};
 

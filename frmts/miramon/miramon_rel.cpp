@@ -107,6 +107,9 @@ MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
     // from the one found from IMG file.
     UpdateRELNameChar(osRelCandidate);
 
+    if (!OpenRELFile())
+        return;
+
     // Collect band information
     if (ParseBandInfo() != CE_None)
         return;
@@ -123,11 +126,84 @@ MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
 
 MMRRel::~MMRRel()
 {
+    CloseRELFile();
+
     for (int i = 0; i < nBands; i++)
         delete papoBand[i];
 
     delete[] papoBand;
 }
+
+/************************************************************************/
+/*                     Getting section-key-value                        */
+/************************************************************************/
+// subsitutes C version MMReturnValueFromSectionINIFile()
+CPLString MMRRel::GetValueFromSectionKeyFromREL(const CPLString osSection,
+                                                const CPLString osKey)
+{
+    if (!GetRELFile())
+    {
+        CPLError(CE_Failure, CPLE_AppDefined, "REL file is not opened: \"%s\"",
+                 osRelFileName.c_str());
+        return "";
+    }
+
+    CPLString currentSection;
+    CPLString pendingKey, pendingValue;
+    bool bIAmInMySection = false;
+
+    const char *pszLine;
+
+    VSIFSeekL(pRELFile, 0, SEEK_SET);
+    while ((pszLine = CPLReadLine2L(pRELFile, 10000, nullptr)) != nullptr)
+    {
+        CPLString rawLine = pszLine;
+
+        rawLine.Recode(CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
+        rawLine.Trim();
+
+        if (rawLine.empty() || rawLine[0] == ';' || rawLine[0] == '#')
+            continue;
+
+        if (rawLine[0] == '[' && rawLine[rawLine.size() - 1] == ']')
+        {
+            currentSection = rawLine.substr(1, rawLine.size() - 2);
+            currentSection.Trim();
+
+            if (!EQUAL(currentSection, osSection))
+                bIAmInMySection = false;
+            else
+                bIAmInMySection = true;
+
+            continue;
+        }
+
+        if (!bIAmInMySection)
+            continue;
+
+        size_t equalPos = rawLine.find('=');
+        if (equalPos != CPLString::npos)
+        {
+            pendingKey = rawLine.substr(0, equalPos);
+            pendingValue = rawLine.substr(equalPos + 1);
+            pendingKey.Trim();
+            pendingValue.Trim();
+
+            if (EQUAL(pendingKey, osKey))
+                return pendingValue;
+        }
+        else if (!pendingKey.empty())
+        {
+            pendingValue += "\n" + rawLine;
+        }
+    }
+
+    return "";
+}
+
+/************************************************************************/
+/*                     Other functions                                  */
+/************************************************************************/
 
 // Converts FileNameI.rel to FileName.img
 CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString osRELFile)
@@ -618,28 +694,17 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
     osAtributeDataName.append(":");
     osAtributeDataName.append(osSubSubSection);
 
-    char *pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
-                                                     osAtributeDataName, osKey);
+    CPLString osValue =
+        GetValueFromSectionKeyFromREL(osAtributeDataName, osKey);
+
     addExcludedSectionKey(osAtributeDataName, osKey);
 
-    if (pszValue)
-    {
-        CPLString osValue = pszValue;
-        CPLFree(pszValue);
+    if (!osValue.empty())
         return osValue;
-    }
 
     // If the value is not found then searches in [pszMainSection]
-    pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
-                                               osSubSubSection, osKey);
     addExcludedSectionKey(osSubSubSection, osKey);
-    if (pszValue)
-    {
-        CPLString osValue = pszValue;
-        CPLFree(pszValue);
-        return osValue;
-    }
-    return "";
+    return GetValueFromSectionKeyFromREL(osSubSubSection, osKey);
 }
 
 CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
@@ -655,27 +720,15 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
     osAtributeDataName.append(":");
     osAtributeDataName.append(osSubSection);
 
-    char *pszValue = MMReturnValueFromSectionINIFile(GetRELNameChar(),
-                                                     osAtributeDataName, osKey);
+    CPLString osValue =
+        GetValueFromSectionKeyFromREL(osAtributeDataName, osKey);
     addExcludedSectionKey(osAtributeDataName, osKey);
-    if (pszValue)
-    {
-        CPLString osValue = pszValue;
-        CPLFree(pszValue);
+    if (!osValue.empty())
         return osValue;
-    }
 
     // If the value is not found then searches in [pszMainSection]
-    pszValue =
-        MMReturnValueFromSectionINIFile(GetRELNameChar(), osMainSection, osKey);
     addExcludedSectionKey(osMainSection, osKey);
-    if (pszValue)
-    {
-        CPLString osValue = pszValue;
-        CPLFree(pszValue);
-        return osValue;
-    }
-    return "";
+    return GetValueFromSectionKeyFromREL(osMainSection, osKey);
 }
 
 CPLString MMRRel::GetMetadataValue(const CPLString osSection,
@@ -684,18 +737,8 @@ CPLString MMRRel::GetMetadataValue(const CPLString osSection,
     if (!isAMiraMonFile())
         CPLAssert(false);  // Trying to access metadata from the wrong way
 
-    char *pszValue =
-        MMReturnValueFromSectionINIFile(GetRELNameChar(), osSection, osKey);
-
     addExcludedSectionKey(osSection, osKey);
-
-    if (pszValue)
-    {
-        CPLString osValue = pszValue;
-        CPLFree(pszValue);
-        return osValue;
-    }
-    return "";
+    return GetValueFromSectionKeyFromREL(osSection, osKey);
 }
 
 void MMRRel::UpdateRELNameChar(CPLString osRelFileNameIn)
@@ -835,12 +878,9 @@ int MMRRel::GetRowsNumberFromREL()
 /************************************************************************/
 /*                     Preserving metadata                              */
 /************************************************************************/
-
 void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
 {
-
-    VSILFILE *fp = VSIFOpenL(osRelFileName, "rb");
-    if (!fp)
+    if (!pRELFile)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "REL file cannot be opened: \"%s\"", osRelFileName.c_str());
@@ -858,7 +898,8 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
 
     const char *pszLine;
 
-    while ((pszLine = CPLReadLine2L(fp, 10000, nullptr)) != nullptr)
+    VSIFSeekL(pRELFile, 0, SEEK_SET);
+    while ((pszLine = CPLReadLine2L(pRELFile, 10000, nullptr)) != nullptr)
     {
         CPLString rawLine = pszLine;
 
@@ -927,6 +968,4 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             poDS->SetMetadataItem(fullKey.c_str(), pendingValue.Trim().c_str(),
                                   kMetadataDomain);
     }
-
-    VSIFCloseL(fp);
 }

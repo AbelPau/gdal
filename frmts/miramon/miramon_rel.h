@@ -48,6 +48,8 @@ class MMRRel
         delete;  // I don't want to assing a MMRDataset to another MMRDataset (effc++)
     ~MMRRel();
 
+    CPLString GetValueFromSectionKeyFromREL(const CPLString osSection,
+                                            const CPLString osKey);
     CPLString GetMetadataValue(const CPLString osMainSection,
                                const CPLString osSubSection,
                                const CPLString osSubSubSection,
@@ -79,6 +81,31 @@ class MMRRel
     void SetIsValid(bool bIsValidIn)
     {
         bIsValid = bIsValidIn;
+    }
+
+    VSILFILE *GetRELFile() const
+    {
+        return pRELFile;
+    }
+
+    bool OpenRELFile()
+    {
+        if (osRelFileName.empty())
+            return false;
+
+        pRELFile = VSIFOpenL(osRelFileName, "rb");
+        if (pRELFile)
+            return true;
+        return false;
+    }
+
+    void CloseRELFile()
+    {
+        if (!pRELFile)
+            return;
+
+        VSIFCloseL(pRELFile);
+        pRELFile = nullptr;
     }
 
     const char *GetRELNameChar() const
@@ -143,6 +170,8 @@ class MMRRel
     RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
 
     CPLString osRelFileName = "";
+    VSILFILE *pRELFile = nullptr;
+
     bool bIsValid = false;  // Determines if the created object is valid or not.
     bool bIsAMiraMonFile = false;
 
