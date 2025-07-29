@@ -9,14 +9,14 @@ MiraMon Raster
 
 .. built_in_by_default::
 
-This driver is capable of translating (reading) raster files from MiraMon raster format.
+This driver is capable of reading raster files in the MiraMon format.
 
-A `look-up-table of MiraMon <https://www.miramon.cat/help/eng/mm32/AP6.htm>`__ and
-`EPSG <https://epsg.org/home.html>`__ Spatial Reference Systems allows matching
-identifiers in both systems.
+A `look-up table of MiraMon <https://www.miramon.cat/help/eng/mm32/AP6.htm>`__ and
+`EPSG <https://epsg.org/home.html>`__ Spatial Reference Systems is used to match
+identifiers between the two systems.
 
-If a layer contains an old *.rel* format file (used some decades ago),
-a warning message will appear explaining how to convert it into a modern *.rel 4* file.
+If a layer contains an old *.rel* format file (used in legacy datasets),
+a warning will be issued explaining how to convert it into the modern *.rel 4* format.
 
 Driver capabilities
 -------------------
@@ -28,45 +28,47 @@ Driver capabilities
 Overview of MiraMon format
 --------------------------
 
-The MiraMon .img format is a binary format for raster data with rich metadata.
-More information about the MiraMon raster format is available `on the public
-specification <https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf>`__.
+The MiraMon `.img` format is a binary raster format with rich metadata stored in a sidecar `.rel` file.
+More information is available in the `public specification <https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf>`__.
 
-By providing only the main file name, the driver will automatically use the sidecar metadata file. 
-REL file can be used to convert all bands in it.
+By specifying either the name of the `.rel` metadata file or the name of any `.img` band file, the driver will automatically use the associated `.rel` file.
+This metadata file governs how all bands are interpreted and accessed.
 
-These are the main characteristics of MiraMon rasters dataset:
+- **REL file**: Contains metadata including band names, number of rows and columns, data type, and compression information (either global or per band).
+A MiraMon dataset can include multiple bands, all linked through a single `.rel` file.
+Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be taken into account.
 
-- **img file**: This is the main file containing only the data. The data can be of various types:
+The following are the main characteristics of a MiraMon raster dataset band:
 
-    - *Byte*: 1 byte numbers. Range: 0 to 255
-    - *Short*: 2 bytes signed short integer numbers. Range: -32,768 to 32,767
-    - *UShort*: 2 bytes unsigned short integer numbers. Range: 0 to 65,535
-    - *Int32*: 4 bytes signed integer numbers. Range: -2,147,483,648 to 2,147,483,647
-    - *UInt32*: 4 bytes unsigned integer numbers. Range: 0 to 4,294,967,295
-    - *Int64*: 8 bytes signed integer numbers.
-    - *UInt64*: 8 bytes unsigned integer numbers.
-    - *Real*: 4 bytes real numbers.
-    - *Double*: 8 bytes real numbers.
+- **IMG file**: Stores the raw raster data. The data type may vary:
 
-- **rel file**: This is the file containing metadata information such as number of rows, columns, data type, if it's compressed.
+  - *Byte*: 1 byte, unsigned. Range: 0 to 255
+  - *Short*: 2 bytes, signed. Range: -32,768 to 32,767
+  - *UShort*: 2 bytes, unsigned. Range: 0 to 65,535
+  - *Int32*: 4 bytes, signed. Range: -2,147,483,648 to 2,147,483,647
+  - *UInt32*: 4 bytes, unsigned. Range: 0 to 4,294,967,295
+  - *Int64*: 8 bytes, signed integer
+  - *UInt64*: 8 bytes, unsigned integer
+  - *Real*: 4 bytes, floating-point
+  - *Double*: 8 bytes, double precision floating-point
 
 Encoding
 --------
 
-When reading MiraMon files the code page setting in the header of the .dbf file
-is read and used to translate string fields to UTF-8 (regardless of whether they
-are in ANSI, OEM or UTF-8).
+When reading MiraMon DBF files, the code page setting in the `.dbf` header is used to decode string fields to UTF-8,
+regardless of whether the original encoding is ANSI or OEM.
+
+REL files are always encoded in ANSI.
 
 Open options
 ------------
 
-None
+None.
 
 Dataset creation options
 ------------------------
 
-None
+None.
 
 See Also
 --------
