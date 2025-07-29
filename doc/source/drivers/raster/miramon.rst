@@ -34,9 +34,7 @@ More information is available in the `public specification <https://www.miramon.
 By specifying either the name of the `.rel` metadata file or the name of any `.img` band file, the driver will automatically use the associated `.rel` file.
 This metadata file governs how all bands are interpreted and accessed.
 
-- **REL file**: Contains metadata including band names, number of rows and columns, data type, and compression information (either global or per band).
-A MiraMon dataset can include multiple bands, all linked through a single `.rel` file.
-Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be taken into account.
+- **REL file**: Contains metadata including band names, number of rows and columns, data type, and compression information (either global or per band). A MiraMon dataset can include multiple bands, all linked through a single `.rel` file. Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be taken into account.
 
 The following are the main characteristics of a MiraMon raster dataset band:
 
