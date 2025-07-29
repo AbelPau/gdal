@@ -24,10 +24,9 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osBandSectionIn)
 
 {
     // Getting band and band file name from metadata
-    osRawBandFileName = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                osBandSectionIn, KEY_NomFitxer);
-
-    if (osRawBandFileName.empty())
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSectionIn,
+                                 KEY_NomFitxer, osRawBandFileName) ||
+        osRawBandFileName.empty())
     {
         osBandFileName = pfRel->MMRGetFileNameFromRelName(pfRel->GetRELName());
         if (osBandFileName.empty())
@@ -250,14 +249,14 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
     if (osSection.empty() || !pszKey || !nValue)
         return 1;
 
-    CPLString osValue =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, pszKey);
-
-    if (osValue.empty())
+    CPLString osValue;
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, pszKey,
+                                 osValue) ||
+        osValue.empty())
     {
-        osValue = pfRel->GetMetadataValue(SECTION_OVERVIEW,
-                                          SECTION_ASPECTES_TECNICS, pszKey);
-        if (osValue.empty())
+        if (pfRel->GetMetadataValue(SECTION_OVERVIEW, SECTION_ASPECTES_TECNICS,
+                                    pszKey, osValue) == false ||
+            osValue.empty())
         {
             if (pszErrorMessage)
                 CPLError(CE_Failure, CPLE_AppDefined, "%s", pszErrorMessage);
@@ -360,13 +359,13 @@ int MMRBand::GetDataTypeAndBytesPerPixel(const char *pszCompType,
 // Getting data type from metadata
 int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
 {
-    CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                osSection, "TipusCompressio");
-
     eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
 
-    if (osValue.empty())
+    CPLString osValue;
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
+                                 "TipusCompressio", osValue) ||
+        osValue.empty())
     {
         nWidth = 0;
         nHeight = 0;
@@ -392,13 +391,15 @@ void MMRBand::UpdateResolutionFromREL(const CPLString osSection)
 {
     bSetResolution = false;
 
-    CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                osSection, "resolution");
-    if (osValue.empty())
+    CPLString osValue;
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
+                                 "resolution", osValue) ||
+        osValue.empty())
     {
-        osValue = pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
-                                          SECTION_HORIZONTAL, "resolution");
-        if (osValue.empty())
+        if (pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
+                                    SECTION_HORIZONTAL, "resolution",
+                                    osValue) == false ||
+            osValue.empty())
         {
             dfResolution = 1;
             dfResolutionY = 1;
@@ -415,13 +416,15 @@ void MMRBand::UpdateResolutionFromREL(const CPLString osSection)
 
 void MMRBand::UpdateResolutionYFromREL(const CPLString osSection)
 {
-    CPLString osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                osSection, "resolutionY");
-    if (osValue.empty())
+    CPLString osValue;
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
+                                 "resolutionY", osValue) ||
+        osValue.empty())
     {
-        osValue = pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
-                                          SECTION_HORIZONTAL, "resolutionY");
-        if (osValue.empty())
+        if (pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
+                                    SECTION_HORIZONTAL, "resolutionY",
+                                    osValue) == false ||
+            osValue.empty())
         {
             dfResolutionY = 1;
             return;
@@ -449,9 +452,10 @@ int MMRBand::UpdateRowsNumberFromREL(const CPLString osSection)
 // Getting nodata value from metadata
 void MMRBand::UpdateNoDataValue(const CPLString osSection)
 {
-    CPLString osValue =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "NODATA");
-    if (osValue.empty())
+    CPLString osValue;
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "NODATA",
+                                 osValue) ||
+        osValue.empty())
     {
         dfNoData = 0;  // No a valid value.
         bNoDataSet = false;
@@ -467,18 +471,20 @@ void MMRBand::UpdateMinMaxValuesFromREL(const CPLString osSection)
 {
     bMinSet = false;
 
-    CPLString osValue =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "min");
-    if (!osValue.empty())
+    CPLString osValue;
+
+    if (pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "min",
+                                osValue) &&
+        !osValue.empty())
     {
         bMinSet = true;
         dfMin = atof(osValue);
     }
 
     bMaxSet = false;
-    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "max");
-
-    if (!osValue.empty())
+    if (pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "max",
+                                osValue) &&
+        !osValue.empty())
     {
         bMaxSet = true;
         dfMax = atof(osValue);
@@ -490,9 +496,10 @@ void MMRBand::UpdateMinMaxVisuValuesFromREL(const CPLString osSection)
     bMinVisuSet = false;
     dfVisuMin = 1;
 
-    CPLString osValue = pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osSection,
-                                                "Color_ValorColor_0");
-    if (!osValue.empty())
+    CPLString osValue;
+    if (pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osSection,
+                                "Color_ValorColor_0", osValue) &&
+        !osValue.empty())
     {
         bMinVisuSet = true;
         dfVisuMin = atof(osValue);
@@ -501,10 +508,9 @@ void MMRBand::UpdateMinMaxVisuValuesFromREL(const CPLString osSection)
     bMaxVisuSet = false;
     dfVisuMax = 1;
 
-    osValue = pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osSection,
-                                      "Color_ValorColor_n_1");
-
-    if (!osValue.empty())
+    if (pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osSection,
+                                "Color_ValorColor_n_1", osValue) &&
+        !osValue.empty())
     {
         bMaxVisuSet = true;
         dfVisuMax = atof(osValue);
@@ -513,14 +519,14 @@ void MMRBand::UpdateMinMaxVisuValuesFromREL(const CPLString osSection)
 
 void MMRBand::UpdateFriendlyDescriptionFromREL(const CPLString osSection)
 {
-    osFriendlyDescription = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                                    osSection, "descriptor");
+    pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "descriptor",
+                            osFriendlyDescription);
 }
 
 void MMRBand::UpdateReferenceSystemFromREL()
 {
-    osRefSystem = pfRel->GetMetadataValue("SPATIAL_REFERENCE_SYSTEM:HORIZONTAL",
-                                          "HorizontalSystemIdentifier");
+    pfRel->GetMetadataValue("SPATIAL_REFERENCE_SYSTEM:HORIZONTAL",
+                            "HorizontalSystemIdentifier", osRefSystem);
 }
 
 void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
@@ -530,16 +536,19 @@ void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
 
     // Bounding box of the band
     // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]
-    CPLString osValue = pfRel->GetMetadataValue(
-        SECTION_ATTRIBUTE_DATA, osSection, SECTION_EXTENT, "MinX");
-    if (osValue.empty())
+    CPLString osValue;
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
+                                 SECTION_EXTENT, "MinX", osValue) ||
+        osValue.empty())
+    {
         dfBBMinX = 0;
+    }
     else
         dfBBMinX = atof(osValue);
 
-    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
-                                      SECTION_EXTENT, "MaxX");
-    if (osValue.empty())
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
+                                 SECTION_EXTENT, "MaxX", osValue) ||
+        osValue.empty())
     {
         if (bSetResolution)
             dfBBMaxX = nWidth * dfResolution;
@@ -549,16 +558,18 @@ void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
     else
         dfBBMaxX = atof(osValue);
 
-    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
-                                      SECTION_EXTENT, "MinY");
-    if (osValue.empty())
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
+                                 SECTION_EXTENT, "MinY", osValue) ||
+        osValue.empty())
+    {
         dfBBMinY = 0;
+    }
     else
         dfBBMinY = atof(osValue);
 
-    osValue = pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
-                                      SECTION_EXTENT, "MaxY");
-    if (osValue.empty())
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
+                                 SECTION_EXTENT, "MaxY", osValue) ||
+        osValue.empty())
     {
         if (bSetResolution)
             dfBBMaxY = nHeight * dfResolutionY;

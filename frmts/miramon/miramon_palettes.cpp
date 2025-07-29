@@ -18,20 +18,22 @@
 MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
     : pfRel(&fRel), osBandSection(osBandSectionIn)
 {
-    CPLString os_Color_Paleta = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
-
     // Is a constant color, and which colors is it?
-    CPLString os_Color_Const = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_Const");
+    CPLString os_Color_Const;
+    pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection, "Color_Const",
+                            os_Color_Const);
 
-    if (os_Color_Const == "1")
+    if (EQUAL(os_Color_Const, "1"))
         bIsConstantColor = true;
 
     if (CE_None != UpdateConstantColor())
         return;  // The constant color indicated is wrong
 
-    if (os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
+    CPLString os_Color_Paleta;
+
+    if (!pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection,
+                                 "Color_Paleta", os_Color_Paleta) ||
+        EQUAL(os_Color_Paleta, "<Automatic>"))
     {
         bIsValid = true;
         ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
@@ -39,12 +41,15 @@ MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
     }
 
     // Treatment of the color variable
-    CPLString os_Color_TractamentVariable = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_TractamentVariable");
-    if (os_Color_TractamentVariable.empty())
+    CPLString os_Color_TractamentVariable;
+    if (!pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection,
+                                 "Color_TractamentVariable",
+                                 os_Color_TractamentVariable) ||
+        os_Color_TractamentVariable.empty())
     {
-        CPLString os_TractamentVariable = pfRel->GetMetadataValue(
-            SECTION_ATTRIBUTE_DATA, "TractamentVariable");
+        CPLString os_TractamentVariable;
+        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, "TractamentVariable",
+                                os_TractamentVariable);
         if (EQUAL(os_TractamentVariable, "Categoric"))
             SetIsCategorical(true);
         else
@@ -533,10 +538,10 @@ CPLErr MMRPalettes::GetPaletteColors_PAL_P25_P65(CPLString os_Color_Paleta_DBF)
 
 void MMRPalettes::UpdateColorInfo()
 {
-    CPLString os_Color_EscalatColor = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_EscalatColor");
-
-    if (!os_Color_EscalatColor.empty())
+    CPLString os_Color_EscalatColor;
+    if (pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection,
+                                "Color_EscalatColor", os_Color_EscalatColor) &&
+        !os_Color_EscalatColor.empty())
     {
         if (os_Color_EscalatColor.compare("AssigDirecta") == 0)
             ColorScaling = ColorTreatment::DIRECT_ASSIGNATION;
@@ -561,8 +566,11 @@ void MMRPalettes::UpdateColorInfo()
 CPLErr MMRPalettes::UpdateConstantColor()
 {
     // Example: Color_Smb=(255,0,255)
-    CPLString os_Color_Smb =
-        pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection, "Color_Smb");
+    CPLString os_Color_Smb;
+    if (!pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection, "Color_Smb",
+                                 os_Color_Smb))
+        return CE_None;
+
     os_Color_Smb.replaceAll(" ", "");
     if (!os_Color_Smb.empty() && os_Color_Smb.size() >= 7 &&
         os_Color_Smb[0] == '(' && os_Color_Smb[os_Color_Smb.size() - 1] == ')')

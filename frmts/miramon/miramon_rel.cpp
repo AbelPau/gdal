@@ -29,6 +29,8 @@ MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
 {
     CPLString osRelCandidate = osRELFilenameIn;
 
+    szImprobableRELChain = "@#&%$|``|$%&#@";
+
     // Getting the name of the REL
     const CPLString osMMRPrefix = "MiraMonRaster:";
     if (STARTS_WITH(osRelCandidate, osMMRPrefix))
@@ -107,7 +109,7 @@ MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
     }
 
     // If rel name was not a REL name, we update that
-    // from the one found from IMG file.
+    // from the one found in the process of discovering it.
     UpdateRELNameChar(osRelCandidate);
 
     // We let it be opened
@@ -118,7 +120,7 @@ MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
     if (ParseBandInfo() != CE_None)
         return;
 
-    // We have a valid REL.
+    // We have a valid object MMRREL.
     bIsValid = true;
 
     return;
@@ -152,8 +154,8 @@ CPLString MMRRel::GetValueFromSectionKeyFromREL(const CPLString osSection,
         return "";
     }
 
-    CPLString currentSection;
-    CPLString pendingKey, pendingValue;
+    CPLString osCurrentSection;
+    CPLString osCurrentKey, osCurrentValue;
     bool bIAmInMySection = false;
 
     const char *pszLine;
@@ -171,10 +173,16 @@ CPLString MMRRel::GetValueFromSectionKeyFromREL(const CPLString osSection,
 
         if (rawLine[0] == '[' && rawLine[rawLine.size() - 1] == ']')
         {
-            currentSection = rawLine.substr(1, rawLine.size() - 2);
-            currentSection.Trim();
+            if (bIAmInMySection)
+            {
+                // This is the next section to mine, so nothing to find here.
+                return szImprobableRELChain;
+            }
 
-            if (!EQUAL(currentSection, osSection))
+            osCurrentSection = rawLine.substr(1, rawLine.size() - 2);
+            osCurrentSection.Trim();
+
+            if (!EQUAL(osCurrentSection, osSection))
                 bIAmInMySection = false;
             else
                 bIAmInMySection = true;
@@ -188,21 +196,21 @@ CPLString MMRRel::GetValueFromSectionKeyFromREL(const CPLString osSection,
         size_t equalPos = rawLine.find('=');
         if (equalPos != CPLString::npos)
         {
-            pendingKey = rawLine.substr(0, equalPos);
-            pendingValue = rawLine.substr(equalPos + 1);
-            pendingKey.Trim();
-            pendingValue.Trim();
+            osCurrentKey = rawLine.substr(0, equalPos);
+            osCurrentValue = rawLine.substr(equalPos + 1);
+            osCurrentKey.Trim();
+            osCurrentValue.Trim();
 
-            if (EQUAL(pendingKey, osKey))
-                return pendingValue;
+            if (EQUAL(osCurrentKey, osKey))
+                return osCurrentValue;
         }
-        else if (!pendingKey.empty())
+        else if (!osCurrentKey.empty())
         {
-            pendingValue += "\n" + rawLine;
+            osCurrentValue += "\n" + rawLine;
         }
     }
 
-    return "";
+    return szImprobableRELChain;  // Key not found
 }
 
 /************************************************************************/
@@ -682,10 +690,10 @@ int MMRRel::IdentifyFile(GDALOpenInfo *poOpenInfo)
 /************************************************************************/
 /*                     GetMetadataValue()                               */
 /************************************************************************/
-CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
-                                   const CPLString osSubSection,
-                                   const CPLString osSubSubSection,
-                                   const CPLString osKey)
+bool MMRRel::GetMetadataValue(const CPLString osMainSection,
+                              const CPLString osSubSection,
+                              const CPLString osSubSubSection,
+                              const CPLString osKey, CPLString &osValue)
 {
     if (!isAMiraMonFile())
         CPLAssert(false);  // Trying to access metadata from the wrong way
@@ -698,22 +706,25 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
     osAtributeDataName.append(":");
     osAtributeDataName.append(osSubSubSection);
 
-    CPLString osValue =
-        GetValueFromSectionKeyFromREL(osAtributeDataName, osKey);
-
     addExcludedSectionKey(osAtributeDataName, osKey);
-
-    if (!osValue.empty())
-        return osValue;
+    osValue = GetValueFromSectionKeyFromREL(osAtributeDataName, osKey);
+    if (osValue.compare(szImprobableRELChain) != 0)
+        return true;  // Found
 
     // If the value is not found then searches in [pszMainSection]
     addExcludedSectionKey(osSubSubSection, osKey);
-    return GetValueFromSectionKeyFromREL(osSubSubSection, osKey);
+    osValue = GetValueFromSectionKeyFromREL(osSubSubSection, osKey);
+    if (osValue.compare(szImprobableRELChain) == 0)
+    {
+        osValue = "";
+        return false;  // Key not found
+    }
+    return true;  // Found
 }
 
-CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
-                                   const CPLString osSubSection,
-                                   const CPLString osKey)
+bool MMRRel::GetMetadataValue(const CPLString osMainSection,
+                              const CPLString osSubSection,
+                              const CPLString osKey, CPLString &osValue)
 {
     if (!isAMiraMonFile())
         CPLAssert(false);  // Trying to access metadata from the wrong way
@@ -724,25 +735,36 @@ CPLString MMRRel::GetMetadataValue(const CPLString osMainSection,
     osAtributeDataName.append(":");
     osAtributeDataName.append(osSubSection);
 
-    CPLString osValue =
-        GetValueFromSectionKeyFromREL(osAtributeDataName, osKey);
     addExcludedSectionKey(osAtributeDataName, osKey);
-    if (!osValue.empty())
-        return osValue;
+    osValue = GetValueFromSectionKeyFromREL(osAtributeDataName, osKey);
+    if (osValue.compare(szImprobableRELChain) != 0)
+        return true;  // Found
 
     // If the value is not found then searches in [pszMainSection]
     addExcludedSectionKey(osMainSection, osKey);
-    return GetValueFromSectionKeyFromREL(osMainSection, osKey);
+    osValue = GetValueFromSectionKeyFromREL(osMainSection, osKey);
+    if (osValue.compare(szImprobableRELChain) == 0)
+    {
+        osValue = "";
+        return false;  // Key not found
+    }
+    return true;  // Found
 }
 
-CPLString MMRRel::GetMetadataValue(const CPLString osSection,
-                                   const CPLString osKey)
+bool MMRRel::GetMetadataValue(const CPLString osSection, const CPLString osKey,
+                              CPLString &osValue)
 {
     if (!isAMiraMonFile())
         CPLAssert(false);  // Trying to access metadata from the wrong way
 
     addExcludedSectionKey(osSection, osKey);
-    return GetValueFromSectionKeyFromREL(osSection, osKey);
+    osValue = GetValueFromSectionKeyFromREL(osSection, osKey);
+    if (osValue.compare(szImprobableRELChain) == 0)
+    {
+        osValue = "";
+        return false;  // Key not found
+    }
+    return true;  // Found
 }
 
 void MMRRel::UpdateRELNameChar(CPLString osRelFileNameIn)
@@ -757,10 +779,10 @@ CPLErr MMRRel::ParseBandInfo()
 {
     nBands = 0;
 
-    CPLString osFieldNames =
-        GetMetadataValue(SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
-
-    if (osFieldNames.empty())
+    CPLString osFieldNames;
+    if (!GetMetadataValue(SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps,
+                          osFieldNames) ||
+        osFieldNames.empty())
     {
         CPLError(CE_Failure, CPLE_AssertionFailed,
                  "%s-%s section-key should exist in %s.",
@@ -797,16 +819,18 @@ CPLErr MMRRel::ParseBandInfo()
         osBandSectionKey.append("_");
         osBandSectionKey.append(papszTokens[i]);
 
-        osBandSectionValue =
-            GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSectionKey);
-
-        if (osBandSectionValue.empty())
+        if (!GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSectionKey,
+                              osBandSectionValue) ||
+            osBandSectionValue.empty())
             continue;
 
         if (papoSDSBands.size())
         {
-            CPLString osRawBandFileName = GetMetadataValue(
-                SECTION_ATTRIBUTE_DATA, osBandSectionValue, KEY_NomFitxer);
+            CPLString osRawBandFileName;
+            if (!GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSectionValue,
+                                  KEY_NomFitxer, osRawBandFileName) ||
+                osRawBandFileName.empty())
+                return CE_Failure;
 
             // I'm in a Subataset
             size_t nISDSBand;
@@ -857,10 +881,10 @@ int MMRRel::GetColumnsNumberFromREL()
 {
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
-    CPLString osValue =
-        GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "columns");
+    CPLString osValue;
 
-    if (osValue.empty())
+    if (!GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "columns", osValue) ||
+        osValue.empty())
         return 0;  // Default value
 
     return atoi(osValue);
@@ -871,9 +895,10 @@ int MMRRel::GetRowsNumberFromREL()
     // Number of columns of the subdataset (if exist)
     // Section [OVERVIEW:ASPECTES_TECNICS] in rel file
     // Key raws
-    CPLString osValue = GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "rows");
+    CPLString osValue;
 
-    if (osValue.empty())
+    if (!GetMetadataValue(SECTION_OVVW_ASPECTES_TECNICS, "rows", osValue) ||
+        osValue.empty())
         return 0;  // Default value
 
     return atoi(osValue);
@@ -891,8 +916,8 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
         return;
     }
 
-    CPLString currentSection;
-    CPLString pendingKey, pendingValue;
+    CPLString osCurrentSection;
+    CPLString osPendingKey, osPendingValue;
 
     auto isExcluded = [&](const CPLString &section, const CPLString &key)
     {
@@ -916,23 +941,23 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
         if (rawLine[0] == '[' && rawLine[rawLine.size() - 1] == ']')
         {
             // Saves last key
-            if (!pendingKey.empty())
+            if (!osPendingKey.empty())
             {
-                if (!isExcluded(currentSection, pendingKey))
+                if (!isExcluded(osCurrentSection, osPendingKey))
                 {
                     CPLString fullKey =
-                        currentSection + SecKeySeparator + pendingKey;
+                        osCurrentSection + SecKeySeparator + osPendingKey;
 
                     poDS->SetMetadataItem(fullKey.c_str(),
-                                          pendingValue.Trim().c_str(),
+                                          osPendingValue.Trim().c_str(),
                                           kMetadataDomain);
                 }
-                pendingKey.clear();
-                pendingValue.clear();
+                osPendingKey.clear();
+                osPendingValue.clear();
             }
 
-            currentSection = rawLine.substr(1, rawLine.size() - 2);
-            currentSection.Trim();
+            osCurrentSection = rawLine.substr(1, rawLine.size() - 2);
+            osCurrentSection.Trim();
             continue;
         }
 
@@ -940,36 +965,37 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
         if (equalPos != CPLString::npos)
         {
             // Desa clau anterior
-            if (!pendingKey.empty())
+            if (!osPendingKey.empty())
             {
-                if (!isExcluded(currentSection, pendingKey))
+                if (!isExcluded(osCurrentSection, osPendingKey))
                 {
                     CPLString fullKey =
-                        currentSection + SecKeySeparator + pendingKey;
+                        osCurrentSection + SecKeySeparator + osPendingKey;
 
                     poDS->SetMetadataItem(fullKey.c_str(),
-                                          pendingValue.Trim().c_str(),
+                                          osPendingValue.Trim().c_str(),
                                           kMetadataDomain);
                 }
             }
 
-            pendingKey = rawLine.substr(0, equalPos);
-            pendingValue = rawLine.substr(equalPos + 1);
-            pendingKey.Trim();
-            pendingValue.Trim();
+            osPendingKey = rawLine.substr(0, equalPos);
+            osPendingValue = rawLine.substr(equalPos + 1);
+            osPendingKey.Trim();
+            osPendingValue.Trim();
         }
-        else if (!pendingKey.empty())
+        else if (!osPendingKey.empty())
         {
-            pendingValue += "\n" + rawLine;
+            osPendingValue += "\n" + rawLine;
         }
     }
 
     // Saves last key
-    if (!pendingKey.empty())
+    if (!osPendingKey.empty())
     {
-        CPLString fullKey = currentSection + SecKeySeparator + pendingKey;
-        if (!isExcluded(currentSection, pendingKey))
-            poDS->SetMetadataItem(fullKey.c_str(), pendingValue.Trim().c_str(),
+        CPLString fullKey = osCurrentSection + SecKeySeparator + osPendingKey;
+        if (!isExcluded(osCurrentSection, osPendingKey))
+            poDS->SetMetadataItem(fullKey.c_str(),
+                                  osPendingValue.Trim().c_str(),
                                   kMetadataDomain);
     }
 }

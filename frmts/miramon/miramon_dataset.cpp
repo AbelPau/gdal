@@ -218,8 +218,12 @@ void MMRDataset::ReadProjection()
     if (!pMMRRel)
         return;
 
-    CPLString osSRS = pMMRRel->GetMetadataValue(
-        "SPATIAL_REFERENCE_SYSTEM:HORIZONTAL", "HorizontalSystemIdentifier");
+    CPLString osSRS;
+
+    if (!pMMRRel->GetMetadataValue("SPATIAL_REFERENCE_SYSTEM:HORIZONTAL",
+                                   "HorizontalSystemIdentifier", osSRS) ||
+        osSRS.empty())
+        return;
 
     char szResult[MM_MAX_ID_SNY + 10];
     int nResult = ReturnEPSGCodeSRSFromMMIDSRS(osSRS.c_str(), szResult);
@@ -409,8 +413,9 @@ int MMRDataset::UpdateGeoTransform()
     if (!pMMRRel)
         return 1;
 
-    CPLString osMinX = pMMRRel->GetMetadataValue(SECTION_EXTENT, "MinX");
-    if (osMinX.empty())
+    CPLString osMinX;
+    if (!pMMRRel->GetMetadataValue(SECTION_EXTENT, "MinX", osMinX) ||
+        osMinX.empty())
         return 1;
     m_gt[0] = atof(osMinX);
 
@@ -419,19 +424,22 @@ int MMRDataset::UpdateGeoTransform()
     if (nNCols <= 0)
         return 1;
 
-    CPLString osMaxX = pMMRRel->GetMetadataValue(SECTION_EXTENT, "MaxX");
-    if (osMaxX.empty())
+    CPLString osMaxX;
+    if (!pMMRRel->GetMetadataValue(SECTION_EXTENT, "MaxX", osMaxX) ||
+        osMaxX.empty())
         return 1;
 
     m_gt[1] = (atof(osMaxX) - m_gt[0]) / nNCols;
     m_gt[2] = 0.0;  // No rotation in MiraMon rasters
 
-    CPLString osMinY = pMMRRel->GetMetadataValue(SECTION_EXTENT, "MinY");
-    if (osMinY.empty())
+    CPLString osMinY;
+    if (!pMMRRel->GetMetadataValue(SECTION_EXTENT, "MinY", osMinY) ||
+        osMinY.empty())
         return 1;
 
-    CPLString osMaxY = pMMRRel->GetMetadataValue(SECTION_EXTENT, "MaxY");
-    if (osMaxY.empty())
+    CPLString osMaxY;
+    if (!pMMRRel->GetMetadataValue(SECTION_EXTENT, "MaxY", osMaxY) ||
+        osMaxY.empty())
         return 1;
 
     int nNRows = pMMRRel->GetRowsNumberFromREL();

@@ -50,15 +50,15 @@ class MMRRel
 
     CPLString GetValueFromSectionKeyFromREL(const CPLString osSection,
                                             const CPLString osKey);
-    CPLString GetMetadataValue(const CPLString osMainSection,
-                               const CPLString osSubSection,
-                               const CPLString osSubSubSection,
-                               const CPLString osKey);
-    CPLString GetMetadataValue(const CPLString osMainSection,
-                               const CPLString osSubSection,
-                               const CPLString osKey);
-    CPLString GetMetadataValue(const CPLString osSection,
-                               const CPLString osKey);
+    bool GetMetadataValue(const CPLString osMainSection,
+                          const CPLString osSubSection,
+                          const CPLString osSubSubSection,
+                          const CPLString osKey, CPLString &osValue);
+    bool GetMetadataValue(const CPLString osMainSection,
+                          const CPLString osSubSection, const CPLString osKey,
+                          CPLString &osValue);
+    bool GetMetadataValue(const CPLString osSection, const CPLString osKey,
+                          CPLString &osValue);
     CPLString GetAndExcludeMetadataValueDirectly(const CPLString osRELFile,
                                                  const CPLString osSection,
                                                  const CPLString osKey);
@@ -171,6 +171,7 @@ class MMRRel
 
     CPLString osRelFileName = "";
     VSILFILE *pRELFile = nullptr;
+    CPLString szImprobableRELChain;
 
     bool bIsValid = false;  // Determines if the created object is valid or not.
     bool bIsAMiraMonFile = false;

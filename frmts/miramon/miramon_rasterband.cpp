@@ -283,10 +283,11 @@ GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
 CPLErr MMRRasterBand::FillRATFromPalette()
 
 {
-    CPLString os_IndexJoin = pfRel->GetMetadataValue(
-        SECTION_ATTRIBUTE_DATA, osBandSection, "IndexsJoinTaula");
+    CPLString os_IndexJoin;
 
-    if (os_IndexJoin.empty())
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSection,
+                                 "IndexsJoinTaula", os_IndexJoin) ||
+        os_IndexJoin.empty())
     {
         // I don't have any associated attribute table but
         // perhaps I can create an attribute table with
@@ -558,10 +559,11 @@ CPLErr MMRRasterBand::UpdateTableColorsFromPalette()
     if (Palette->IsConstantColor())
         return AssignUniformColorTable();
 
-    CPLString os_Color_Paleta = pfRel->GetMetadataValue(
-        SECTION_COLOR_TEXT, osBandSection, "Color_Paleta");
+    CPLString os_Color_Paleta;
 
-    if (os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
+    if (!pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osBandSection,
+                                 "Color_Paleta", os_Color_Paleta) ||
+        os_Color_Paleta.empty() || os_Color_Paleta == "<Automatic>")
         return CE_Failure;
 
     CPLErr peErr;
@@ -842,17 +844,26 @@ CPLErr MMRRasterBand::GetRATName(char *papszToken, CPLString &osRELName,
     os_Join.append("_");
     os_Join.append(papszToken);
 
-    CPLString osTableNameSection_value =
-        pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSection, os_Join);
+    CPLString osTableNameSection_value;
 
-    if (osTableNameSection_value.empty())
+    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osBandSection, os_Join,
+                                 osTableNameSection_value) ||
+        osTableNameSection_value.empty())
         return CE_Failure;  // No attribute available
 
     CPLString osTableNameSection = "TAULA_";
     osTableNameSection.append(osTableNameSection_value);
 
-    CPLString osShortRELName =
-        pfRel->GetMetadataValue(osTableNameSection, "NomFitxer");
+    CPLString osShortRELName;
+
+    if (!pfRel->GetMetadataValue(osTableNameSection, "NomFitxer",
+                                 osShortRELName) ||
+        osShortRELName.empty())
+    {
+        osRELName = "";
+        osAssociateREL = "";
+        return CE_Failure;
+    }
 
     CPLString osExtension = CPLGetExtensionSafe(osShortRELName);
     if (osExtension.tolower() == "rel")
@@ -864,10 +875,11 @@ CPLErr MMRRasterBand::GetRATName(char *papszToken, CPLString &osRELName,
 
         // Getting information from the associated REL
         MMRRel *fLocalRel = new MMRRel(osRELName, false);
-        CPLString osShortDBFName =
-            fLocalRel->GetMetadataValue("TAULA_PRINCIPAL", "NomFitxer");
+        CPLString osShortDBFName;
 
-        if (osShortDBFName.empty())
+        if (!fLocalRel->GetMetadataValue("TAULA_PRINCIPAL", "NomFitxer",
+                                         osShortDBFName) ||
+            osShortDBFName.empty())
         {
             osRELName = "";
             delete fLocalRel;
@@ -879,10 +891,9 @@ CPLErr MMRRasterBand::GetRATName(char *papszToken, CPLString &osRELName,
             CPLGetPathSafe(fLocalRel->GetRELNameChar()).c_str(), osShortDBFName,
             "");
 
-        osAssociateREL =
-            fLocalRel->GetMetadataValue("TAULA_PRINCIPAL", "AssociatRel");
-
-        if (osAssociateREL.empty())
+        if (!fLocalRel->GetMetadataValue("TAULA_PRINCIPAL", "AssociatRel",
+                                         osAssociateREL) ||
+            osAssociateREL.empty())
         {
             osRELName = "";
             delete fLocalRel;
@@ -892,9 +903,11 @@ CPLErr MMRRasterBand::GetRATName(char *papszToken, CPLString &osRELName,
         CPLString osSection = "TAULA_PRINCIPAL:";
         osSection.append(osAssociateREL);
 
-        CPLString osTactVar =
-            fLocalRel->GetMetadataValue(osSection, "TractamentVariable");
-        if (osTactVar == "Categoric")
+        CPLString osTactVar;
+
+        if (fLocalRel->GetMetadataValue(osSection, "TractamentVariable",
+                                        osTactVar) &&
+            osTactVar == "Categoric")
             poDefaultRAT->SetTableType(GRTT_THEMATIC);
         else
         {
@@ -915,16 +928,20 @@ CPLErr MMRRasterBand::GetRATName(char *papszToken, CPLString &osRELName,
             CPLFormFilenameSafe(CPLGetPathSafe(pfRel->GetRELNameChar()).c_str(),
                                 osShortRELName, "");
 
-        osAssociateREL =
-            pfRel->GetMetadataValue(osTableNameSection, "AssociatRel");
+        if (!pfRel->GetMetadataValue(osTableNameSection, "AssociatRel",
+                                     osAssociateREL) ||
+            osAssociateREL.empty())
+        {
+            osRELName = "";
+            osAssociateREL = "";
+            return CE_Failure;
+        }
         poDefaultRAT->SetTableType(GRTT_THEMATIC);
-
         return CE_None;
     }
 
     osRELName = "";
     osAssociateREL = "";
-
     return CE_Failure;
 }
 
