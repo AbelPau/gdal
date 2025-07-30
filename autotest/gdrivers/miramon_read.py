@@ -56,9 +56,8 @@ def check_raster(ds, band_idx, expected, checksum, exp_min, exp_max, exp_gt):
 
     min_val = band.GetMinimum()
     max_val = band.GetMaximum()
-    assert min_val is not None
+
     assert min_val == exp_min
-    assert max_val is not None
     assert max_val == exp_max
 
     fmt, size = gdal_to_struct[dtype]
@@ -330,6 +329,15 @@ init_list = [
         1,
         expected_gt2,
     ),
+    (
+        "data/miramon/all_nodata/nodataI.rel",
+        1,
+        [0, 0, 0, 0, 0, 0],
+        0,
+        None,
+        None,
+        None,
+    ),
 ]
 
 
@@ -339,7 +347,7 @@ init_list = [
     ids=[tup[0].split(".")[0] for tup in init_list],
 )
 @pytest.mark.require_driver("MiraMonRaster")
-def test_miramon_test_012345_raster(
+def test_miramon_test_basic_raster(
     filename, band_idx, expected, checksum, exp_min, exp_max, exp_gt
 ):
     # ds = gdal.Open(filename)
@@ -348,7 +356,7 @@ def test_miramon_test_012345_raster(
     check_raster(ds, band_idx, expected, checksum, exp_min, exp_max, exp_gt)
 
 
-###### Testing IMG/REL files with errors
+###### Testing IMG/REL files with controled errors
 @pytest.mark.parametrize(
     "name,message_substring",
     [
@@ -558,6 +566,12 @@ init_list_color_tables = [
         1,  # band index
         None,
         "25831",
+    ),
+    (
+        "data/miramon/all_nodata/nodataI.rel",
+        1,  # band index
+        None,
+        None,
     ),
     (
         "data/miramon/several_errors/WrongPaletteI.rel",
@@ -988,6 +1002,11 @@ init_list_attribute_tables = [
             (5, "Blue"): 133,
         },
     ),
+    (
+        "data/miramon/all_nodata/nodataI.rel",
+        1,  # band index
+        None,
+    ),
 ]
 
 
@@ -1012,35 +1031,36 @@ def test_miramon_default_rat(filename, idx_bnd, expected_rat):
     assert band is not None, f"Could not get band {idx_bnd} from file"
 
     rat = band.GetDefaultRAT()
-    assert rat is not None, "No Raster Attribute Table (RAT) found on band"
+    if expected_rat is not None:
+        assert rat is not None, "No Raster Attribute Table (RAT) found on band"
 
-    col_name_to_idx = {rat.GetNameOfCol(i): i for i in range(rat.GetColumnCount())}
+        col_name_to_idx = {rat.GetNameOfCol(i): i for i in range(rat.GetColumnCount())}
 
-    for (row_idx, col_name), expected_val in expected_rat.items():
-        assert 0 <= row_idx < rat.GetRowCount(), f"Row {row_idx} out of bounds"
-        assert col_name in col_name_to_idx, f"Column '{col_name}' not found in RAT"
+        for (row_idx, col_name), expected_val in expected_rat.items():
+            assert 0 <= row_idx < rat.GetRowCount(), f"Row {row_idx} out of bounds"
+            assert col_name in col_name_to_idx, f"Column '{col_name}' not found in RAT"
 
-        col_idx = col_name_to_idx[col_name]
-        gdal_type = rat.GetTypeOfCol(col_idx)
+            col_idx = col_name_to_idx[col_name]
+            gdal_type = rat.GetTypeOfCol(col_idx)
 
-        if gdal_type == gdal.GFT_Integer:
-            val = rat.GetValueAsInt(row_idx, col_idx)
-        elif gdal_type == gdal.GFT_Real:
-            val = rat.GetValueAsDouble(row_idx, col_idx)
-        elif gdal_type == gdal.GFT_String:
-            val = rat.GetValueAsString(row_idx, col_idx)
-        else:
-            raise ValueError(
-                f"Unsupported field type {gdal_type} for column '{col_name}'"
-            )
+            if gdal_type == gdal.GFT_Integer:
+                val = rat.GetValueAsInt(row_idx, col_idx)
+            elif gdal_type == gdal.GFT_Real:
+                val = rat.GetValueAsDouble(row_idx, col_idx)
+            elif gdal_type == gdal.GFT_String:
+                val = rat.GetValueAsString(row_idx, col_idx)
+            else:
+                raise ValueError(
+                    f"Unsupported field type {gdal_type} for column '{col_name}'"
+                )
 
-        if isinstance(expected_val, float):
-            assert math.isclose(val, expected_val, rel_tol=1e-6, abs_tol=1e-12), (
-                f"Float mismatch at row {row_idx}, column '{col_name}': "
-                f"got {val}, expected {expected_val}"
-            )
-        else:
-            assert val == expected_val, (
-                f"Value mismatch at row {row_idx}, column '{col_name}': "
-                f"got {val}, expected {expected_val}"
-            )
+            if isinstance(expected_val, float):
+                assert math.isclose(val, expected_val, rel_tol=1e-6, abs_tol=1e-12), (
+                    f"Float mismatch at row {row_idx}, column '{col_name}': "
+                    f"got {val}, expected {expected_val}"
+                )
+            else:
+                assert val == expected_val, (
+                    f"Value mismatch at row {row_idx}, column '{col_name}': "
+                    f"got {val}, expected {expected_val}"
+                )
