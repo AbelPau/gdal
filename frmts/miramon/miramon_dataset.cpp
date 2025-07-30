@@ -369,10 +369,6 @@ bool MMRDataset::IsNextBandInANewDataSet(int nIBand)
     if (pThisBand->GetHeight() != pNextBand->GetHeight())
         return true;
 
-    // Two images with different resolution are assigned to different subdatasets
-    if (pThisBand->GetPixelResolution() != pNextBand->GetPixelResolution())
-        return true;
-
     // Two images with different bounding box are assigned to different subdatasets
     if (pThisBand->GetBoundingBoxMinX() != pNextBand->GetBoundingBoxMinX())
         return true;
@@ -417,9 +413,10 @@ int MMRDataset::UpdateGeoTransform()
     if (!pMMRRel->GetMetadataValue(SECTION_EXTENT, "MinX", osMinX) ||
         osMinX.empty())
         return 1;
-    m_gt[0] = atof(osMinX);
 
-    // Això va al constructor del REL
+    if (1 != CPLsscanf(osMinX, "%lf", &(m_gt[0])))
+        m_gt[0] = 0.0;
+
     int nNCols = pMMRRel->GetColumnsNumberFromREL();
     if (nNCols <= 0)
         return 1;
@@ -429,7 +426,11 @@ int MMRDataset::UpdateGeoTransform()
         osMaxX.empty())
         return 1;
 
-    m_gt[1] = (atof(osMaxX) - m_gt[0]) / nNCols;
+    double dfMaxX;
+    if (1 != CPLsscanf(osMaxX, "%lf", &dfMaxX))
+        dfMaxX = 1.0;
+
+    m_gt[1] = (dfMaxX - m_gt[0]) / nNCols;
     m_gt[2] = 0.0;  // No rotation in MiraMon rasters
 
     CPLString osMinY;
@@ -446,9 +447,17 @@ int MMRDataset::UpdateGeoTransform()
     if (nNRows <= 0)
         return 1;
 
-    m_gt[3] = atof(osMaxY);
+    double dfMaxY;
+    if (1 != CPLsscanf(osMaxY, "%lf", &dfMaxY))
+        dfMaxY = 1.0;
+
+    m_gt[3] = dfMaxY;
     m_gt[4] = 0.0;
-    m_gt[5] = (atof(osMinY) - m_gt[3]) / nNRows;
+
+    double dfMinY;
+    if (1 != CPLsscanf(osMinY, "%lf", &dfMinY))
+        dfMinY = 0.0;
+    m_gt[5] = (dfMinY - m_gt[3]) / nNRows;
 
     return 0;
 }

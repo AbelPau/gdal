@@ -20,12 +20,13 @@
 
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
 
+CPLString MMRRel::szImprobableRELChain = "@#&%$|``|$%&#@";
+
 /************************************************************************/
 /*                              MMRRel()                               */
 /************************************************************************/
-
 MMRRel::MMRRel(CPLString osRELFilenameIn, bool bIMGMustExist)
-    : osRelFileName(osRELFilenameIn), szImprobableRELChain("@#&%$|``|$%&#@")
+    : osRelFileName(osRELFilenameIn)
 {
     CPLString osRelCandidate = osRELFilenameIn;
 
@@ -141,7 +142,25 @@ MMRRel::~MMRRel()
 /************************************************************************/
 /*                     Getting section-key-value                        */
 /************************************************************************/
-// subsitutes C version MMReturnValueFromSectionINIFile()
+// Used when the MMRREL is not yet constructed.
+CPLString
+MMRRel::GetValueFromSectionKeyPriorToREL(const CPLString osPriorRelName,
+                                         const CPLString osSection,
+                                         const CPLString osKey)
+{
+    if (osPriorRelName.empty())
+        return "";
+
+    VSILFILE *pPriorRELFile = VSIFOpenL(osPriorRelName, "rb");
+    if (!pPriorRELFile)
+        return "";
+
+    CPLString osValue = GetValueFromSectionKey(pPriorRELFile, osSection, osKey);
+    VSIFCloseL(pPriorRELFile);
+    return osValue;
+}
+
+// Used when the MMRREL is already constructed.
 CPLString MMRRel::GetValueFromSectionKeyFromREL(const CPLString osSection,
                                                 const CPLString osKey)
 {
@@ -152,14 +171,31 @@ CPLString MMRRel::GetValueFromSectionKeyFromREL(const CPLString osSection,
         return "";
     }
 
+    return GetValueFromSectionKey(GetRELFile(), osSection, osKey);
+}
+
+// This function is the C++ equivalent of MMReturnValueFromSectionINIFile().
+// It improves upon the original by using CPLString instead of raw char pointers,
+// and by operating on an already opened file pointer rather than reopening the file
+// on each invocation.
+// MMReturnValueFromSectionINIFile() is retained in miramon_common because it is
+// widely used by existing, already OGR tested code (and in the common code itself).
+// At least in C++ code the modern version is used
+CPLString MMRRel::GetValueFromSectionKey(VSILFILE *pf,
+                                         const CPLString osSection,
+                                         const CPLString osKey)
+{
+    if (!pf)
+        return "";
+
     CPLString osCurrentSection;
     CPLString osCurrentKey, osCurrentValue;
     bool bIAmInMySection = false;
 
     const char *pszLine;
 
-    VSIFSeekL(pRELFile, 0, SEEK_SET);
-    while ((pszLine = CPLReadLine2L(pRELFile, 10000, nullptr)) != nullptr)
+    VSIFSeekL(pf, 0, SEEK_SET);
+    while ((pszLine = CPLReadLine2L(pf, 10000, nullptr)) != nullptr)
     {
         CPLString rawLine = pszLine;
 
@@ -201,10 +237,6 @@ CPLString MMRRel::GetValueFromSectionKeyFromREL(const CPLString osSection,
 
             if (EQUAL(osCurrentKey, osKey))
                 return osCurrentValue;
-        }
-        else if (!osCurrentKey.empty())
-        {
-            osCurrentValue += "\n" + rawLine;
         }
     }
 
@@ -253,30 +285,29 @@ CPLString MMRRel::MMRGetSimpleMetadataName(const CPLString osLayerName)
     return osRELFile;
 }
 
-// Gets the value from a section-key accessind directly to the file
-CPLString MMRRel::GetAndExcludeMetadataValueDirectly(const CPLString osRELFile,
-                                                     const CPLString osSection,
-                                                     const CPLString osKey)
+// Gets the value from a section-key accessing directly to the RELFile.
+// It happens when MMRel is used to acces a REL that is not an IMG sidecar
+// or at the Identify() process, when we don't have already the MMRRel constructed.
+bool MMRRel::GetAndExcludeMetadataValueDirectly(const CPLString osRELFile,
+                                                const CPLString osSection,
+                                                const CPLString osKey,
+                                                CPLString &osValue)
 {
     addExcludedSectionKey(osSection, osKey);
-    return GetMetadataValueDirectly(osRELFile, osSection, osKey);
+    return GetMetadataValueDirectly(osRELFile, osSection, osKey, osValue);
 }
 
-CPLString MMRRel::GetMetadataValueDirectly(const CPLString osRELFile,
-                                           const CPLString osSection,
-                                           const CPLString osKey)
+bool MMRRel::GetMetadataValueDirectly(const CPLString osRELFile,
+                                      const CPLString osSection,
+                                      const CPLString osKey, CPLString &osValue)
 {
-    char *pszValue =
-        MMReturnValueFromSectionINIFile(osRELFile, osSection, osKey);
+    osValue = GetValueFromSectionKeyPriorToREL(osRELFile, osSection, osKey);
 
-    if (!pszValue)
-        return "";
-    else
-    {
-        CPLString osValue = pszValue;
-        CPLFree(pszValue);
-        return osValue;
-    }
+    if (osValue.compare(szImprobableRELChain) != 0)
+        return true;  // Found
+
+    osValue = "";
+    return false;  // Key not found
 }
 
 bool MMRRel::SameFile(CPLString osFile1, CPLString osFile2)
@@ -308,10 +339,11 @@ MMRRel::MMRStateOfNomFitxerInSection(CPLString osLayerName, CPLString osSection,
                                      CPLString osRELFile,
                                      bool bNomFitxerMustExtist)
 {
-    CPLString osDocumentedLayerName =
-        GetAndExcludeMetadataValueDirectly(osRELFile, osSection, KEY_NomFitxer);
+    CPLString osDocumentedLayerName;
 
-    if (osDocumentedLayerName.empty())
+    if (!GetAndExcludeMetadataValueDirectly(osRELFile, osSection, KEY_NomFitxer,
+                                            osDocumentedLayerName) ||
+        osDocumentedLayerName.empty())
     {
         CPLString osIIMGFromREL = MMRGetFileNameFromRelName(osRELFile);
         if (SameFile(osIIMGFromREL, osLayerName))
@@ -326,8 +358,7 @@ MMRRel::MMRStateOfNomFitxerInSection(CPLString osLayerName, CPLString osSection,
     CPLString osFileAux = CPLFormFilenameSafe(CPLGetPathSafe(osRELFile).c_str(),
                                               osDocumentedLayerName, "");
 
-    osDocumentedLayerName =
-        RemoveWhitespacesFromEndOfString(osDocumentedLayerName);
+    osDocumentedLayerName.Trim();
     if (*osDocumentedLayerName == '*' || *osDocumentedLayerName == '?')
         return MMRNomFitxerState::NOMFITXER_VALUE_UNEXPECTED;
 
@@ -375,23 +406,27 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(CPLString osLayerName,
 
     // Discarting not supported via SDE (some files
     // could have this otpion)
-    CPLString osVia = GetAndExcludeMetadataValueDirectly(
-        osRELFile, SECTION_ATTRIBUTE_DATA, KEY_via);
-
-    if (!osVia.empty() && !EQUAL(osVia, "SDE"))
+    CPLString osVia;
+    if (GetAndExcludeMetadataValueDirectly(osRELFile, SECTION_ATTRIBUTE_DATA,
+                                           KEY_via, osVia))
     {
-        if (bIsAMiraMonFile)
+        if (!osVia.empty() && !EQUAL(osVia, "SDE"))
         {
-            CPLError(CE_Failure, CPLE_OpenFailed, "Unexpected Via in %s file",
-                     osRELFile.c_str());
+            if (bIsAMiraMonFile)
+            {
+                CPLError(CE_Failure, CPLE_OpenFailed,
+                         "Unexpected Via in %s file", osRELFile.c_str());
+            }
+            return "";
         }
-        return "";
     }
 
-    CPLString osFieldNames = GetAndExcludeMetadataValueDirectly(
-        osRELFile, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
+    CPLString osFieldNames;
 
-    if (osFieldNames.empty())
+    if (!GetAndExcludeMetadataValueDirectly(osRELFile, SECTION_ATTRIBUTE_DATA,
+                                            Key_IndexsNomsCamps,
+                                            osFieldNames) ||
+        osFieldNames.empty())
     {
         if (bIsAMiraMonFile)
         {
@@ -413,18 +448,18 @@ CPLString MMRRel::MMRGetAReferenceToIMGFile(CPLString osLayerName,
         osBandSectionKey.append("_");
         osBandSectionKey.append(papszTokens[nIBand]);
 
-        CPLString osBandSectionValue = GetAndExcludeMetadataValueDirectly(
-            osRELFile, SECTION_ATTRIBUTE_DATA, osBandSectionKey);
+        CPLString osBandSectionValue;
 
-        if (!osBandSectionValue)
+        if (!GetAndExcludeMetadataValueDirectly(
+                osRELFile, SECTION_ATTRIBUTE_DATA, osBandSectionKey,
+                osBandSectionValue) ||
+            osBandSectionValue.empty())
             continue;  // A band without name (·$· unexpected)
-
-        RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
         // Example: [ATTRIBUTE_DATA:G1]
         osAtributeDataName = SECTION_ATTRIBUTE_DATA;
         osAtributeDataName.append(":");
-        osAtributeDataName.append(osBandSectionValue);
+        osAtributeDataName.append(osBandSectionValue.Trim());
 
         // Let's see if this band contains the expected name
         // or none (in monoband case)
@@ -543,10 +578,10 @@ CPLErr MMRRel::CheckBandInRel(const CPLString osRELFileName,
                               const CPLString osIMGFile)
 
 {
-    CPLString osFieldNames = GetMetadataValueDirectly(
-        osRELFileName, SECTION_ATTRIBUTE_DATA, Key_IndexsNomsCamps);
-
-    if (osFieldNames.empty())
+    CPLString osFieldNames;
+    if (!GetMetadataValueDirectly(osRELFileName, SECTION_ATTRIBUTE_DATA,
+                                  Key_IndexsNomsCamps, osFieldNames) ||
+        osFieldNames.empty())
         return CE_Failure;
 
     // Separator ,
@@ -564,23 +599,21 @@ CPLErr MMRRel::CheckBandInRel(const CPLString osRELFileName,
         osBandSectionKey.append("_");
         osBandSectionKey.append(papszTokens[i]);
 
-        osBandSectionValue = GetMetadataValueDirectly(
-            osRELFileName, SECTION_ATTRIBUTE_DATA, osBandSectionKey);
-
-        if (osBandSectionValue.empty())
+        if (!GetMetadataValueDirectly(osRELFileName, SECTION_ATTRIBUTE_DATA,
+                                      osBandSectionKey, osBandSectionValue) ||
+            osBandSectionValue.empty())
             return CE_Failure;
-
-        RemoveWhitespacesFromEndOfString(osBandSectionValue);
 
         CPLString osAtributeDataName;
         osAtributeDataName = SECTION_ATTRIBUTE_DATA;
         osAtributeDataName.append(":");
-        osAtributeDataName.append(osBandSectionValue);
+        osAtributeDataName.append(osBandSectionValue.Trim());
 
-        CPLString osRawBandFileName = GetMetadataValueDirectly(
-            osRELFileName, osAtributeDataName, KEY_NomFitxer);
+        CPLString osRawBandFileName;
 
-        if (osRawBandFileName.empty())
+        if (!GetMetadataValueDirectly(osRELFileName, osAtributeDataName,
+                                      KEY_NomFitxer, osRawBandFileName) ||
+            osRawBandFileName.empty())
         {
             CPLString osBandFileName = MMRGetFileNameFromRelName(osRELFileName);
             if (osBandFileName.empty())
@@ -841,13 +874,10 @@ CPLErr MMRRel::ParseBandInfo()
                 continue;
         }
 
-        osBandSectionValue =
-            RemoveWhitespacesFromEndOfString(osBandSectionValue);
-
         if (nBands >= nNBand)
             break;
 
-        papoBand[nBands] = new MMRBand(*this, osBandSectionValue);
+        papoBand[nBands] = new MMRBand(*this, osBandSectionValue.Trim());
 
         if (!papoBand[nBands]->IsValid())
         {
@@ -866,15 +896,6 @@ CPLErr MMRRel::ParseBandInfo()
     return CE_None;
 }
 
-CPLString MMRRel::RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces)
-{
-    char *pszBandSectionValue = CPLStrdup(osInputWithSpaces);
-    MM_RemoveWhitespacesFromEndOfString(pszBandSectionValue);
-    osInputWithSpaces = pszBandSectionValue;
-    VSIFree(pszBandSectionValue);
-    return osInputWithSpaces;
-}
-
 int MMRRel::GetColumnsNumberFromREL()
 {
     // Number of columns of the subdataset (if exist)
@@ -885,7 +906,11 @@ int MMRRel::GetColumnsNumberFromREL()
         osValue.empty())
         return 0;  // Default value
 
-    return atoi(osValue);
+    int nValue;
+    if (1 != sscanf(osValue, "%d", &nValue))
+        return 0;  // Default value
+
+    return nValue;
 }
 
 int MMRRel::GetRowsNumberFromREL()
@@ -899,7 +924,11 @@ int MMRRel::GetRowsNumberFromREL()
         osValue.empty())
         return 0;  // Default value
 
-    return atoi(osValue);
+    int nValue;
+    if (1 != sscanf(osValue, "%d", &nValue))
+        return 0;  // Default value
+
+    return nValue;
 }
 
 /************************************************************************/

@@ -263,7 +263,13 @@ int MMRBand::Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
             return 1;
         }
     }
-    *nValue = osValue.empty() ? 0 : atoi(osValue);
+
+    if (1 != sscanf(osValue, "%d", nValue))
+    {
+        if (pszErrorMessage)
+            CPLError(CE_Failure, CPLE_AppDefined, "%s", pszErrorMessage);
+        return 1;
+    }
     return 0;
 }
 
@@ -386,54 +392,6 @@ int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
     return 0;
 }
 
-// Getting resolution from metadata
-void MMRBand::UpdateResolutionFromREL(const CPLString osSection)
-{
-    bSetResolution = false;
-
-    CPLString osValue;
-    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
-                                 "resolution", osValue) ||
-        osValue.empty())
-    {
-        if (pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
-                                    SECTION_HORIZONTAL, "resolution",
-                                    osValue) == false ||
-            osValue.empty())
-        {
-            dfResolution = 1;
-            dfResolutionY = 1;
-            return;
-        }
-    }
-    dfResolution = osValue.empty() ? 0 : atof(osValue);
-    UpdateResolutionYFromREL(osSection);
-    if (!bSetResolution)
-        dfResolutionY = dfResolution;
-
-    bSetResolution = true;
-}
-
-void MMRBand::UpdateResolutionYFromREL(const CPLString osSection)
-{
-    CPLString osValue;
-    if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
-                                 "resolutionY", osValue) ||
-        osValue.empty())
-    {
-        if (pfRel->GetMetadataValue(SECTION_SPATIAL_REFERENCE_SYSTEM,
-                                    SECTION_HORIZONTAL, "resolutionY",
-                                    osValue) == false ||
-            osValue.empty())
-        {
-            dfResolutionY = 1;
-            return;
-        }
-    }
-    dfResolutionY = osValue.empty() ? 0 : atof(osValue);
-    bSetResolution = true;
-}
-
 // Getting number of columns from metadata
 int MMRBand::UpdateColumnsNumberFromREL(const CPLString osSection)
 {
@@ -473,21 +431,29 @@ void MMRBand::UpdateMinMaxValuesFromREL(const CPLString osSection)
 
     CPLString osValue;
 
-    if (pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "min",
-                                osValue) &&
+    CPLString osAuxSection = SECTION_ATTRIBUTE_DATA;
+    osAuxSection.append(":");
+    osAuxSection.append(osSection);
+    if (pfRel->GetMetadataValue(osAuxSection, "min", osValue) &&
         !osValue.empty())
     {
-        bMinSet = true;
-        dfMin = atof(osValue);
+        if (1 == CPLsscanf(osValue, "%lf", &dfMin))
+            bMinSet = true;
     }
 
     bMaxSet = false;
-    if (pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "max",
-                                osValue) &&
+    if (pfRel->GetMetadataValue(osAuxSection, "max", osValue) &&
         !osValue.empty())
     {
-        bMaxSet = true;
-        dfMax = atof(osValue);
+        if (1 == CPLsscanf(osValue, "%lf", &dfMax))
+            bMaxSet = true;
+    }
+
+    // Special case: dfMin > dfMax
+    if (bMinSet && bMaxSet && dfMin > dfMax)
+    {
+        bMinSet = false;
+        bMaxSet = false;
     }
 }
 
@@ -501,8 +467,8 @@ void MMRBand::UpdateMinMaxVisuValuesFromREL(const CPLString osSection)
                                 "Color_ValorColor_0", osValue) &&
         !osValue.empty())
     {
-        bMinVisuSet = true;
-        dfVisuMin = atof(osValue);
+        if (1 == CPLsscanf(osValue, "%lf", &dfVisuMin))
+            bMinVisuSet = true;
     }
 
     bMaxVisuSet = false;
@@ -512,8 +478,8 @@ void MMRBand::UpdateMinMaxVisuValuesFromREL(const CPLString osSection)
                                 "Color_ValorColor_n_1", osValue) &&
         !osValue.empty())
     {
-        bMaxVisuSet = true;
-        dfVisuMax = atof(osValue);
+        if (1 == CPLsscanf(osValue, "%lf", &dfVisuMax))
+            bMaxVisuSet = true;
     }
 }
 
@@ -531,9 +497,6 @@ void MMRBand::UpdateReferenceSystemFromREL()
 
 void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
 {
-    // Getting resolution
-    UpdateResolutionFromREL(osBandSection);
-
     // Bounding box of the band
     // [ATTRIBUTE_DATA:xxxx:EXTENT] or [EXTENT]
     CPLString osValue;
@@ -544,19 +507,26 @@ void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
         dfBBMinX = 0;
     }
     else
-        dfBBMinX = atof(osValue);
+    {
+        if (1 != CPLsscanf(osValue, "%lf", &dfBBMinX))
+            dfBBMinX = 0;
+    }
 
     if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
                                  SECTION_EXTENT, "MaxX", osValue) ||
         osValue.empty())
     {
-        if (bSetResolution)
-            dfBBMaxX = nWidth * dfResolution;
-        else
-            dfBBMaxX = nWidth;
+        dfBBMaxX = nWidth;
     }
     else
-        dfBBMaxX = atof(osValue);
+    {
+        if (1 != CPLsscanf(osValue, "%lf", &dfBBMaxX))
+        {
+            // If the value is something that cannot be scanned,
+            // we silently continue as it was undefined.
+            dfBBMaxX = nWidth;
+        }
+    }
 
     if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
                                  SECTION_EXTENT, "MinY", osValue) ||
@@ -565,19 +535,26 @@ void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
         dfBBMinY = 0;
     }
     else
-        dfBBMinY = atof(osValue);
+    {
+        if (1 != CPLsscanf(osValue, "%lf", &dfBBMinY))
+            dfBBMinY = 0;
+    }
 
     if (!pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
                                  SECTION_EXTENT, "MaxY", osValue) ||
         osValue.empty())
     {
-        if (bSetResolution)
-            dfBBMaxY = nHeight * dfResolutionY;
-        else
-            dfBBMaxY = nHeight;
+        dfBBMaxY = nHeight;
     }
     else
-        dfBBMaxY = atof(osValue);
+    {
+        if (1 != CPLsscanf(osValue, "%lf", &dfBBMaxY))
+        {
+            // If the value is something that cannot be scanned,
+            // we silently continue as it was undefined.
+            dfBBMaxY = nHeight;
+        }
+    }
 }
 
 /************************************************************************/

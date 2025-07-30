@@ -48,7 +48,14 @@ class MMRRel
         delete;  // I don't want to assing a MMRDataset to another MMRDataset (effc++)
     ~MMRRel();
 
+    static CPLString
+    GetValueFromSectionKeyPriorToREL(const CPLString osPriorRelName,
+                                     const CPLString osSection,
+                                     const CPLString osKey);
     CPLString GetValueFromSectionKeyFromREL(const CPLString osSection,
+                                            const CPLString osKey);
+    static CPLString GetValueFromSectionKey(VSILFILE *pf,
+                                            const CPLString osSection,
                                             const CPLString osKey);
     bool GetMetadataValue(const CPLString osMainSection,
                           const CPLString osSubSection,
@@ -59,12 +66,14 @@ class MMRRel
                           CPLString &osValue);
     bool GetMetadataValue(const CPLString osSection, const CPLString osKey,
                           CPLString &osValue);
-    CPLString GetAndExcludeMetadataValueDirectly(const CPLString osRELFile,
-                                                 const CPLString osSection,
-                                                 const CPLString osKey);
-    static CPLString GetMetadataValueDirectly(const CPLString osRELFile,
-                                              const CPLString osSection,
-                                              const CPLString osKey);
+    bool GetAndExcludeMetadataValueDirectly(const CPLString osRELFile,
+                                            const CPLString osSection,
+                                            const CPLString osKey,
+                                            CPLString &osValue);
+    static bool GetMetadataValueDirectly(const CPLString osRELFile,
+                                         const CPLString osSection,
+                                         const CPLString osKey,
+                                         CPLString &osValue);
     void RELToGDALMetadata(GDALDataset *poDS);
 
     static CPLString MMRGetFileNameFromRelName(const CPLString osRELFile);
@@ -166,12 +175,10 @@ class MMRRel
 
     void UpdateRELNameChar(CPLString osRelFileNameIn);
     CPLErr ParseBandInfo();
-    static CPLString
-    RemoveWhitespacesFromEndOfString(CPLString osInputWithSpaces);
 
     CPLString osRelFileName = "";
     VSILFILE *pRELFile = nullptr;
-    CPLString szImprobableRELChain;
+    static CPLString szImprobableRELChain;
 
     bool bIsValid = false;  // Determines if the created object is valid or not.
     bool bIsAMiraMonFile = false;

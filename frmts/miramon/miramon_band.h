@@ -173,16 +173,6 @@ class MMRBand
         return dfBBMaxY;
     }
 
-    double GetPixelResolution() const
-    {
-        return dfResolution;
-    }
-
-    double GetPixelResolutionY() const
-    {
-        return dfResolutionY;
-    }
-
     bool BandHasNoData() const
     {
         return bNoDataSet;
@@ -228,8 +218,6 @@ class MMRBand
                                            MMDataType *nCompressionType,
                                            MMBytesPerPixel *nBytesPerPixel);
     int UpdateDataTypeFromREL(const CPLString osSection);
-    void UpdateResolutionFromREL(const CPLString osSection);
-    void UpdateResolutionYFromREL(const CPLString osSection);
     int UpdateColumnsNumberFromREL(const CPLString osSection);
     int UpdateRowsNumberFromREL(const CPLString osSection);
     void UpdateNoDataValue(const CPLString osSection);
@@ -307,18 +295,9 @@ class MMRBand
     double dfBBMaxX = 0.0;
     double dfBBMaxY = 0.0;
 
-    // Resolution of the pixel
-    double dfResolution = 0.0;
-    double dfResolutionY = 0.0;
-
-    // Determines if dfResolution and dfResolutionY have been found
-    // If is not found 1 is the defect value
-    bool bSetResolution = false;
-
     // Nodata stuff
-    bool bNoDataSet = false;     // There is nodata?
-    CPLString osNodataDef = "";  // Definition of nodata
-    double dfNoData = 0.0;       // Value of nodata
+    bool bNoDataSet = false;  // There is nodata?
+    double dfNoData = 0.0;    // Value of nodata
 };
 
 #endif /* ndef MM_BAND_INCLUDED */

@@ -242,7 +242,7 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     if (bIsCategorical)
     {
         // In categorical mode, the maximum CLAUSIMBOL value is the last color to read.
-
+        int nValue;
         nNPaletteColors = 0;
 
         VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset,
@@ -271,10 +271,25 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             pszField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
             CPLString osField = pszField;
             osField.replaceAll(" ", "");
+
+            if (1 != sscanf(osField, "%d", &nValue))
+            {
+                CPLError(CE_Failure, CPLE_AssertionFailed,
+                         "Invalid color table:"
+                         "\"%s\".",
+                         osColorTableFileName.c_str());
+
+                VSIFree(pszField);
+                VSIFree(pzsRecord);
+                VSIFCloseL(oColorTable.pfDataBase);
+                MM_ReleaseMainFields(&oColorTable);
+                return CE_Failure;
+            }
+
             if (osField.empty())
                 bHasNodata = true;
-            else if (nNPaletteColors < atoi(osField))
-                nNPaletteColors = atoi(osField);
+            else if (nNPaletteColors < nValue)
+                nNPaletteColors = nValue;
         }
         nNPaletteColors++;  // Number is one more than the maximum
 
