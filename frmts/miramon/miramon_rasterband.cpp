@@ -1,7 +1,8 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements MMRRasterband class.
+ * Purpose:  Implements MMRRasterBand class: responsible for converting the
+ *           information stored in an MMRBand into a GDAL RasterBand
  * Author:   Abel Pau
  * 
  ******************************************************************************

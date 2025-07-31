@@ -1,8 +1,9 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements MMRRel class who gets all information from MiraMon
- *           metadata REL files
+ * Purpose:  Implements MMRRel: provides access to the REL file, which
+ *           holds all the necessary metadata to correctly interpret and
+ *           access the associated raw data.
  * Author:   Abel Pau
  *
  ******************************************************************************

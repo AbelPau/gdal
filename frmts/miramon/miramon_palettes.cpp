@@ -1,7 +1,10 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements MMRPalettes class.
+ * Purpose:  Implements MMRPalettes class: handles access to a DBF file
+ *           containing color information, which is then converted into
+ *           either a color table or an attribute table, depending on the
+ *           context.
  * Author:   Abel Pau
  * 
  ******************************************************************************

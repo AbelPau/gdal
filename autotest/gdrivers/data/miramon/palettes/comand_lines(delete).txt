@@ -32,13 +32,14 @@
 
 "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\DBF_nodata_end\uinteger_with_nodataI.rel" "D:\tmp\end_uinteger_with_nodataI.tiff" -if MiraMonRaster
 
+D:\GitHub-repository\gdal\build\apps\Debug\gdal_translate.exe
 
-"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\LinearLogSimbo\LinearSimboI.rel" "D:\tmp\ConinousLinearLogLinearSimbo.tiff" -if MiraMonRaster
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\LinearLogSimbo\LinearSimboI.rel" "D:\tmp\ContinousLinearLogLinearSimbo.tiff" -if MiraMonRaster
 
-"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\LinearLogSimbo\LinearSimboWith0I.rel" "D:\tmp\ConinousLinearLogLinearSimboWith0.tiff" -if MiraMonRaster
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\LinearLogSimbo\LinearSimboWith0I.rel" "D:\tmp\ContinousLinearLogLinearSimboWith0.tiff" -if MiraMonRaster
 
-"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\LinearLogSimbo\LogSimboI.rel" "D:\tmp\ConinousLinearLogLogSimbo.tiff" -if MiraMonRaster
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\LinearLogSimbo\LogSimboI.rel" "D:\tmp\ContinousLinearLogLogSimbo.tiff" -if MiraMonRaster
 
-"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\LinearLogSimbo\LogSimboWith0I.rel" "D:\tmp\ConinousLinearLogLogSimboWith0.tiff" -if MiraMonRaster
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\LinearLogSimbo\LogSimboWith0I.rel" "D:\tmp\ContinousLinearLogLogSimboWith0.tiff" -if MiraMonRaster
 
 

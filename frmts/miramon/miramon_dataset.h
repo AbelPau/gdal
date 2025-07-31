@@ -1,7 +1,8 @@
 /******************************************************************************
  *
  * Project:  MiraMon Raster Driver
- * Purpose:  Implements MMRDataset class 
+ * Purpose:  Implements MMRDataset class: responsible for generating the
+ *           main dataset or the subdatasets as needed.
  * Author:   Abel Pau
  *
  ******************************************************************************

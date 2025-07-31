@@ -1,8 +1,10 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements MMRBand to get informatino from REL file and use in any
- *           moment.
+ * Purpose:  Implements MMRBand class: This class manages the metadata of each
+ *           band to be processed. It is useful for maintaining a list of bands
+ *           and for determining the number of subdatasets that need to be
+ *           generated.
  * Author:   Abel Pau
  *
  ******************************************************************************
@@ -267,6 +269,8 @@ class MMRBand
         static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED);
     MMBytesPerPixel eMMBytesPerPixel = static_cast<MMBytesPerPixel>(
         MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED);
+    int nDataTypeSizeBytes = 0;
+
     bool bIsCompressed = false;
 
     // Min and Max values from metadata:  This value should correspond

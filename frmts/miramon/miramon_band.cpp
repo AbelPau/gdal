@@ -1,7 +1,10 @@
 /******************************************************************************
  *
  * Project:  MiraMonRaster driver
- * Purpose:  Implements MMRBand class.
+ * Purpose:  Implements MMRBand class: This class manages the metadata of each
+ *           band to be processed. It is useful for maintaining a list of bands
+ *           and for determining the number of subdatasets that need to be
+ *           generated.
  * Author:   Abel Pau
  * 
  ******************************************************************************
@@ -184,8 +187,6 @@ CPLErr MMRBand::GetRasterBlock(int /*nXBlock*/, int nYBlock, void *pData,
 
 {
     const int iBlock = nYBlock * nNRowsPerBlock;
-    const int nDataTypeSizeBytes =
-        std::max(1, static_cast<int>(eMMBytesPerPixel));
     const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
 
     // Calculate block offset in case we have spill file. Use predefined
@@ -244,7 +245,7 @@ int MMRBand::UpdateGeoTransform()
 }
 
 /************************************************************************/
-/*           Functions that update class members                        */
+/*                      Other functions                                 */
 /************************************************************************/
 
 // [ATTRIBUTE_DATA:xxxx] or [OVERVIEW:ASPECTES_TECNICS]
@@ -395,6 +396,8 @@ int MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
                  "MiraMonRaster: data type unhandled");
         return 1;
     }
+
+    nDataTypeSizeBytes = std::max(1, static_cast<int>(eMMBytesPerPixel));
     return 0;
 }
 
@@ -670,8 +673,6 @@ CPLErr MMRBand::UncompressRow(void *rowBuffer, size_t nCompressedRawSize)
 
 CPLErr MMRBand::GetBlockData(void *rowBuffer, size_t nCompressedRawSize)
 {
-    const int nDataTypeSizeBytes =
-        std::max(1, static_cast<int>(eMMBytesPerPixel));
     if (eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
     {
         const int nGDALBlockSize = static_cast<int>(ceil(nBlockXSize / 8.0));
@@ -904,8 +905,6 @@ bool MMRBand::FillRowOffsets()
         return false;
     }
 
-    const int nDataTypeSizeBytes =
-        std::max(1, static_cast<int>(eMMBytesPerPixel));
     switch (eMMDataType)
     {
         case MMDataType::DATATYPE_AND_COMPR_BIT:
