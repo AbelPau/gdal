@@ -959,7 +959,7 @@ bool MMRBand::FillRowOffsets()
                             return false;
 
                         if (aFileOffsets[nIRow] -
-                                aFileOffsets[static_cast<size_t>(nIRow) - 1] <=
+                                aFileOffsets[static_cast<size_t>(nIRow) - 1] >=
                             static_cast<vsi_l_offset>(SIZE_MAX))
                             return false;
                     }
