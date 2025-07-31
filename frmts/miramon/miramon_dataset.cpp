@@ -230,7 +230,9 @@ void MMRDataset::ReadProjection()
     if (nResult == 1 || szResult[0] == '\0')
         return;
 
-    m_oSRS.importFromEPSG(atoi(szResult));
+    int nEPSG;
+    if (1 == sscanf(szResult, "%d", &nEPSG))
+        m_oSRS.importFromEPSG(nEPSG);
 
     return;
 }

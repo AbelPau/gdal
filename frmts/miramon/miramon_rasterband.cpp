@@ -509,7 +509,15 @@ CPLErr MMRRasterBand::CreateCategoricalRATFromDBF(CPLString osRELName,
                oAttributteTable.pField[nFieldIndex].BytesPerField);
         pszField[oAttributteTable.pField[nFieldIndex].BytesPerField] = '\0';
         CPLString osCatField = pszField;
-        poDefaultRAT->SetValue(atoi(osCatField), 0, osCatField);
+
+        int nCatField;
+        if (1 != sscanf(osCatField, "%d", &nCatField))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid attribute table: \"%s\"", osDBFName.c_str());
+            return CE_Failure;
+        }
+        poDefaultRAT->SetValue(nCatField, 0, osCatField);
 
         int nIOrderedField = 1;
         for (nIField = 0; nIField < oAttributteTable.nFields; nIField++)
@@ -537,7 +545,13 @@ CPLErr MMRRasterBand::CreateCategoricalRATFromDBF(CPLString osRELName,
                 osField.Recode(CPL_ENC_ISO8859_1, CPL_ENC_UTF8);
             }
 
-            poDefaultRAT->SetValue(atoi(osCatField), nIOrderedField, osField);
+            if (1 != sscanf(osCatField, "%d", &nCatField))
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Invalid attribute table: \"%s\"", osDBFName.c_str());
+                return CE_Failure;
+            }
+            poDefaultRAT->SetValue(nCatField, nIOrderedField, osField);
             nIOrderedField++;
         }
     }
@@ -816,7 +830,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinousMode()
                 {
                     // The value is applied according to the scaling.
                     nIndexColor = static_cast<unsigned short>(
-                        round(dfSlope * nIPaletteColor + dfIntercept));
+                        dfSlope * nIPaletteColor + dfIntercept);
                     if (nIndexColor > Palette->GetNumberOfColors())
                         nIndexColor = static_cast<unsigned short>(
                             Palette->GetNumberOfColors());
@@ -1133,16 +1147,36 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableLinear()
         }
         else
         {
-            poDefaultRAT->SetValue(
-                nIRow, 0,
-                ceil(poBand->GetVisuMin() + dfInterval * nIPaletteColor));
+            if (IsInteger())
+            {
+                poDefaultRAT->SetValue(
+                    nIRow, 0,
+                    ceil(poBand->GetVisuMin() + dfInterval * nIPaletteColor));
+            }
+            else
+            {
+                poDefaultRAT->SetValue(nIRow, 0,
+                                       poBand->GetVisuMin() +
+                                           dfInterval * nIPaletteColor);
+            }
         }
         bFirstIteration = false;
 
-        poDefaultRAT->SetValue(
-            nIRow, 1,
-            ceil(poBand->GetVisuMin() +
-                 dfInterval * (static_cast<double>(nIPaletteColor) + 1)));
+        if (IsInteger())
+        {
+            poDefaultRAT->SetValue(
+                nIRow, 1,
+                ceil(poBand->GetVisuMin() +
+                     dfInterval * (static_cast<double>(nIPaletteColor) + 1)));
+        }
+        else
+        {
+            poDefaultRAT->SetValue(
+                nIRow, 1,
+                poBand->GetVisuMin() +
+                    dfInterval * (static_cast<double>(nIPaletteColor) + 1));
+        }
+
         poDefaultRAT->SetValue(
             nIRow, 2, Palette->GetPaletteColorsValue(0, nIPaletteColor));
         poDefaultRAT->SetValue(
@@ -1154,11 +1188,22 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTableLinear()
     }
 
     // Last interval
-    poDefaultRAT->SetValue(
-        nIRow, 0,
-        ceil(poBand->GetVisuMin() +
-             dfInterval *
-                 (static_cast<double>(Palette->GetNumberOfColors()) - 1)));
+    if (IsInteger())
+    {
+        poDefaultRAT->SetValue(
+            nIRow, 0,
+            ceil(poBand->GetVisuMin() +
+                 dfInterval *
+                     (static_cast<double>(Palette->GetNumberOfColors()) - 1)));
+    }
+    else
+    {
+        poDefaultRAT->SetValue(
+            nIRow, 0,
+            poBand->GetVisuMin() +
+                dfInterval *
+                    (static_cast<double>(Palette->GetNumberOfColors()) - 1));
+    }
     poDefaultRAT->SetValue(nIRow, 1, poBand->GetVisuMax());
     poDefaultRAT->SetValue(
         nIRow, 2, Palette->GetPaletteColorsValue(0, nIPaletteColor - 1));

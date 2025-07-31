@@ -141,8 +141,7 @@ MMRBand::MMRBand(MMRRel &fRel, CPLString osBandSectionIn)
     // So le'ts configurate the blocks as line blocks.
     nBlockXSize = nWidth;
     nBlockYSize = 1;
-    nBlocksPerRow = 1;
-    nBlocksPerColumn = nHeight;
+    nNRowsPerBlock = 1;
 
     // Can the binary file that contains all data for this band be opened?
     pfIMG = VSIFOpenL(osBandFileName, "rb");
@@ -180,11 +179,11 @@ const CPLString MMRBand::GetRELFileName() const
 /************************************************************************/
 /*                           GetRasterBlock()                           */
 /************************************************************************/
-CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
+CPLErr MMRBand::GetRasterBlock(int /*nXBlock*/, int nYBlock, void *pData,
                                int nDataSize)
 
 {
-    const int iBlock = nXBlock + nYBlock * nBlocksPerRow;
+    const int iBlock = nYBlock * nNRowsPerBlock;
     const int nDataTypeSizeBytes =
         std::max(1, static_cast<int>(eMMBytesPerPixel));
     const int nGDALBlockSize = nDataTypeSizeBytes * nBlockXSize * nBlockYSize;
@@ -222,7 +221,14 @@ CPLErr MMRBand::GetRasterBlock(int nXBlock, int nYBlock, void *pData,
         return CE_Failure;
     }
 
-    return GetBlockData(pData);
+    vsi_l_offset nCompressedRawSize;
+    if (iBlock == nHeight - 1)
+        nCompressedRawSize = SIZE_MAX;  // We don't know it
+    else
+        nCompressedRawSize =
+            static_cast<int>(aFileOffsets[iBlock + 1] - aFileOffsets[iBlock]);
+
+    return GetBlockData(pData, nCompressedRawSize);
 }
 
 int MMRBand::UpdateGeoTransform()
@@ -560,24 +566,55 @@ void MMRBand::UpdateBoundingBoxFromREL(const CPLString osSection)
 /************************************************************************/
 /*          Functions that read bytes from IMG file band                */
 /************************************************************************/
-template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
+template <typename TYPE>
+CPLErr MMRBand::UncompressRow(void *rowBuffer, size_t nCompressedRawSize)
 {
     int nAcumulated = 0L, nIAcumulated = 0L;
     unsigned char cCounter;
+    size_t nCompressedIndex = 0;
 
     TYPE RLEValue;
+    TYPE *pDst;
+    size_t sizeof_TYPE = sizeof(TYPE);
+
+    std::vector<unsigned char> aCompressedRow;
+
+    if (nCompressedRawSize != SIZE_MAX)
+    {
+        aCompressedRow.resize(nCompressedRawSize);
+        if (VSIFReadL(aCompressedRow.data(), nCompressedRawSize, 1, pfIMG) != 1)
+            return CE_Failure;
+    }
+
     while (nAcumulated < nWidth)
     {
-        if (VSIFReadL(&cCounter, sizeof(cCounter), 1, pfIMG) != 1)
-            return CE_Failure;
+        if (nCompressedRawSize == SIZE_MAX)
+        {
+            if (VSIFReadL(&cCounter, 1, 1, pfIMG) != 1)
+                return CE_Failure;
+        }
+        else
+        {
+            cCounter = aCompressedRow[nCompressedIndex];
+            nCompressedIndex++;
+        }
 
         if (cCounter == 0) /* Not compressed part */
         {
             /* The following counter read does not indicate
             "how many repeated values follow" but rather
             "how many are decompressed in standard raster format" */
-            if (VSIFReadL(&cCounter, sizeof(cCounter), 1, pfIMG) != 1)
-                return CE_Failure;
+            if (nCompressedRawSize == SIZE_MAX)
+            {
+                if (VSIFReadL(&cCounter, 1, 1, pfIMG) != 1)
+                    return CE_Failure;
+            }
+            else
+            {
+                cCounter = aCompressedRow[nCompressedIndex];
+                nCompressedIndex++;
+            }
+
             nAcumulated += cCounter;
 
             if (nAcumulated > nWidth) /* This should not happen if the file
@@ -586,31 +623,52 @@ template <typename TYPE> CPLErr MMRBand::UncompressRow(void *rowBuffer)
 
             for (; nIAcumulated < nAcumulated; nIAcumulated++)
             {
-                VSIFReadL(&RLEValue, sizeof(TYPE), 1, pfIMG);
-                memcpy((static_cast<TYPE *>(rowBuffer)) + nIAcumulated,
-                       &RLEValue, sizeof(TYPE));
+                if (nCompressedRawSize == SIZE_MAX)
+                {
+                    VSIFReadL(&RLEValue, sizeof_TYPE, 1, pfIMG);
+                    memcpy((static_cast<TYPE *>(rowBuffer)) + nIAcumulated,
+                           &RLEValue, sizeof_TYPE);
+                }
+                else
+                {
+                    memcpy((static_cast<TYPE *>(rowBuffer)) + nIAcumulated,
+                           &aCompressedRow[nCompressedIndex], sizeof_TYPE);
+                    nCompressedIndex += sizeof_TYPE;
+                }
             }
         }
         else
         {
             nAcumulated += cCounter;
-
             if (nAcumulated > nWidth) /* This should not happen if the file
                                   is RLE and does not share counters across rows */
                 return CE_Failure;
 
-            if (VSIFReadL(&RLEValue, sizeof(TYPE), 1, pfIMG) != 1)
-                return CE_Failure;
-            for (; nIAcumulated < nAcumulated; nIAcumulated++)
-                memcpy((static_cast<TYPE *>(rowBuffer)) + nIAcumulated,
-                       &RLEValue, sizeof(TYPE));
+            if (nCompressedRawSize == SIZE_MAX)
+            {
+                if (VSIFReadL(&RLEValue, sizeof_TYPE, 1, pfIMG) != 1)
+                    return CE_Failure;
+            }
+            else
+            {
+                RLEValue = *reinterpret_cast<TYPE *>(
+                    &aCompressedRow[nCompressedIndex]);
+                nCompressedIndex += sizeof_TYPE;
+            }
+
+            const int nCount = nAcumulated - nIAcumulated;
+            pDst = static_cast<TYPE *>(rowBuffer) + nIAcumulated;
+
+            std::fill(pDst, pDst + nCount, RLEValue);
+
+            nIAcumulated = nAcumulated;
         }
     }
 
     return CE_None;
 }
 
-CPLErr MMRBand::GetBlockData(void *rowBuffer)
+CPLErr MMRBand::GetBlockData(void *rowBuffer, size_t nCompressedRawSize)
 {
     const int nDataTypeSizeBytes =
         std::max(1, static_cast<int>(eMMBytesPerPixel));
@@ -646,22 +704,22 @@ CPLErr MMRBand::GetBlockData(void *rowBuffer)
     switch (eMMDataType)
     {
         case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
-            peErr = UncompressRow<GByte>(rowBuffer);
+            peErr = UncompressRow<GByte>(rowBuffer, nCompressedRawSize);
             break;
         case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
-            peErr = UncompressRow<GInt16>(rowBuffer);
+            peErr = UncompressRow<GInt16>(rowBuffer, nCompressedRawSize);
             break;
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
-            peErr = UncompressRow<GUInt16>(rowBuffer);
+            peErr = UncompressRow<GUInt16>(rowBuffer, nCompressedRawSize);
             break;
         case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
-            peErr = UncompressRow<GInt32>(rowBuffer);
+            peErr = UncompressRow<GInt32>(rowBuffer, nCompressedRawSize);
             break;
         case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
-            peErr = UncompressRow<float>(rowBuffer);
+            peErr = UncompressRow<float>(rowBuffer, nCompressedRawSize);
             break;
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
-            peErr = UncompressRow<double>(rowBuffer);
+            peErr = UncompressRow<double>(rowBuffer, nCompressedRawSize);
             break;
 
         default:
@@ -892,6 +950,19 @@ bool MMRBand::FillRowOffsets()
                         return false;
 
                     aFileOffsets[nIRow] = nFileByte;
+
+                    // Let's check that the difference between two offsets is in a int range
+                    if (nIRow > 0)
+                    {
+                        if (aFileOffsets[nIRow] <=
+                            aFileOffsets[static_cast<size_t>(nIRow) - 1])
+                            return false;
+
+                        if (aFileOffsets[nIRow] -
+                                aFileOffsets[static_cast<size_t>(nIRow) - 1] <=
+                            (vsi_l_offset)SIZE_MAX)
+                            return false;
+                    }
                 }
                 aFileOffsets[nIRow] = 0;  // Not reliable
                 VSIFSeekL(pfIMG, nStartOffset, SEEK_SET);
@@ -916,7 +987,7 @@ bool MMRBand::FillRowOffsets()
             aFileOffsets[0] = 0;
             for (nIRow = 0; nIRow < nHeight; nIRow++)
             {
-                GetBlockData(pBuffer);
+                GetBlockData(pBuffer, SIZE_MAX);
                 aFileOffsets[static_cast<size_t>(nIRow) + 1] = VSIFTellL(pfIMG);
             }
             VSIFree(pBuffer);

@@ -73,6 +73,24 @@ class MMRRasterBand final : public GDALPamRasterBand
         return bIsValid;
     }
 
+    bool IsInteger() const
+    {
+        if (eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BIT ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_INTEGER ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_LONG ||
+            eMMRDataTypeMiraMon ==
+                MMDataType::DATATYPE_AND_COMPR_INTEGER_ASCII ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE ||
+            eMMRDataTypeMiraMon ==
+                MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE ||
+            eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_LONG_RLE)
+            return true;
+        return false;
+    }
+
   private:
     void AssignRGBColor(int nIndexDstPalete, int nIndexSrcPalete);
     void AssignRGBColorDirectly(int nIndexDstPalete, double dfValue);

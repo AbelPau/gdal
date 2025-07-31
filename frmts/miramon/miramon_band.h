@@ -227,14 +227,15 @@ class MMRBand
     void UpdateMinMaxVisuValuesFromREL(const CPLString osSection);
     void UpdateFriendlyDescriptionFromREL(const CPLString osSection);
 
-    template <typename TYPE> CPLErr UncompressRow(void *rowBuffer);
-    CPLErr GetBlockData(void *rowBuffer);
+    template <typename TYPE>
+    CPLErr UncompressRow(void *rowBuffer, size_t nCompressedRawSize);
+    CPLErr GetBlockData(void *rowBuffer, size_t nCompressedRawSize);
     int PositionAtStartOfRowOffsetsInFile();
     bool FillRowOffsets();
 
     bool bIsValid = false;  // Determines if the created object is valid or not.
 
-    VSILFILE *pfIMG = nullptr;  // Point to IMG file
+    VSILFILE *pfIMG = nullptr;  // Point to IMG file (RAW data)
     MMRRel *pfRel = nullptr;    // Rel where metadata is readed from
 
     int nBlockXSize = 1;
@@ -243,8 +244,7 @@ class MMRBand
     int nWidth = 0;   // Number of columns
     int nHeight = 0;  // Number of rows
 
-    int nBlocksPerRow = 1;
-    int nBlocksPerColumn = 1;
+    int nNRowsPerBlock = 1;
 
     // indexed-RLE format
     std::vector<vsi_l_offset> aFileOffsets{};

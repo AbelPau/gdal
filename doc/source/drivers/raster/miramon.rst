@@ -3,13 +3,11 @@
 MiraMon Raster
 ==============
 
-.. versionadded:: 3.12
-
 .. shortname:: MiraMonRaster
 
 .. built_in_by_default::
 
-This driver is capable of reading raster files in the MiraMon format.
+This driver is capable of reading raster files in the MiraMon format. A writing version is expected.
 
 A `look-up table of MiraMon <https://www.miramon.cat/help/eng/mm32/AP6.htm>`__ and
 `EPSG <https://epsg.org/home.html>`__ Spatial Reference Systems is used to match
@@ -50,6 +48,22 @@ The following are the main characteristics of a MiraMon raster dataset band:
   - *Real*: 4 bytes, floating-point
   - *Double*: 8 bytes, double precision floating-point
 
+Color Table
+-----------
+
+MiraMon raster bands may include an internal color table.  
+If present, it will be exposed through the ``GetRasterColorTable()`` method.  
+The color table is currently read-only and stored in a MiraMon-specific format.  
+The driver automatically makes it accessible to GDAL-based tools and libraries.
+
+Attribute Table
+---------------
+
+MiraMon raster bands may also include an attribute table.  
+If available, it will be exposed as a GDAL Raster Attribute Table (RAT) via ``GetDefaultRAT()``.  
+This allows applications to retrieve additional metadata associated with each raster value, such as class names  or descriptions.  
+The attribute table is also read-only and stored in a format specific to MiraMon, but fully accessible through the driver.
+
 Encoding
 --------
 
@@ -57,6 +71,15 @@ When reading MiraMon DBF files, the code page setting in the `.dbf` header is us
 regardless of whether the original encoding is ANSI or OEM.
 
 REL files are always encoded in ANSI.
+
+Metadata
+--------
+
+Metadata from MiraMon raster datasets are exposed through the "MIRAMON" domain.  
+Only a subset of the metadata is used by the driver to interpret the dataset (e.g., georeferencing, data type, etc.), but all other metadata entries are preserved and accessible via ``GetMetadata("MIRAMON")``.
+
+This allows applications to access additional information embedded in the original dataset, even if it is not required for reading or displaying the data. Metadata is read-only and cannot be modified through GDAL.
+
 
 Open options
 ------------

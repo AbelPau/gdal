@@ -384,10 +384,12 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
             CPLString osField = pszField;
             osField.replaceAll(" ", "");
 
-            nIPaletteIndex = atoi(osField);
-
-            AssignColorFromDBF(oColorTable, pzsRecord, pszField, nRIndex,
-                               nGIndex, nBIndex, nIPaletteIndex);
+            if (1 == sscanf(osField, "%d", &nIPaletteIndex))
+            {
+                nIPaletteIndex = atoi(osField);
+                AssignColorFromDBF(oColorTable, pzsRecord, pszField, nRIndex,
+                                   nGIndex, nBIndex, nIPaletteIndex);
+            }
         }
     }
     else
@@ -600,9 +602,37 @@ CPLErr MMRPalettes::UpdateConstantColor()
                      "Invalid constant color: \"%s\"", pfRel->GetRELNameChar());
             return CE_Failure;
         }
-        SetConstantColorRGB(static_cast<short>(atoi(papszTokens[0])),
-                            static_cast<short>(atoi(papszTokens[1])),
-                            static_cast<short>(atoi(papszTokens[2])));
+
+        int nIColor0;
+        if (1 != sscanf(papszTokens[0], "%d", &nIColor0))
+        {
+            CSLDestroy(papszTokens);
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid constant color: \"%s\"", pfRel->GetRELNameChar());
+            return CE_Failure;
+        }
+
+        int nIColor1;
+        if (1 != sscanf(papszTokens[1], "%d", &nIColor1))
+        {
+            CSLDestroy(papszTokens);
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid constant color: \"%s\"", pfRel->GetRELNameChar());
+            return CE_Failure;
+        }
+
+        int nIColor2;
+        if (1 != sscanf(papszTokens[2], "%d", &nIColor2))
+        {
+            CSLDestroy(papszTokens);
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid constant color: \"%s\"", pfRel->GetRELNameChar());
+            return CE_Failure;
+        }
+
+        SetConstantColorRGB(static_cast<short>(nIColor0),
+                            static_cast<short>(nIColor1),
+                            static_cast<short>(nIColor2));
 
         CSLDestroy(papszTokens);
     }
