@@ -28,8 +28,7 @@ More information is available in the `public specification <https://www.miramon.
 
 By specifying either the name of the `.rel` metadata file or the name of any `.img` band file, the driver will automatically use the associated `.rel` file.
 
-- **REL file**: This metadata file governs how all bands are interpreted and accessed. It contains metadata including band names, number of rows and columns, data type, compression information (either global or per band) and others. So, a MiraMon dataset can include multiple bands, all linked through a single `.rel` file. Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be taken into account. If a layer contains an old *.rel* format file (used in legacy datasets),
-a warning will be issued explaining how to convert it into the modern *.rel 4* format. The following are the main characteristics of a MiraMon raster dataset band:
+- **REL file**: This metadata file governs how all bands are interpreted and accessed. It contains metadata including band names, number of rows and columns, data type, compression information (either global or per band) and others. So, a MiraMon dataset can include multiple bands, all linked through a single `.rel` file. Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be taken into account. If a layer contains an old *.rel* format file (used in legacy datasets), a warning will be issued explaining how to convert it into the modern *.rel 4* format. The following are the main characteristics of a MiraMon raster dataset band:
 
 - **IMG file**: Stores the raw raster data. The data type may vary:
   - *Bit*: 1 bit. Range: 0 or 1. Converted to byte GDAL type.
