@@ -7,14 +7,11 @@ MiraMon Raster
 
 .. built_in_by_default::
 
-This driver is capable of reading raster files in the MiraMon format. A writing version is expected.
+This driver is capable of reading raster files in the MiraMon format. A writing version is expected soon.
 
 A `look-up table of MiraMon <https://www.miramon.cat/help/eng/mm32/AP6.htm>`__ and
-`EPSG <https://epsg.org/home.html>`__ Spatial Reference Systems is used to match
-identifiers between the two systems.
-
-If a layer contains an old *.rel* format file (used in legacy datasets),
-a warning will be issued explaining how to convert it into the modern *.rel 4* format.
+`EPSG <https://epsg.org/home.html>`__ Spatial Reference Systems allows matching
+identifiers in both systems.
 
 Driver capabilities
 -------------------
@@ -30,14 +27,15 @@ The MiraMon `.img` format is a binary raster format with rich metadata stored in
 More information is available in the `public specification <https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf>`__.
 
 By specifying either the name of the `.rel` metadata file or the name of any `.img` band file, the driver will automatically use the associated `.rel` file.
-This metadata file governs how all bands are interpreted and accessed.
 
-- **REL file**: Contains metadata including band names, number of rows and columns, data type, and compression information (either global or per band). A MiraMon dataset can include multiple bands, all linked through a single `.rel` file. Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be taken into account.
+- **REL file**: This metadata file governs how all bands are interpreted and accessed. It contains metadata including band names, number of rows and columns, data type, compression information (either global or per band) and others. So, a MiraMon dataset can include multiple bands, all linked through a single `.rel` file. Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be taken into account. If a layer contains an old *.rel* format file (used in legacy datasets),
+a warning will be issued explaining how to convert it into the modern *.rel 4* format. 
 
 The following are the main characteristics of a MiraMon raster dataset band:
 
 - **IMG file**: Stores the raw raster data. The data type may vary:
 
+  - *Bit*: 1 bit. Range: 0 or 1. Converted to byte GDAL type.
   - *Byte*: 1 byte, unsigned. Range: 0 to 255
   - *Short*: 2 bytes, signed. Range: -32,768 to 32,767
   - *UShort*: 2 bytes, unsigned. Range: 0 to 65,535
@@ -51,18 +49,24 @@ The following are the main characteristics of a MiraMon raster dataset band:
 Color Table
 -----------
 
-MiraMon raster bands may include an internal color table.  
+MiraMon raster bands may include a color table in dBASE (DBF) format, or in `extended DBF format <https://www.miramon.cat/new_note/eng/notes/DBF_estesa.pdf>`__, if necessary.
 If present, it will be exposed through the ``GetRasterColorTable()`` method.  
-The color table is currently read-only and stored in a MiraMon-specific format.  
-The driver automatically makes it accessible to GDAL-based tools and libraries.
+More information is available in the `public specification <https://www.miramon.cat/help/eng/mm32/ap4.htm>`__.
 
 Attribute Table
 ---------------
 
-MiraMon raster bands may also include an attribute table.  
+MiraMon raster bands may also include an attribute table in the same format than color table..  
 If available, it will be exposed as a GDAL Raster Attribute Table (RAT) via ``GetDefaultRAT()``.  
 This allows applications to retrieve additional metadata associated with each raster value, such as class names  or descriptions.  
-The attribute table is also read-only and stored in a format specific to MiraMon, but fully accessible through the driver.
+
+Metadata
+--------
+
+Metadata from MiraMon raster datasets are exposed through the "MIRAMON" domain.  
+Only a subset of the metadata is used by the driver to interpret the dataset (e.g., georeferencing, data type, etc.), but all other metadata entries are preserved and accessible via ``GetMetadata("MIRAMON")``.
+
+This allows applications to access additional information embedded in the original dataset, even if it is not required for reading or displaying the data.
 
 Encoding
 --------
@@ -71,15 +75,6 @@ When reading MiraMon DBF files, the code page setting in the `.dbf` header is us
 regardless of whether the original encoding is ANSI or OEM.
 
 REL files are always encoded in ANSI.
-
-Metadata
---------
-
-Metadata from MiraMon raster datasets are exposed through the "MIRAMON" domain.  
-Only a subset of the metadata is used by the driver to interpret the dataset (e.g., georeferencing, data type, etc.), but all other metadata entries are preserved and accessible via ``GetMetadata("MIRAMON")``.
-
-This allows applications to access additional information embedded in the original dataset, even if it is not required for reading or displaying the data. Metadata is read-only and cannot be modified through GDAL.
-
 
 Open options
 ------------
