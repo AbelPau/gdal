@@ -891,6 +891,24 @@ init_list_attribute_tables = [
         },
     ),
     (
+        "data/miramon/palettes/Categorical/ThematicNoREL/MUCSC_2002_30_m_v_6_retI.rel",
+        1,  # band index
+        {
+            (1, "CODI_USCOB"): 1,
+            (1, "DESC_USCOB"): "Aigües marines",
+            (1, "CAMPEXTRA1"): "extra1",
+            (1, "CAMPEXTRA2"): 2,
+            (1, "CAMPEXTRA3"): "20250110",
+            (1, "CAMPEXTRA4"): "T",
+            (2, "CODI_USCOB"): 2,
+            (2, "DESC_USCOB"): "Aigües continentals",
+            (2, "CAMPEXTRA1"): "extra11",
+            (2, "CAMPEXTRA2"): 3,
+            (2, "CAMPEXTRA3"): "20250710",
+            (2, "CAMPEXTRA4"): "F",
+        },
+    ),
+    (
         "data/miramon/palettes/Categorical/ThematicNoDataMiddle/MUCSC_2002_30_m_v_6_retI.rel",
         1,  # band index
         {
@@ -1006,6 +1024,32 @@ init_list_attribute_tables = [
         "data/miramon/all_nodata/nodataI.rel",
         1,  # band index
         None,
+    ),
+    (
+        "data/miramon/palettes/Continous/LinearLogSimbo/LinearSimboWith0I.rel",
+        1,  # band index
+        {
+            (0, "MIN"): 0,
+            (0, "MAX"): 1000000,
+            (0, "Red"): 81,
+            (0, "Green"): 49,
+            (0, "Blue"): 0,
+            (1, "MIN"): 1000000,
+            (1, "MAX"): 2000000,
+            (1, "Red"): 129,
+            (1, "Green"): 78,
+            (1, "Blue"): 0,
+            (7, "MIN"): 7000000,
+            (7, "MAX"): 8000000,
+            (7, "Red"): 255,
+            (7, "Green"): 202,
+            (7, "Blue"): 0,
+            (9, "MIN"): 10000000,
+            (9, "MAX"): 10000000,
+            (9, "Red"): 255,
+            (9, "Green"): 202,
+            (9, "Blue"): 0,
+        },
     ),
 ]
 
