@@ -651,9 +651,13 @@ CPLErr MMRBand::UncompressRow(void *rowBuffer, size_t nCompressedRawSize)
             }
             else
             {
-                RLEValue = *reinterpret_cast<TYPE *>(
-                    &aCompressedRow[nCompressedIndex]);
-                nCompressedIndex += sizeof_TYPE;
+                //RLEValue = *reinterpret_cast<TYPE *>(
+                //    &aCompressedRow[nCompressedIndex]);
+                //nCompressedIndex += sizeof_TYPE;
+
+                memcpy(&RLEValue, &aCompressedRow[nCompressedIndex],
+                       sizeof(TYPE));
+                nCompressedIndex += sizeof(TYPE);
             }
 
             const int nCount = nAcumulated - nIAcumulated;
