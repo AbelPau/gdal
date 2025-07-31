@@ -221,7 +221,7 @@ CPLErr MMRBand::GetRasterBlock(int /*nXBlock*/, int nYBlock, void *pData,
         return CE_Failure;
     }
 
-    vsi_l_offset nCompressedRawSize;
+    size_t nCompressedRawSize;
     if (iBlock == nHeight - 1)
         nCompressedRawSize = SIZE_MAX;  // We don't know it
     else

@@ -46,6 +46,7 @@ The following are the main characteristics of a MiraMon raster dataset band:
   - *Real*: 4 bytes, floating-point
   - *Double*: 8 bytes, double precision floating-point
 
+
 Color Table
 -----------
 
