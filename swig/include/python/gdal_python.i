@@ -388,6 +388,64 @@ static void readraster_releasebuffer(CPLErr eErr,
 
   LogicalNot = logical_not
 
+  def abs(band):
+      """Return the absolute value (or module for complex data type) of a raster band or a numpy array.
+
+         The resulting band is lazily evaluated.
+      """
+      band = Band._get_as_band_if_possible(band)
+      return _gdal.Band_UnaryOp(band, GRAUO_ABS)._add_parent_references([band])
+
+  Abs = abs
+
+  def sqrt(band):
+      """Return the square root of a raster band or a numpy array.
+
+         The resulting band is lazily evaluated.
+      """
+      band = Band._get_as_band_if_possible(band)
+      return _gdal.Band_UnaryOp(band, GRAUO_SQRT)._add_parent_references([band])
+
+  Sqrt = sqrt
+
+  def log10(band):
+      """Return the logarithm base 10 of a raster band or a numpy array.
+
+         The resulting band is lazily evaluated.
+      """
+      band = Band._get_as_band_if_possible(band)
+      return _gdal.Band_UnaryOp(band, GRAUO_LOG10)._add_parent_references([band])
+
+  Log10 = log10
+
+  def log(band):
+      """Return the natural logarithm of a raster band or a numpy array.
+
+         The resulting band is lazily evaluated.
+      """
+      band = Band._get_as_band_if_possible(band)
+      return _gdal.Band_UnaryOp(band, GRAUO_LOG)._add_parent_references([band])
+
+  Log = log
+
+
+  def pow(x1, x2):
+      """Raise x1 to the power of x2 between two objects, such objects being
+         a raster band a numpy array or a constant
+
+         The resulting band is lazily evaluated.
+      """
+      x1 = Band._get_as_band_if_possible(x1)
+      x2 = Band._get_as_band_if_possible(x2)
+      if isinstance(x1, Band) and isinstance(x2, Band):
+          return _gdal.Band_BinaryOpBand(x1, GRABO_POW, x2)._add_parent_references([x1, x2])
+      elif isinstance(x1, Band):
+          return _gdal.Band_BinaryOpDouble(x1, GRABO_POW, x2)._add_parent_references([x1])
+      else:
+          return _gdal.Band_BinaryOpDoubleToBand(x1, GRABO_POW, x2)._add_parent_references([x2])
+
+  Pow = pow
+
   class Window:
       def __init__(self, xoff, yoff, xsize, ysize):
           self.data = [xoff, yoff, xsize, ysize]
@@ -2746,10 +2804,10 @@ def Open(self, utf8_path, update=False):
        The path to open
     update : bool, default = False
        Whether to open the dataset in update mode.
-       
+
     Returns
     -------
-    Dataset, or None on error 
+    Dataset, or None on error
     """
     return OpenEx(utf8_path,
                   OF_VECTOR | (OF_UPDATE if update else 0),
@@ -6228,16 +6286,23 @@ class VSIFile(BytesIO):
         if not hasattr(self, "has_run"):
             raise RuntimeError("Algorithm.Run() must be called before")
 
-        count_output = 0
-        val = None
+        output_args = []
+        output_args_set = []
         for name in self.GetArgNames():
             arg = self.GetArg(name)
             if arg.IsOutput():
-                count_output += 1
-                if count_output == 2:
-                    raise RuntimeError("Cannot use 'output' method on this algorithm as it supports multiple output arguments. Use 'Outputs' (plural) insead")
-                val = self._get_arg_value(arg, parse_json)
-        return val
+                output_args.append(arg)
+                if arg.IsExplicitlySet():
+                    output_args_set.append(arg)
+
+        if len(output_args) == 1:
+            return self._get_arg_value(output_args[0], parse_json)
+        elif len(output_args_set) == 1:
+            return self._get_arg_value(output_args_set[0], parse_json)
+        elif len(output_args) >= 2:
+            raise RuntimeError("Cannot use 'output' method on this algorithm as it supports multiple output arguments. Use 'Outputs' (plural) insead")
+        else:
+            return None
 
 
     def Outputs(self, parse_json=True):

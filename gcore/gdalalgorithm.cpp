@@ -3767,10 +3767,12 @@ GDALAlgorithm::AddOpenOptionsArg(std::vector<std::string> *pValue,
                 }
             }
 
-            if (inputArg && inputArg->GetType() == GAAT_DATASET)
+            const auto AddSuggestions =
+                [datasetType, &currentValue,
+                 &oRet](const GDALArgDatasetValue &datasetValue)
             {
                 auto poDM = GetGDALDriverManager();
-                auto &datasetValue = inputArg->Get<GDALArgDatasetValue>();
+
                 const auto &osDSName = datasetValue.GetName();
                 const std::string osExt = CPLGetExtensionSafe(osDSName.c_str());
                 if (!osExt.empty())
@@ -3806,7 +3808,7 @@ GDALAlgorithm::AddOpenOptionsArg(std::vector<std::string> *pValue,
                                                 datasetType, currentValue,
                                                 oRet))
                                         {
-                                            return oRet;
+                                            return;
                                         }
                                         break;
                                     }
@@ -3815,6 +3817,19 @@ GDALAlgorithm::AddOpenOptionsArg(std::vector<std::string> *pValue,
                         }
                     }
                 }
+            };
+
+            if (inputArg && inputArg->GetType() == GAAT_DATASET)
+            {
+                auto &datasetValue = inputArg->Get<GDALArgDatasetValue>();
+                AddSuggestions(datasetValue);
+            }
+            else if (inputArg && inputArg->GetType() == GAAT_DATASET_LIST)
+            {
+                auto &datasetValues =
+                    inputArg->Get<std::vector<GDALArgDatasetValue>>();
+                if (datasetValues.size() == 1)
+                    AddSuggestions(datasetValues[0]);
             }
 
             return oRet;
@@ -5004,12 +5019,15 @@ GDALAlgorithm::AddPixelFunctionArgsArg(std::vector<std::string> *pValue,
 /*                  GDALAlgorithm::AddProgressArg()                     */
 /************************************************************************/
 
-GDALInConstructionAlgorithmArg &GDALAlgorithm::AddProgressArg()
+void GDALAlgorithm::AddProgressArg()
 {
-    return AddArg("progress", 0, _("Display progress bar"),
-                  &m_progressBarRequested)
+    AddArg("quiet", 'q', _("Quiet mode (no progress bar)"), &m_quiet)
         .SetOnlyForCLI()
-        .SetCategory(GAAC_COMMON);
+        .SetCategory(GAAC_COMMON)
+        .AddAction([this]() { m_progressBarRequested = false; });
+
+    AddArg("progress", 0, _("Display progress bar"), &m_progressBarRequested)
+        .SetHidden();
 }
 
 /************************************************************************/
