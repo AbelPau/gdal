@@ -8,6 +8,8 @@
 
 "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Categorical\ThematicNoDataEnd\MUCSC_2002_30_m_v_6_retI.rel" "D:\tmp\Categorical_Thematic_MUCSC_2002_30_m_v_6_ret.tiff" -if MiraMonRaster
 
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Categorical\ThematicRealNoData\MUCSC_2002_30_m_v_6_retI.rel" "D:\tmp\Categorical_Thematic_RealNodata_MUCSC_2002_30_m_v_6_ret.tiff" -if MiraMonRaster
+
 "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Categorical\ThematicNoREL\MUCSC_2002_30_m_v_6_retI.rel" "D:\tmp\Categorical_Thematic_NO_REL_MUCSC_2002_30_m_v_6_ret.tiff" -if MiraMonRaster
 
 "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Categorical\ThematicLessColors\MUCSC_2002_30_m_v_6_retI.rel" "D:\tmp\Categorical_Thematic_LessColors_MUCSC_2002_30_m_v_6_ret.tiff" -if MiraMonRaster

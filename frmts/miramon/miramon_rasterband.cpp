@@ -261,6 +261,15 @@ GDALColorTable *MMRRasterBand::GetColorTable()
 }
 
 /************************************************************************/
+/*                       GetColorInterpretation()                       */
+/************************************************************************/
+
+GDALColorInterp MMRRasterBand::GetColorInterpretation()
+{
+    return GCI_PaletteIndex;
+}
+
+/************************************************************************/
 /*                           GetDefaultRAT()                            */
 /************************************************************************/
 
@@ -321,8 +330,7 @@ CPLErr MMRRasterBand::FillRATFromPalette()
     }
 
     // Let's create and fill the RAT
-    if (CE_None !=
-        CreateCategoricalRATFromDBF(osRELName, osDBFName, osAssociateRel))
+    if (CE_None != CreateRATFromDBF(osRELName, osDBFName, osAssociateRel))
     {
         CSLDestroy(papszTokens);
         return CE_Failure;
@@ -350,9 +358,8 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     return FromPaletteToAttributeTable();
 }
 
-CPLErr MMRRasterBand::CreateCategoricalRATFromDBF(CPLString osRELName,
-                                                  CPLString osDBFName,
-                                                  CPLString osAssociateRel)
+CPLErr MMRRasterBand::CreateRATFromDBF(CPLString osRELName, CPLString osDBFName,
+                                       CPLString osAssociateRel)
 {
     // If there is no palette, let's get one
     if (!Palette)

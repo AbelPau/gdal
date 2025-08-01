@@ -27,10 +27,11 @@ MMRPalettes::MMRPalettes(MMRRel &fRel, CPLString osBandSectionIn)
                             os_Color_Const);
 
     if (EQUAL(os_Color_Const, "1"))
+    {
         bIsConstantColor = true;
-
-    if (CE_None != UpdateConstantColor())
-        return;  // The constant color indicated is wrong
+        if (CE_None != UpdateConstantColor())
+            return;  // The constant color indicated is wrong
+    }
 
     CPLString os_Color_Paleta;
 
@@ -237,77 +238,11 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     }
 
     // Guessing or reading the number of colors of the palette.
-    MM_EXT_DBF_N_RECORDS nIRecord;
     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = oColorTable.BytesPerRecord + 1;
     char *pzsRecord = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
     char *pszField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
 
-    if (bIsCategorical)
-    {
-        // In categorical mode, the maximum CLAUSIMBOL value is the last color to read.
-        int nValue;
-        nNPaletteColors = 0;
-
-        VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset,
-                  SEEK_SET);
-        for (nIRecord = 0; nIRecord < oColorTable.nRecords; nIRecord++)
-        {
-            if (oColorTable.BytesPerRecord !=
-                VSIFReadL(pzsRecord, sizeof(unsigned char),
-                          oColorTable.BytesPerRecord, oColorTable.pfDataBase))
-            {
-                CPLError(CE_Failure, CPLE_AssertionFailed,
-                         "Invalid color table:"
-                         "\"%s\".",
-                         osColorTableFileName.c_str());
-
-                VSIFree(pszField);
-                VSIFree(pzsRecord);
-                VSIFCloseL(oColorTable.pfDataBase);
-                MM_ReleaseMainFields(&oColorTable);
-                return CE_Failure;
-            }
-
-            memcpy(pszField,
-                   pzsRecord + oColorTable.pField[nClauSimbol].AccumulatedBytes,
-                   oColorTable.pField[nClauSimbol].BytesPerField);
-            pszField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
-            CPLString osField = pszField;
-            osField.replaceAll(" ", "");
-
-            if (1 != sscanf(osField, "%d", &nValue))
-            {
-                CPLError(CE_Failure, CPLE_AssertionFailed,
-                         "Invalid color table:"
-                         "\"%s\".",
-                         osColorTableFileName.c_str());
-
-                VSIFree(pszField);
-                VSIFree(pzsRecord);
-                VSIFCloseL(oColorTable.pfDataBase);
-                MM_ReleaseMainFields(&oColorTable);
-                return CE_Failure;
-            }
-
-            if (osField.empty())
-                bHasNodata = true;
-            else if (nNPaletteColors < nValue)
-                nNPaletteColors = nValue;
-        }
-        nNPaletteColors++;  // Number is one more than the maximum
-
-        // If there is nodata color, it has to be computed
-        if (bHasNodata)
-        {
-            nNoDataPaletteIndex = nNPaletteColors;
-            nNPaletteColors++;
-        }
-    }
-    else
-    {
-        // In continous mode the number of the records is the number of te colors.
-        nNPaletteColors = static_cast<int>(oColorTable.nRecords);  // Safe cast
-    }
+    nNPaletteColors = static_cast<int>(oColorTable.nRecords);  // Safe cast
 
     // Checking the size of the palette.
     if (nNPaletteColors < 0 || nNPaletteColors > 65536)
@@ -344,100 +279,45 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(CPLString os_Color_Paleta_DBF)
     }
 
     VSIFSeekL(oColorTable.pfDataBase, oColorTable.FirstRecordOffset, SEEK_SET);
-    if (bIsCategorical)
+    /*
+        Each record's CLAUSIMBOL field doesn't match a pixel value present in the raster,
+        and it's used only for discovering nodata value (blanc value).
+        The list of values is used to map every value in a color using:
+            - Direct assignation: mode used in categorical modes but possible in continous.
+            - Linear scaling
+            - Logarithmic scaling
+        */
+    for (int nIPaletteColors = 0; nIPaletteColors < nNPaletteColors;
+         nIPaletteColors++)
     {
-        // Each record's CLAUSIMBOL field matches a pixel value present in the raster,
-        // enabling a direct mapping between raster values and color entries.
-        //
-        // Inicialization to black (semi-transparent)
-        int nIPaletteColors;
-        for (nIPaletteColors = 0; nIPaletteColors < nNPaletteColors;
-             nIPaletteColors++)
+        if (oColorTable.BytesPerRecord !=
+            VSIFReadL(pzsRecord, sizeof(unsigned char),
+                      oColorTable.BytesPerRecord, oColorTable.pfDataBase))
         {
-            aadfPaletteColors[0][nIPaletteColors] = sDefaultColorRGB.c1;
-            aadfPaletteColors[1][nIPaletteColors] = sDefaultColorRGB.c2;
-            aadfPaletteColors[2][nIPaletteColors] = sDefaultColorRGB.c3;
-            aadfPaletteColors[3][nIPaletteColors] = sDefaultColorRGB.c4;
+            CPLError(CE_Failure, CPLE_AppDefined, "Invalid color table: \"%s\"",
+                     osColorTableFileName.c_str());
+            VSIFree(pszField);
+            VSIFree(pzsRecord);
+            VSIFCloseL(oColorTable.pfDataBase);
+            MM_ReleaseMainFields(&oColorTable);
+            return CE_Failure;
         }
 
-        // Getting the indexs of the colors and assigning to aadfPaletteColors
-        int nIPaletteIndex;
-        for (nIRecord = 0; nIRecord < oColorTable.nRecords; nIRecord++)
+        // Nodata identification
+        memcpy(pszField,
+               pzsRecord + oColorTable.pField[nClauSimbol].AccumulatedBytes,
+               oColorTable.pField[nClauSimbol].BytesPerField);
+        pszField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
+        CPLString osField = pszField;
+        osField.replaceAll(" ", "");
+        if (osField.empty())  // Nodata value
         {
-            if (oColorTable.BytesPerRecord !=
-                VSIFReadL(pzsRecord, sizeof(unsigned char),
-                          oColorTable.BytesPerRecord, oColorTable.pfDataBase))
-            {
-                CPLError(CE_Failure, CPLE_AssertionFailed,
-                         "Invalid color table:"
-                         "\"%s\".",
-                         osColorTableFileName.c_str());
-                VSIFree(pszField);
-                VSIFree(pzsRecord);
-                VSIFCloseL(oColorTable.pfDataBase);
-                MM_ReleaseMainFields(&oColorTable);
-                return CE_Failure;
-            }
-
-            // Nodata identification
-            memcpy(pszField,
-                   pzsRecord + oColorTable.pField[nClauSimbol].AccumulatedBytes,
-                   oColorTable.pField[nClauSimbol].BytesPerField);
-            pszField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
-            CPLString osField = pszField;
-            osField.replaceAll(" ", "");
-
-            if (1 == sscanf(osField, "%d", &nIPaletteIndex))
-            {
-                nIPaletteIndex = atoi(osField);
-                AssignColorFromDBF(oColorTable, pzsRecord, pszField, nRIndex,
-                                   nGIndex, nBIndex, nIPaletteIndex);
-            }
+            bHasNodata = true;
+            nNoDataPaletteIndex = nIPaletteColors;
         }
-    }
-    else
-    {
-        /*
-            Each record's CLAUSIMBOL field doesn't match a pixel value present in the raster,
-            and it's used only for discovering nodata value (blanc value).
-            The list of values is used to map every value in a color using:
-                - Direct assignation: mode used in categorical modes but possible in continous.
-                - Linear scaling
-                - Logarithmic scaling
-         */
-        for (int nIPaletteColors = 0; nIPaletteColors < nNPaletteColors;
-             nIPaletteColors++)
-        {
-            if (oColorTable.BytesPerRecord !=
-                VSIFReadL(pzsRecord, sizeof(unsigned char),
-                          oColorTable.BytesPerRecord, oColorTable.pfDataBase))
-            {
-                CPLError(CE_Failure, CPLE_AppDefined,
-                         "Invalid color table: \"%s\"",
-                         osColorTableFileName.c_str());
-                VSIFree(pszField);
-                VSIFree(pzsRecord);
-                VSIFCloseL(oColorTable.pfDataBase);
-                MM_ReleaseMainFields(&oColorTable);
-                return CE_Failure;
-            }
 
-            // Nodata identification
-            memcpy(pszField,
-                   pzsRecord + oColorTable.pField[nClauSimbol].AccumulatedBytes,
-                   oColorTable.pField[nClauSimbol].BytesPerField);
-            pszField[oColorTable.pField[nClauSimbol].BytesPerField] = '\0';
-            CPLString osField = pszField;
-            osField.replaceAll(" ", "");
-            if (osField.empty())  // Nodata value
-            {
-                bHasNodata = true;
-                nNoDataPaletteIndex = nIPaletteColors;
-            }
-
-            AssignColorFromDBF(oColorTable, pzsRecord, pszField, nRIndex,
-                               nGIndex, nBIndex, nIPaletteColors);
-        }
+        AssignColorFromDBF(oColorTable, pzsRecord, pszField, nRIndex, nGIndex,
+                           nBIndex, nIPaletteColors);
     }
 
     VSIFree(pszField);

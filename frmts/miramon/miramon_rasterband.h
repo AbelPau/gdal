@@ -43,6 +43,7 @@ class MMRRasterBand final : public GDALPamRasterBand
     ~MMRRasterBand();
 
     CPLErr IReadBlock(int, int, void *) override;
+    GDALColorInterp GetColorInterpretation() override;
     GDALColorTable *GetColorTable() override;
     double GetMinimum(int *pbSuccess = nullptr) override;
     double GetMaximum(int *pbSuccess = nullptr) override;
@@ -105,8 +106,8 @@ class MMRRasterBand final : public GDALPamRasterBand
     CPLErr GetRATName(char *papszToken, CPLString &osRELName,
                       CPLString &osDBFName, CPLString &osAssociateREL);
     CPLErr UpdateAttributeColorsFromPalette();
-    CPLErr CreateCategoricalRATFromDBF(CPLString osRELName, CPLString osDBFName,
-                                       CPLString osAssociateRel);
+    CPLErr CreateRATFromDBF(CPLString osRELName, CPLString osDBFName,
+                            CPLString osAssociateRel);
 
     CPLErr AssignUniformColorTable();
     CPLErr FromPaletteToColorTableCategoricalMode();

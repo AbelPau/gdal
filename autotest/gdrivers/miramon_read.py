@@ -580,6 +580,18 @@ init_list_color_tables = [
         "25831",
     ),
     (
+        "data/miramon/several_errors/WrongPalette2I.rel",
+        1,  # band index
+        None,
+        "25831",
+    ),
+    (
+        "data/miramon/several_errors/WrongPalette3I.rel",
+        1,  # band index
+        None,
+        "25831",
+    ),
+    (
         "data/miramon/several_errors/NonExistantPaletteI.rel",
         1,  # band index
         None,
@@ -686,54 +698,6 @@ init_list_color_tables = [
             20: (65, 206, 0, 255),
             21: (128, 0, 128, 255),
             24: (201, 232, 163, 255),
-        },
-        "25831",
-    ),
-    (
-        "data/miramon/palettes/Categorical/ThematicNoDataEnd/MUCSC_2002_30_m_v_6_retI.rel",
-        1,  # band index
-        {  # some colours are tested
-            0: (0, 0, 0, 0),
-            1: (212, 247, 255, 255),
-            2: (153, 247, 245, 255),
-            8: (255, 255, 201, 255),
-            9: (184, 201, 189, 255),
-            14: (145, 108, 0, 255),
-            15: (83, 166, 0, 255),
-            16: (149, 206, 0, 255),
-            20: (65, 206, 0, 255),
-            21: (128, 0, 128, 255),
-            24: (201, 232, 163, 255),
-        },
-        "25831",
-    ),
-    (
-        "data/miramon/palettes/Categorical/ThematicNoDataMiddle/MUCSC_2002_30_m_v_6_retI.rel",
-        1,  # band index
-        {  # some colours are tested
-            0: (0, 0, 0, 0),
-            1: (212, 247, 255, 255),
-            2: (153, 247, 245, 255),
-            8: (255, 255, 201, 255),
-            9: (184, 201, 189, 255),
-            14: (145, 108, 0, 255),
-            15: (83, 166, 0, 255),
-            16: (149, 206, 0, 255),
-            20: (65, 206, 0, 255),
-            21: (128, 0, 128, 255),
-            24: (201, 232, 163, 255),
-        },
-        "25831",
-    ),
-    (
-        "data/miramon/palettes/Categorical/ThematicLessColors/MUCSC_2002_30_m_v_6_retI.rel",
-        1,  # band index
-        {  # some colours are tested
-            1: (212, 247, 255, 255),
-            8: (0, 0, 0, 127),
-            15: (83, 166, 0, 255),
-            16: (0, 0, 0, 127),
-            24: (0, 0, 0, 127),
         },
         "25831",
     ),

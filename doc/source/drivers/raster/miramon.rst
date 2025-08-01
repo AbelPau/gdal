@@ -67,8 +67,8 @@ This allows applications to access additional information embedded in the origin
 Encoding
 --------
 
-When reading MiraMon DBF files, the code page setting in the `.dbf` header is used to decode string fields to UTF-8,
-regardless of whether the original encoding is ANSI, OEM or UTF-8. The code page for UTF-8 is 255.
+When reading MiraMon DBF files, the code page setting in the `.dbf` header is used to translate string fields to UTF-8,
+regardless of whether the original encoding is ANSI, OEM or UTF-8.
 
 REL files are always encoded in ANSI.
 
