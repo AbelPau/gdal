@@ -163,8 +163,10 @@ static unsigned long OGRPGHashTableEntry(const void *_psTableEntry)
 {
     const PGTableEntry *psTableEntry =
         static_cast<const PGTableEntry *>(_psTableEntry);
-    return CPLHashSetHashStr(CPLString().Printf(
-        "%s.%s", psTableEntry->pszSchemaName, psTableEntry->pszTableName));
+    return CPLHashSetHashStr(CPLString()
+                                 .Printf("%s.%s", psTableEntry->pszSchemaName,
+                                         psTableEntry->pszTableName)
+                                 .c_str());
 }
 
 static int OGRPGEqualTableEntry(const void *_psTableEntry1,
@@ -2082,7 +2084,7 @@ OGRLayer *OGRPGDataSource::ICreateLayer(const char *pszLayerName,
 /*                           TestCapability()                           */
 /************************************************************************/
 
-int OGRPGDataSource::TestCapability(const char *pszCap)
+int OGRPGDataSource::TestCapability(const char *pszCap) const
 
 {
     if (EQUAL(pszCap, ODsCCreateLayer) || EQUAL(pszCap, ODsCDeleteLayer) ||
@@ -2106,9 +2108,9 @@ int OGRPGDataSource::TestCapability(const char *pszCap)
 /*                           GetLayerCount()                            */
 /************************************************************************/
 
-int OGRPGDataSource::GetLayerCount()
+int OGRPGDataSource::GetLayerCount() const
 {
-    LoadTables();
+    const_cast<OGRPGDataSource *>(this)->LoadTables();
     return nLayers;
 }
 
@@ -2116,7 +2118,7 @@ int OGRPGDataSource::GetLayerCount()
 /*                              GetLayer()                              */
 /************************************************************************/
 
-OGRLayer *OGRPGDataSource::GetLayer(int iLayer)
+const OGRLayer *OGRPGDataSource::GetLayer(int iLayer) const
 
 {
     /* Force loading of all registered tables */
@@ -2852,7 +2854,7 @@ class OGRPGNoResetResultLayer final : public OGRPGLayer
 
     virtual void ResetReading() override;
 
-    virtual int TestCapability(const char *) override
+    int TestCapability(const char *) const override
     {
         return FALSE;
     }
@@ -2954,12 +2956,12 @@ class OGRPGMemLayerWrapper final : public OGRLayer
         return poMemLayer->GetNextFeature();
     }
 
-    virtual OGRFeatureDefn *GetLayerDefn() override
+    const OGRFeatureDefn *GetLayerDefn() const override
     {
         return poMemLayer->GetLayerDefn();
     }
 
-    virtual int TestCapability(const char *) override
+    int TestCapability(const char *) const override
     {
         return FALSE;
     }

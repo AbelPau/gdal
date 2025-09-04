@@ -16,6 +16,7 @@
 #include "cpl_float.h"
 #include "gdal_priv.h"
 
+#include <cassert>
 #include <climits>
 #include <cmath>
 #include <cstdarg>
@@ -4901,7 +4902,7 @@ CPLErr GDALRasterBand::GetDefaultHistogram(double *pdfMin, double *pdfMax,
     if (!bForce)
         return CE_Warning;
 
-    const int nBuckets = 256;
+    int nBuckets = 256;
 
     bool bSignedByte = false;
     if (eDataType == GDT_Byte)
@@ -4919,17 +4920,31 @@ CPLErr GDALRasterBand::GetDefaultHistogram(double *pdfMin, double *pdfMax,
         *pdfMin = -0.5;
         *pdfMax = 255.5;
     }
+    else if (GetRasterDataType() == GDT_Int8)
+    {
+        *pdfMin = -128 - 0.5;
+        *pdfMax = 127 + 0.5;
+    }
     else
     {
 
         const CPLErr eErr =
             GetStatistics(TRUE, TRUE, pdfMin, pdfMax, nullptr, nullptr);
-        const double dfHalfBucket = (*pdfMax - *pdfMin) / (2 * (nBuckets - 1));
-        *pdfMin -= dfHalfBucket;
-        *pdfMax += dfHalfBucket;
-
         if (eErr != CE_None)
             return eErr;
+        if (*pdfMin == *pdfMax)
+        {
+            nBuckets = 1;
+            *pdfMin -= 0.5;
+            *pdfMax += 0.5;
+        }
+        else
+        {
+            const double dfHalfBucket =
+                (*pdfMax - *pdfMin) / (2 * (nBuckets - 1));
+            *pdfMin -= dfHalfBucket;
+            *pdfMax += dfHalfBucket;
+        }
     }
 
     *ppanHistogram =
@@ -9619,11 +9634,17 @@ GDALRasterBand::WindowIterator &GDALRasterBand::WindowIterator::operator++()
 
 GDALRasterBand::WindowIteratorWrapper::WindowIteratorWrapper(
     const GDALRasterBand &band)
-    : m_nRasterXSize(band.GetDataset()->GetRasterXSize()),
-      m_nRasterYSize(band.GetDataset()->GetRasterYSize()), m_nBlockXSize(-1),
-      m_nBlockYSize(-1)
+    : m_nRasterXSize(band.GetXSize()), m_nRasterYSize(band.GetYSize()),
+      m_nBlockXSize(-1), m_nBlockYSize(-1)
 {
+    // If invalid block size is reported, just use a value of 1.
+    CPLErrorStateBackuper state(CPLQuietErrorHandler);
+#ifdef CSA_BUILD
+    assert(this);
+#endif
     band.GetBlockSize(&m_nBlockXSize, &m_nBlockYSize);
+    m_nBlockXSize = std::max<int>(m_nBlockXSize, 1);
+    m_nBlockYSize = std::max<int>(m_nBlockYSize, 1);
 }
 
 GDALRasterBand::WindowIterator
@@ -9650,8 +9671,8 @@ GDALRasterBand::WindowIteratorWrapper::end() const
 \code{.cpp}
     std::vector<double> pixelValues;
     for (const auto& window : poBand->IterateWindows()) {
-        CPLErr eErr = window.ReadRaster(pixelValues, window.nXOff, window.nYOff,
-                                        window.nXSize, window.nYSize);
+        CPLErr eErr = poBand->ReadRaster(pixelValues, window.nXOff, window.nYOff,
+                                         window.nXSize, window.nYSize);
         // check eErr
     }
 \endcode

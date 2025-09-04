@@ -43,16 +43,25 @@ GDALVectorInfoAlgorithm::GDALVectorInfoAlgorithm(bool standaloneStep)
                            /* positionalAndRequired = */ standaloneStep)
             .AddAlias("dataset")
             .SetHiddenForCLI(!standaloneStep);
-    auto &layerArg =
-        AddLayerNameArg(&m_layerNames).SetMutualExclusionGroup("layer-sql");
+    auto &layerArg = AddLayerNameArg(&m_layerNames)
+                         .SetMutualExclusionGroup("layer-sql")
+                         .AddAlias("layer");
     SetAutoCompleteFunctionForLayerName(layerArg, datasetArg);
-    AddArg("features", 0,
-           _("List all features (beware of RAM consumption on large layers)"),
-           &m_listFeatures)
-        .SetMutualExclusionGroup("summary-features");
+    auto &argFeature =
+        AddArg(
+            "features", 0,
+            _("List all features (beware of RAM consumption on large layers)"),
+            &m_listFeatures)
+            .SetMutualExclusionGroup("summary-features");
     AddArg("summary", 0, _("List the layer names and the geometry type"),
            &m_summaryOnly)
         .SetMutualExclusionGroup("summary-features");
+    AddArg("limit", 0,
+           _("Limit the number of features per layer (implies --features)"),
+           &m_limit)
+        .SetMinValueIncluded(0)
+        .SetMetaVar("FEATURE-COUNT")
+        .AddAction([&argFeature]() { argFeature.Set(true); });
     AddArg("sql", 0,
            _("Execute the indicated SQL statement and return the result"),
            &m_sql)
@@ -83,11 +92,19 @@ GDALVectorInfoAlgorithm::GDALVectorInfoAlgorithm(bool standaloneStep)
                 }
             });
     AddOutputStringArg(&m_output);
-    AddArg("stdout", 0,
-           _("Directly output on stdout (format=text mode only). If enabled, "
-             "output-string will be empty"),
-           &m_stdout)
-        .SetHiddenForCLI();
+    AddStdoutArg(&m_stdout);
+
+    AddValidationAction(
+        [this]()
+        {
+            if (!m_sql.empty() && !m_where.empty())
+            {
+                ReportError(CE_Failure, CPLE_NotSupported,
+                            "Option 'sql' and 'where' are mutually exclusive");
+                return false;
+            }
+            return true;
+        });
 }
 
 /************************************************************************/
@@ -139,6 +156,11 @@ bool GDALVectorInfoAlgorithm::RunStep(GDALPipelineStepRunContext &)
     if (m_stdout)
     {
         aosOptions.AddString("-stdout");
+    }
+    if (m_limit > 0)
+    {
+        aosOptions.AddString("-limit");
+        aosOptions.AddString(std::to_string(m_limit));
     }
 
     // Must be last, as positional

@@ -46,7 +46,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "AZURE_IMDS_OBJECT_ID", // from cpl_azure.cpp
    "AZURE_MAX_RESULTS", // from cpl_vsil_adls.cpp, cpl_vsil_az.cpp
    "AZURE_NO_SIGN_REQUEST", // from cpl_azure.cpp
-   "AZURE_SAS", // from cpl_azure.cpp, cpl_vsil_az.cpp
+   "AZURE_SAS", // from cpl_azure.cpp
    "AZURE_STORAGE_ACCESS_KEY", // from cpl_azure.cpp
    "AZURE_STORAGE_ACCESS_TOKEN", // from cpl_azure.cpp
    "AZURE_STORAGE_ACCOUNT", // from cpl_azure.cpp
@@ -56,6 +56,10 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "BAG_GEOREF_MD_BLOCKXSIZE", // from bagdataset.cpp
    "BAG_GEOREF_MD_BLOCKYSIZE", // from bagdataset.cpp
    "BASISU_MAX_FILE_SIZE", // from basisudataset.cpp
+   "BIGQUERY_DATASET_ID", // from ogradbcdataset.cpp
+   "BIGQUERY_JSON_CREDENTIAL_FILE", // from ogradbcdataset.cpp
+   "BIGQUERY_JSON_CREDENTIAL_STRING", // from ogradbcdataset.cpp
+   "BIGQUERY_PROJECT_ID", // from ogradbcdataset.cpp
    "BIGTIFF_OVERVIEW", // from gt_overview.cpp
    "BLOCKXSIZE", // from netcdfdataset.cpp
    "BLOCKYSIZE", // from netcdfdataset.cpp
@@ -100,6 +104,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "CPL_CURL_VERBOSE_DATA_IN", // from cpl_http.cpp
    "CPL_CURL_VSIMEM_PRINT_HEADERS", // from cpl_http.cpp
    "CPL_DEBUG", // from cpl_conv.cpp, cpl_error.cpp, gdalinfo_bin.cpp, gdalsrsinfo.cpp, gdalwarp_bin.cpp, gmlutils.cpp
+   "CPL_ENABLE_PATH_TRAVERSAL_DETECTION", // from cpl_path.cpp
    "CPL_ENABLE_USERFAULTFD", // from cpl_userfaultfd.cpp
    "CPL_ERROR_SEPARATOR", // from cpl_error.cpp
    "CPL_GCE_CHECK_LOCAL_FILES", // from cpl_google_cloud.cpp
@@ -377,6 +382,8 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "GDAL_RASTER_TILE_EMIT_SPURIOUS_CHARS", // from gdalalg_raster_tile.cpp
    "GDAL_RASTER_TILE_HTML_PREC", // from gdalalg_raster_tile.cpp
    "GDAL_RASTER_TILE_KML_PREC", // from gdalalg_raster_tile.cpp
+   "GDAL_RASTER_TILE_PNG_FILTER", // from gdalalg_raster_tile.cpp
+   "GDAL_RASTER_TILE_USE_PNG_OPTIM", // from gdalalg_raster_tile.cpp
    "GDAL_RASTERIO_RESAMPLING", // from gdal_misc.cpp
    "GDAL_RB_FLUSHBLOCK_SLEEP_AFTER_DROP_LOCK", // from gdalrasterblock.cpp
    "GDAL_RB_FLUSHBLOCK_SLEEP_AFTER_RB_LOCK", // from gdalrasterblock.cpp
@@ -409,6 +416,7 @@ constexpr static const char* const apszKnownConfigOptions[] =
    "GDAL_USE_SSE", // from gdalgrid.cpp
    "GDAL_USE_SSSE3", // from cpl_cpu_features.cpp
    "GDAL_VALIDATE_CREATION_OPTIONS", // from gdaldataset.cpp, gdaldriver.cpp
+   "GDAL_VECTOR_CONCAT_MAX_OPENED_DATASETS", // from gdalalg_vector_concat.cpp
    "GDAL_VRT_ENABLE_PYTHON", // from vrtderivedrasterband.cpp
    "GDAL_VRT_ENABLE_RAWRASTERBAND", // from vrtdataset.cpp
    "GDAL_VRT_PYTHON_EXCLUSIVE_LOCK", // from vrtderivedrasterband.cpp

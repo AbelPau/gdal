@@ -685,7 +685,7 @@ void OGRSQLiteLayer::BuildFeatureDefn(const char *pszLayerName, bool bIsSelect,
 /*                            GetFIDColumn()                            */
 /************************************************************************/
 
-const char *OGRSQLiteLayer::GetFIDColumn()
+const char *OGRSQLiteLayer::GetFIDColumn() const
 
 {
     GetLayerDefn();
@@ -3514,7 +3514,7 @@ OGRErr OGRSQLiteLayer::ExportSpatiaLiteGeometry(
 /*                           TestCapability()                           */
 /************************************************************************/
 
-int OGRSQLiteLayer::TestCapability(const char *pszCap)
+int OGRSQLiteLayer::TestCapability(const char *pszCap) const
 
 {
     if (EQUAL(pszCap, OLCRandomRead))
@@ -3530,6 +3530,9 @@ int OGRSQLiteLayer::TestCapability(const char *pszCap)
         return TRUE;
 
     else if (EQUAL(pszCap, OLCTransactions))
+        return TRUE;
+
+    else if (EQUAL(pszCap, OLCStringsAsUTF8))
         return TRUE;
 
     else

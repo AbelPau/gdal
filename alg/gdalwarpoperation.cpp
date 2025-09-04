@@ -266,8 +266,7 @@ int GDALWarpOperation::ValidateOptions()
     }
 
     if (GDALDataTypeIsComplex(psOptions->eWorkingDataType) != 0 &&
-        (psOptions->eResampleAlg == GRA_Mode ||
-         psOptions->eResampleAlg == GRA_Max ||
+        (psOptions->eResampleAlg == GRA_Max ||
          psOptions->eResampleAlg == GRA_Min ||
          psOptions->eResampleAlg == GRA_Med ||
          psOptions->eResampleAlg == GRA_Q1 ||
@@ -3246,10 +3245,10 @@ CPLErr GDALWarpOperation::ComputeSourceWindow(
     /*      fallback to adding a bit to the window if any points failed     */
     /*      to transform.                                                   */
     /* -------------------------------------------------------------------- */
-    if (const char *pszSoureExtra =
+    if (const char *pszSourceExtra =
             CSLFetchNameValue(psOptions->papszWarpOptions, "SOURCE_EXTRA"))
     {
-        const int nSrcExtra = atoi(pszSoureExtra);
+        const int nSrcExtra = atoi(pszSourceExtra);
         nXRadius += nSrcExtra;
         nYRadius += nSrcExtra;
     }

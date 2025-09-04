@@ -13,6 +13,8 @@
 #include "gdalalg_vector_pipeline.h"
 #include "gdalalg_vector_read.h"
 #include "gdalalg_vector_buffer.h"
+#include "gdalalg_vector_check_coverage.h"
+#include "gdalalg_vector_check_geometry.h"
 #include "gdalalg_vector_clean_coverage.h"
 #include "gdalalg_vector_clip.h"
 #include "gdalalg_vector_concat.h"
@@ -103,11 +105,7 @@ GDALVectorPipelineAlgorithm::GDALVectorPipelineAlgorithm()
                         /* shortNameOutputLayerAllowed=*/false);
 
     AddOutputStringArg(&m_output).SetHiddenForCLI();
-    AddArg("stdout", 0,
-           _("Directly output on stdout (format=text mode only). If enabled, "
-             "output-string will be empty"),
-           &m_stdout)
-        .SetHidden();
+    AddStdoutArg(&m_stdout);
 
     RegisterAlgorithms(m_stepRegistry, false);
 }
@@ -145,6 +143,8 @@ void GDALVectorPipelineAlgorithm::RegisterAlgorithms(
     registry.Register(algInfo);
 
     registry.Register<GDALVectorBufferAlgorithm>();
+    registry.Register<GDALVectorCheckCoverageAlgorithm>();
+    registry.Register<GDALVectorCheckGeometryAlgorithm>();
     registry.Register<GDALVectorConcatAlgorithm>();
     registry.Register<GDALVectorCleanCoverageAlgorithm>();
 
@@ -422,37 +422,20 @@ bool GDALVectorPipelineAlgorithm::ParseCommandLineArguments(
         return false;
     }
 
-    std::vector<GDALVectorPipelineStepAlgorithm *> stepAlgs;
-    for (const auto &step : steps)
-        stepAlgs.push_back(step.alg.get());
-    if (!CheckFirstStep(stepAlgs))
-        return false;
-
-    if (steps.back().alg->GetName() != GDALVectorWriteAlgorithm::NAME &&
-        steps.back().alg->GetName() != GDALVectorInfoAlgorithm::NAME)
+    if (!steps.back().alg->CanBeLastStep())
     {
         if (helpRequested)
         {
             steps.back().alg->ParseCommandLineArguments(steps.back().args);
             return false;
         }
-        ReportError(
-            CE_Failure, CPLE_AppDefined, "Last step should be '%s' or '%s'",
-            GDALVectorWriteAlgorithm::NAME, GDALVectorInfoAlgorithm::NAME);
-        return false;
     }
-    for (size_t i = 0; i < steps.size() - 1; ++i)
-    {
-        if (steps[i].alg->GetName() == GDALVectorWriteAlgorithm::NAME ||
-            steps[i].alg->GetName() == GDALVectorInfoAlgorithm::NAME)
-        {
-            ReportError(CE_Failure, CPLE_AppDefined,
-                        "Only last step can be '%s' or '%s'",
-                        GDALVectorWriteAlgorithm::NAME,
-                        GDALVectorInfoAlgorithm::NAME);
-            return false;
-        }
-    }
+
+    std::vector<GDALVectorPipelineStepAlgorithm *> stepAlgs;
+    for (const auto &step : steps)
+        stepAlgs.push_back(step.alg.get());
+    if (!CheckFirstAndLastStep(stepAlgs))
+        return false;  // CheckFirstAndLastStep emits an error
 
     for (auto &step : steps)
     {
@@ -467,7 +450,8 @@ bool GDALVectorPipelineAlgorithm::ParseCommandLineArguments(
         for (auto &arg : step.alg->GetArgs())
         {
             auto pipelineArg = GetArg(arg->GetName());
-            if (pipelineArg && pipelineArg->IsExplicitlySet())
+            if (pipelineArg && pipelineArg->IsExplicitlySet() &&
+                pipelineArg->GetType() == arg->GetType())
             {
                 arg->SetSkipIfAlreadySet(true);
                 arg->SetFrom(*pipelineArg);
@@ -481,7 +465,8 @@ bool GDALVectorPipelineAlgorithm::ParseCommandLineArguments(
         for (auto &arg : step.alg->GetArgs())
         {
             auto pipelineArg = GetArg(arg->GetName());
-            if (pipelineArg && pipelineArg->IsExplicitlySet())
+            if (pipelineArg && pipelineArg->IsExplicitlySet() &&
+                pipelineArg->GetType() == arg->GetType())
             {
                 arg->SetSkipIfAlreadySet(true);
                 arg->SetFrom(*pipelineArg);
@@ -556,7 +541,7 @@ std::string GDALVectorPipelineAlgorithm::GetUsageForCLI(
         return ret;
 
     ret += "\n<PIPELINE> is of the form: read|concat [READ-OPTIONS] "
-           "( ! <STEP-NAME> [STEP-OPTIONS] )* ! write [WRITE-OPTIONS]\n";
+           "( ! <STEP-NAME> [STEP-OPTIONS] )* ! write|info [WRITE-OPTIONS]\n";
 
     if (m_helpDocCategory == "main")
     {
@@ -583,7 +568,6 @@ std::string GDALVectorPipelineAlgorithm::GetUsageForCLI(
         const auto name = GDALVectorReadAlgorithm::NAME;
         ret += '\n';
         auto alg = GetStepAlg(name);
-        assert(alg);
         alg->SetCallPath({name});
         ret += alg->GetUsageForCLI(shortUsage, stepUsageOptions);
     }
@@ -603,21 +587,29 @@ std::string GDALVectorPipelineAlgorithm::GetUsageForCLI(
     {
         auto alg = GetStepAlg(name);
         assert(alg);
-        if (!alg->CanBeFirstStep() && !alg->IsHidden() &&
-            name != GDALVectorWriteAlgorithm::NAME &&
-            name != GDALVectorInfoAlgorithm::NAME)
+        if (!alg->CanBeFirstStep() && !alg->CanBeLastStep() && !alg->IsHidden())
         {
             ret += '\n';
             alg->SetCallPath({name});
             ret += alg->GetUsageForCLI(shortUsage, stepUsageOptions);
         }
     }
-    for (const char *name :
-         {GDALVectorInfoAlgorithm::NAME, GDALVectorWriteAlgorithm::NAME})
+    for (const std::string &name : m_stepRegistry.GetNames())
     {
-        ret += '\n';
         auto alg = GetStepAlg(name);
         assert(alg);
+        if (alg->CanBeLastStep() && !alg->IsHidden() &&
+            name != GDALVectorWriteAlgorithm::NAME)
+        {
+            ret += '\n';
+            alg->SetCallPath({name});
+            ret += alg->GetUsageForCLI(shortUsage, stepUsageOptions);
+        }
+    }
+    {
+        const auto name = GDALVectorWriteAlgorithm::NAME;
+        ret += '\n';
+        auto alg = GetStepAlg(name);
         alg->SetCallPath({name});
         ret += alg->GetUsageForCLI(shortUsage, stepUsageOptions);
     }
@@ -728,7 +720,7 @@ void GDALVectorPipelineOutputDataset::AddLayer(
 /*          GDALVectorPipelineOutputDataset::GetLayerCount()            */
 /************************************************************************/
 
-int GDALVectorPipelineOutputDataset::GetLayerCount()
+int GDALVectorPipelineOutputDataset::GetLayerCount() const
 {
     return static_cast<int>(m_layers.size());
 }
@@ -737,7 +729,7 @@ int GDALVectorPipelineOutputDataset::GetLayerCount()
 /*             GDALVectorPipelineOutputDataset::GetLayer()              */
 /************************************************************************/
 
-OGRLayer *GDALVectorPipelineOutputDataset::GetLayer(int idx)
+OGRLayer *GDALVectorPipelineOutputDataset::GetLayer(int idx) const
 {
     return idx >= 0 && idx < GetLayerCount() ? m_layers[idx] : nullptr;
 }
@@ -746,7 +738,7 @@ OGRLayer *GDALVectorPipelineOutputDataset::GetLayer(int idx)
 /*           GDALVectorPipelineOutputDataset::TestCapability()          */
 /************************************************************************/
 
-int GDALVectorPipelineOutputDataset::TestCapability(const char *pszCap)
+int GDALVectorPipelineOutputDataset::TestCapability(const char *pszCap) const
 {
     if (EQUAL(pszCap, ODsCRandomLayerRead) ||
         EQUAL(pszCap, ODsCMeasuredGeometries) || EQUAL(pszCap, ODsCZGeometries))
@@ -816,7 +808,7 @@ OGRFeature *GDALVectorPipelineOutputDataset::GetNextFeature(
 /*            GDALVectorPipelinePassthroughLayer::GetLayerDefn()        */
 /************************************************************************/
 
-OGRFeatureDefn *GDALVectorPipelinePassthroughLayer::GetLayerDefn()
+const OGRFeatureDefn *GDALVectorPipelinePassthroughLayer::GetLayerDefn() const
 {
     return m_srcLayer.GetLayerDefn();
 }
@@ -842,7 +834,7 @@ GDALVectorNonStreamingAlgorithmDataset::
 /************************************************************************/
 
 bool GDALVectorNonStreamingAlgorithmDataset::AddProcessedLayer(
-    OGRLayer &srcLayer)
+    OGRLayer &srcLayer, OGRFeatureDefn &dstDefn)
 {
     CPLStringList aosOptions;
     if (srcLayer.TestCapability(OLCStringsAsUTF8))
@@ -850,13 +842,18 @@ bool GDALVectorNonStreamingAlgorithmDataset::AddProcessedLayer(
         aosOptions.AddNameValue("ADVERTIZE_UTF8", "TRUE");
     }
 
-    OGRMemLayer *poDstLayer =
-        m_ds->CreateLayer(*srcLayer.GetLayerDefn(), aosOptions.List());
+    OGRMemLayer *poDstLayer = m_ds->CreateLayer(dstDefn, aosOptions.List());
     m_layers.push_back(poDstLayer);
 
     const bool bRet = Process(srcLayer, *poDstLayer);
     poDstLayer->SetUpdatable(false);
     return bRet;
+}
+
+bool GDALVectorNonStreamingAlgorithmDataset::AddProcessedLayer(
+    OGRLayer &srcLayer)
+{
+    return AddProcessedLayer(srcLayer, *srcLayer.GetLayerDefn());
 }
 
 /************************************************************************/
@@ -875,7 +872,7 @@ void GDALVectorNonStreamingAlgorithmDataset::AddPassThroughLayer(
 /*       GDALVectorNonStreamingAlgorithmDataset::GetLayerCount()        */
 /************************************************************************/
 
-int GDALVectorNonStreamingAlgorithmDataset::GetLayerCount()
+int GDALVectorNonStreamingAlgorithmDataset::GetLayerCount() const
 {
     return static_cast<int>(m_layers.size());
 }
@@ -884,7 +881,7 @@ int GDALVectorNonStreamingAlgorithmDataset::GetLayerCount()
 /*       GDALVectorNonStreamingAlgorithmDataset::GetLayer()             */
 /************************************************************************/
 
-OGRLayer *GDALVectorNonStreamingAlgorithmDataset::GetLayer(int idx)
+OGRLayer *GDALVectorNonStreamingAlgorithmDataset::GetLayer(int idx) const
 {
     if (idx < 0 || idx >= static_cast<int>(m_layers.size()))
     {
@@ -897,7 +894,8 @@ OGRLayer *GDALVectorNonStreamingAlgorithmDataset::GetLayer(int idx)
 /*    GDALVectorNonStreamingAlgorithmDataset::TestCapability()          */
 /************************************************************************/
 
-int GDALVectorNonStreamingAlgorithmDataset::TestCapability(const char *pszCap)
+int GDALVectorNonStreamingAlgorithmDataset::TestCapability(
+    const char *pszCap) const
 {
     if (EQUAL(pszCap, ODsCCreateLayer) || EQUAL(pszCap, ODsCDeleteLayer))
     {

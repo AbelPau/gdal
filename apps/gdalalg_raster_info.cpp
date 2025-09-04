@@ -28,12 +28,14 @@
 
 GDALRasterInfoAlgorithm::GDALRasterInfoAlgorithm(bool standaloneStep,
                                                  bool openForMixedRasterVector)
-    : GDALRasterPipelineStepAlgorithm(NAME, DESCRIPTION, HELP_URL,
-                                      ConstructorOptions()
-                                          .SetStandaloneStep(standaloneStep)
-                                          .SetInputDatasetMaxCount(1)
-                                          .SetAddDefaultArguments(false)
-                                          .SetInputDatasetAlias("dataset"))
+    : GDALRasterPipelineStepAlgorithm(
+          NAME, DESCRIPTION, HELP_URL,
+          ConstructorOptions()
+              .SetStandaloneStep(standaloneStep)
+              .SetInputDatasetMaxCount(1)
+              .SetAddDefaultArguments(false)
+              .SetInputDatasetHelpMsg(_("Input raster dataset"))
+              .SetInputDatasetAlias("dataset"))
 {
     AddRasterInputArgs(openForMixedRasterVector, !standaloneStep);
 
@@ -83,11 +85,7 @@ GDALRasterInfoAlgorithm::GDALRasterInfoAlgorithm(bool standaloneStep,
         .SetMinValueIncluded(1);
 
     AddOutputStringArg(&m_output);
-    AddArg("stdout", 0,
-           _("Directly output on stdout (format=text mode only). If enabled, "
-             "output-string will be empty"),
-           &m_stdout)
-        .SetHiddenForCLI();
+    AddStdoutArg(&m_stdout);
 }
 
 /************************************************************************/

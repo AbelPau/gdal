@@ -17,6 +17,7 @@
 #include "cpl_mem_cache.h"
 #include "cpl_spawn.h"
 #include "cpl_time.h"
+#include "cpl_vsi_virtual.h"
 #include "cpl_worker_thread_pool.h"
 #include "gdal_alg_priv.h"
 #include "gdal_priv.h"
@@ -37,9 +38,27 @@
 #include <utility>
 #include <thread>
 
+#ifdef USE_NEON_OPTIMIZATIONS
+#include "include_sse2neon.h"
+#elif defined(__x86_64) || defined(_M_X64)
+#include <emmintrin.h>
+#if defined(__SSSE3__) || defined(__AVX__)
+#include <tmmintrin.h>
+#endif
+#if defined(__SSE4_1__) || defined(__AVX__)
+#include <smmintrin.h>
+#endif
+#endif
+
+#if defined(__x86_64) || defined(_M_X64) || defined(USE_NEON_OPTIMIZATIONS)
+#define USE_PAETH_SSE2
+#endif
+
 #ifndef _WIN32
 #define FORK_ALLOWED
 #endif
+
+#include "cpl_zlib_header.h"  // for crc32()
 
 //! @cond Doxygen_Suppress
 
@@ -100,8 +119,13 @@ static int GetThresholdMinTilesPerJob()
 /*           GDALRasterTileAlgorithm::GDALRasterTileAlgorithm()         */
 /************************************************************************/
 
-GDALRasterTileAlgorithm::GDALRasterTileAlgorithm()
-    : GDALAlgorithm(NAME, DESCRIPTION, HELP_URL)
+GDALRasterTileAlgorithm::GDALRasterTileAlgorithm(bool standaloneStep)
+    : GDALRasterPipelineStepAlgorithm(NAME, DESCRIPTION, HELP_URL,
+                                      ConstructorOptions()
+                                          .SetStandaloneStep(standaloneStep)
+                                          .SetInputDatasetMaxCount(1)
+                                          .SetAddDefaultArguments(false)
+                                          .SetInputDatasetAlias("dataset"))
 {
     AddProgressArg();
     AddArg("spawned", 0, _("Whether this is a spawned worker"),
@@ -133,20 +157,20 @@ GDALRasterTileAlgorithm::GDALRasterTileAlgorithm()
         .SetMinValueIncluded(0)
         .SetHidden();  // Used in spawn mode
 
-    AddOpenOptionsArg(&m_openOptions);
-    AddInputFormatsArg(&m_inputFormats)
-        .AddMetadataItem(GAAMDI_REQUIRED_CAPABILITIES, {GDAL_DCAP_RASTER});
-    AddInputDatasetArg(&m_dataset, GDAL_OF_RASTER);
-    AddOutputFormatArg(&m_outputFormat)
-        .SetDefault(m_outputFormat)
+    AddRasterInputArgs(false, !standaloneStep);
+
+    m_format = "PNG";
+    AddOutputFormatArg(&m_format)
+        .SetDefault(m_format)
         .AddMetadataItem(
             GAAMDI_REQUIRED_CAPABILITIES,
             {GDAL_DCAP_RASTER, GDAL_DCAP_CREATECOPY, GDAL_DMD_EXTENSIONS})
         .AddMetadataItem(GAAMDI_VRT_COMPATIBLE, {"false"});
     AddCreationOptionsArg(&m_creationOptions);
 
-    AddArg("output", 'o', _("Output directory"), &m_outputDirectory)
+    AddArg(GDAL_ARG_NAME_OUTPUT, 'o', _("Output directory"), &m_output)
         .SetRequired()
+        .SetIsInput()
         .SetMinCharCount(1)
         .SetPositional();
 
@@ -459,6 +483,142 @@ static int GetFileY(int iY, const gdal::TileMatrixSet::TileMatrix &tileMatrix,
 /*                          GenerateTile()                              */
 /************************************************************************/
 
+// Cf http://www.libpng.org/pub/png/spec/1.2/PNG-Filters.html
+// for specification of SUB and AVG filters
+inline GByte PNG_SUB(int nVal, int nValPrev)
+{
+    return static_cast<GByte>((nVal - nValPrev) & 0xff);
+}
+
+inline GByte PNG_AVG(int nVal, int nValPrev, int nValUp)
+{
+    return static_cast<GByte>((nVal - (nValPrev + nValUp) / 2) & 0xff);
+}
+
+inline GByte PNG_PAETH(int nVal, int nValPrev, int nValUp, int nValUpPrev)
+{
+    const int p = nValPrev + nValUp - nValUpPrev;
+    const int pa = std::abs(p - nValPrev);
+    const int pb = std::abs(p - nValUp);
+    const int pc = std::abs(p - nValUpPrev);
+    if (pa <= pb && pa <= pc)
+        return static_cast<GByte>((nVal - nValPrev) & 0xff);
+    else if (pb <= pc)
+        return static_cast<GByte>((nVal - nValUp) & 0xff);
+    else
+        return static_cast<GByte>((nVal - nValUpPrev) & 0xff);
+}
+
+#ifdef USE_PAETH_SSE2
+
+static inline __m128i abs_epi16(__m128i x)
+{
+#if defined(__SSSE3__) || defined(__AVX__) || defined(USE_NEON_OPTIMIZATIONS)
+    return _mm_abs_epi16(x);
+#else
+    __m128i mask = _mm_srai_epi16(x, 15);
+    return _mm_sub_epi16(_mm_xor_si128(x, mask), mask);
+#endif
+}
+
+static inline __m128i blendv(__m128i a, __m128i b, __m128i mask)
+{
+#if defined(__SSE4_1__) || defined(__AVX__) || defined(USE_NEON_OPTIMIZATIONS)
+    return _mm_blendv_epi8(a, b, mask);
+#else
+    return _mm_or_si128(_mm_andnot_si128(mask, a), _mm_and_si128(mask, b));
+#endif
+}
+
+static inline __m128i PNG_PAETH_SSE2(__m128i up_prev, __m128i up, __m128i prev,
+                                     __m128i cur, __m128i &cost)
+{
+    auto cur_lo = _mm_unpacklo_epi8(cur, _mm_setzero_si128());
+    auto prev_lo = _mm_unpacklo_epi8(prev, _mm_setzero_si128());
+    auto up_lo = _mm_unpacklo_epi8(up, _mm_setzero_si128());
+    auto up_prev_lo = _mm_unpacklo_epi8(up_prev, _mm_setzero_si128());
+    auto cur_hi = _mm_unpackhi_epi8(cur, _mm_setzero_si128());
+    auto prev_hi = _mm_unpackhi_epi8(prev, _mm_setzero_si128());
+    auto up_hi = _mm_unpackhi_epi8(up, _mm_setzero_si128());
+    auto up_prev_hi = _mm_unpackhi_epi8(up_prev, _mm_setzero_si128());
+
+    auto pa_lo = _mm_sub_epi16(up_lo, up_prev_lo);
+    auto pb_lo = _mm_sub_epi16(prev_lo, up_prev_lo);
+    auto pc_lo = _mm_add_epi16(pa_lo, pb_lo);
+    pa_lo = abs_epi16(pa_lo);
+    pb_lo = abs_epi16(pb_lo);
+    pc_lo = abs_epi16(pc_lo);
+    auto min_lo = _mm_min_epi16(_mm_min_epi16(pa_lo, pb_lo), pc_lo);
+
+    auto res_lo = blendv(up_prev_lo, up_lo, _mm_cmpeq_epi16(min_lo, pb_lo));
+    res_lo = blendv(res_lo, prev_lo, _mm_cmpeq_epi16(min_lo, pa_lo));
+    res_lo = _mm_and_si128(_mm_sub_epi16(cur_lo, res_lo), _mm_set1_epi16(0xFF));
+
+    auto cost_lo = blendv(_mm_sub_epi16(_mm_set1_epi16(256), res_lo), res_lo,
+                          _mm_cmplt_epi16(res_lo, _mm_set1_epi16(128)));
+
+    auto pa_hi = _mm_sub_epi16(up_hi, up_prev_hi);
+    auto pb_hi = _mm_sub_epi16(prev_hi, up_prev_hi);
+    auto pc_hi = _mm_add_epi16(pa_hi, pb_hi);
+    pa_hi = abs_epi16(pa_hi);
+    pb_hi = abs_epi16(pb_hi);
+    pc_hi = abs_epi16(pc_hi);
+    auto min_hi = _mm_min_epi16(_mm_min_epi16(pa_hi, pb_hi), pc_hi);
+
+    auto res_hi = blendv(up_prev_hi, up_hi, _mm_cmpeq_epi16(min_hi, pb_hi));
+    res_hi = blendv(res_hi, prev_hi, _mm_cmpeq_epi16(min_hi, pa_hi));
+    res_hi = _mm_and_si128(_mm_sub_epi16(cur_hi, res_hi), _mm_set1_epi16(0xFF));
+
+    auto cost_hi = blendv(_mm_sub_epi16(_mm_set1_epi16(256), res_hi), res_hi,
+                          _mm_cmplt_epi16(res_hi, _mm_set1_epi16(128)));
+
+    cost_lo = _mm_add_epi16(cost_lo, cost_hi);
+
+    cost =
+        _mm_add_epi32(cost, _mm_unpacklo_epi16(cost_lo, _mm_setzero_si128()));
+    cost =
+        _mm_add_epi32(cost, _mm_unpackhi_epi16(cost_lo, _mm_setzero_si128()));
+
+    return _mm_packus_epi16(res_lo, res_hi);
+}
+
+static int RunPaeth(const GByte *srcBuffer, int nBands,
+                    int nSrcBufferBandStride, GByte *outBuffer, int W,
+                    int &costPaeth)
+{
+    __m128i xmm_cost = _mm_setzero_si128();
+    int i = 1;
+    for (int k = 0; k < nBands; ++k)
+    {
+        for (i = 1; i + 15 < W; i += 16)
+        {
+            auto up_prev = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(srcBuffer - W + (i - 1)));
+            auto up = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(srcBuffer - W + i));
+            auto prev = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(srcBuffer + (i - 1)));
+            auto cur = _mm_loadu_si128(
+                reinterpret_cast<const __m128i *>(srcBuffer + i));
+
+            auto res = PNG_PAETH_SSE2(up_prev, up, prev, cur, xmm_cost);
+
+            _mm_storeu_si128(reinterpret_cast<__m128i *>(outBuffer + k * W + i),
+                             res);
+        }
+        srcBuffer += nSrcBufferBandStride;
+    }
+
+    int32_t ar_cost[4];
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(ar_cost), xmm_cost);
+    for (int k = 0; k < 4; ++k)
+        costPaeth += ar_cost[k];
+
+    return i;
+}
+
+#endif  // USE_PAETH_SSE2
+
 static bool GenerateTile(
     GDALDataset *poSrcDS, GDALDriver *m_poDstDriver, const char *pszExtension,
     CSLConstList creationOptions, GDALWarpOperation &oWO,
@@ -468,7 +628,8 @@ static bool GenerateTile(
     int nZoomLevel, int iX, int iY, const std::string &convention,
     int nMinTileX, int nMinTileY, bool bSkipBlank, bool bUserAskedForAlpha,
     bool bAuxXML, bool bResume, const std::vector<std::string> &metadata,
-    const GDALColorTable *poColorTable, std::vector<GByte> &dstBuffer)
+    const GDALColorTable *poColorTable, std::vector<GByte> &dstBuffer,
+    std::vector<GByte> &tmpBuffer)
 {
     const std::string osDirZ = CPLFormFilenameSafe(
         outputDirectory.c_str(), CPLSPrintf("%d", nZoomLevel), nullptr);
@@ -494,7 +655,7 @@ static bool GenerateTile(
     if (eErr != CE_None)
         return false;
 
-    const bool bDstHasAlpha =
+    bool bDstHasAlpha =
         nBands > poSrcDS->GetRasterCount() ||
         (nBands == poSrcDS->GetRasterCount() &&
          poSrcDS->GetRasterBand(nBands)->GetColorInterpretation() ==
@@ -520,11 +681,681 @@ static bool GenerateTile(
             bAllOpaque = (dstBuffer[(nBands - 1) * nBytesPerBand + i] == 255);
         }
         if (bAllOpaque)
+        {
+            bDstHasAlpha = false;
             nBands--;
+        }
     }
 
     VSIMkdir(osDirZ.c_str(), 0755);
     VSIMkdir(osDirX.c_str(), 0755);
+
+    const bool bSupportsCreateOnlyVisibleAtCloseTime =
+        m_poDstDriver->GetMetadataItem(
+            GDAL_DCAP_CREATE_ONLY_VISIBLE_AT_CLOSE_TIME) != nullptr;
+
+    const std::string osTmpFilename = bSupportsCreateOnlyVisibleAtCloseTime
+                                          ? osFilename
+                                          : osFilename + ".tmp." + pszExtension;
+
+    const int W = tileMatrix.mTileWidth;
+    const int H = tileMatrix.mTileHeight;
+    constexpr int EXTRA_BYTE_PER_ROW = 1;  // for filter type
+    constexpr int EXTRA_ROWS = 2;          // for paethBuffer and paethBufferTmp
+    if (!bAuxXML && EQUAL(pszExtension, "png") &&
+        eWorkingDataType == GDT_Byte && poColorTable == nullptr &&
+        pdfDstNoData == nullptr && W <= INT_MAX / nBands &&
+        nBands * W <= INT_MAX - EXTRA_BYTE_PER_ROW &&
+        H <= INT_MAX - EXTRA_ROWS &&
+        EXTRA_BYTE_PER_ROW + nBands * W <= INT_MAX / (H + EXTRA_ROWS) &&
+        CSLCount(creationOptions) == 0 &&
+        CPLTestBool(
+            CPLGetConfigOption("GDAL_RASTER_TILE_USE_PNG_OPTIM", "YES")))
+    {
+        // This is an optimized code path completely shortcircuiting libpng
+        // We manually generate the PNG file using the Average or PAETH filter
+        // and ZLIB compressing the whole buffer, hopefully with libdeflate.
+
+        const int nDstBytesPerRow = EXTRA_BYTE_PER_ROW + nBands * W;
+        const int nBPB = static_cast<int>(nBytesPerBand);
+
+        bool bBlank = false;
+        if (bDstHasAlpha)
+        {
+            bBlank = true;
+            for (int i = 0; i < nBPB && bBlank; ++i)
+            {
+                bBlank = (dstBuffer[(nBands - 1) * nBPB + i] == 0);
+            }
+        }
+
+        constexpr GByte PNG_FILTER_SUB = 1;  // horizontal diff
+        constexpr GByte PNG_FILTER_AVG = 3;  // average with pixel before and up
+        constexpr GByte PNG_FILTER_PAETH = 4;
+
+        if (bBlank)
+            tmpBuffer.clear();
+        const int tmpBufferSize = cpl::fits_on<int>(nDstBytesPerRow * H);
+        try
+        {
+            // cppcheck-suppress integerOverflowCond
+            tmpBuffer.resize(tmpBufferSize + EXTRA_ROWS * nDstBytesPerRow);
+        }
+        catch (const std::exception &)
+        {
+            CPLError(CE_Failure, CPLE_OutOfMemory,
+                     "Out of memory allocating temporary buffer");
+            return false;
+        }
+        GByte *const paethBuffer = tmpBuffer.data() + tmpBufferSize;
+#ifdef USE_PAETH_SSE2
+        GByte *const paethBufferTmp =
+            tmpBuffer.data() + tmpBufferSize + nDstBytesPerRow;
+#endif
+
+        const char *pszGDAL_RASTER_TILE_PNG_FILTER =
+            CPLGetConfigOption("GDAL_RASTER_TILE_PNG_FILTER", "");
+        const bool bForcePaeth = EQUAL(pszGDAL_RASTER_TILE_PNG_FILTER, "PAETH");
+        const bool bForceAvg = EQUAL(pszGDAL_RASTER_TILE_PNG_FILTER, "AVERAGE");
+
+        for (int j = 0; !bBlank && j < H; ++j)
+        {
+            if (j > 0)
+            {
+                tmpBuffer[cpl::fits_on<int>(j * nDstBytesPerRow)] =
+                    PNG_FILTER_AVG;
+                for (int i = 0; i < nBands; ++i)
+                {
+                    tmpBuffer[1 + j * nDstBytesPerRow + i] =
+                        PNG_AVG(dstBuffer[i * nBPB + j * W], 0,
+                                dstBuffer[i * nBPB + (j - 1) * W]);
+                }
+            }
+            else
+            {
+                tmpBuffer[cpl::fits_on<int>(j * nDstBytesPerRow)] =
+                    PNG_FILTER_SUB;
+                for (int i = 0; i < nBands; ++i)
+                {
+                    tmpBuffer[1 + j * nDstBytesPerRow + i] =
+                        dstBuffer[i * nBPB + j * W];
+                }
+            }
+
+            if (nBands == 1)
+            {
+                if (j > 0)
+                {
+                    int costAvg = 0;
+                    for (int i = 1; i < W; ++i)
+                    {
+                        const GByte v =
+                            PNG_AVG(dstBuffer[0 * nBPB + j * W + i],
+                                    dstBuffer[0 * nBPB + j * W + i - 1],
+                                    dstBuffer[0 * nBPB + (j - 1) * W + i]);
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 0] = v;
+
+                        costAvg += (v < 128) ? v : 256 - v;
+                    }
+
+                    if (!bForceAvg)
+                    {
+                        int costPaeth = 0;
+                        {
+                            const int i = 0;
+                            const GByte v = PNG_PAETH(
+                                dstBuffer[0 * nBPB + j * W + i], 0,
+                                dstBuffer[0 * nBPB + (j - 1) * W + i], 0);
+                            paethBuffer[i] = v;
+
+                            costPaeth += (v < 128) ? v : 256 - v;
+                        }
+
+#ifdef USE_PAETH_SSE2
+                        const int iLimitSSE2 =
+                            RunPaeth(dstBuffer.data() + j * W, nBands, nBPB,
+                                     paethBuffer, W, costPaeth);
+                        int i = iLimitSSE2;
+#else
+                        int i = 1;
+#endif
+                        for (; i < W && (costPaeth < costAvg || bForcePaeth);
+                             ++i)
+                        {
+                            const GByte v = PNG_PAETH(
+                                dstBuffer[0 * nBPB + j * W + i],
+                                dstBuffer[0 * nBPB + j * W + i - 1],
+                                dstBuffer[0 * nBPB + (j - 1) * W + i],
+                                dstBuffer[0 * nBPB + (j - 1) * W + i - 1]);
+                            paethBuffer[i] = v;
+
+                            costPaeth += (v < 128) ? v : 256 - v;
+                        }
+                        if (costPaeth < costAvg || bForcePaeth)
+                        {
+                            GByte *out = tmpBuffer.data() +
+                                         cpl::fits_on<int>(j * nDstBytesPerRow);
+                            *out = PNG_FILTER_PAETH;
+                            ++out;
+                            memcpy(out, paethBuffer, nDstBytesPerRow - 1);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 1; i < W; ++i)
+                    {
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 0] =
+                            PNG_SUB(dstBuffer[0 * nBPB + j * W + i],
+                                    dstBuffer[0 * nBPB + j * W + i - 1]);
+                    }
+                }
+            }
+            else if (nBands == 2)
+            {
+                if (j > 0)
+                {
+                    int costAvg = 0;
+                    for (int i = 1; i < W; ++i)
+                    {
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[0 * nBPB + j * W + i],
+                                        dstBuffer[0 * nBPB + j * W + i - 1],
+                                        dstBuffer[0 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      0] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[1 * nBPB + j * W + i],
+                                        dstBuffer[1 * nBPB + j * W + i - 1],
+                                        dstBuffer[1 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      1] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                    }
+
+                    if (!bForceAvg)
+                    {
+                        int costPaeth = 0;
+                        for (int k = 0; k < nBands; ++k)
+                        {
+                            const int i = 0;
+                            const GByte v = PNG_PAETH(
+                                dstBuffer[k * nBPB + j * W + i], 0,
+                                dstBuffer[k * nBPB + (j - 1) * W + i], 0);
+                            paethBuffer[i * nBands + k] = v;
+
+                            costPaeth += (v < 128) ? v : 256 - v;
+                        }
+
+#ifdef USE_PAETH_SSE2
+                        const int iLimitSSE2 =
+                            RunPaeth(dstBuffer.data() + j * W, nBands, nBPB,
+                                     paethBufferTmp, W, costPaeth);
+                        int i = iLimitSSE2;
+#else
+                        int i = 1;
+#endif
+                        for (; i < W && (costPaeth < costAvg || bForcePaeth);
+                             ++i)
+                        {
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[0 * nBPB + j * W + i],
+                                    dstBuffer[0 * nBPB + j * W + i - 1],
+                                    dstBuffer[0 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[0 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 0] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[1 * nBPB + j * W + i],
+                                    dstBuffer[1 * nBPB + j * W + i - 1],
+                                    dstBuffer[1 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[1 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 1] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                        }
+                        if (costPaeth < costAvg || bForcePaeth)
+                        {
+                            GByte *out = tmpBuffer.data() +
+                                         cpl::fits_on<int>(j * nDstBytesPerRow);
+                            *out = PNG_FILTER_PAETH;
+                            ++out;
+#ifdef USE_PAETH_SSE2
+                            memcpy(out, paethBuffer, nBands);
+                            for (int iTmp = 1; iTmp < iLimitSSE2; ++iTmp)
+                            {
+                                out[nBands * iTmp + 0] =
+                                    paethBufferTmp[0 * W + iTmp];
+                                out[nBands * iTmp + 1] =
+                                    paethBufferTmp[1 * W + iTmp];
+                            }
+                            memcpy(
+                                out + iLimitSSE2 * nBands,
+                                paethBuffer + iLimitSSE2 * nBands,
+                                cpl::fits_on<int>((W - iLimitSSE2) * nBands));
+#else
+                            memcpy(out, paethBuffer, nDstBytesPerRow - 1);
+#endif
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 1; i < W; ++i)
+                    {
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 0] =
+                            PNG_SUB(dstBuffer[0 * nBPB + j * W + i],
+                                    dstBuffer[0 * nBPB + j * W + i - 1]);
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 1] =
+                            PNG_SUB(dstBuffer[1 * nBPB + j * W + i],
+                                    dstBuffer[1 * nBPB + j * W + i - 1]);
+                    }
+                }
+            }
+            else if (nBands == 3)
+            {
+                if (j > 0)
+                {
+                    int costAvg = 0;
+                    for (int i = 1; i < W; ++i)
+                    {
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[0 * nBPB + j * W + i],
+                                        dstBuffer[0 * nBPB + j * W + i - 1],
+                                        dstBuffer[0 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      0] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[1 * nBPB + j * W + i],
+                                        dstBuffer[1 * nBPB + j * W + i - 1],
+                                        dstBuffer[1 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      1] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[2 * nBPB + j * W + i],
+                                        dstBuffer[2 * nBPB + j * W + i - 1],
+                                        dstBuffer[2 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      2] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                    }
+
+                    if (!bForceAvg)
+                    {
+                        int costPaeth = 0;
+                        for (int k = 0; k < nBands; ++k)
+                        {
+                            const int i = 0;
+                            const GByte v = PNG_PAETH(
+                                dstBuffer[k * nBPB + j * W + i], 0,
+                                dstBuffer[k * nBPB + (j - 1) * W + i], 0);
+                            paethBuffer[i * nBands + k] = v;
+
+                            costPaeth += (v < 128) ? v : 256 - v;
+                        }
+
+#ifdef USE_PAETH_SSE2
+                        const int iLimitSSE2 =
+                            RunPaeth(dstBuffer.data() + j * W, nBands, nBPB,
+                                     paethBufferTmp, W, costPaeth);
+                        int i = iLimitSSE2;
+#else
+                        int i = 1;
+#endif
+                        for (; i < W && (costPaeth < costAvg || bForcePaeth);
+                             ++i)
+                        {
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[0 * nBPB + j * W + i],
+                                    dstBuffer[0 * nBPB + j * W + i - 1],
+                                    dstBuffer[0 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[0 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 0] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[1 * nBPB + j * W + i],
+                                    dstBuffer[1 * nBPB + j * W + i - 1],
+                                    dstBuffer[1 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[1 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 1] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[2 * nBPB + j * W + i],
+                                    dstBuffer[2 * nBPB + j * W + i - 1],
+                                    dstBuffer[2 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[2 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 2] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                        }
+
+                        if (costPaeth < costAvg || bForcePaeth)
+                        {
+                            GByte *out = tmpBuffer.data() +
+                                         cpl::fits_on<int>(j * nDstBytesPerRow);
+                            *out = PNG_FILTER_PAETH;
+                            ++out;
+#ifdef USE_PAETH_SSE2
+                            memcpy(out, paethBuffer, nBands);
+                            for (int iTmp = 1; iTmp < iLimitSSE2; ++iTmp)
+                            {
+                                out[nBands * iTmp + 0] =
+                                    paethBufferTmp[0 * W + iTmp];
+                                out[nBands * iTmp + 1] =
+                                    paethBufferTmp[1 * W + iTmp];
+                                out[nBands * iTmp + 2] =
+                                    paethBufferTmp[2 * W + iTmp];
+                            }
+                            memcpy(
+                                out + iLimitSSE2 * nBands,
+                                paethBuffer + iLimitSSE2 * nBands,
+                                cpl::fits_on<int>((W - iLimitSSE2) * nBands));
+#else
+                            memcpy(out, paethBuffer, nDstBytesPerRow - 1);
+#endif
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 1; i < W; ++i)
+                    {
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 0] =
+                            PNG_SUB(dstBuffer[0 * nBPB + j * W + i],
+                                    dstBuffer[0 * nBPB + j * W + i - 1]);
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 1] =
+                            PNG_SUB(dstBuffer[1 * nBPB + j * W + i],
+                                    dstBuffer[1 * nBPB + j * W + i - 1]);
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 2] =
+                            PNG_SUB(dstBuffer[2 * nBPB + j * W + i],
+                                    dstBuffer[2 * nBPB + j * W + i - 1]);
+                    }
+                }
+            }
+            else /* if( nBands == 4 ) */
+            {
+                if (j > 0)
+                {
+                    int costAvg = 0;
+                    for (int i = 1; i < W; ++i)
+                    {
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[0 * nBPB + j * W + i],
+                                        dstBuffer[0 * nBPB + j * W + i - 1],
+                                        dstBuffer[0 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      0] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[1 * nBPB + j * W + i],
+                                        dstBuffer[1 * nBPB + j * W + i - 1],
+                                        dstBuffer[1 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      1] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[2 * nBPB + j * W + i],
+                                        dstBuffer[2 * nBPB + j * W + i - 1],
+                                        dstBuffer[2 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      2] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                        {
+                            const GByte v =
+                                PNG_AVG(dstBuffer[3 * nBPB + j * W + i],
+                                        dstBuffer[3 * nBPB + j * W + i - 1],
+                                        dstBuffer[3 * nBPB + (j - 1) * W + i]);
+                            tmpBuffer[1 + j * nDstBytesPerRow + i * nBands +
+                                      3] = v;
+
+                            costAvg += (v < 128) ? v : 256 - v;
+                        }
+                    }
+
+                    if (!bForceAvg)
+                    {
+                        int costPaeth = 0;
+                        for (int k = 0; k < nBands; ++k)
+                        {
+                            const int i = 0;
+                            const GByte v = PNG_PAETH(
+                                dstBuffer[k * nBPB + j * W + i], 0,
+                                dstBuffer[k * nBPB + (j - 1) * W + i], 0);
+                            paethBuffer[i * nBands + k] = v;
+
+                            costPaeth += (v < 128) ? v : 256 - v;
+                        }
+
+#ifdef USE_PAETH_SSE2
+                        const int iLimitSSE2 =
+                            RunPaeth(dstBuffer.data() + j * W, nBands, nBPB,
+                                     paethBufferTmp, W, costPaeth);
+                        int i = iLimitSSE2;
+#else
+                        int i = 1;
+#endif
+                        for (; i < W && (costPaeth < costAvg || bForcePaeth);
+                             ++i)
+                        {
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[0 * nBPB + j * W + i],
+                                    dstBuffer[0 * nBPB + j * W + i - 1],
+                                    dstBuffer[0 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[0 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 0] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[1 * nBPB + j * W + i],
+                                    dstBuffer[1 * nBPB + j * W + i - 1],
+                                    dstBuffer[1 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[1 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 1] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[2 * nBPB + j * W + i],
+                                    dstBuffer[2 * nBPB + j * W + i - 1],
+                                    dstBuffer[2 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[2 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 2] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                            {
+                                const GByte v = PNG_PAETH(
+                                    dstBuffer[3 * nBPB + j * W + i],
+                                    dstBuffer[3 * nBPB + j * W + i - 1],
+                                    dstBuffer[3 * nBPB + (j - 1) * W + i],
+                                    dstBuffer[3 * nBPB + (j - 1) * W + i - 1]);
+                                paethBuffer[i * nBands + 3] = v;
+
+                                costPaeth += (v < 128) ? v : 256 - v;
+                            }
+                        }
+                        if (costPaeth < costAvg || bForcePaeth)
+                        {
+                            GByte *out = tmpBuffer.data() +
+                                         cpl::fits_on<int>(j * nDstBytesPerRow);
+                            *out = PNG_FILTER_PAETH;
+                            ++out;
+#ifdef USE_PAETH_SSE2
+                            memcpy(out, paethBuffer, nBands);
+                            for (int iTmp = 1; iTmp < iLimitSSE2; ++iTmp)
+                            {
+                                out[nBands * iTmp + 0] =
+                                    paethBufferTmp[0 * W + iTmp];
+                                out[nBands * iTmp + 1] =
+                                    paethBufferTmp[1 * W + iTmp];
+                                out[nBands * iTmp + 2] =
+                                    paethBufferTmp[2 * W + iTmp];
+                                out[nBands * iTmp + 3] =
+                                    paethBufferTmp[3 * W + iTmp];
+                            }
+                            memcpy(
+                                out + iLimitSSE2 * nBands,
+                                paethBuffer + iLimitSSE2 * nBands,
+                                cpl::fits_on<int>((W - iLimitSSE2) * nBands));
+#else
+                            memcpy(out, paethBuffer, nDstBytesPerRow - 1);
+#endif
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 1; i < W; ++i)
+                    {
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 0] =
+                            PNG_SUB(dstBuffer[0 * nBPB + j * W + i],
+                                    dstBuffer[0 * nBPB + j * W + i - 1]);
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 1] =
+                            PNG_SUB(dstBuffer[1 * nBPB + j * W + i],
+                                    dstBuffer[1 * nBPB + j * W + i - 1]);
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 2] =
+                            PNG_SUB(dstBuffer[2 * nBPB + j * W + i],
+                                    dstBuffer[2 * nBPB + j * W + i - 1]);
+                        tmpBuffer[1 + j * nDstBytesPerRow + i * nBands + 3] =
+                            PNG_SUB(dstBuffer[3 * nBPB + j * W + i],
+                                    dstBuffer[3 * nBPB + j * W + i - 1]);
+                    }
+                }
+            }
+        }
+        size_t nOutSize = 0;
+        // Shouldn't happen given the care we have done to dimension dstBuffer
+        if (CPLZLibDeflate(tmpBuffer.data(), tmpBufferSize, -1,
+                           dstBuffer.data(), dstBuffer.size(),
+                           &nOutSize) == nullptr ||
+            nOutSize > static_cast<size_t>(INT32_MAX))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "CPLZLibDeflate() failed: too small destination buffer");
+            return false;
+        }
+
+        VSILFILE *fp = VSIFOpenL(osTmpFilename.c_str(), "wb");
+        if (!fp)
+        {
+            CPLError(CE_Failure, CPLE_FileIO, "Cannot create %s",
+                     osTmpFilename.c_str());
+            return false;
+        }
+
+        // Cf https://en.wikipedia.org/wiki/PNG#Examples for formatting of
+        // IHDR, IDAT and IEND chunks
+
+        // PNG Signature
+        fp->Write("\x89PNG\x0D\x0A\x1A\x0A", 8, 1);
+
+        uLong crc;
+        const auto WriteAndUpdateCRC_Byte = [fp, &crc](uint8_t nVal)
+        {
+            fp->Write(&nVal, 1, sizeof(nVal));
+            crc = crc32(crc, &nVal, sizeof(nVal));
+        };
+        const auto WriteAndUpdateCRC_Int = [fp, &crc](int32_t nVal)
+        {
+            CPL_MSBPTR32(&nVal);
+            fp->Write(&nVal, 1, sizeof(nVal));
+            crc = crc32(crc, reinterpret_cast<const Bytef *>(&nVal),
+                        sizeof(nVal));
+        };
+
+        // IHDR chunk
+        uint32_t nIHDRSize = 13;
+        CPL_MSBPTR32(&nIHDRSize);
+        fp->Write(&nIHDRSize, 1, sizeof(nIHDRSize));
+        crc = crc32(0, reinterpret_cast<const Bytef *>("IHDR"), 4);
+        fp->Write("IHDR", 1, 4);
+        WriteAndUpdateCRC_Int(W);
+        WriteAndUpdateCRC_Int(H);
+        WriteAndUpdateCRC_Byte(8);  // Number of bits per pixel
+        const uint8_t nColorType = nBands == 1   ? 0
+                                   : nBands == 2 ? 4
+                                   : nBands == 3 ? 2
+                                                 : 6;
+        WriteAndUpdateCRC_Byte(nColorType);
+        WriteAndUpdateCRC_Byte(0);  // Compression method
+        WriteAndUpdateCRC_Byte(0);  // Filter method
+        WriteAndUpdateCRC_Byte(0);  // Interlacing=off
+        {
+            uint32_t nCrc32 = static_cast<uint32_t>(crc);
+            CPL_MSBPTR32(&nCrc32);
+            fp->Write(&nCrc32, 1, sizeof(nCrc32));
+        }
+
+        // IDAT chunk
+        uint32_t nIDATSize = static_cast<uint32_t>(nOutSize);
+        CPL_MSBPTR32(&nIDATSize);
+        fp->Write(&nIDATSize, 1, sizeof(nIDATSize));
+        crc = crc32(0, reinterpret_cast<const Bytef *>("IDAT"), 4);
+        fp->Write("IDAT", 1, 4);
+        crc = crc32(crc, dstBuffer.data(), static_cast<uint32_t>(nOutSize));
+        fp->Write(dstBuffer.data(), 1, nOutSize);
+        {
+            uint32_t nCrc32 = static_cast<uint32_t>(crc);
+            CPL_MSBPTR32(&nCrc32);
+            fp->Write(&nCrc32, 1, sizeof(nCrc32));
+        }
+
+        // IEND chunk
+        fp->Write("\x00\x00\x00\x00IEND\xAE\x42\x60\x82", 12, 1);
+
+        bool bRet =
+            fp->Tell() == 8 + 4 + 4 + 13 + 4 + 4 + 4 + nOutSize + 4 + 12;
+        bRet = VSIFCloseL(fp) == 0 && bRet &&
+               VSIRename(osTmpFilename.c_str(), osFilename.c_str()) == 0;
+        if (!bRet)
+            VSIUnlink(osTmpFilename.c_str());
+
+        return bRet;
+    }
 
     auto memDS = std::unique_ptr<GDALDataset>(
         MEMDataset::Create("", tileMatrix.mTileWidth, tileMatrix.mTileHeight, 0,
@@ -586,18 +1417,11 @@ static bool GenerateTile(
             "GDAL_OPEN_AFTER_COPY", "NO", false);
     CPL_IGNORE_RET_VAL(poSetter);
 
-    const bool bSupportsCreateOnlyVisibleAtCloseTime =
-        m_poDstDriver->GetMetadataItem(
-            GDAL_DCAP_CREATE_ONLY_VISIBLE_AT_CLOSE_TIME) != nullptr;
-
-    const std::string osTmpFilename = bSupportsCreateOnlyVisibleAtCloseTime
-                                          ? osFilename
-                                          : osFilename + ".tmp." + pszExtension;
-
     CPLStringList aosCreationOptions(creationOptions);
     if (bSupportsCreateOnlyVisibleAtCloseTime)
         aosCreationOptions.SetNameValue("@CREATE_ONLY_VISIBLE_AT_CLOSE_TIME",
                                         "YES");
+
     std::unique_ptr<GDALDataset> poOutDS(
         m_poDstDriver->CreateCopy(osTmpFilename.c_str(), memDS.get(), false,
                                   aosCreationOptions.List(), nullptr, nullptr));
@@ -2578,7 +3402,7 @@ class PerThreadLowerZoomResourceManager final
 
 bool GDALRasterTileAlgorithm::ValidateOutputFormat(GDALDataType eSrcDT) const
 {
-    if (m_outputFormat == "PNG")
+    if (m_format == "PNG")
     {
         if (m_poSrcDS->GetRasterCount() > 4)
         {
@@ -2593,7 +3417,7 @@ bool GDALRasterTileAlgorithm::ValidateOutputFormat(GDALDataType eSrcDT) const
             return false;
         }
     }
-    else if (m_outputFormat == "JPEG")
+    else if (m_format == "JPEG")
     {
         if (m_poSrcDS->GetRasterCount() > 4)
         {
@@ -2641,7 +3465,7 @@ bool GDALRasterTileAlgorithm::ValidateOutputFormat(GDALDataType eSrcDT) const
             }
         }
     }
-    else if (m_outputFormat == "WEBP")
+    else if (m_format == "WEBP")
     {
         if (m_poSrcDS->GetRasterCount() != 3 &&
             m_poSrcDS->GetRasterCount() != 4)
@@ -2751,7 +3575,7 @@ bool GDALRasterTileAlgorithm::IsCompatibleOfSpawn(const char *&pszErrorMsg)
                       "with spawn parallelization method";
         return false;
     }
-    if (cpl::starts_with(m_outputDirectory, "/vsimem/"))
+    if (cpl::starts_with(m_output, "/vsimem/"))
     {
         pszErrorMsg = "/vsimem/ output directory not supported with spawn "
                       "parallelization method";
@@ -2998,7 +3822,12 @@ static int GenerateTilesForkMethod(CPL_FILE_HANDLE in, CPL_FILE_HANDLE out)
 
     GDALRasterTileAlgorithm alg;
     if (pWorkStructure->poMemSrcDS)
-        alg.GetArg(GDAL_ARG_NAME_INPUT)->Set(pWorkStructure->poMemSrcDS);
+    {
+        auto *inputArg = alg.GetArg(GDAL_ARG_NAME_INPUT);
+        auto &val = inputArg->Get<std::vector<GDALArgDatasetValue>>();
+        val.resize(1);
+        val[0].Set(pWorkStructure->poMemSrcDS);
+    }
     return alg.ParseCommandLineArguments(pWorkStructure->aosArgv) && alg.Run()
                ? 0
                : 1;
@@ -3103,7 +3932,8 @@ bool GDALRasterTileAlgorithm::GenerateBaseTilesSpawnMethod(
                 aosArgv.push_back(
                     CPLSPrintf("GDAL_CACHEMAX=%" PRIu64, nCacheMaxPerProcess));
             }
-            aosArgv.push_back("--num-threads");
+            aosArgv.push_back(
+                std::string("--").append(GDAL_ARG_NAME_NUM_THREADS).c_str());
             aosArgv.push_back("1");
             aosArgv.push_back("--min-x");
             aosArgv.push_back(CPLSPrintf("%d", iXStart));
@@ -3129,8 +3959,8 @@ bool GDALRasterTileAlgorithm::GenerateBaseTilesSpawnMethod(
                     arg->GetName() != "max-y" && arg->GetName() != "min-zoom" &&
                     arg->GetName() != "progress" &&
                     arg->GetName() != "progress-forked" &&
-                    arg->GetName() != "input" &&
-                    arg->GetName() != "num-threads" &&
+                    arg->GetName() != GDAL_ARG_NAME_INPUT &&
+                    arg->GetName() != GDAL_ARG_NAME_NUM_THREADS &&
                     arg->GetName() != "webviewer" &&
                     arg->GetName() != "parallel-method")
                 {
@@ -3144,7 +3974,15 @@ bool GDALRasterTileAlgorithm::GenerateBaseTilesSpawnMethod(
             {
                 if (!cmdLine.empty())
                     cmdLine += ' ';
-                cmdLine += arg;
+                CPLString sArg(arg);
+                if (sArg.find_first_of(" \"") != std::string::npos)
+                {
+                    cmdLine += '"';
+                    cmdLine += sArg.replaceAll('"', "\\\"");
+                    cmdLine += '"';
+                }
+                else
+                    cmdLine += sArg;
             }
             CPLDebugOnly("gdal_raster_tile", "%s %s",
                          m_parallelMethod == "spawn" ? "Spawning" : "Forking",
@@ -3339,7 +4177,8 @@ bool GDALRasterTileAlgorithm::GenerateOverviewTilesSpawnMethod(
                 aosArgv.push_back(
                     CPLSPrintf("GDAL_CACHEMAX=%" PRIu64, nCacheMaxPerProcess));
             }
-            aosArgv.push_back("--num-threads");
+            aosArgv.push_back(
+                std::string("--").append(GDAL_ARG_NAME_NUM_THREADS).c_str());
             aosArgv.push_back("1");
             aosArgv.push_back("--ovr-zoom-level");
             aosArgv.push_back(CPLSPrintf("%d", iZ));
@@ -3358,14 +4197,14 @@ bool GDALRasterTileAlgorithm::GenerateOverviewTilesSpawnMethod(
             if (!bIsMEMSource)
             {
                 aosArgv.push_back("--input");
-                aosArgv.push_back(m_dataset.GetName().c_str());
+                aosArgv.push_back(m_inputDataset[0].GetName().c_str());
             }
             for (const auto &arg : GetArgs())
             {
                 if (arg->IsExplicitlySet() && arg->GetName() != "progress" &&
                     arg->GetName() != "progress-forked" &&
-                    arg->GetName() != "input" &&
-                    arg->GetName() != "num-threads" &&
+                    arg->GetName() != GDAL_ARG_NAME_INPUT &&
+                    arg->GetName() != GDAL_ARG_NAME_NUM_THREADS &&
                     arg->GetName() != "webviewer" &&
                     arg->GetName() != "parallel-method")
                 {
@@ -3379,7 +4218,15 @@ bool GDALRasterTileAlgorithm::GenerateOverviewTilesSpawnMethod(
             {
                 if (!cmdLine.empty())
                     cmdLine += ' ';
-                cmdLine += arg;
+                CPLString sArg(arg);
+                if (sArg.find_first_of(" \"") != std::string::npos)
+                {
+                    cmdLine += '"';
+                    cmdLine += sArg.replaceAll('"', "\\\"");
+                    cmdLine += '"';
+                }
+                else
+                    cmdLine += sArg;
             }
             CPLDebugOnly("gdal_raster_tile", "%s %s",
                          m_parallelMethod == "spawn" ? "Spawning" : "Forking",
@@ -3480,8 +4327,24 @@ bool GDALRasterTileAlgorithm::GenerateOverviewTilesSpawnMethod(
 bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                                       void *pProgressData)
 {
-    m_poSrcDS = m_dataset.GetDatasetRef();
+    GDALPipelineStepRunContext stepCtxt;
+    stepCtxt.m_pfnProgress = pfnProgress;
+    stepCtxt.m_pProgressData = pProgressData;
+    return RunStep(stepCtxt);
+}
+
+/************************************************************************/
+/*                  GDALRasterTileAlgorithm::RunStep()                  */
+/************************************************************************/
+
+bool GDALRasterTileAlgorithm::RunStep(GDALPipelineStepRunContext &ctxt)
+{
+    auto pfnProgress = ctxt.m_pfnProgress;
+    auto pProgressData = ctxt.m_pProgressData;
+    CPLAssert(m_inputDataset.size() == 1);
+    m_poSrcDS = m_inputDataset[0].GetDatasetRef();
     CPLAssert(m_poSrcDS);
+
     const int nSrcWidth = m_poSrcDS->GetRasterXSize();
     const int nSrcHeight = m_poSrcDS->GetRasterYSize();
     if (m_poSrcDS->GetRasterCount() == 0 || nSrcWidth == 0 || nSrcHeight == 0)
@@ -3517,7 +4380,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                         "with fork parallelization method");
             return false;
         }
-        if (cpl::starts_with(m_outputDirectory, "/vsimem/"))
+        if (cpl::starts_with(m_output, "/vsimem/"))
         {
             ReportError(CE_Failure, CPLE_AppDefined,
                         "/vsimem/ output directory not supported with fork "
@@ -3564,14 +4427,13 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
     }
 
     const auto eSrcDT = m_poSrcDS->GetRasterBand(1)->GetRasterDataType();
-    m_poDstDriver =
-        GetGDALDriverManager()->GetDriverByName(m_outputFormat.c_str());
+    m_poDstDriver = GetGDALDriverManager()->GetDriverByName(m_format.c_str());
     if (!m_poDstDriver)
     {
         ReportError(CE_Failure, CPLE_AppDefined,
                     "Invalid value for argument 'output-format'. Driver '%s' "
                     "does not exist",
-                    m_outputFormat.c_str());
+                    m_format.c_str());
         return false;
     }
 
@@ -4002,8 +4864,8 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
          m_poSrcDS->GetRasterBand(m_poSrcDS->GetRasterCount())
                  ->GetColorInterpretation() == GCI_AlphaBand);
 
-    const bool bOutputSupportsAlpha = !EQUAL(m_outputFormat.c_str(), "JPEG");
-    const bool bOutputSupportsNoData = EQUAL(m_outputFormat.c_str(), "GTiff");
+    const bool bOutputSupportsAlpha = !EQUAL(m_format.c_str(), "JPEG");
+    const bool bOutputSupportsNoData = EQUAL(m_format.c_str(), "GTiff");
     const bool bDstNoDataSpecified = GetArg("dst-nodata")->IsExplicitlySet();
     auto poColorTable = std::unique_ptr<GDALColorTable>(
         [this]()
@@ -4075,9 +4937,18 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
         psWO->nDstAlphaBand ? psWO->nDstAlphaBand : psWO->nBandCount;
 
     std::vector<GByte> dstBuffer;
-    const uint64_t dstBufferSize =
-        static_cast<uint64_t>(tileMatrix.mTileWidth) * tileMatrix.mTileHeight *
-        nDstBands * GDALGetDataTypeSizeBytes(psWO->eWorkingDataType);
+    const bool bIsPNGOutput = EQUAL(pszExtension, "png");
+    uint64_t dstBufferSize =
+        (static_cast<uint64_t>(tileMatrix.mTileWidth) *
+             // + 1 for PNG filter type / row byte
+             nDstBands * GDALGetDataTypeSizeBytes(psWO->eWorkingDataType) +
+         (bIsPNGOutput ? 1 : 0)) *
+        tileMatrix.mTileHeight;
+    if (bIsPNGOutput)
+    {
+        // Security margin for deflate compression
+        dstBufferSize += dstBufferSize / 10;
+    }
     const uint64_t nUsableRAM =
         std::min<uint64_t>(INT_MAX, CPLGetUsablePhysicalRAM() / 4);
     if (dstBufferSize <=
@@ -4193,7 +5064,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
         [this](const gdal::TileMatrixSet::TileMatrix &oTM)
     {
         CPLStringList aosCreationOptions(m_creationOptions);
-        if (m_outputFormat == "GTiff")
+        if (m_format == "GTiff")
         {
             if (aosCreationOptions.FetchNameValue("TILED") == nullptr &&
                 aosCreationOptions.FetchNameValue("BLOCKYSIZE") == nullptr)
@@ -4211,7 +5082,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
             if (aosCreationOptions.FetchNameValue("COMPRESS") == nullptr)
                 aosCreationOptions.SetNameValue("COMPRESS", "LZW");
         }
-        else if (m_outputFormat == "COG")
+        else if (m_format == "COG")
         {
             if (aosCreationOptions.FetchNameValue("OVERVIEW_RESAMPLING") ==
                 nullptr)
@@ -4229,14 +5100,12 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
         return aosCreationOptions;
     };
 
-    VSIMkdir(m_outputDirectory.c_str(), 0755);
+    VSIMkdir(m_output.c_str(), 0755);
     VSIStatBufL sStat;
-    if (VSIStatL(m_outputDirectory.c_str(), &sStat) != 0 ||
-        !VSI_ISDIR(sStat.st_mode))
+    if (VSIStatL(m_output.c_str(), &sStat) != 0 || !VSI_ISDIR(sStat.st_mode))
     {
         ReportError(CE_Failure, CPLE_FileIO,
-                    "Cannot create output directory %s",
-                    m_outputDirectory.c_str());
+                    "Cannot create output directory %s", m_output.c_str());
         return false;
     }
 
@@ -4276,14 +5145,14 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
     }
 
     if (m_title.empty())
-        m_title = CPLGetFilename(m_dataset.GetName().c_str());
+        m_title = CPLGetFilename(m_inputDataset[0].GetName().c_str());
 
     if (!m_url.empty())
     {
         if (m_url.back() != '/')
             m_url += '/';
-        std::string out_path = m_outputDirectory;
-        if (m_outputDirectory.back() == '/')
+        std::string out_path = m_output;
+        if (m_output.back() == '/')
             out_path.pop_back();
         m_url += CPLGetFilename(out_path.c_str());
     }
@@ -4325,8 +5194,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
         }
         (void)bSrcIsFineForFork;
 #ifdef FORK_ALLOWED
-        if (bSrcIsFineForFork &&
-            !cpl::starts_with(m_outputDirectory, "/vsimem/"))
+        if (bSrcIsFineForFork && !cpl::starts_with(m_output, "/vsimem/"))
         {
             if (CPLGetCurrentThreadCount() == 1)
             {
@@ -4506,6 +5374,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                         auto resources = oResourceManager.AcquireResources();
                         if (resources)
                         {
+                            std::vector<GByte> tmpBuffer;
                             for (int iY = iYStart;
                                  iY <= iYEndIncluded && !bParentAskedForStop;
                                  ++iY)
@@ -4522,7 +5391,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                                             *(resources->poFakeMaxZoomDS
                                                   ->GetSpatialRef()),
                                             psWO->eWorkingDataType, tileMatrix,
-                                            m_outputDirectory, nDstBands,
+                                            m_output, nDstBands,
                                             psWO->padfDstNoDataReal
                                                 ? &(psWO->padfDstNoDataReal[0])
                                                 : nullptr,
@@ -4531,7 +5400,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                                             m_skipBlank, bUserAskedForAlpha,
                                             m_auxXML, m_resume, m_metadata,
                                             poColorTable.get(),
-                                            resources->dstBuffer))
+                                            resources->dstBuffer, tmpBuffer))
                                     {
                                         oResourceManager.SetError();
                                         bFailure = true;
@@ -4592,6 +5461,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
         else
         {
             // Branch for single-thread max zoom level tile generation
+            std::vector<GByte> tmpBuffer;
             for (int iY = nMinTileY;
                  bRet && !bParentAskedForStop && iY <= nMaxTileY; ++iY)
             {
@@ -4601,13 +5471,13 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                     bRet = GenerateTile(
                         m_poSrcDS, m_poDstDriver, pszExtension,
                         aosCreationOptions.List(), oWO, oSRS_TMS,
-                        psWO->eWorkingDataType, tileMatrix, m_outputDirectory,
-                        nDstBands,
+                        psWO->eWorkingDataType, tileMatrix, m_output, nDstBands,
                         psWO->padfDstNoDataReal ? &(psWO->padfDstNoDataReal[0])
                                                 : nullptr,
                         m_maxZoomLevel, iX, iY, m_convention, nMinTileX,
                         nMinTileY, m_skipBlank, bUserAskedForAlpha, m_auxXML,
-                        m_resume, m_metadata, poColorTable.get(), dstBuffer);
+                        m_resume, m_metadata, poColorTable.get(), dstBuffer,
+                        tmpBuffer);
 
                     if (m_spawned)
                     {
@@ -4651,8 +5521,8 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                         GetFileY(iY, poTMS->tileMatrixList()[m_maxZoomLevel],
                                  m_convention);
                     std::string osFilename = CPLFormFilenameSafe(
-                        m_outputDirectory.c_str(),
-                        CPLSPrintf("%d", m_maxZoomLevel), nullptr);
+                        m_output.c_str(), CPLSPrintf("%d", m_maxZoomLevel),
+                        nullptr);
                     osFilename = CPLFormFilenameSafe(
                         osFilename.c_str(), CPLSPrintf("%d", iX), nullptr);
                     osFilename = CPLFormFilenameSafe(
@@ -4660,10 +5530,10 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                         CPLSPrintf("%d.%s", nFileY, pszExtension), nullptr);
                     if (VSIStatL(osFilename.c_str(), &sStat) == 0)
                     {
-                        GenerateKML(m_outputDirectory, m_title, iX, iY,
-                                    m_maxZoomLevel, kmlTileSize, pszExtension,
-                                    m_url, poTMS.get(), bInvertAxisTMS,
-                                    m_convention, poCTToWGS84.get(), {});
+                        GenerateKML(m_output, m_title, iX, iY, m_maxZoomLevel,
+                                    kmlTileSize, pszExtension, m_url,
+                                    poTMS.get(), bInvertAxisTMS, m_convention,
+                                    poCTToWGS84.get(), {});
                     }
                 }
             }
@@ -4676,9 +5546,9 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
     for (int i = 1; i <= m_poSrcDS->GetRasterCount(); ++i)
         aeColorInterp.push_back(
             m_poSrcDS->GetRasterBand(i)->GetColorInterpretation());
-    if (m_dataset.HasDatasetBeenOpenedByAlgorithm())
+    if (m_inputDataset[0].HasDatasetBeenOpenedByAlgorithm())
     {
-        m_dataset.Close();
+        m_inputDataset[0].Close();
         m_poSrcDS = nullptr;
     }
 
@@ -4795,11 +5665,11 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
 #endif
 
             MosaicDataset oSrcDS(
-                CPLFormFilenameSafe(m_outputDirectory.c_str(),
-                                    CPLSPrintf("%d", iZ + 1), nullptr),
-                pszExtension, m_outputFormat, aeColorInterp, srcTileMatrix,
-                oSRS_TMS, nSrcMinTileX, nSrcMinTileY, nSrcMaxTileX,
-                nSrcMaxTileY, m_convention, nDstBands, psWO->eWorkingDataType,
+                CPLFormFilenameSafe(m_output.c_str(), CPLSPrintf("%d", iZ + 1),
+                                    nullptr),
+                pszExtension, m_format, aeColorInterp, srcTileMatrix, oSRS_TMS,
+                nSrcMinTileX, nSrcMinTileY, nSrcMaxTileX, nSrcMaxTileY,
+                m_convention, nDstBands, psWO->eWorkingDataType,
                 psWO->padfDstNoDataReal ? &(psWO->padfDstNoDataReal[0])
                                         : nullptr,
                 m_metadata, poColorTable.get(), maxCacheTileSizePerThread);
@@ -4895,14 +5765,13 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                                     {
                                         if (!GenerateOverviewTile(
                                                 *(resources->poSrcDS.get()),
-                                                m_poDstDriver, m_outputFormat,
+                                                m_poDstDriver, m_format,
                                                 pszExtension,
                                                 aosCreationOptions.List(),
                                                 aosWarpOptions.List(),
                                                 m_overviewResampling,
-                                                ovrTileMatrix,
-                                                m_outputDirectory, iZ, iX, iY,
-                                                m_convention, m_skipBlank,
+                                                ovrTileMatrix, m_output, iZ, iX,
+                                                iY, m_convention, m_skipBlank,
                                                 bUserAskedForAlpha, m_auxXML,
                                                 m_resume))
                                         {
@@ -4974,12 +5843,11 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                          ++iX)
                     {
                         bRet = GenerateOverviewTile(
-                            oSrcDS, m_poDstDriver, m_outputFormat, pszExtension,
+                            oSrcDS, m_poDstDriver, m_format, pszExtension,
                             aosCreationOptions.List(), aosWarpOptions.List(),
-                            m_overviewResampling, ovrTileMatrix,
-                            m_outputDirectory, iZ, iX, iY, m_convention,
-                            m_skipBlank, bUserAskedForAlpha, m_auxXML,
-                            m_resume);
+                            m_overviewResampling, ovrTileMatrix, m_output, iZ,
+                            iX, iY, m_convention, m_skipBlank,
+                            bUserAskedForAlpha, m_auxXML, m_resume);
 
                         if (m_spawned)
                         {
@@ -5023,9 +5891,8 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                 {
                     int nFileY =
                         GetFileY(iY, poTMS->tileMatrixList()[iZ], m_convention);
-                    std::string osFilename =
-                        CPLFormFilenameSafe(m_outputDirectory.c_str(),
-                                            CPLSPrintf("%d", iZ), nullptr);
+                    std::string osFilename = CPLFormFilenameSafe(
+                        m_output.c_str(), CPLSPrintf("%d", iZ), nullptr);
                     osFilename = CPLFormFilenameSafe(
                         osFilename.c_str(), CPLSPrintf("%d", iX), nullptr);
                     osFilename = CPLFormFilenameSafe(
@@ -5044,8 +5911,8 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                                              poTMS->tileMatrixList()[iZ + 1],
                                              m_convention);
                                 osFilename = CPLFormFilenameSafe(
-                                    m_outputDirectory.c_str(),
-                                    CPLSPrintf("%d", iZ + 1), nullptr);
+                                    m_output.c_str(), CPLSPrintf("%d", iZ + 1),
+                                    nullptr);
                                 osFilename = CPLFormFilenameSafe(
                                     osFilename.c_str(),
                                     CPLSPrintf("%d", iX * 2 + iChildX),
@@ -5065,9 +5932,9 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                             }
                         }
 
-                        GenerateKML(m_outputDirectory, m_title, iX, iY, iZ,
-                                    kmlTileSize, pszExtension, m_url,
-                                    poTMS.get(), bInvertAxisTMS, m_convention,
+                        GenerateKML(m_output, m_title, iX, iY, iZ, kmlTileSize,
+                                    pszExtension, m_url, poTMS.get(),
+                                    bInvertAxisTMS, m_convention,
                                     poCTToWGS84.get(), children);
                     }
                 }
@@ -5099,28 +5966,27 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                 &dfWestLon, &dfSouthLat, &dfEastLon, &dfNorthLat, 21);
         }
 
-        GenerateLeaflet(m_outputDirectory, m_title, dfSouthLat, dfWestLon,
-                        dfNorthLat, dfEastLon, m_minZoomLevel, m_maxZoomLevel,
+        GenerateLeaflet(m_output, m_title, dfSouthLat, dfWestLon, dfNorthLat,
+                        dfEastLon, m_minZoomLevel, m_maxZoomLevel,
                         tileMatrix.mTileWidth, pszExtension, m_url, m_copyright,
                         m_convention == "xyz");
     }
 
     if (m_ovrZoomLevel < 0 && bRet && IsWebViewerEnabled("openlayers"))
     {
-        GenerateOpenLayers(
-            m_outputDirectory, m_title, adfExtent[0], adfExtent[1],
-            adfExtent[2], adfExtent[3], m_minZoomLevel, m_maxZoomLevel,
-            tileMatrix.mTileWidth, pszExtension, m_url, m_copyright,
-            *(poTMS.get()), bInvertAxisTMS, oSRS_TMS, m_convention == "xyz");
+        GenerateOpenLayers(m_output, m_title, adfExtent[0], adfExtent[1],
+                           adfExtent[2], adfExtent[3], m_minZoomLevel,
+                           m_maxZoomLevel, tileMatrix.mTileWidth, pszExtension,
+                           m_url, m_copyright, *(poTMS.get()), bInvertAxisTMS,
+                           oSRS_TMS, m_convention == "xyz");
     }
 
     if (m_ovrZoomLevel < 0 && bRet && IsWebViewerEnabled("mapml") &&
         poTMS->identifier() != "raster" && m_convention == "xyz")
     {
-        GenerateMapML(m_outputDirectory, m_mapmlTemplate, m_title, nMinTileX,
-                      nMinTileY, nMaxTileX, nMaxTileY, m_minZoomLevel,
-                      m_maxZoomLevel, pszExtension, m_url, m_copyright,
-                      *(poTMS.get()));
+        GenerateMapML(m_output, m_mapmlTemplate, m_title, nMinTileX, nMinTileY,
+                      nMaxTileX, nMaxTileY, m_minZoomLevel, m_maxZoomLevel,
+                      pszExtension, m_url, m_copyright, *(poTMS.get()));
     }
 
     if (m_ovrZoomLevel < 0 && bRet && IsWebViewerEnabled("stac") &&
@@ -5150,12 +6016,11 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                                   &dfEastLon, &dfNorthLat, 21);
         }
 
-        GenerateSTAC(m_outputDirectory, m_title, dfWestLon, dfSouthLat,
-                     dfEastLon, dfNorthLat, m_metadata, aoBandMetadata,
-                     m_minZoomLevel, m_maxZoomLevel, pszExtension,
-                     m_outputFormat, m_url, m_copyright, oSRS_TMS,
-                     *(poTMS.get()), bInvertAxisTMS, m_tileSize, adfExtent,
-                     m_dataset);
+        GenerateSTAC(m_output, m_title, dfWestLon, dfSouthLat, dfEastLon,
+                     dfNorthLat, m_metadata, aoBandMetadata, m_minZoomLevel,
+                     m_maxZoomLevel, pszExtension, m_format, m_url, m_copyright,
+                     oSRS_TMS, *(poTMS.get()), bInvertAxisTMS, m_tileSize,
+                     adfExtent, m_inputDataset[0]);
     }
 
     if (m_ovrZoomLevel < 0 && bRet && m_kml)
@@ -5179,7 +6044,7 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                 int nFileY = GetFileY(
                     iY, poTMS->tileMatrixList()[m_minZoomLevel], m_convention);
                 std::string osFilename = CPLFormFilenameSafe(
-                    m_outputDirectory.c_str(), CPLSPrintf("%d", m_minZoomLevel),
+                    m_output.c_str(), CPLSPrintf("%d", m_minZoomLevel),
                     nullptr);
                 osFilename = CPLFormFilenameSafe(osFilename.c_str(),
                                                  CPLSPrintf("%d", iX), nullptr);
@@ -5196,9 +6061,9 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
                 }
             }
         }
-        GenerateKML(m_outputDirectory, m_title, -1, -1, -1, kmlTileSize,
-                    pszExtension, m_url, poTMS.get(), bInvertAxisTMS,
-                    m_convention, poCTToWGS84.get(), children);
+        GenerateKML(m_output, m_title, -1, -1, -1, kmlTileSize, pszExtension,
+                    m_url, poTMS.get(), bInvertAxisTMS, m_convention,
+                    poCTToWGS84.get(), children);
     }
 
     if (!bRet && CPLGetLastErrorType() == CE_None)
@@ -5225,5 +6090,8 @@ bool GDALRasterTileAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
 
     return bRet;
 }
+
+GDALRasterTileAlgorithmStandalone::~GDALRasterTileAlgorithmStandalone() =
+    default;
 
 //! @endcond

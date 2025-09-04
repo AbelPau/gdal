@@ -134,10 +134,10 @@ void OGRPGTableFeatureDefn::SolveFields() const
 /*                            GetFIDColumn()                            */
 /************************************************************************/
 
-const char *OGRPGTableLayer::GetFIDColumn()
+const char *OGRPGTableLayer::GetFIDColumn() const
 
 {
-    ReadTableDefinition();
+    const_cast<OGRPGTableLayer *>(this)->ReadTableDefinition();
 
     if (pszFIDColumn != nullptr)
         return pszFIDColumn;
@@ -2269,7 +2269,7 @@ OGRErr OGRPGTableLayer::CreateFeatureViaCopy(OGRFeature *poFeature)
 /*                           TestCapability()                           */
 /************************************************************************/
 
-int OGRPGTableLayer::TestCapability(const char *pszCap)
+int OGRPGTableLayer::TestCapability(const char *pszCap) const
 
 {
     if (bUpdateAccess)

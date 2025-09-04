@@ -108,10 +108,13 @@ static double GTiffGetLERCMaxZErrorOverview(CSLConstList papszOptions)
 }
 
 #if HAVE_JXL
-static bool GTiffGetJXLLossless(CSLConstList papszOptions)
+static bool GTiffGetJXLLossless(CSLConstList papszOptions,
+                                bool *pbIsSpecified = nullptr)
 {
-    return CPLTestBool(
-        CSLFetchNameValueDef(papszOptions, "JXL_LOSSLESS", "TRUE"));
+    const char *pszVal = CSLFetchNameValue(papszOptions, "JXL_LOSSLESS");
+    if (pbIsSpecified)
+        *pbIsSpecified = pszVal != nullptr;
+    return pszVal == nullptr || CPLTestBool(pszVal);
 }
 
 static uint32_t GTiffGetJXLEffort(CSLConstList papszOptions)
@@ -119,16 +122,22 @@ static uint32_t GTiffGetJXLEffort(CSLConstList papszOptions)
     return atoi(CSLFetchNameValueDef(papszOptions, "JXL_EFFORT", "5"));
 }
 
-static float GTiffGetJXLDistance(CSLConstList papszOptions)
+static float GTiffGetJXLDistance(CSLConstList papszOptions,
+                                 bool *pbIsSpecified = nullptr)
 {
-    return static_cast<float>(
-        CPLAtof(CSLFetchNameValueDef(papszOptions, "JXL_DISTANCE", "1.0")));
+    const char *pszVal = CSLFetchNameValue(papszOptions, "JXL_DISTANCE");
+    if (pbIsSpecified)
+        *pbIsSpecified = pszVal != nullptr;
+    return pszVal == nullptr ? 1.0f : static_cast<float>(CPLAtof(pszVal));
 }
 
-static float GTiffGetJXLAlphaDistance(CSLConstList papszOptions)
+static float GTiffGetJXLAlphaDistance(CSLConstList papszOptions,
+                                      bool *pbIsSpecified = nullptr)
 {
-    return static_cast<float>(CPLAtof(
-        CSLFetchNameValueDef(papszOptions, "JXL_ALPHA_DISTANCE", "-1.0")));
+    const char *pszVal = CSLFetchNameValue(papszOptions, "JXL_ALPHA_DISTANCE");
+    if (pbIsSpecified)
+        *pbIsSpecified = pszVal != nullptr;
+    return pszVal == nullptr ? -1.0f : static_cast<float>(CPLAtof(pszVal));
 }
 
 #endif
@@ -4055,7 +4064,7 @@ static void WriteMDMetadata(GDALMultiDomainMetadata *poMDMD, TIFF *hTIFF,
          ++iDomain)
     {
         CSLConstList papszMD = poMDMD->GetMetadata(papszDomainList[iDomain]);
-        bool bIsXML = false;
+        bool bIsXMLOrJSON = false;
 
         if (EQUAL(papszDomainList[iDomain], "IMAGE_STRUCTURE") ||
             EQUAL(papszDomainList[iDomain], "DERIVED_SUBDATASETS"))
@@ -4070,8 +4079,11 @@ static void WriteMDMetadata(GDALMultiDomainMetadata *poMDMD, TIFF *hTIFF,
         if (EQUAL(papszDomainList[iDomain], "xml:XMP"))
             continue;  // Handled in SetMetadata.
 
-        if (STARTS_WITH_CI(papszDomainList[iDomain], "xml:"))
-            bIsXML = true;
+        if (STARTS_WITH_CI(papszDomainList[iDomain], "xml:") ||
+            STARTS_WITH_CI(papszDomainList[iDomain], "json:"))
+        {
+            bIsXMLOrJSON = true;
+        }
 
         /* --------------------------------------------------------------------
          */
@@ -4083,7 +4095,7 @@ static void WriteMDMetadata(GDALMultiDomainMetadata *poMDMD, TIFF *hTIFF,
             const char *pszItemValue = nullptr;
             char *pszItemName = nullptr;
 
-            if (bIsXML)
+            if (bIsXMLOrJSON)
             {
                 pszItemName = CPLStrdup("doc");
                 pszItemValue = papszMD[iItem];
@@ -4304,12 +4316,27 @@ bool GTiffDataset::WriteMetadata(GDALDataset *poSrcDS, TIFF *l_hTIFF,
             papszSrcMDD)
         {
             GDALMultiDomainMetadata l_oMDMD;
-            CSLConstList papszMD = poSrcDS->GetMetadata();
-            if (CSLCount(papszMD) > 0 &&
-                (!papszSrcMDD || CSLFindString(papszSrcMDD, "") >= 0 ||
-                 CSLFindString(papszSrcMDD, "_DEFAULT_") >= 0))
             {
-                l_oMDMD.SetMetadata(papszMD);
+                CSLConstList papszMD = poSrcDS->GetMetadata();
+                if (CSLCount(papszMD) > 0 &&
+                    (!papszSrcMDD || CSLFindString(papszSrcMDD, "") >= 0 ||
+                     CSLFindString(papszSrcMDD, "_DEFAULT_") >= 0))
+                {
+                    l_oMDMD.SetMetadata(papszMD);
+                }
+            }
+
+            if (EQUAL(pszCopySrcMDD, "AUTO") && !papszSrcMDD)
+            {
+                // Propagate ISIS3 or VICAR metadata
+                for (const char *pszMDD : {"json:ISIS3", "json:VICAR"})
+                {
+                    char **papszMD = poSrcDS->GetMetadata(pszMDD);
+                    if (papszMD)
+                    {
+                        l_oMDMD.SetMetadata(papszMD, pszMDD);
+                    }
+                }
             }
 
             if ((!EQUAL(pszCopySrcMDD, "AUTO") && CPLTestBool(pszCopySrcMDD)) ||
@@ -5641,10 +5668,30 @@ TIFF *GTiffDataset::CreateLL(const char *pszFilename, int nXSize, int nYSize,
     const int l_nJpegTablesMode = GTiffGetJpegTablesMode(papszParamList);
     const double l_dfMaxZError = GTiffGetLERCMaxZError(papszParamList);
 #if HAVE_JXL
-    const bool l_bJXLLossless = GTiffGetJXLLossless(papszParamList);
+    bool bJXLLosslessSpecified = false;
+    const bool l_bJXLLossless =
+        GTiffGetJXLLossless(papszParamList, &bJXLLosslessSpecified);
     const uint32_t l_nJXLEffort = GTiffGetJXLEffort(papszParamList);
-    const float l_fJXLDistance = GTiffGetJXLDistance(papszParamList);
-    const float l_fJXLAlphaDistance = GTiffGetJXLAlphaDistance(papszParamList);
+    bool bJXLDistanceSpecified = false;
+    const float l_fJXLDistance =
+        GTiffGetJXLDistance(papszParamList, &bJXLDistanceSpecified);
+    if (bJXLDistanceSpecified && l_bJXLLossless)
+    {
+        ReportError(pszFilename, CE_Warning, CPLE_AppDefined,
+                    "JXL_DISTANCE creation option is ignored, given %s "
+                    "JXL_LOSSLESS=YES",
+                    bJXLLosslessSpecified ? "(explicit)" : "(implicit)");
+    }
+    bool bJXLAlphaDistanceSpecified = false;
+    const float l_fJXLAlphaDistance =
+        GTiffGetJXLAlphaDistance(papszParamList, &bJXLAlphaDistanceSpecified);
+    if (bJXLAlphaDistanceSpecified && l_bJXLLossless)
+    {
+        ReportError(pszFilename, CE_Warning, CPLE_AppDefined,
+                    "JXL_ALPHA_DISTANCE creation option is ignored, given %s "
+                    "JXL_LOSSLESS=YES",
+                    bJXLLosslessSpecified ? "(explicit)" : "(implicit)");
+    }
 #endif
     /* -------------------------------------------------------------------- */
     /*      Streaming related code                                          */
@@ -5844,11 +5891,14 @@ TIFF *GTiffDataset::CreateLL(const char *pszFilename, int nXSize, int nYSize,
     VSIErrorReset();
     const bool bOnlyVisibleAtCloseTime = CPLTestBool(CSLFetchNameValueDef(
         papszParamList, "@CREATE_ONLY_VISIBLE_AT_CLOSE_TIME", "NO"));
-    VSILFILE *l_fpL =
+    auto l_fpL =
         bOnlyVisibleAtCloseTime && !bAppend
             ? VSIFileManager::GetHandler(pszFilename)
                   ->CreateOnlyVisibleAtCloseTime(pszFilename, true, nullptr)
-            : VSIFOpenExL(pszFilename, bAppend ? "r+b" : "w+b", true);
+                  .release()
+            : VSIFilesystemHandler::OpenStatic(pszFilename,
+                                               bAppend ? "r+b" : "w+b", true)
+                  .release();
     if (l_fpL == nullptr)
     {
         VSIToCPLErrorWithMsg(CE_Failure, CPLE_OpenFailed,
@@ -8224,17 +8274,6 @@ GDALDataset *GTiffDataset::CreateCopy(const char *pszFilename,
         GTiffDataset::WriteRPC(poDS, l_hTIFF, true, eProfile, pszFilename,
                                papszOptions,
                                true /* write only in PAM AND if needed */);
-
-    // Propagate ISIS3 or VICAR metadata, but only as PAM metadata.
-    for (const char *pszMDD : {"json:ISIS3", "json:VICAR"})
-    {
-        char **papszMD = poSrcDS->GetMetadata(pszMDD);
-        if (papszMD)
-        {
-            poDS->SetMetadata(papszMD, pszMDD);
-            poDS->PushMetadataToPam();
-        }
-    }
 
     poDS->m_bWriteCOGLayout = bCopySrcOverviews;
 

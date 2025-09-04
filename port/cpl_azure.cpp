@@ -41,6 +41,8 @@
 
 #ifdef HAVE_CURL
 
+constexpr const char *X_MS_VERSION = "2019-12-12";
+
 /************************************************************************/
 /*                      RemoveTrailingSlash()                           */
 /************************************************************************/
@@ -99,22 +101,34 @@ static struct curl_slist *GetAzureBlobHeaders(
      * https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
      */
 
+    const auto AddHeaders = [bIncludeMSVersion](struct curl_slist *l_psHeaders,
+                                                const std::string &osDate)
+    {
+        l_psHeaders = curl_slist_append(
+            l_psHeaders, CPLSPrintf("x-ms-date: %s", osDate.c_str()));
+        if (bIncludeMSVersion)
+        {
+            l_psHeaders = curl_slist_append(
+                l_psHeaders, CPLSPrintf("x-ms-version: %s", X_MS_VERSION));
+        }
+        return l_psHeaders;
+    };
+
     std::string osDate = CPLGetConfigOption("CPL_AZURE_TIMESTAMP", "");
     if (osDate.empty())
     {
         osDate = IVSIS3LikeHandleHelper::GetRFC822DateTime();
     }
+
     if (osStorageKeyB64.empty())
     {
-        psHeaders = curl_slist_append(
-            psHeaders, CPLSPrintf("x-ms-date: %s", osDate.c_str()));
+        psHeaders = AddHeaders(psHeaders, osDate);
         return psHeaders;
     }
 
-    std::string osMsVersion("2019-12-12");
     std::map<std::string, std::string> oSortedMapMSHeaders;
     if (bIncludeMSVersion)
-        oSortedMapMSHeaders["x-ms-version"] = osMsVersion;
+        oSortedMapMSHeaders["x-ms-version"] = X_MS_VERSION;
     oSortedMapMSHeaders["x-ms-date"] = osDate;
     std::string osCanonicalizedHeaders(
         IVSIS3LikeHandleHelper::BuildCanonicalizedHeaders(oSortedMapMSHeaders,
@@ -168,15 +182,10 @@ static struct curl_slist *GetAzureBlobHeaders(
         "SharedKey " + osStorageAccount + ":" +
         CPLAzureGetSignature(osStringToSign, osStorageKeyB64));
 
-    psHeaders = curl_slist_append(psHeaders,
-                                  CPLSPrintf("x-ms-date: %s", osDate.c_str()));
-    if (bIncludeMSVersion)
-    {
-        psHeaders = curl_slist_append(
-            psHeaders, CPLSPrintf("x-ms-version: %s", osMsVersion.c_str()));
-    }
+    psHeaders = AddHeaders(psHeaders, osDate);
     psHeaders = curl_slist_append(
         psHeaders, CPLSPrintf("Authorization: %s", osAuthorization.c_str()));
+
     return psHeaders;
 }
 
@@ -682,6 +691,30 @@ static bool GetConfigurationFromCLIConfigFile(
 }
 
 /************************************************************************/
+/*                              GetSAS()                                */
+/************************************************************************/
+
+/* static */
+std::string VSIAzureBlobHandleHelper::GetSAS(const char *pszFilename)
+{
+    return VSIGetPathSpecificOption(
+        pszFilename, "AZURE_STORAGE_SAS_TOKEN",
+        CPLGetConfigOption("AZURE_SAS",
+                           ""));  // AZURE_SAS for GDAL < 3.5
+}
+
+/************************************************************************/
+/*                          IsNoSignRequest()                           */
+/************************************************************************/
+
+/* static */
+bool VSIAzureBlobHandleHelper::IsNoSignRequest(const char *pszFilename)
+{
+    return CPLTestBool(
+        VSIGetPathSpecificOption(pszFilename, "AZURE_NO_SIGN_REQUEST", "NO"));
+}
+
+/************************************************************************/
 /*                        GetConfiguration()                            */
 /************************************************************************/
 
@@ -737,15 +770,10 @@ bool VSIAzureBlobHandleHelper::GetConfiguration(
                                          "AZURE_STORAGE_ACCESS_KEY", ""));
             if (osStorageKey.empty())
             {
-                osSAS = VSIGetPathSpecificOption(
-                    osPathForOption.c_str(), "AZURE_STORAGE_SAS_TOKEN",
-                    CPLGetConfigOption("AZURE_SAS",
-                                       ""));  // AZURE_SAS for GDAL < 3.5
+                osSAS = GetSAS(osPathForOption.c_str());
                 if (osSAS.empty())
                 {
-                    if (CPLTestBool(VSIGetPathSpecificOption(
-                            osPathForOption.c_str(), "AZURE_NO_SIGN_REQUEST",
-                            "NO")))
+                    if (IsNoSignRequest(osPathForOption.c_str()))
                     {
                         return true;
                     }
@@ -837,8 +865,7 @@ VSIAzureBlobHandleHelper *VSIAzureBlobHandleHelper::BuildFromURI(
         return nullptr;
     }
 
-    if (CPLTestBool(VSIGetPathSpecificOption(osPathForOption.c_str(),
-                                             "AZURE_NO_SIGN_REQUEST", "NO")))
+    if (IsNoSignRequest(osPathForOption.c_str()))
     {
         osStorageKey.clear();
         osSAS.clear();
@@ -914,12 +941,16 @@ VSIAzureBlobHandleHelper::GetCurlHeaders(const std::string &osVerb,
 {
     if (m_bFromManagedIdentities || !m_osAccessToken.empty())
     {
+        psHeaders = curl_slist_append(
+            psHeaders,
+            std::string("x-ms-version: ").append(X_MS_VERSION).c_str());
+
         std::string osAccessToken;
         if (m_bFromManagedIdentities)
         {
             if (!GetConfigurationFromManagedIdentities(m_osPathForOption,
                                                        osAccessToken))
-                return nullptr;
+                return psHeaders;
         }
         else
         {
@@ -931,7 +962,6 @@ VSIAzureBlobHandleHelper::GetCurlHeaders(const std::string &osVerb,
         std::string osAuthorization = "Authorization: Bearer ";
         osAuthorization += osAccessToken;
         psHeaders = curl_slist_append(psHeaders, osAuthorization.c_str());
-        psHeaders = curl_slist_append(psHeaders, "x-ms-version: 2019-12-12");
         return psHeaders;
     }
 

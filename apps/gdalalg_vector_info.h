@@ -32,6 +32,11 @@ class GDALVectorInfoAlgorithm /* non final */
 
     explicit GDALVectorInfoAlgorithm(bool standaloneStep = false);
 
+    bool CanBeLastStep() const override
+    {
+        return true;
+    }
+
     void SetDataset(GDALDataset *poDS)
     {
         auto arg = GetArg(GDAL_ARG_NAME_INPUT);
@@ -54,6 +59,7 @@ class GDALVectorInfoAlgorithm /* non final */
     std::string m_sql{};
     std::string m_where{};
     std::string m_dialect{};
+    int m_limit = 0;
 };
 
 /************************************************************************/

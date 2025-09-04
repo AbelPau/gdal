@@ -2369,22 +2369,40 @@ def test_tiff_write_64():
 # Verify that we can write XML metadata.
 
 
-def test_tiff_write_65():
+def test_tiff_write_xml(tmp_path):
 
-    ds = gdaltest.tiff_drv.Create("tmp/tiff_write_65.tif", 10, 10)
+    ds = gdaltest.tiff_drv.Create(tmp_path / "tiff_write_xml.tif", 10, 10)
 
     doc = '<doc><test xml:attr="abc"/></doc>'
     ds.SetMetadata([doc], "xml:test")
 
     ds = None
 
-    ds = gdal.Open("tmp/tiff_write_65.tif")
+    ds = gdal.Open(tmp_path / "tiff_write_xml.tif")
     md = ds.GetMetadata("xml:test")
     ds = None
 
     assert len(md) == 1 and md[0] == doc, "did not get xml back clean"
 
-    gdaltest.tiff_drv.Delete("tmp/tiff_write_65.tif")
+
+###############################################################################
+# Verify that we can write JSON metadata.
+
+
+def test_tiff_write_json(tmp_path):
+
+    ds = gdaltest.tiff_drv.Create(tmp_path / "tiff_write_json.tif", 10, 10)
+
+    doc = '{"key":"value}'
+    ds.SetMetadata([doc], "json:test")
+
+    ds = None
+
+    ds = gdal.Open(tmp_path / "tiff_write_json.tif")
+    md = ds.GetMetadata("json:test")
+    ds = None
+
+    assert len(md) == 1 and md[0] == doc, "did not get JSON back clean"
 
 
 ###############################################################################
@@ -9799,28 +9817,68 @@ def test_tiff_write_jpegxl_uint16_single_band():
 
 
 ###############################################################################
-# Test JXL_ALPHA_DISTANCE option
+# Test JXL_DISTANCE option without specifying JXL_LOSSLESS=NO
 
 
-@pytest.mark.require_creation_option("GTiff", "JXL_ALPHA_DISTANCE")
-def test_tiff_write_jpegxl_alpha_distance_zero():
+@pytest.mark.require_creation_option("GTiff", "JXL")
+def test_tiff_write_jpegxl_distance_warning(tmp_vsimem):
 
     drv = gdal.GetDriverByName("GTiff")
 
     src_ds = gdal.Open("data/stefan_full_rgba.tif")
-    filename = "/vsimem/test_tiff_write_jpegxl_alpha_distance_zero.tif"
-    drv.CreateCopy(
-        filename,
-        src_ds,
-        options=["COMPRESS=JXL", "JXL_LOSSLESS=NO", "JXL_ALPHA_DISTANCE=0"],
-    )
+    filename = tmp_vsimem / "test_tiff_write_jpegxl_distance_warning.tif"
+
+    with gdaltest.error_raised(
+        gdal.CE_Warning,
+        match="JXL_DISTANCE creation option is ignored, given (implicit) JXL_LOSSLESS=YES",
+    ):
+        drv.CreateCopy(
+            tmp_vsimem / "warning.jxl",
+            src_ds,
+            options=["COMPRESS=JXL", "JXL_DISTANCE=3"],
+        )
+
+    with gdaltest.error_raised(gdal.CE_None):
+        drv.CreateCopy(
+            filename,
+            src_ds,
+            options=["COMPRESS=JXL", "JXL_LOSSLESS=NO", "JXL_DISTANCE=3"],
+        )
+
+
+###############################################################################
+# Test JXL_ALPHA_DISTANCE option
+
+
+@pytest.mark.require_creation_option("GTiff", "JXL_ALPHA_DISTANCE")
+def test_tiff_write_jpegxl_alpha_distance_zero(tmp_vsimem):
+
+    drv = gdal.GetDriverByName("GTiff")
+
+    src_ds = gdal.Open("data/stefan_full_rgba.tif")
+    filename = tmp_vsimem / "test_tiff_write_jpegxl_alpha_distance_zero.tif"
+
+    with gdaltest.error_raised(
+        gdal.CE_Warning,
+        match="JXL_ALPHA_DISTANCE creation option is ignored, given (implicit) JXL_LOSSLESS=YES",
+    ):
+        drv.CreateCopy(
+            tmp_vsimem / "warning.jxl",
+            src_ds,
+            options=["COMPRESS=JXL", "JXL_ALPHA_DISTANCE=0"],
+        )
+
+    with gdaltest.error_raised(gdal.CE_None):
+        drv.CreateCopy(
+            filename,
+            src_ds,
+            options=["COMPRESS=JXL", "JXL_LOSSLESS=NO", "JXL_ALPHA_DISTANCE=0"],
+        )
     ds = gdal.Open(filename)
     assert float(ds.GetMetadataItem("JXL_ALPHA_DISTANCE", "IMAGE_STRUCTURE")) == 0
     assert ds.GetRasterBand(1).Checksum() != src_ds.GetRasterBand(1).Checksum()
     assert ds.GetRasterBand(4).Checksum() == src_ds.GetRasterBand(4).Checksum()
     ds = None
-
-    gdal.Unlink(filename)
 
 
 ###############################################################################
@@ -9830,6 +9888,7 @@ def test_tiff_write_jpegxl_alpha_distance_zero():
 def test_tiff_write_jpegxl_five_bands_lossy(tmp_vsimem):
 
     outfilename = str(tmp_vsimem / "test_tiff_write_jpegxl_five_bands_lossy.tif")
+
     gdal.Translate(
         outfilename,
         "data/byte.tif",

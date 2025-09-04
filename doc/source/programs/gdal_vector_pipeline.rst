@@ -8,7 +8,7 @@
 
 .. only:: html
 
-    Process a vector dataset.
+    Process a vector dataset applying several steps.
 
 .. Index:: gdal vector pipeline
 
@@ -27,7 +27,8 @@ Synopsis
 
 A pipeline chains several steps, separated with the `!` (exclamation mark) character.
 The first step must be ``read`` or ``concat``, and the last one ``info`` or ``write``. Each step has its
-own positional or non-positional arguments. Apart from ``read``, ``concat`` and ``write``,
+own positional or non-positional arguments.
+Apart from ``read``, ``concat``, ``info`` and ``write``,
 all other steps can potentially be used several times in a pipeline.
 
 Potential steps are:
@@ -168,6 +169,20 @@ The final ``write`` step can be added but if so it must explicitly specify the
     }
 
 
+
+Substitutions
+-------------
+
+.. versionadded:: 3.12
+
+It is possible to use :program:`gdal pipeline` to use a pipeline already
+serialized in a .gdal.json file, and customize its existing steps, typically
+changing an input filename, specifying an output filename, or adding/modifying arguments
+of steps.
+
+See :ref:`gdal_pipeline_substitutions`.
+
+`
 Examples
 --------
 

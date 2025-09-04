@@ -3834,7 +3834,9 @@ void netCDFDataset::SetProjectionFromVar(
             bGotCfGT = true;
 
             int node_offset = 0;
-            NCDFResolveAttInt(nGroupId, NC_GLOBAL, "node_offset", &node_offset);
+            const bool bUseActualRange =
+                NCDFResolveAttInt(nGroupId, NC_GLOBAL, "node_offset",
+                                  &node_offset) == CE_None;
 
             double adfActualRange[2] = {0.0, 0.0};
             double xMinMax[2] = {0.0, 0.0};
@@ -3890,7 +3892,8 @@ void netCDFDataset::SetProjectionFromVar(
                 }
             };
 
-            if (!nc_get_att_double(nGroupDimXID, nVarDimXID, "actual_range",
+            if (bUseActualRange &&
+                !nc_get_att_double(nGroupDimXID, nVarDimXID, "actual_range",
                                    adfActualRange))
             {
                 xMinMax[0] = adfActualRange[0];
@@ -3917,7 +3920,8 @@ void netCDFDataset::SetProjectionFromVar(
                 }
             }
 
-            if (!nc_get_att_double(nGroupDimYID, nVarDimYID, "actual_range",
+            if (bUseActualRange &&
+                !nc_get_att_double(nGroupDimYID, nVarDimYID, "actual_range",
                                    adfActualRange))
             {
                 yMinMax[0] = adfActualRange[0];
@@ -6610,7 +6614,7 @@ void netCDFDataset::CreateSubDatasetList(int nGroupId)
 /*                            TestCapability()                          */
 /************************************************************************/
 
-int netCDFDataset::TestCapability(const char *pszCap)
+int netCDFDataset::TestCapability(const char *pszCap) const
 {
     if (EQUAL(pszCap, ODsCCreateLayer))
     {
@@ -6628,7 +6632,7 @@ int netCDFDataset::TestCapability(const char *pszCap)
 /*                            GetLayer()                                */
 /************************************************************************/
 
-OGRLayer *netCDFDataset::GetLayer(int nIdx)
+const OGRLayer *netCDFDataset::GetLayer(int nIdx) const
 {
     if (nIdx < 0 || nIdx >= this->GetLayerCount())
         return nullptr;
@@ -6667,6 +6671,14 @@ OGRLayer *netCDFDataset::ICreateLayer(const char *pszName,
     netCDFDataset *poLayerDataset = nullptr;
     if (eMultipleLayerBehavior == SEPARATE_FILES)
     {
+        if (CPLLaunderForFilenameSafe(osNetCDFLayerName.c_str(), nullptr) !=
+            osNetCDFLayerName)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Illegal characters in '%s' to form a valid filename",
+                     osNetCDFLayerName.c_str());
+            return nullptr;
+        }
         char **papszDatasetOptions = nullptr;
         papszDatasetOptions = CSLSetNameValue(
             papszDatasetOptions, "CONFIG_FILE",

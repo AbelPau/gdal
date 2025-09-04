@@ -812,14 +812,14 @@ class OGRSplitListFieldLayer : public OGRLayer
 
     virtual OGRFeature *GetNextFeature() override;
     virtual OGRFeature *GetFeature(GIntBig nFID) override;
-    virtual OGRFeatureDefn *GetLayerDefn() override;
+    const OGRFeatureDefn *GetLayerDefn() const override;
 
     virtual void ResetReading() override
     {
         poSrcLayer->ResetReading();
     }
 
-    virtual int TestCapability(const char *) override
+    int TestCapability(const char *) const override
     {
         return FALSE;
     }
@@ -829,7 +829,7 @@ class OGRSplitListFieldLayer : public OGRLayer
         return poSrcLayer->GetFeatureCount(bForce);
     }
 
-    virtual OGRSpatialReference *GetSpatialRef() override
+    const OGRSpatialReference *GetSpatialRef() const override
     {
         return poSrcLayer->GetSpatialRef();
     }
@@ -1149,7 +1149,7 @@ OGRFeature *OGRSplitListFieldLayer::GetFeature(GIntBig nFID)
 /*                        GetLayerDefn()                                */
 /************************************************************************/
 
-OGRFeatureDefn *OGRSplitListFieldLayer::GetLayerDefn()
+const OGRFeatureDefn *OGRSplitListFieldLayer::GetLayerDefn() const
 {
     if (poFeatureDefn == nullptr)
         return poSrcLayer->GetLayerDefn();
@@ -1629,12 +1629,12 @@ class GDALVectorTranslateWrappedDataset : public GDALDataset
     CPL_DISALLOW_COPY_ASSIGN(GDALVectorTranslateWrappedDataset)
 
   public:
-    virtual int GetLayerCount() override
+    int GetLayerCount() const override
     {
         return static_cast<int>(m_apoLayers.size());
     }
 
-    virtual OGRLayer *GetLayer(int nIdx) override;
+    OGRLayer *GetLayer(int nIdx) const override;
     virtual OGRLayer *GetLayerByName(const char *pszName) override;
 
     virtual OGRLayer *ExecuteSQL(const char *pszStatement,
@@ -1660,7 +1660,7 @@ class GDALVectorTranslateWrappedLayer : public OGRLayerDecorator
   public:
     virtual ~GDALVectorTranslateWrappedLayer();
 
-    virtual OGRFeatureDefn *GetLayerDefn() override
+    const OGRFeatureDefn *GetLayerDefn() const override
     {
         return m_poFDefn;
     }
@@ -1821,7 +1821,7 @@ GDALVectorTranslateWrappedDataset::New(GDALDataset *poBase,
     return poNew;
 }
 
-OGRLayer *GDALVectorTranslateWrappedDataset::GetLayer(int i)
+OGRLayer *GDALVectorTranslateWrappedDataset::GetLayer(int i) const
 {
     if (i < 0 || i >= static_cast<int>(m_apoLayers.size()))
         return nullptr;
@@ -2782,7 +2782,8 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
         {
             if (aoDrivers.empty())
             {
-                if (CPLGetExtensionSafe(pszDest).empty())
+                if (CPLGetExtensionSafe(pszDest).empty() &&
+                    !psOptions->bInvokedFromGdalVectorConvert)
                 {
                     psOptions->osFormat = "ESRI Shapefile";
                 }
@@ -2873,12 +2874,15 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
         /*      a directory instead. */
         /* --------------------------------------------------------------------
          */
+
+        const bool bSingleLayer =
+            (!psOptions->osSQLStatement.empty() ||
+             psOptions->aosLayers.size() == 1 ||
+             (psOptions->aosLayers.empty() && poDS->GetLayerCount() == 1));
+
         VSIStatBufL sStat;
         if (EQUAL(poDriver->GetDescription(), "ESRI Shapefile") &&
-            psOptions->osSQLStatement.empty() &&
-            (psOptions->aosLayers.size() > 1 ||
-             (psOptions->aosLayers.empty() && poDS->GetLayerCount() > 1)) &&
-            psOptions->osNewLayerName.empty() &&
+            !bSingleLayer && psOptions->osNewLayerName.empty() &&
             EQUAL(CPLGetExtensionSafe(osDestFilename).c_str(), "SHP") &&
             VSIStatL(osDestFilename, &sStat) != 0)
         {
@@ -2900,10 +2904,7 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
             // will be created
             const char *pszCOList =
                 poDriver->GetMetadataItem(GDAL_DMD_CREATIONOPTIONLIST);
-            if (pszCOList && strstr(pszCOList, "SINGLE_LAYER") &&
-                (!psOptions->osSQLStatement.empty() ||
-                 psOptions->aosLayers.size() == 1 ||
-                 (psOptions->aosLayers.empty() && poDS->GetLayerCount() == 1)))
+            if (bSingleLayer && pszCOList && strstr(pszCOList, "SINGLE_LAYER"))
             {
                 aosDSCO.SetNameValue("SINGLE_LAYER", "YES");
             }
@@ -3198,9 +3199,13 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
                 }
                 else if (!poResultSet->TestCapability(OLCFastFeatureCount))
                 {
-                    CPLError(CE_Warning, CPLE_AppDefined,
-                             "Progress turned off as fast feature count is not "
-                             "available.");
+                    if (!psOptions->bInvokedFromGdalVectorConvert)
+                    {
+                        CPLError(
+                            CE_Warning, CPLE_AppDefined,
+                            "Progress turned off as fast feature count is not "
+                            "available.");
+                    }
                     psOptions->bDisplayProgress = false;
                 }
                 else
@@ -3651,9 +3656,13 @@ GDALDatasetH GDALVectorTranslate(const char *pszDest, GDALDatasetH hDstDS,
             {
                 if (!poLayer->TestCapability(OLCFastFeatureCount))
                 {
-                    CPLError(CE_Warning, CPLE_NotSupported,
-                             "Progress turned off as fast feature count is not "
-                             "available.");
+                    if (!psOptions->bInvokedFromGdalVectorConvert)
+                    {
+                        CPLError(
+                            CE_Warning, CPLE_NotSupported,
+                            "Progress turned off as fast feature count is not "
+                            "available.");
+                    }
                     psOptions->bDisplayProgress = false;
                 }
                 else
@@ -8310,7 +8319,7 @@ static std::unique_ptr<GDALArgumentParser> GDALVectorTranslateOptionsGetParser(
     argParser->add_argument("-unsetFid")
         .store_into(psOptions->bUnsetFid)
         .help(_("Prevent the name of the source FID column and source feature "
-                "IDs from being re-used."));
+                "IDs from being reused."));
 
     {
         auto &group = argParser->add_mutually_exclusive_group();

@@ -51,9 +51,7 @@
 #include <cstring>
 #include <dirent.h>
 #include <errno.h>
-#if HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
 #include <sys/stat.h>
 #ifdef HAVE_STATVFS
 #include <sys/statvfs.h>
@@ -162,11 +160,11 @@ class VSIUnixStdioFilesystemHandler final : public VSIFilesystemHandler
     ~VSIUnixStdioFilesystemHandler() override;
 #endif
 
-    VSIVirtualHandle *Open(const char *pszFilename, const char *pszAccess,
-                           bool bSetError,
-                           CSLConstList /* papszOptions */) override;
+    VSIVirtualHandleUniquePtr Open(const char *pszFilename,
+                                   const char *pszAccess, bool bSetError,
+                                   CSLConstList /* papszOptions */) override;
 
-    VSIVirtualHandle *
+    VSIVirtualHandleUniquePtr
     CreateOnlyVisibleAtCloseTime(const char *pszFilename,
                                  bool bEmulationAllowed,
                                  CSLConstList papszOptions) override;
@@ -182,7 +180,7 @@ class VSIUnixStdioFilesystemHandler final : public VSIFilesystemHandler
     GIntBig GetDiskFreeSpace(const char *pszDirname) override;
     int SupportsSparseFiles(const char *pszPath) override;
 
-    bool IsLocal(const char *pszPath) override;
+    bool IsLocal(const char *pszPath) const override;
     bool SupportsSequentialWrite(const char *pszPath,
                                  bool /* bAllowLocalTempFile */) override;
     bool SupportsRandomWrite(const char *pszPath,
@@ -786,7 +784,7 @@ VSIUnixStdioFilesystemHandler::~VSIUnixStdioFilesystemHandler()
 /*                                Open()                                */
 /************************************************************************/
 
-VSIVirtualHandle *
+VSIVirtualHandleUniquePtr
 VSIUnixStdioFilesystemHandler::Open(const char *pszFilename,
                                     const char *pszAccess, bool bSetError,
                                     CSLConstList /* papszOptions */)
@@ -812,13 +810,8 @@ VSIUnixStdioFilesystemHandler::Open(const char *pszFilename,
         strcmp(pszAccess, "rb") == 0 || strcmp(pszAccess, "r") == 0;
     const bool bModeAppendReadWrite =
         strcmp(pszAccess, "a+b") == 0 || strcmp(pszAccess, "a+") == 0;
-    VSIUnixStdioHandle *poHandle = new (std::nothrow)
-        VSIUnixStdioHandle(this, fp, bReadOnly, bModeAppendReadWrite);
-    if (poHandle == nullptr)
-    {
-        fclose(fp);
-        return nullptr;
-    }
+    auto poHandle = std::make_unique<VSIUnixStdioHandle>(this, fp, bReadOnly,
+                                                         bModeAppendReadWrite);
 
     errno = nError;
 
@@ -828,17 +821,19 @@ VSIUnixStdioFilesystemHandler::Open(const char *pszFilename,
     /* -------------------------------------------------------------------- */
     if (bReadOnly && CPLTestBool(CPLGetConfigOption("VSI_CACHE", "FALSE")))
     {
-        return VSICreateCachedFile(poHandle);
+        return VSIVirtualHandleUniquePtr(
+            VSICreateCachedFile(poHandle.release()));
     }
 
-    return poHandle;
+    return VSIVirtualHandleUniquePtr(poHandle.release());
 }
 
 /************************************************************************/
 /*                      CreateOnlyVisibleAtCloseTime()                  */
 /************************************************************************/
 
-VSIVirtualHandle *VSIUnixStdioFilesystemHandler::CreateOnlyVisibleAtCloseTime(
+VSIVirtualHandleUniquePtr
+VSIUnixStdioFilesystemHandler::CreateOnlyVisibleAtCloseTime(
     const char *pszFilename, bool bEmulationAllowed, CSLConstList papszOptions)
 {
 #ifdef __linux
@@ -864,13 +859,10 @@ VSIVirtualHandle *VSIUnixStdioFilesystemHandler::CreateOnlyVisibleAtCloseTime(
         return nullptr;
     }
 
-    VSIUnixStdioHandle *poHandle = new (std::nothrow) VSIUnixStdioHandle(
+    auto poHandle = std::make_unique<VSIUnixStdioHandle>(
         this, fp, /* bReadOnly = */ false, /* bModeAppendReadWrite = */ false);
-    if (poHandle)
-    {
-        poHandle->m_osFilenameToSetAtCloseTime = pszFilename;
-    }
-    return poHandle;
+    poHandle->m_osFilenameToSetAtCloseTime = pszFilename;
+    return VSIVirtualHandleUniquePtr(poHandle.release());
 #else
     if (!bEmulationAllowed)
         return nullptr;
@@ -890,14 +882,11 @@ VSIVirtualHandle *VSIUnixStdioFilesystemHandler::CreateOnlyVisibleAtCloseTime(
         return nullptr;
     }
 
-    VSIUnixStdioHandle *poHandle = new (std::nothrow) VSIUnixStdioHandle(
+    auto poHandle = std::make_unique<VSIUnixStdioHandle>(
         this, fp, /* bReadOnly = */ false, /* bModeAppendReadWrite = */ false);
-    if (poHandle)
-    {
-        poHandle->m_osTmpFilename = std::move(osTmpFilename);
-        poHandle->m_osFilenameToSetAtCloseTime = pszFilename;
-    }
-    return poHandle;
+    poHandle->m_osTmpFilename = std::move(osTmpFilename);
+    poHandle->m_osFilenameToSetAtCloseTime = pszFilename;
+    return VSIVirtualHandleUniquePtr(poHandle.release());
 #endif
 }
 
@@ -1111,7 +1100,7 @@ bool VSIUnixStdioFilesystemHandler::IsLocal(const char *
 #ifdef __linux
                                                 pszPath
 #endif
-)
+) const
 {
 #ifdef __linux
     struct statfs sStatFS;

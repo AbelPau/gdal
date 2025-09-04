@@ -208,6 +208,20 @@ def test_gdalalg_vector_pipeline_as_api_error():
         pipeline.Run()
 
 
+def test_gdalalg_vector_pipeline_mutually_exclusive_args():
+
+    with pytest.raises(
+        Exception, match="clip: Argument 'like' is mutually exclusive with 'bbox'"
+    ):
+        gdal.Run(
+            "vector pipeline",
+            input="../ogr/data/poly.shp",
+            output_format="MEM",
+            output="",
+            pipeline="read ! clip --bbox=1,2,3,4 --like=../ogr/data/poly.shp ! write",
+        )
+
+
 def test_gdalalg_vector_pipeline_usage_as_json():
 
     pipeline = get_pipeline_alg()
@@ -227,10 +241,7 @@ def test_gdalalg_vector_pipeline_help_doc():
     out = gdaltest.runexternal(f"{gdal_path} vector pipeline --help-doc=main")
 
     assert "Usage: gdal vector pipeline [OPTIONS] <PIPELINE>" in out
-    assert (
-        "<PIPELINE> is of the form: read|concat [READ-OPTIONS] ( ! <STEP-NAME> [STEP-OPTIONS] )* ! write [WRITE-OPTIONS]"
-        in out
-    )
+    assert "<PIPELINE> is of the form:" in out
 
     out = gdaltest.runexternal(f"{gdal_path} vector pipeline --help-doc=edit")
 
@@ -504,7 +515,7 @@ def test_gdalalg_vector_pipeline_write_options(tmp_vsimem):
     pipeline = get_pipeline_alg()
     with pytest.raises(
         Exception,
-        match="already exists. Specify the --overwrite option to overwrite it",
+        match="already exists",
     ):
         assert pipeline.ParseRunAndFinalize(
             ["read", "../ogr/data/poly.shp", "!", "write", out_filename]
