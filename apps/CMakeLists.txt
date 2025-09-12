@@ -28,6 +28,7 @@ add_library(
 
 if(GDAL_ENABLE_ALGORITHMS)
 target_sources(appslib PRIVATE
+  gdalalg_abstract_pipeline.cpp
   gdalalg_clip_common.cpp
   gdalalg_convert.cpp
   gdalalg_info.cpp
@@ -36,6 +37,7 @@ target_sources(appslib PRIVATE
   gdalalg_dataset_copy.cpp
   gdalalg_dataset_rename.cpp
   gdalalg_dataset_delete.cpp
+  gdalalg_materialize.cpp
   gdalalg_mdim.cpp
   gdalalg_mdim_info.cpp
   gdalalg_mdim_convert.cpp
@@ -88,6 +90,7 @@ target_sources(appslib PRIVATE
   gdalalg_raster_update.cpp
   gdalalg_raster_viewshed.cpp
   gdalalg_raster_write.cpp
+  gdalalg_tee.cpp
   gdalalg_vector.cpp
   gdalalg_vector_info.cpp
   gdalalg_vector_check_coverage.cpp
@@ -120,6 +123,7 @@ target_sources(appslib PRIVATE
   gdalalg_vector_index.cpp
   gdalalg_vector_layer_algebra.cpp
   gdalalg_vector_output_abstract.cpp
+  gdalalg_vector_partition.cpp
   gdalalg_vector_reproject.cpp
   gdalalg_vector_select.cpp
   gdalalg_vector_sql.cpp
@@ -137,7 +141,7 @@ endif()
 add_dependencies(appslib generate_gdal_version_h)
 target_sources(${GDAL_LIB_TARGET_NAME} PRIVATE $<TARGET_OBJECTS:appslib>)
 gdal_standard_includes(appslib)
-target_compile_options(appslib PRIVATE ${GDAL_CXX_WARNING_FLAGS} ${WFLAG_OLD_STYLE_CAST} ${WFLAG_EFFCXX})
+target_compile_options(appslib PRIVATE ${GDAL_CXX_WARNING_FLAGS} ${WFLAG_OLD_STYLE_CAST} ${WFLAG_EFFCXX} ${WFLAG_DOUBLE_PROMOTION})
 target_include_directories(
   appslib PRIVATE $<TARGET_PROPERTY:gdal_vrt,SOURCE_DIR> $<TARGET_PROPERTY:ogrsf_generic,SOURCE_DIR>)
 if (HAVE_ATOMIC_UINT64_T_WITH_ATOMIC)
@@ -235,7 +239,7 @@ if (BUILD_APPS)
 
   add_library(utils_common OBJECT gdalargumentparser.cpp)
   gdal_standard_includes(utils_common)
-  target_compile_options(utils_common PRIVATE ${GDAL_CXX_WARNING_FLAGS} ${WFLAG_OLD_STYLE_CAST})
+  target_compile_options(utils_common PRIVATE ${GDAL_CXX_WARNING_FLAGS} ${WFLAG_OLD_STYLE_CAST} ${WFLAG_DOUBLE_PROMOTION})
   add_dependencies(utils_common generate_gdal_version_h)
 
   set(APPS_TARGETS

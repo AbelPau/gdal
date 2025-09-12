@@ -293,20 +293,7 @@ GDALDataset::~GDALDataset()
             CPLDebug("GDAL", "GDALClose(%s, this=%p)", GetDescription(), this);
     }
 
-    if (IsMarkedSuppressOnClose())
-    {
-        if (poDriver == nullptr ||
-            // Someone issuing Create("foo.tif") on a
-            // memory driver doesn't expect files with those names to be deleted
-            // on a file system...
-            // This is somewhat messy. Ideally there should be a way for the
-            // driver to overload the default behavior
-            (!EQUAL(poDriver->GetDescription(), "MEM") &&
-             !EQUAL(poDriver->GetDescription(), "Memory")))
-        {
-            VSIUnlink(GetDescription());
-        }
-    }
+    GDALDataset::Close();
 
     /* -------------------------------------------------------------------- */
     /*      Remove dataset from the "open" dataset list.                    */
@@ -407,6 +394,8 @@ GDALDataset::~GDALDataset()
  * If a driver implements this method, it must also call it from its
  * dataset destructor.
  *
+ * This is the equivalent of C function GDALDatasetRunCloseWithoutDestroying().
+ *
  * A typical implementation might look as the following
  * \code{.cpp}
  *
@@ -461,11 +450,62 @@ GDALDataset::~GDALDataset()
  */
 CPLErr GDALDataset::Close()
 {
-    // Call UnregisterFromSharedDataset() before altering nOpenFlags
-    UnregisterFromSharedDataset();
+    if (nOpenFlags != OPEN_FLAGS_CLOSED)
+    {
+        // Call UnregisterFromSharedDataset() before altering nOpenFlags
+        UnregisterFromSharedDataset();
 
-    nOpenFlags = OPEN_FLAGS_CLOSED;
+        nOpenFlags = OPEN_FLAGS_CLOSED;
+    }
+
+    if (IsMarkedSuppressOnClose())
+    {
+        if (poDriver == nullptr ||
+            // Someone issuing Create("foo.tif") on a
+            // memory driver doesn't expect files with those names to be deleted
+            // on a file system...
+            // This is somewhat messy. Ideally there should be a way for the
+            // driver to overload the default behavior
+            (!EQUAL(poDriver->GetDescription(), "MEM") &&
+             !EQUAL(poDriver->GetDescription(), "Memory")))
+        {
+            if (VSIUnlink(GetDescription()) == 0)
+                UnMarkSuppressOnClose();
+        }
+    }
+
     return CE_None;
+}
+
+/************************************************************************/
+/*                   GDALDatasetRunCloseWithoutDestroying()             */
+/************************************************************************/
+
+/** Run the Close() method, without running destruction of the object.
+ *
+ * This ensures that content that should be written to file is written and
+ * that all file descriptors are closed.
+ *
+ * Note that this is different from GDALClose() which also destroys
+ * the underlying C++ object. GDALClose() or GDALReleaseDataset() are actually
+ * the only functions that can be safely called on the dataset handle after
+ * this function has been called.
+ *
+ * Most users want to use GDALClose() or GDALReleaseDataset() rather than
+ * this function.
+ *
+ * This function is equivalent to the C++ method GDALDataset:Close()
+ *
+ * @param hDS dataset handle.
+ * @return CE_None if no error
+ *
+ * @since GDAL 3.12
+ * @see GDALClose()
+ */
+CPLErr GDALDatasetRunCloseWithoutDestroying(GDALDatasetH hDS)
+{
+    VALIDATE_POINTER1(hDS, __func__, CE_Failure);
+    return GDALDataset::FromHandle(hDS)->Close();
 }
 
 /************************************************************************/
@@ -2278,7 +2318,9 @@ CPLErr GDALSetGCPs2(GDALDatasetH hDS, int nGCPCount, const GDAL_GCP *pasGCPList,
  * @param pfnProgress a function to call to report progress, or NULL.
  * @param pProgressData application data to pass to the progress function.
  * @param papszOptions (GDAL >= 3.6) NULL terminated list of options as
- *                     key=value pairs, or NULL
+ *                     key=value pairs, or NULL.
+ *                     Possible keys are the ones returned by
+ *                     GetDriver()->GetMetadataItem(GDAL_DMD_OVERVIEW_CREATIONOPTIONLIST)
  *
  * @return CE_None on success or CE_Failure if the operation doesn't work.
  *
@@ -2302,6 +2344,55 @@ CPLErr GDALDataset::BuildOverviews(const char *pszResampling, int nOverviews,
                                    CSLConstList papszOptions)
 {
     int *panAllBandList = nullptr;
+
+    CPLStringList aosOptions(papszOptions);
+    if (poDriver && !aosOptions.empty())
+    {
+        const char *pszOptionList =
+            poDriver->GetMetadataItem(GDAL_DMD_OVERVIEW_CREATIONOPTIONLIST);
+        if (pszOptionList)
+        {
+            // For backwards compatibility
+            if (const char *opt = aosOptions.FetchNameValue("USE_RRD"))
+            {
+                if (strstr(pszOptionList, "<Value>RRD</Value>") &&
+                    aosOptions.FetchNameValue("LOCATION") == nullptr)
+                {
+                    if (CPLTestBool(opt))
+                        aosOptions.SetNameValue("LOCATION", "RRD");
+                    aosOptions.SetNameValue("USE_RRD", nullptr);
+                }
+            }
+            if (const char *opt =
+                    aosOptions.FetchNameValue("VRT_VIRTUAL_OVERVIEWS"))
+            {
+                if (strstr(pszOptionList, "VIRTUAL"))
+                {
+                    aosOptions.SetNameValue("VIRTUAL", opt);
+                    aosOptions.SetNameValue("VRT_VIRTUAL_OVERVIEWS", nullptr);
+                }
+            }
+
+            for (const auto &[pszKey, pszValue] :
+                 cpl::IterateNameValue(papszOptions))
+            {
+                if (cpl::ends_with(std::string_view(pszKey), "_OVERVIEW"))
+                {
+                    aosOptions.SetNameValue(
+                        std::string(pszKey)
+                            .substr(0, strlen(pszKey) - strlen("_OVERVIEW"))
+                            .c_str(),
+                        pszValue);
+                    aosOptions.SetNameValue(pszKey, nullptr);
+                }
+            }
+
+            CPLString osDriver;
+            osDriver.Printf("driver %s", poDriver->GetDescription());
+            GDALValidateOptions(pszOptionList, aosOptions.List(),
+                                "overview creation option", osDriver);
+        }
+    }
 
     if (nListBands == 0)
     {
@@ -2330,18 +2421,9 @@ CPLErr GDALDataset::BuildOverviews(const char *pszResampling, int nOverviews,
         }
     }
 
-    // At time of writing, all overview generation options are actually
-    // expected to be passed as configuration options.
-    std::vector<std::unique_ptr<CPLConfigOptionSetter>> apoConfigOptionSetter;
-    for (const auto &[pszKey, pszValue] : cpl::IterateNameValue(papszOptions))
-    {
-        apoConfigOptionSetter.emplace_back(
-            std::make_unique<CPLConfigOptionSetter>(pszKey, pszValue, false));
-    }
-
-    const CPLErr eErr =
-        IBuildOverviews(pszResampling, nOverviews, panOverviewList, nListBands,
-                        panBandList, pfnProgress, pProgressData, papszOptions);
+    const CPLErr eErr = IBuildOverviews(
+        pszResampling, nOverviews, panOverviewList, nListBands, panBandList,
+        pfnProgress, pProgressData, aosOptions.List());
 
     if (panAllBandList != nullptr)
         CPLFree(panAllBandList);
@@ -2455,7 +2537,9 @@ CPLErr GDALDataset::IBuildOverviews(const char *pszResampling, int nOverviews,
  * @param pfnProgress a function to call to report progress, or NULL.
  * @param pProgressData application data to pass to the progress function.
  * @param papszOptions NULL terminated list of options as
- *                     key=value pairs, or NULL. None currently
+ *                     key=value pairs, or NULL. Possible keys are the
+ *                     ones returned by
+ *                     GetDriver()->GetMetadataItem(GDAL_DMD_OVERVIEW_CREATIONOPTIONLIST)
  *
  * @return CE_None on success or CE_Failure if the operation doesn't work.
  * @since 3.12

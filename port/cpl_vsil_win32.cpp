@@ -63,22 +63,22 @@ class VSIWin32FilesystemHandler final : public VSIFilesystemHandler
 
     virtual int Stat(const char *pszFilename, VSIStatBufL *pStatBuf,
                      int nFlags) override;
-    virtual int Unlink(const char *pszFilename) override;
+    int Unlink(const char *pszFilename) override;
     virtual int Rename(const char *oldpath, const char *newpath,
                        GDALProgressFunc, void *) override;
-    virtual int Mkdir(const char *pszDirname, long nMode) override;
-    virtual int Rmdir(const char *pszDirname) override;
-    virtual char **ReadDirEx(const char *pszDirname, int nMaxFiles) override;
+    int Mkdir(const char *pszDirname, long nMode) override;
+    int Rmdir(const char *pszDirname) override;
+    char **ReadDirEx(const char *pszDirname, int nMaxFiles) override;
 
-    virtual int IsCaseSensitive(const char *pszFilename) override
+    int IsCaseSensitive(const char *pszFilename) override
     {
         (void)pszFilename;
         return FALSE;
     }
 
-    virtual GIntBig GetDiskFreeSpace(const char *pszDirname) override;
-    virtual int SupportsSparseFiles(const char *pszPath) override;
-    virtual bool IsLocal(const char *pszPath) const override;
+    GIntBig GetDiskFreeSpace(const char *pszDirname) override;
+    int SupportsSparseFiles(const char *pszPath) override;
+    bool IsLocal(const char *pszPath) const override;
     std::string
     GetCanonicalFilename(const std::string &osFilename) const override;
 
@@ -115,6 +115,7 @@ class VSIWin32Handle final : public VSIVirtualHandle
     bool m_bWriteThrough = false;
 
     bool m_bCancelCreation = false;
+    std::string m_osFilename{};
     std::string m_osFilenameToSetAtCloseTime{};
 
     VSIWin32Handle() = default;
@@ -348,8 +349,17 @@ int VSIWin32Handle::Close()
         ret = ret2;
     hFile = nullptr;
 
-    if (m_bCancelCreation && !m_osFilenameToSetAtCloseTime.empty())
-        VSIUnlink(m_osFilenameToSetAtCloseTime.c_str());
+    if (m_bCancelCreation && m_osFilenameToSetAtCloseTime.empty())
+        ret = VSIUnlink(m_osFilename.c_str());
+    else if (m_bCancelCreation && !m_osFilenameToSetAtCloseTime.empty())
+    {
+        ret = VSIUnlink((m_osFilenameToSetAtCloseTime + ".tmp_hidden").c_str());
+        VSIStatBufL sStatBuf;
+        if (ret != 0 &&
+            VSIStatL((m_osFilenameToSetAtCloseTime + ".tmp_hidden").c_str(),
+                     &sStatBuf) != 0)
+            ret = 0;
+    }
 
     return ret;
 }
@@ -964,6 +974,7 @@ VSIWin32FilesystemHandler::Open(const char *pszFilename, const char *pszAccess,
     auto poHandle = std::make_unique<VSIWin32Handle>();
 
     poHandle->hFile = hFile;
+    poHandle->m_osFilename = pszFilename;
     poHandle->m_bWriteThrough = bWriteThrough;
 
     if (strchr(pszAccess, 'a') != nullptr)
@@ -1207,6 +1218,7 @@ VSIWin32FilesystemHandler::CreateOnlyVisibleAtCloseTime(
 
             poHandle->hFile = hFile;
             poHandle->m_bWriteThrough = bWriteThrough;
+            poHandle->m_osFilename = pszFilename;
             poHandle->m_osFilenameToSetAtCloseTime = osFullFilename;
 
             return VSIVirtualHandleUniquePtr(poHandle.release());

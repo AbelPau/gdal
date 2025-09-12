@@ -79,12 +79,14 @@ class GDALVectorSQLAlgorithmDataset final : public GDALDataset
     explicit GDALVectorSQLAlgorithmDataset(GDALDataset &oSrcDS)
         : m_oSrcDS(oSrcDS)
     {
+        m_oSrcDS.Reference();
     }
 
     ~GDALVectorSQLAlgorithmDataset() override
     {
         for (OGRLayer *poLayer : m_layers)
             m_oSrcDS.ReleaseResultSet(poLayer);
+        m_oSrcDS.ReleaseRef();
     }
 
     void AddLayer(OGRLayer *poLayer)
@@ -129,7 +131,7 @@ class ProxiedSQLLayer final : public OGRProxiedLayer
         SetDescription(osName.c_str());
     }
 
-    ~ProxiedSQLLayer()
+    ~ProxiedSQLLayer() override
     {
         if (m_poLayerDefn)
             m_poLayerDefn->Release();
@@ -185,6 +187,13 @@ class GDALVectorSQLAlgorithmDatasetMultiLayer final : public GDALDataset
     explicit GDALVectorSQLAlgorithmDatasetMultiLayer(GDALDataset &oSrcDS)
         : m_oSrcDS(oSrcDS)
     {
+        m_oSrcDS.Reference();
+    }
+
+    ~GDALVectorSQLAlgorithmDatasetMultiLayer() override
+    {
+        m_layers.clear();
+        m_oSrcDS.ReleaseRef();
     }
 
     void AddLayer(const std::string &osSQL, const std::string &osDialect,
