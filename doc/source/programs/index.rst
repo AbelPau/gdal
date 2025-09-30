@@ -79,11 +79,11 @@ Raster commands
    gdal_raster_info
    gdal_raster_as_features
    gdal_raster_aspect
+   gdal_raster_blend
    gdal_raster_calc
    gdal_raster_clean_collar
    gdal_raster_clip
    gdal_raster_color_map
-   gdal_raster_color_merge
    gdal_raster_contour
    gdal_raster_compare
    gdal_raster_convert
@@ -95,6 +95,7 @@ Raster commands
    gdal_raster_index
    gdal_raster_materialize
    gdal_raster_mosaic
+   gdal_raster_neighbors
    gdal_raster_nodata_to_alpha
    gdal_raster_overview
    gdal_raster_overview_add
@@ -131,11 +132,11 @@ Raster commands
     - :ref:`gdal_raster_info`: Get information on a raster dataset
     - :reF:`gdal_raster_as_features`: Create features representing raster pixels
     - :ref:`gdal_raster_aspect`: Generate an aspect map.
+    - :ref:`gdal_raster_blend`: Blend/compose two raster datasets
     - :ref:`gdal_raster_calc`: Perform raster algebra
     - :ref:`gdal_raster_clean_collar`: Clean the collar of a raster dataset, removing noise
     - :ref:`gdal_raster_clip`: Clip a raster dataset
     - :ref:`gdal_raster_color_map`: Use a grayscale raster to replace the intensity of a RGB/RGBA dataset
-    - :ref:`gdal_raster_color_merge`: Replace the color value of a RGB/RGBA dataset by the one of a grayscale raster
     - :ref:`gdal_raster_compare`: Compare two raster datasets
     - :ref:`gdal_raster_convert`: Convert a raster dataset
     - :ref:`gdal_raster_contour`: Builds vector contour lines from a raster elevation model
@@ -147,6 +148,7 @@ Raster commands
     - :ref:`gdal_raster_index`: Create a vector index of raster datasets
     - :ref:`gdal_raster_materialize`: Materialize a piped dataset on disk to increase the efficiency of the following steps
     - :ref:`gdal_raster_mosaic`: Build a mosaic, either virtual (VRT) or materialized.
+    - :ref:`gdal_raster_neighbors`: Compute the value of each pixel from its neighbors (focal statistics).
     - :ref:`gdal_raster_nodata_to_alpha`: Replace nodata value(s) with an alpha band
     - :ref:`gdal_raster_overview`: Manage overviews of a raster dataset
     - :ref:`gdal_raster_overview_add`: Add overviews to a raster dataset

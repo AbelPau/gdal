@@ -347,12 +347,25 @@ class GDALAbstractPipelineAlgorithm CPL_NON_FINAL
     static constexpr const char *VECTOR_SUFFIX = "-vector";
 
   private:
+    friend class GDALPipelineAlgorithm;
+    friend class GDALRasterPipelineAlgorithm;
+    friend class GDALVectorPipelineAlgorithm;
+
     std::vector<std::unique_ptr<GDALPipelineStepAlgorithm>> m_steps{};
 
     std::unique_ptr<GDALPipelineStepAlgorithm> m_stepOnWhichHelpIsRequested{};
 
+    bool m_bInnerPipeline = false;
     bool m_bExpectReadStep = true;
-    bool m_bExpectWriteStep = true;
+
+    enum class StepConstraint
+    {
+        MUST_BE,
+        CAN_BE,
+        CAN_NOT_BE
+    };
+
+    StepConstraint m_eLastStepAsWrite = StepConstraint::CAN_BE;
 
     std::vector<std::unique_ptr<GDALAbstractPipelineAlgorithm>>
         m_apoNestedPipelines{};
@@ -360,8 +373,9 @@ class GDALAbstractPipelineAlgorithm CPL_NON_FINAL
     // More would lead to unreadable pipelines
     static constexpr int MAX_NESTING_LEVEL = 3;
 
-    bool CheckFirstAndLastStep(
-        const std::vector<GDALPipelineStepAlgorithm *> &steps) const;
+    bool
+    CheckFirstAndLastStep(const std::vector<GDALPipelineStepAlgorithm *> &steps,
+                          bool forAutoComplete) const;
 
     bool ParseCommandLineArguments(const std::vector<std::string> &args,
                                    bool forAutoComplete);

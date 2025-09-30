@@ -46,11 +46,11 @@ target_sources(appslib PRIVATE
   gdalalg_raster_info.cpp
   gdalalg_raster_as_features.cpp
   gdalalg_raster_aspect.cpp
+  gdalalg_raster_blend.cpp
   gdalalg_raster_calc.cpp
   gdalalg_raster_clean_collar.cpp
   gdalalg_raster_clip.cpp
   gdalalg_raster_color_map.cpp
-  gdalalg_raster_color_merge.cpp
   gdalalg_raster_compare.cpp
   gdalalg_raster_convert.cpp
   gdalalg_raster_create.cpp
@@ -62,6 +62,7 @@ target_sources(appslib PRIVATE
   gdalalg_raster_index.cpp
   gdalalg_raster_mosaic.cpp
   gdalalg_raster_mosaic_stack_common.cpp
+  gdalalg_raster_neighbors.cpp
   gdalalg_raster_nodata_to_alpha.cpp
   gdalalg_raster_pipeline.cpp
   gdalalg_raster_pixel_info.cpp
