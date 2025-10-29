@@ -1125,6 +1125,33 @@ json_object *OGRGeoJSONWriteAttributes(OGRFeature *poFeature,
 }
 
 /************************************************************************/
+/*                          GetLinearCollection()                       */
+/************************************************************************/
+
+static std::unique_ptr<OGRGeometry>
+GetLinearCollection(const OGRGeometryCollection *poGeomColl)
+{
+    auto poFlatGeom = std::make_unique<OGRGeometryCollection>();
+    for (const auto *poSubGeom : *poGeomColl)
+    {
+        if (wkbFlatten(poSubGeom->getGeometryType()) == wkbGeometryCollection)
+        {
+            poFlatGeom->addGeometry(
+                GetLinearCollection(poSubGeom->toGeometryCollection()));
+        }
+        else
+        {
+            auto poNewGeom = OGRGeometryFactory::forceTo(
+                poSubGeom->clone(),
+                OGR_GT_GetLinear(poSubGeom->getGeometryType()));
+            if (poNewGeom)
+                poFlatGeom->addGeometryDirectly(poNewGeom);
+        }
+    }
+    return poFlatGeom;
+}
+
+/************************************************************************/
 /*                           OGRGeoJSONWriteGeometry                    */
 /************************************************************************/
 
@@ -1139,12 +1166,20 @@ json_object *OGRGeoJSONWriteGeometry(const OGRGeometry *poGeometry,
 
     if (!oOptions.bAllowCurve && poGeometry->hasCurveGeometry(true))
     {
-        auto poGeomClone = std::unique_ptr<OGRGeometry>(poGeometry->clone());
         const OGRwkbGeometryType eTargetType =
             OGR_GT_GetLinear(poGeometry->getGeometryType());
-        poGeomClone.reset(
-            OGRGeometryFactory::forceTo(poGeomClone.release(), eTargetType));
-        return OGRGeoJSONWriteGeometry(poGeomClone.get(), oOptions);
+        std::unique_ptr<OGRGeometry> poFlatGeom;
+        if (wkbFlatten(eTargetType) == wkbGeometryCollection)
+        {
+            poFlatGeom =
+                GetLinearCollection(poGeometry->toGeometryCollection());
+        }
+        else
+        {
+            poFlatGeom.reset(
+                OGRGeometryFactory::forceTo(poGeometry->clone(), eTargetType));
+        }
+        return OGRGeoJSONWriteGeometry(poFlatGeom.get(), oOptions);
     }
 
     OGRwkbGeometryType eFType = wkbFlatten(poGeometry->getGeometryType());
@@ -1755,7 +1790,6 @@ char *OGR_G_ExportToJson(OGRGeometryH hGeometry)
  * @param papszOptions a null terminated list of options.
  * @return A GeoJSON fragment or NULL in case of error.
  *
- * @since OGR 1.9.0
  */
 
 char *OGR_G_ExportToJsonEx(OGRGeometryH hGeometry, char **papszOptions)

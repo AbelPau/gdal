@@ -1254,9 +1254,9 @@ retry:
     }
 
     double dfSize = 0;
+    long response_code = -1;
     if (oFileProp.eExists != EXIST_YES)
     {
-        long response_code = 0;
         curl_easy_getinfo(hCurlHandle, CURLINFO_HTTP_CODE, &response_code);
 
         bool bAlreadyLogged = false;
@@ -1632,7 +1632,9 @@ retry:
     oFileProp.bHasComputedFileSize = true;
     if (mtime > 0)
         oFileProp.mTime = mtime;
-    poFS->SetCachedFileProp(m_pszURL, oFileProp);
+    // Do not update cached file properties if cURL returned a non-HTTP error
+    if (response_code != 0)
+        poFS->SetCachedFileProp(m_pszURL, oFileProp);
 
     return oFileProp.fileSize;
 }
@@ -6349,7 +6351,6 @@ struct curl_slist *VSICurlSetCreationHeadersFromOptions(
  See :ref:`/vsicurl/ documentation <vsicurl>`
  \endverbatim
 
- @since GDAL 1.8.0
  */
 void VSIInstallCurlFileHandler(void)
 {
@@ -6372,7 +6373,6 @@ void VSIInstallCurlFileHandler(void)
  * mechanisms can prevent opening new files, or give an outdated version of
  * them.
  *
- * @since GDAL 2.2.1
  */
 
 void VSICurlClearCache(void)
@@ -6418,7 +6418,6 @@ void VSICurlClearCache(void)
  * "/vsis3/basket/" or "/vsis3/basket/object".
  *
  * @param pszFilenamePrefix Filename prefix
- * @since GDAL 2.4.0
  */
 
 void VSICurlPartialClearCache(const char *pszFilenamePrefix)

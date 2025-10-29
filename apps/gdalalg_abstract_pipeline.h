@@ -15,6 +15,8 @@
 
 //! @cond Doxygen_Suppress
 
+#include "cpl_json.h"
+
 #include "gdalalgorithm.h"
 #include "gdal_priv.h"
 
@@ -80,6 +82,11 @@ class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
         return m_outputDataset;
     }
 
+    const std::string &GetOutputLayerName() const
+    {
+        return m_outputLayerName;
+    }
+
     const std::string &GetOutputFormat() const
     {
         return m_format;
@@ -88,6 +95,21 @@ class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
     const std::vector<std::string> &GetCreationOptions() const
     {
         return m_creationOptions;
+    }
+
+    const std::vector<std::string> &GetLayerCreationOptions() const
+    {
+        return m_layerCreationOptions;
+    }
+
+    bool GetOverwriteLayer() const
+    {
+        return m_overwriteLayer;
+    }
+
+    bool GetAppendLayer() const
+    {
+        return m_appendLayer;
     }
 
     virtual int GetInputType() const = 0;
@@ -113,7 +135,13 @@ class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
         bool addDefaultArguments = true;
         bool autoOpenInputDatasets = true;
         bool outputDatasetRequired = true;
-        bool addInputLayerNameArgument = true;  // only for vector input
+        bool addInputLayerNameArgument = true;   // only for vector input
+        bool addUpdateArgument = true;           // only for vector output
+        bool addAppendLayerArgument = true;      // only for vector output
+        bool addOverwriteLayerArgument = true;   // only for vector output
+        bool addUpsertArgument = true;           // only for vector output
+        bool addSkipErrorsArgument = true;       // only for vector output
+        bool addOutputLayerNameArgument = true;  // only for vector output
         int inputDatasetMaxCount = 1;
         std::string inputDatasetHelpMsg{};
         std::string inputDatasetAlias{};
@@ -203,6 +231,42 @@ class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
             outputFormatCreateCapability = capability;
             return *this;
         }
+
+        inline ConstructorOptions &SetAddAppendLayerArgument(bool b)
+        {
+            addAppendLayerArgument = b;
+            return *this;
+        }
+
+        inline ConstructorOptions &SetAddOverwriteLayerArgument(bool b)
+        {
+            addOverwriteLayerArgument = b;
+            return *this;
+        }
+
+        inline ConstructorOptions &SetAddUpdateArgument(bool b)
+        {
+            addUpdateArgument = b;
+            return *this;
+        }
+
+        inline ConstructorOptions &SetAddUpsertArgument(bool b)
+        {
+            addUpsertArgument = b;
+            return *this;
+        }
+
+        inline ConstructorOptions &SetAddSkipErrorsArgument(bool b)
+        {
+            addSkipErrorsArgument = b;
+            return *this;
+        }
+
+        inline ConstructorOptions &SetAddOutputLayerNameArgument(bool b)
+        {
+            addOutputLayerNameArgument = b;
+            return *this;
+        }
     };
 
     GDALPipelineStepAlgorithm(const std::string &name,
@@ -249,6 +313,13 @@ class GDALPipelineStepAlgorithm /* non final */ : public GDALAlgorithm
     virtual bool CanHandleNextStep(GDALPipelineStepAlgorithm *) const
     {
         return false;
+    }
+
+    virtual CPLJSONObject Get_OGR_SCHEMA_OpenOption_Layer() const
+    {
+        CPLJSONObject obj;
+        obj.Deinit();
+        return obj;
     }
 
     virtual bool RunStep(GDALPipelineStepRunContext &ctxt) = 0;
@@ -323,8 +394,10 @@ class GDALAbstractPipelineAlgorithm CPL_NON_FINAL
     GDALAbstractPipelineAlgorithm(
         const std::string &name, const std::string &description,
         const std::string &helpURL,
-        const typename GDALPipelineStepAlgorithm::ConstructorOptions &options)
-        : GDALPipelineStepAlgorithm(name, description, helpURL, options)
+        const GDALPipelineStepAlgorithm::ConstructorOptions &options)
+        : GDALPipelineStepAlgorithm(
+              name, description, helpURL,
+              ConstructorOptions(options).SetAutoOpenInputDatasets(false))
     {
     }
 

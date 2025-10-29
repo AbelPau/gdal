@@ -4388,10 +4388,10 @@ def test_ogr_geojson_ogr2ogr_nln_with_input_dataset_having_name(tmp_vsimem):
     gdal.VectorTranslate(
         filename,
         '{"type":"FeatureCollection","name":"to_be_overriden","features":[]}',
-        layerName="new_name",
+        layerName="newName",
     )
     ds = ogr.Open(filename)
-    assert ds.GetLayer(0).GetName() == "new_name"
+    assert ds.GetLayer(0).GetName() == "newName"
     ds = None
 
 
@@ -5591,7 +5591,7 @@ def test_ogr_geojson_force_opening_stacta():
         # Override full schema and JSON/UUID subtype
         (
             [
-                r'OGR_SCHEMA={ "layers": [{"name": "test_point", "schemaType": "Full", "fields": [{ "name": "json_str", "subType": "JSON", "new_name": "json_str" }, {"name": "uuid_str", "subType": "UUID" }]}]}'
+                r'OGR_SCHEMA={ "layers": [{"name": "test_point", "schemaType": "Full", "fields": [{ "name": "json_str", "subType": "JSON", "newName": "json_str" }, {"name": "uuid_str", "subType": "UUID" }]}]}'
             ],
             [
                 (ogr.OFTString, ogr.OFSTJSON),  # json subType
@@ -5666,7 +5666,7 @@ def test_ogr_geojson_force_opening_stacta():
         # Test invalid field name
         (
             [
-                r'OGR_SCHEMA={ "layers": [{"name": "test_point", "fields": [{ "name": "xxxxx", "type": "String", "new_name": "new_str" }]}]}'
+                r'OGR_SCHEMA={ "layers": [{"name": "test_point", "fields": [{ "name": "xxxxx", "type": "String", "newName": "new_str" }]}]}'
             ],
             [],
             [],
@@ -5975,12 +5975,10 @@ def test_ogr_geojson_invalid_number(tmp_vsimem):
         ]
     }""",
     )
-    with ogr.Open(tmp_vsimem / "out.json") as ds:
-        lyr = ds.GetLayer(0)
-        with pytest.raises(
-            Exception, match="Unrecognized number: 123456781234567-81234567812345678"
-        ):
-            lyr.GetNextFeature()
+    with pytest.raises(
+        Exception, match="Unrecognized number: 123456781234567-81234567812345678"
+    ):
+        ogr.Open(tmp_vsimem / "out.json")
 
     gdal.FileFromMemBuffer(
         tmp_vsimem / "out.json",
@@ -5991,9 +5989,31 @@ def test_ogr_geojson_invalid_number(tmp_vsimem):
         ]
     }""",
     )
-    with ogr.Open(tmp_vsimem / "out.json") as ds:
-        lyr = ds.GetLayer(0)
-        with pytest.raises(
-            Exception, match="Unrecognized number: 12345678.1234567-81234567812345678"
-        ):
-            lyr.GetNextFeature()
+    with pytest.raises(
+        Exception, match="Unrecognized number: 12345678.1234567-81234567812345678"
+    ):
+        ogr.Open(tmp_vsimem / "out.json")
+
+    gdal.FileFromMemBuffer(
+        tmp_vsimem / "out.json", '{"":{"":"","features":[{"":4a},0]}}'
+    )
+
+    with pytest.raises(Exception, match="Unrecognized number: 4a"):
+        ogr.Open(tmp_vsimem / "out.json")
+
+
+def test_ogr_geojson_export_to_json_geom_collection_with_curve():
+
+    g = ogr.CreateGeometryFromWkt(
+        "GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(CIRCULARSTRING EMPTY),POINT (0 0))"
+    )
+    assert json.loads(g.ExportToJson()) == {
+        "type": "GeometryCollection",
+        "geometries": [
+            {
+                "type": "GeometryCollection",
+                "geometries": [{"type": "LineString", "coordinates": []}],
+            },
+            {"type": "Point", "coordinates": [0.0, 0.0]},
+        ],
+    }

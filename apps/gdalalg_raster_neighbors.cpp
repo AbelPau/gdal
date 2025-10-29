@@ -165,10 +165,26 @@ GDALNeighborsCreateVRTDerived(GDALDataset *poSrcDS, int nBand,
     }
 
     bool ret = true;
-    for (size_t i = 0; i < aKernelDefs.size() && ret; ++i)
+    if (nBand != 0)
     {
-        ret = CreateDerivedBandXML(ds.get(), poSrcDS->GetRasterBand(nBand),
-                                   eType, noData, methods[i], aKernelDefs[i]);
+        for (size_t i = 0; i < aKernelDefs.size() && ret; ++i)
+        {
+            ret =
+                CreateDerivedBandXML(ds.get(), poSrcDS->GetRasterBand(nBand),
+                                     eType, noData, methods[i], aKernelDefs[i]);
+        }
+    }
+    else
+    {
+        for (int iBand = 1; iBand <= poSrcDS->GetRasterCount(); ++iBand)
+        {
+            for (size_t i = 0; i < aKernelDefs.size() && ret; ++i)
+            {
+                ret = CreateDerivedBandXML(ds.get(),
+                                           poSrcDS->GetRasterBand(iBand), eType,
+                                           noData, methods[i], aKernelDefs[i]);
+            }
+        }
     }
     if (!ret)
         ds.reset();
@@ -298,19 +314,6 @@ GDALRasterNeighborsAlgorithm::GDALRasterNeighborsAlgorithm(
                 return false;
             }
 
-            if (m_band == 0 && !m_inputDataset.empty())
-            {
-                auto poDS = m_inputDataset[0].GetDatasetRef();
-                if (poDS && poDS->GetRasterCount() > 1)
-                {
-                    ReportError(
-                        CE_Failure, CPLE_AppDefined,
-                        "'band' argument should be specified given input "
-                        "dataset has several bands.");
-                    return false;
-                }
-            }
-
             if (m_size > 0)
             {
                 for (const std::string &kernel : m_kernel)
@@ -406,8 +409,6 @@ bool GDALRasterNeighborsAlgorithm::RunStep(GDALPipelineStepRunContext &)
     auto poSrcDS = m_inputDataset[0].GetDatasetRef();
     CPLAssert(!m_outputDataset.GetDatasetRef());
 
-    if (m_band == 0)
-        m_band = 1;
     CPLAssert(m_band <= poSrcDS->GetRasterCount());
 
     auto eType = GDALGetDataTypeByName(m_type.c_str());
@@ -420,11 +421,13 @@ bool GDALRasterNeighborsAlgorithm::RunStep(GDALPipelineStepRunContext &)
     {
         while (m_method.size() < m_kernel.size())
         {
-            m_method.push_back(m_method.empty()
-                                   ? ((m_kernel[0] == "u" || m_kernel[0] == "v")
-                                          ? "sum"
-                                          : "mean")
-                                   : m_method.back());
+            m_method.push_back(
+                m_method.empty()
+                    ? ((m_kernel[0] == "u" || m_kernel[0] == "v" ||
+                        m_kernel[0] == "edge1" || m_kernel[0] == "edge2")
+                           ? "sum"
+                           : "mean")
+                    : m_method.back());
         }
     }
 
@@ -439,7 +442,7 @@ bool GDALRasterNeighborsAlgorithm::RunStep(GDALPipelineStepRunContext &)
         if (kernel == "edge1" || kernel == "edge2" || kernel == "sharpen")
         {
             CPLAssert(m_size == 3);
-            def = GetKernelDef(kernel, true, 1.0);
+            def = GetKernelDef(kernel, false, 1.0);
         }
         else if (kernel == "u" || kernel == "v")
         {
