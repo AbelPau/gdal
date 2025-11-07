@@ -1,7 +1,5 @@
 # GDAL/OGR 3.12.0 "Chicoutimi" Release Notes
 
-(preliminary, up to commit 440150899dcbdf33e596686681c98d5f1475d308)
-
 GDAL/OGR 3.12.0 is a feature release.
 Those notes include changes since GDAL 3.11.0, but not already included in a
 GDAL 3.11.x bugfix release.
@@ -41,6 +39,8 @@ GDAL 3.11.x bugfix release.
   - gdal raster mosaic/stack: allow it to be the first step of a raster pipeline
   - gdal pipeline: allow to run an existing pipeline and override/add parameters
   - Improved Bash completion
+  - Python bindings: add a dynamically generated 'gdal.alg' module
+    (e.g. ``gdal.alg.raster.convert(input="in.tif", output="out.tif")``)
   - Many other improvements to existing utilities (see below)
 
 * VRT pixel functions: Add mean, median, geometric_mean, harmonic_mean, mode
@@ -109,7 +109,9 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.12/MIGRAT
 * Remove unused macros from generated cpl_config.h
 * add a GDAL_ENABLE_ALGORITHMS boolean variable to disable algorithms beneath
  'gdal'
-* Add compatibility with Poppler 25.10
+* PDF driver: add compatibility with Poppler 25.10 and PoDoFo 1.0
+* GdalGenerateConfig.cmake: improve generator expression handling
+* GdalGenerateConfig.cmake: revise link lib flattening
 
 ## Internal libraries
 
@@ -127,6 +129,9 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.12/MIGRAT
 * Add VSIErrorNumToString()
 * VSIToCPLError(): include error number string in error message
 * /vsis3/: add support for directory buckets
+* /vsis3/: add credential_process support for AWS authentication (#13239)
+* /vsis3/: fix issue when doing a new connection using EC2 credentials would
+  go through WebIdentity (#13272)
 * /vsis3/: set VSIError on Stat() operations (and others too)
 * /vsis3/: retrieve path specific options in ReadDir()
 * /vsiaz/ and /vsiadls/: set VSI error codes
@@ -163,7 +168,10 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.12/MIGRAT
   file closing (for /vsicurl and similar)
 * /vsicurl/: do not update cached file properties if cURL returned a non-HTTP
   error
+* /vsicurl/: make HTTP directory listing more robust (#13293)
 * VSIGlob(): fix when argument contains no directory, like 'byte*.tif'
+* /vsizip/: add file size related sanity checks to avoid huge mem allocs on
+  corrupted files (ossfuzz#452384655)
 
 ### Core
 
@@ -242,6 +250,9 @@ Fixes:
   instruction set is enabled
 * GDALMDArrayMask::IRead(): avoid potential issue when bufferDataType is not a
   numeric data type
+* add GDALMDArray::GetRawBlockInfo() / GDALMDArrayGetRawBlockInfo() and implement
+  it in HDF5, netCDF, ZARR and VRT
+* Fix GetView(["::-1"]) on a dimension of size 1
 
 ### GNM
 
@@ -267,6 +278,7 @@ Fixes:
 * gdal: enable --progress by default, and add --quiet to shut it off (#12712)
 * gdal: when outputting to /vsistdout/, automatically turn on --quiet
 * gdal: Homogenize input/output layer name arg (#12984)
+* gdal info: make it output text by default
 * gdal raster/vector info and gdal vsi list: change default output format to text
   when invoked from command line (#12712)
 * gdal raster calc: handle NoData (#12610)
@@ -284,6 +296,7 @@ Fixes:
 * gdal raster clip: do not emit warning about being outside of window when
   specifying --allow-bbox-outside-source
 * gdal raster color-map: write directly to output file if possible
+* gdal raster convert: fix issue with comma in input dataset name (#13255)
 * gdal raster edit: add a --gcp option
 * gdal raster edit: add a --unset-metadata-domain option
 * gdal raster footprint: accept output dataset passed as object
@@ -303,6 +316,7 @@ Fixes:
 * gdal raster reclassify: validate mappings in case VRT or GDALG output is used
 * gdal raster reproject: avoid going through VRT when writing to final file is
   possible
+* gdal raster resize: add a --resolution argument (#13259)
 * gdal raster tile: speed-up generation of (max zoom) tiles in PNG format
 * gdal raster tile: reduce consumption of cached source tiles when computing
   overview tiles
@@ -341,6 +355,7 @@ Fixes:
 * gdal_translate: do not preserve NODATA_VALUES metadata item when subsetting/
   reordering bands
 * gdalwarp: avoid double->int overflows when computing target dataset size
+* gdalwarp: avoid warning when using -novshift (#13313)
 * gdaldem: INTERPOL(): avoid issues with large values
 * gdaldem/gdal raster hillshade/slope/aspect/roughness/tpi/tri streaming:
   expose overviews if source has overviews
@@ -352,6 +367,8 @@ Fixes:
 * gdal_viewshed: set lower bound of DEM to input raster (#12758)
 * gdal_viewshed: pooled lines (code refactoring) (#13099)
 * gdalmdimtranslate: propagate block size when possible
+* gdalenhance: error out if attempting VRT output
+* gdalenhance: do not transfer statistics from input to output (#13298)
 
 ### Raster drivers
 
@@ -476,14 +493,18 @@ S10x drivers:
 S102 driver:
  * add full read support for S102 Ed 3.0 (i.e. managing multiple feature
    instance groups)
+ * recognize boolean and date featureAttributeTable fields with proper GDAL
+   types
 
 S104 driver:
  * add read support for S104 Ed 2.0 (i.e. managing multiple feature instance
    groups)
+ * report verticalCS in metadata
 
 S111 driver:
  * add read support for S111 Ed 2.0 (i.e. managing multiple feature instance
    groups)
+ * report verticalCS in metadata
 
 STACTA driver:
  * recognize gs://, az://, azure:// as URL template prefixes, as well as our
@@ -526,6 +547,7 @@ VRT driver:
    serialization of null values in a VRTMDArraySourceInlinedValues
  * multidim: respect creation order for arrays and groups
  * multidim: add support for array BlockSize
+ * multidim: fix serialization of sources w.r.t relativeToVRT attribute
  * Raise error if pixel function provided without VRTDerivedRasterBand
 
 WEBP driver:
@@ -545,6 +567,8 @@ Zarr driver:
  * Kerchunk JSON: assorted set of fixes and improvements
  * recognize STAC proj:epsg and proj:wkt2 attributes to expose the CRS from
    EOPF Sentinel Zarr Samples Service datasets
+ * Zarr V3: on creation with CHUNK_MEMORY_LAYOUT=F, no longer write
+   "order":"F", but the permutation array instead
 
 ## OGR 3.12.0 - Overview of Changes
 
@@ -566,6 +590,13 @@ Zarr driver:
 * Make virtual methods OGRLayer::GetFIDColumn()/GetGeometryColumn() const
 * OGRSchemaOverride: allow using '*' wildcard for layer name, and
   'srcType'/'srcSubType' as an alternative to field name when patching
+* OGRUnionLayer: improve performance of GetFeature() once a full scan has
+  already been made
+* OGRGeometryFactory::forceTo(): fix potential nullptr dereference
+* OGRCircularString::segmentize(): fix crash/read-heap-overflow on M geometries
+  (#13303)
+* OGRGeometryFactory::transformWithOptions(): avoid warnings when options are
+  set but doing geographic->projected transformation (#13310)
 
 ### OGRSpatialReference
 
@@ -587,6 +618,8 @@ Zarr driver:
 * gdal vector info: add a --limit=<FEATURE-COUNT> option (#12876)
 * gdal vector info: do not implicitly set -al with -json (#12510)
 * gdal vector info --update: deprecate it in favor of 'gdal vector sql --update'
+* gdal vector reproject: fix reprojecting from polar CRS to geographic
+  coordinates (#13222)
 * gdal vector sql: add a --update mode to modify in-place a dataset (##12466)
 * ogr2ogr: avoid int64 addition overflow on huge feature counts
 * ogr2ogr -clipsrc/-clipdst: adjust feature geometry type to match layer
@@ -641,6 +674,7 @@ GML driver:
  * avoid returning features with duplicated FIDs (#3532)
 
 GPKG driver:
+ * implement UpdateFieldDomain() and DeleteFieldDomain()
  * avoid undefined behavior when appending to a layer with a (wrong)
    feature_count = INT64_MAX
 
@@ -654,12 +688,22 @@ MEM driver:
  * Allow creating layer from an OGRFeatureDefn
  * declare field subtypes Boolean Int16 Float32 JSON UUID
 
+MiraMonVector driver:
+ * fix uninitialized access
+
+MVT driver:
+ * fix reading files with 0-byte padding (#13268)
+ * writer: fix encoding some polygons with almost flat inner rings (#13305)
+ * reader: auto-fix badly oriented inner rings (#13305)
+
 OAPIF driver:
  * recognize 'itemCount' element in Collection description
 
 Parquet driver:
  * add support for reading/writing Parquet GEOMETRY data type (libarrow >= 21)
  * add a COMPRESSION_LEVEL layer creation option (#12639)
+ * writer: fix SQLite3 error when using SORT_BY_BBOX=YES but writing no features
+   (#13328)
 
 PDS4 driver:
  * writer: create table layers in the same directory as the .xml file and using
@@ -668,9 +712,15 @@ PDS4 driver:
 PGDUMP driver:
  * Add SKIP_CONFLICTS layer creation option
 
+PMTiles:
+ * gdal vsi list/copy: fixes so that gdal_ls.py/gdal_cp.py can be replaced by
+   gdal vsi list/copy
+
 Shapefile driver:
  * SHPCreateLL()/DBFCreate(): make error message contains full filename (in case
    it is very long)
+ * Shape: workaround bug in PROJ BoundCRS::identify for CRS based on
+   'NTF (Paris)' (qgis/qgis#63787)
  * Resync internal shapelib with 1.6.2
 
 SQLite driver:
@@ -705,6 +755,7 @@ SQLite driver:
 * Add Band.BlockWindows()
 * coerce config options to strings
 * Docstring Updates for Stub Generation (#13198)
+* Utilities as a function: consistently handle options as string (#13274)
 
 # GDAL/OGR 3.11.4 Release Notes
 
@@ -717,6 +768,139 @@ GDAL 3.11.4 is a bugfix release.
 * CMake: fix checks for CMAKE_SYSTEM_PROCESSOR on non Windows platforms
 * Various compiler and cppcheck warning fixes
 * Add option to disable libavif version check
+
+# GDAL/OGR 3.11.5 Release Notes
+
+GDAL 3.11.5 is a bugfix release.
+
+## Build
+
+* Fix Clang 21 -Wunnecessary-virtual-specifier warnings
+* Add compatibility with Poppler 25.10 (support for older versions kept)
+  (#13173)
+
+## GDAL 3.11.5
+
+### Port
+
+* /vsis3/: fix issue when doing a new connection using EC2 credentials would go
+ through WebIdentity (#13272)
+
+### Algorithms
+
+* InitializeDestinationBuffer(): do not return CE_Failure when emitting warning
+  about INIT_DEST=NO_DATA without nodata, to make sure to 0 initialize the dest
+  buffer (#13026)
+
+### Raster core
+
+* GDALAlgorithm: re-arrange argument validation so that
+  'gdal raster create --bbox=' doesn't crash (#13112)
+* GDALMDArrayRegularlySpaced::IRead(): avoid potential unsigned integer
+  overflow
+* Multidim: make CreateSlicedArray() also slice indexing variables of
+  dimensions (#13119)
+* Multidim: Fix ``GetView(["::-1"])`` on a dimension of size 1
+
+### Raster utilities
+
+* GDALInfo(): fix crash on datasets not linked to a driver (#13106)
+* gdaldem: fix wrong results on non north-up src ds with aspect/tpi/tri
+  (and on rotated for hillshade/slope/roughness) (#13100)
+* Fix crash on 'gdal_translate -of COG -b 1 -b 2 -b 3 -b mask
+  RGBmask_with_ovr.tif out.tif', and tag mask band turned as regular one as
+  alpha (#13183)
+
+### Raster drivers
+
+PDF driver:
+ * Properly override FlushCache() instead of no longer existing SyncToDisk()
+
+GTI driver:
+ * make sure that a non readable source causes IRasterIO() to fail (#13212)
+
+GTiff driver:
+ * fix crash when setting color interpretation on newly created mask band
+
+HDF4 driver:
+ * skip long/lat values at nodata when creating GCPs (#13207)
+
+LIBERTIFF driver:
+ * fix reading a RGB pixel-interleaved file into a RGBA pixel-interleaved
+   buffer (#13193)
+
+VRT driver:
+ * fix slowness when downsampling from VRTs with explicit resampling=nearest
+   (qgis/QGIS#63293)
+ * Pansharpening: make sure VRTPansharpenedRasterBand of overviews inherit the
+   nodata value from the full res band
+ * VRTMDArraySourceFromArray::Read(): fix various issues when reading with a
+   negative step (#13236)
+
+Zarr driver:
+ * Kerchunk JSON: assorted set of fixes and improvement for datasets such as in
+   https://noaa-nodd-kerchunk-pds.s3.amazonaws.com/index.html#nos/cbofs/
+ * avoid infinite recursion on archives with hostile object names
+ * emit an error when reading from a JSON/Kerchunk reference store and one of
+   the pointed file cannot be opened (#13126)
+
+## OGR 3.11.5
+
+### Vector core
+
+* OGRParseDate(): make it accept leap seconds
+* Geometry reprojection: fix issues with polar to geographic reprojection
+  (#13222)
+* OGRBuildPolygonFromEdges(): return multipolygon when appropriate (fixes
+  reading some DXF HATCH) (#13230)
+* OGRGeometryFactory::forceTo(): fix potential nullptr dereference
+
+### Vector utilities
+
+* gdal vector reproject: fix reprojecting from polar CRS to geographic
+  coordinates (#13222)
+
+### Vector drivers
+
+ADBC driver:
+ * error out on non-existing database with DuckDB (#13168)
+
+DXF driver:
+ * fix taking into account ENCODING open option (#13224)
+
+ESRIJSON driver:
+ * recognize esriFieldTypeDateOnly, esriFieldTypeTimeOnly,
+   esriFieldTypeBigInteger, esriFieldTypeGUID and esriFieldTypeGlobalID data
+   types
+ * JSON variant detection heuristics: better recognize some ESRIJSON files
+
+GML driver:
+ * add support for gml:TimeInstantType (#13120)
+
+GMLAS driver:
+ * add support for gml:TimeInstantType (#13120)
+
+GPKG driver:
+ * optimize GetNextArrowArray() on SQL result layers that return 0 row (#13041)
+
+MapInfo driver:
+ * .tab: fix support of px vs pt for pen width, including fractional point
+   width (#13064)
+
+MBTiles driver
+ * improve guessing of field type (#13232)
+
+MVT driver:
+ * fix reading files with 0-byte padding (#13268)
+
+WFS driver:
+ * make spatial filter be forwarded to server even if we don't understand the
+   XSD schema (#13120)
+
+## SWIG bindings
+
+* Guard against null input to SuggestedWarpOutput (#13054)
+* fix non-freeing of dataset created with CreateVector()
 
 ## GDAL 3.11.4
 
