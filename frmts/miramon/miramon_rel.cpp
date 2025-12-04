@@ -133,6 +133,18 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
     return;
 }
 
+MMRRel::MMRRel(const CPLString &osRELFilenameIn, std::vector<MMRBand> &&oBands)
+    : m_osRelFileName(osRELFilenameIn), m_oBands(std::move(oBands))
+{
+    m_nBands = (int)m_oBands.size();
+
+    if (!m_nBands)
+        return;
+
+    m_bIsAMiraMonFile = true;
+    m_bIsValid = true;
+}
+
 /************************************************************************/
 /*                              ~MMRRel()                              */
 /************************************************************************/
@@ -861,10 +873,9 @@ CPLErr MMRRel::ParseBandInfo()
         if (m_nBands >= nNBand)
             break;
 
-        m_oBands.emplace_back(
-            std::make_unique<MMRBand>(*this, osBandSectionValue.Trim()));
+        m_oBands.emplace_back(MMRBand(*this, osBandSectionValue.Trim()));
 
-        if (!m_oBands[m_nBands]->IsValid())
+        if (!m_oBands[m_nBands].IsValid())
         {
             // This band is not been completed
             return CE_Failure;
@@ -1005,4 +1016,29 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
                                   osPendingValue.Trim().c_str(),
                                   m_kMetadataDomain);
     }
+}
+
+/************************************************************************/
+/*                     Writing part                                     */
+/************************************************************************/
+bool MMRRel::Write()
+{
+    // REL File creation
+    if (!CreateRELFile())
+        return false;
+
+    AddVersion();
+    AddSectionStart("CAMARRAL");
+    AddKeyValue("TUBA", "RRAL");
+    AddSectionEnd();
+
+    // TODO
+    for (int nIBand = 1; nIBand < m_oBands.size(); nIBand++)
+    {
+        m_oBands[nIBand].Write();
+    }
+
+    CloseRELFile();
+
+    return true;
 }

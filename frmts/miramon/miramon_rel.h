@@ -17,7 +17,8 @@
 
 #include "cpl_string.h"
 #include "gdal_priv.h"
-#include "miramon_band.h"  // For MMRBand
+#include "miramon_band.h"                              // For MMRBand
+#include "..\miramon_common\mm_gdal_driver_structs.h"  // For SECTION_VERSIO
 
 constexpr auto pszExtRaster = ".img";
 constexpr auto pszExtRasterREL = "I.rel";
@@ -42,7 +43,9 @@ using ExcludedEntry = std::pair<CPLString, CPLString>;
 class MMRRel
 {
   public:
-    MMRRel(const CPLString &, bool);
+    MMRRel(const CPLString &, bool);  // Used in reading
+    MMRRel(const CPLString &,
+           std::vector<MMRBand> &&oBands);  // Used in writing
     MMRRel(const MMRRel &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRRel &operator=(const MMRRel &) =
@@ -83,6 +86,8 @@ class MMRRel
     static int IdentifySubdataSetFile(const CPLString &osFileName);
     static int IdentifyFile(const GDALOpenInfo *poOpenInfo);
 
+    bool Write();
+
     bool IsValid() const
     {
         return m_bIsValid;
@@ -109,6 +114,71 @@ class MMRRel
         return false;
     }
 
+    bool CreateRELFile()
+    {
+        if (m_osRelFileName.empty())
+            return false;
+
+        m_pRELFile = VSIFOpenL(m_osRelFileName, "wb");
+        if (m_pRELFile)
+            return true;
+        return false;
+    }
+
+#define LineReturn "\r\n"
+
+    void AddVersion()
+    {
+        if (!m_pRELFile)
+            return;
+
+        // Writing MiraMon version section
+        VSIFPrintfL(m_pRELFile, "[%s]" LineReturn, SECTION_VERSIO);
+
+        VSIFPrintfL(m_pRELFile, "%s=%u" LineReturn, KEY_Vers,
+                    static_cast<unsigned>(MM_VERS));
+        VSIFPrintfL(m_pRELFile, "%s=%u" LineReturn, KEY_SubVers,
+                    static_cast<unsigned>(MM_SUBVERS));
+
+        VSIFPrintfL(m_pRELFile, "%s=%u" LineReturn, KEY_VersMetaDades,
+                    static_cast<unsigned>(MM_VERS_METADADES));
+        VSIFPrintfL(m_pRELFile, "%s=%u" LineReturn, KEY_SubVersMetaDades,
+                    static_cast<unsigned>(MM_SUBVERS_METADADES));
+    }
+
+    void AddSectionStart(const CPLString osSection)
+    {
+        if (!m_pRELFile)
+            return;
+
+        VSIFPrintfL(m_pRELFile, "[%s]" LineReturn, osSection.c_str());
+    }
+
+    void AddSectionEnd()
+    {
+        if (!m_pRELFile)
+            return;
+
+        VSIFPrintfL(m_pRELFile, LineReturn);
+    }
+
+    void AddKey(const CPLString osKey)
+    {
+        if (!m_pRELFile)
+            return;
+
+        VSIFPrintfL(m_pRELFile, "%s=" LineReturn, osKey.c_str());
+    }
+
+    void AddKeyValue(const CPLString osKey, const CPLString osValue)
+    {
+        if (!m_pRELFile)
+            return;
+
+        VSIFPrintfL(m_pRELFile, "%s=%s" LineReturn, osKey.c_str(),
+                    osValue.c_str());
+    }
+
     void CloseRELFile()
     {
         if (!m_pRELFile)
@@ -133,12 +203,12 @@ class MMRRel
         return m_nBands;
     }
 
-    MMRBand *GetBand(int nIBand) const
+    MMRBand *GetBand(int nIBand)
     {
         if (nIBand < 0 || nIBand >= m_nBands)
             return nullptr;
 
-        return m_oBands[nIBand].get();
+        return &m_oBands[nIBand];
     }
 
     int isAMiraMonFile() const
@@ -185,7 +255,7 @@ class MMRRel
     std::vector<CPLString> m_papoSDSBands{};
 
     int m_nBands = 0;
-    std::vector<std::unique_ptr<MMRBand>> m_oBands{};
+    std::vector<MMRBand> m_oBands{};
 
     // Preserving metadata
 
