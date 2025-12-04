@@ -35,7 +35,9 @@ class MMRRel;
 class MMRDataset final : public GDALPamDataset
 {
   public:
-    explicit MMRDataset(GDALOpenInfo *poOpenInfo);
+    explicit MMRDataset(GDALOpenInfo *poOpenInfo);  // Used in reading
+    MMRDataset(CPLString osFilename, GDALDataset &oSrcDS,
+               bool bCompress);  // Used in writing
     MMRDataset(const MMRDataset &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRDataset &operator=(const MMRDataset &) =
@@ -44,11 +46,18 @@ class MMRDataset final : public GDALPamDataset
 
     static int Identify(GDALOpenInfo *);
     static GDALDataset *Open(GDALOpenInfo *);
+    static GDALDataset *CreateCopy(const char *pszFilename,
+                                   GDALDataset *poSrcDS, int bStrict,
+                                   char **papszOptions,
+                                   GDALProgressFunc pfnProgress,
+                                   void *pProgressData);
 
     MMRRel *GetRel()
     {
         return m_pMMRRel.get();
     }
+
+    static constexpr int DEFAULT_COLOR_TABLE_MULTIPLIER_257 = 257;
 
   private:
     void ReadProjection();
@@ -60,6 +69,8 @@ class MMRDataset final : public GDALPamDataset
     int UpdateGeoTransform();
     const OGRSpatialReference *GetSpatialRef() const override;
     CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
+    static CPLString
+    CreateAssociatedMetadataFileName(const CPLString &osFileName);
 
     bool IsValid() const
     {
@@ -77,6 +88,19 @@ class MMRDataset final : public GDALPamDataset
 
     // Numbers of subdatasets (if any) in this dataset.
     int m_nNSubdataSets = 0;
+
+    // For writing part
+    //
+    // EPSG number
+    CPLString m_osEPSG = "";
+    // Global raster dimensions
+    int m_nWidth = 0;
+    int m_nHeight = 0;
+
+    double m_dfMinX = MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMaxX = -MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMinY = MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMaxY = -MM_UNDEFINED_STATISTICAL_VALUE;
 };
 
 #endif  // MMRDATASET_H_INCLUDED
