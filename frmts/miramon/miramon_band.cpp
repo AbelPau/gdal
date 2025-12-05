@@ -17,7 +17,11 @@
 #include "miramon_rel.h"
 #include "miramon_band.h"
 
+#ifdef MSVC
 #include "..\miramon_common\mm_gdal_driver_structs.h"  // For SECTION_VERSIO
+#else
+#include "../miramon_common/mm_gdal_driver_structs.h"  // For SECTION_VERSIO
+#endif
 
 /************************************************************************/
 /*                              MMRBand()                               */
