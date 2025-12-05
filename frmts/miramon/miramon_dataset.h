@@ -88,6 +88,19 @@ class MMRDataset final : public GDALPamDataset
 
     // Numbers of subdatasets (if any) in this dataset.
     int m_nNSubdataSets = 0;
+
+    // For writing part
+    //
+    // EPSG number
+    CPLString m_osEPSG = "";
+    // Global raster dimensions
+    int m_nWidth = 0;
+    int m_nHeight = 0;
+
+    double m_dfMinX = MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMaxX = -MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMinY = MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMaxY = -MM_UNDEFINED_STATISTICAL_VALUE;
 };
 
 #endif  // MMRDATASET_H_INCLUDED

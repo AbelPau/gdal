@@ -2787,6 +2787,33 @@ CPL_DLL int MMCheck_REL_FILE(const char *szREL_file)
     return 0;
 }
 
+// Generates an identifier that REL 4 MiraMon metadata needs.
+CPL_DLL void MMGenerateFileIdentifierFromMetadataFileName(char *pMMFN,
+                                                          char *aFileIdentifier)
+{
+    char aCharRand[8];
+    static const char aCharset[] =
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    int i, len_charset;
+
+    memset(aFileIdentifier, '\0', MM_MAX_LEN_LAYER_IDENTIFIER);
+
+    aCharRand[0] = '_';
+    len_charset = (int)strlen(aCharset);
+    for (i = 1; i < 7; i++)
+    {
+#ifndef __COVERITY__
+        aCharRand[i] = aCharset[rand() % (len_charset - 1)];
+#else
+        aCharRand[i] = aCharset[i % (len_charset - 1)];
+#endif
+    }
+    aCharRand[7] = '\0';
+    CPLStrlcpy(aFileIdentifier, pMMFN, MM_MAX_LEN_LAYER_IDENTIFIER - 7);
+    strcat(aFileIdentifier, aCharRand);
+    return;
+}
+
 /* -------------------------------------------------------------------- */
 /*      Managing errors and warnings                                    */
 /* -------------------------------------------------------------------- */

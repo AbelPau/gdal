@@ -218,7 +218,7 @@ class MMRBand final
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
     // Writing part
-    void Write();
+    void Write(bool bAvoidWritingDim);
 
   private:
     bool Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(

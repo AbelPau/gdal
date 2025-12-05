@@ -61,14 +61,47 @@ MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS, bool bCompress)
         return;
     }
 
+    // Saving the HRS in the layer structure
+    const OGRSpatialReference *poSRS = oSrcDS.GetSpatialRef();
+    if (poSRS)
+    {
+        const char *pszTargetKey = nullptr;
+        const char *pszAuthorityName = nullptr;
+        const char *pszAuthorityCode = nullptr;
+
+        // Reading horizontal reference system and horizontal units
+        if (poSRS->IsProjected())
+            pszTargetKey = "PROJCS";
+        else if (poSRS->IsGeographic() || poSRS->IsDerivedGeographic())
+            pszTargetKey = "GEOGCS";
+        else if (poSRS->IsGeocentric())
+            pszTargetKey = "GEOCCS";
+        else if (poSRS->IsLocal())
+            pszTargetKey = "LOCAL_CS";
+
+        if (!poSRS->IsLocal())
+        {
+            pszAuthorityName = poSRS->GetAuthorityName(pszTargetKey);
+            pszAuthorityCode = poSRS->GetAuthorityCode(pszTargetKey);
+        }
+
+        if (pszAuthorityName && pszAuthorityCode &&
+            EQUAL(pszAuthorityName, "EPSG"))
+        {
+            CPLDebugOnly("MiraMon", "Setting EPSG code %s", pszAuthorityCode);
+            m_osEPSG = pszAuthorityCode;
+        }
+    }
+
+    // Getting bands information
     std::vector<MMRBand> oBands{};
     oBands.reserve(nBands);
 
     // Getting bands information
+    bool bAllBandsSameDim = true;
     for (int nIBand = 1; nIBand <= nBands; nIBand++)
     {
         oBands.emplace_back(MMRBand(oSrcDS.GetRasterBand(nIBand), bCompress));
-
         if (!oBands.back().IsValid())
         {
             ReportError(
@@ -77,11 +110,43 @@ MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS, bool bCompress)
                 nIBand);
             return;
         }
+        if (nIBand == 1)
+        {
+            m_nWidth = oBands.back().GetWidth();
+            m_nHeight = oBands.back().GetHeight();
+        }
+        else if (m_nWidth != oBands.back().GetWidth() ||
+                 m_nHeight != oBands.back().GetHeight())
+        {
+            bAllBandsSameDim = false;
+        }
+    }
+
+    // Getting number of columns and rows
+    if (!bAllBandsSameDim)
+    {
+        // It's not an error. MiraMon have Datasets
+        // with dimensions for each band
+        m_nWidth = 0;
+        m_nHeight = 0;
+    }
+    else
+    {
+        // Getting geotransform
+        double gt[6];
+        if (oSrcDS.GetGeoTransform(gt) == CE_None)
+        {
+            m_dfMinX = gt[0];
+            m_dfMaxY = gt[3];
+            m_dfMaxX = m_dfMinX + m_nWidth * gt[1];
+            m_dfMinY = m_dfMaxY + m_nHeight * gt[5];
+        }
     }
 
     // Getting REL information (and metadata stuff)
     auto pMMfRel = std::make_unique<MMRRel>(
-        osRelname, std::move(oBands));  // Un per escriptura
+        osRelname, m_osEPSG, m_nWidth, m_nHeight, m_dfMinX, m_dfMaxX, m_dfMinY,
+        m_dfMaxY, std::move(oBands));
 
     if (!pMMfRel->IsValid())
         return;

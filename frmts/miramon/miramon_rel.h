@@ -23,6 +23,7 @@
 constexpr auto pszExtRaster = ".img";
 constexpr auto pszExtRasterREL = "I.rel";
 constexpr auto pszExtREL = ".rel";
+constexpr auto LineReturn = "\r\n";
 
 class MMRBand;
 
@@ -44,7 +45,8 @@ class MMRRel
 {
   public:
     MMRRel(const CPLString &, bool);  // Used in reading
-    MMRRel(const CPLString &,
+    MMRRel(const CPLString &, const CPLString &osEPSG, int nWidth, int nHeight,
+           double dfMinX, double dfMaxX, double dfMinY, double dfMaxY,
            std::vector<MMRBand> &&oBands);  // Used in writing
     MMRRel(const MMRRel &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
@@ -125,25 +127,25 @@ class MMRRel
         return false;
     }
 
-#define LineReturn "\r\n"
-
     void AddVersion()
     {
         if (!m_pRELFile)
             return;
 
         // Writing MiraMon version section
-        VSIFPrintfL(m_pRELFile, "[%s]" LineReturn, SECTION_VERSIO);
+        VSIFPrintfL(m_pRELFile, "[%s]%s", SECTION_VERSIO, LineReturn);
 
-        VSIFPrintfL(m_pRELFile, "%s=%u" LineReturn, KEY_Vers,
-                    static_cast<unsigned>(MM_VERS));
-        VSIFPrintfL(m_pRELFile, "%s=%u" LineReturn, KEY_SubVers,
-                    static_cast<unsigned>(MM_SUBVERS));
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_VersMetaDades,
+                    static_cast<unsigned>(MM_VERS_METADADES), LineReturn);
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_SubVersMetaDades,
+                    static_cast<unsigned>(MM_SUBVERS_METADADES), LineReturn);
 
-        VSIFPrintfL(m_pRELFile, "%s=%u" LineReturn, KEY_VersMetaDades,
-                    static_cast<unsigned>(MM_VERS_METADADES));
-        VSIFPrintfL(m_pRELFile, "%s=%u" LineReturn, KEY_SubVersMetaDades,
-                    static_cast<unsigned>(MM_SUBVERS_METADADES));
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_Vers,
+                    static_cast<unsigned>(MM_VERS), LineReturn);
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_SubVers,
+                    static_cast<unsigned>(MM_SUBVERS), LineReturn);
+
+        VSIFPrintfL(m_pRELFile, "%s", LineReturn);
     }
 
     void AddSectionStart(const CPLString osSection)
@@ -151,7 +153,17 @@ class MMRRel
         if (!m_pRELFile)
             return;
 
-        VSIFPrintfL(m_pRELFile, "[%s]" LineReturn, osSection.c_str());
+        VSIFPrintfL(m_pRELFile, "[%s]%s", osSection.c_str(), LineReturn);
+    }
+
+    void AddSectionStart(const CPLString osSectionP1,
+                         const CPLString osSectionP2)
+    {
+        if (!m_pRELFile)
+            return;
+
+        VSIFPrintfL(m_pRELFile, "[%s:%s]%s", osSectionP1.c_str(),
+                    osSectionP2.c_str(), LineReturn);
     }
 
     void AddSectionEnd()
@@ -167,7 +179,10 @@ class MMRRel
         if (!m_pRELFile)
             return;
 
-        VSIFPrintfL(m_pRELFile, "%s=" LineReturn, osKey.c_str());
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%s", pzsKey ? pzsKey : osKey.c_str(),
+                    LineReturn);
+        CPLFree(pzsKey);
     }
 
     void AddKeyValue(const CPLString osKey, const CPLString osValue)
@@ -175,8 +190,37 @@ class MMRRel
         if (!m_pRELFile)
             return;
 
-        VSIFPrintfL(m_pRELFile, "%s=%s" LineReturn, osKey.c_str(),
-                    osValue.c_str());
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        char *pzsValue = CPLRecode(osValue, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%s%s", pzsKey ? pzsKey : osKey.c_str(),
+                    pzsValue ? pzsValue : osValue.c_str(), LineReturn);
+
+        CPLFree(pzsKey);
+        CPLFree(pzsValue);
+    }
+
+    void AddKeyValue(const CPLString osKey, const int nValue)
+    {
+        if (!m_pRELFile)
+            return;
+
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%d%s", pzsKey ? pzsKey : osKey.c_str(),
+                    nValue, LineReturn);
+
+        CPLFree(pzsKey);
+    }
+
+    void AddKeyValue(const CPLString osKey, const double nValue)
+    {
+        if (!m_pRELFile)
+            return;
+
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%lf%s", pzsKey ? pzsKey : osKey.c_str(),
+                    nValue, LineReturn);
+
+        CPLFree(pzsKey);
     }
 
     void CloseRELFile()
@@ -269,6 +313,19 @@ class MMRRel
     // List of excluded pairs {Section, Key} to be added to metadata
     // Empty Key means all section
     std::set<ExcludedEntry> m_ExcludedSectionKey = {};
+
+    // For writing part
+    // EPSG number
+    CPLString m_osEPSG = "";
+
+    // Global raster dimensions
+    int m_nWidth = 0;
+    int m_nHeight = 0;
+
+    double m_dfMinX = MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMaxX = -MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMinY = MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMaxY = -MM_UNDEFINED_STATISTICAL_VALUE;
 };
 
 #endif /* ndef MMR_REL_H_INCLUDED */

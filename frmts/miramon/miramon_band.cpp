@@ -1205,7 +1205,7 @@ bool MMRBand::FillRowOffsets()
 /************************************************************************/
 /*                              Writing part()                          */
 /************************************************************************/
-void MMRBand::Write()
+void MMRBand::Write(bool bAvoidWritingDim)
 {
     //TODO
 }
