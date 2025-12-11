@@ -94,6 +94,27 @@ class MMRRel
     static int IdentifyFile(const GDALOpenInfo *poOpenInfo);
 
     bool Write();
+    void WriteMETADADES();
+    void WriteIDENTIFICATION();
+    void WriteOVERVIEW_ASPECTES_TECNICS();
+    void WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
+    void WriteEXTENT();
+    void WriteOVERVIEW();
+    void WriteATTRIBUTE_DATA();
+
+    // Used when writting bands. If dimensions are the same
+    // for all bands, then they has been written in the main section
+    bool GetDimWrittenInOverview() const
+    {
+        return m_bDimWrittenInOverview;
+    }
+
+    // Used when writting bands. If data type is the same
+    // for all bands, then it has been written in the main section
+    bool GetDataTypeWrittenInAtributeData() const
+    {
+        return m_bDataTypeWrittenInAtributeData;
+    }
 
     bool IsValid() const
     {
@@ -296,6 +317,8 @@ class MMRRel
     VSILFILE *m_pRELFile = nullptr;
     static CPLString m_szImprobableRELChain;
 
+    char m_szFileIdentifier[MM_MAX_LEN_LAYER_IDENTIFIER];
+
     bool m_bIsValid =
         false;  // Determines if the created object is valid or not.
     bool m_bIsAMiraMonFile = false;
@@ -305,6 +328,14 @@ class MMRRel
 
     int m_nBands = 0;
     std::vector<MMRBand> m_oBands{};
+
+    // Used when writting bands. If dimensions are the same
+    // for all bands, then they has been written in the main section
+    bool m_bDimWrittenInOverview = FALSE;
+
+    // Used when writting bands. If data type is the same
+    // for all bands, then it has been written in the main section
+    bool m_bDataTypeWrittenInAtributeData = TRUE;
 
     // Preserving metadata
 

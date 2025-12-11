@@ -218,7 +218,8 @@ class MMRBand final
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
     // Writing part
-    void Write(bool bAvoidWritingDim);
+    void WriteRelSection(const CPLString osIndex, MMRRel &osRel);
+    CPLString GetRELDataType();
 
   private:
     bool Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(

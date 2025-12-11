@@ -1034,23 +1034,59 @@ bool MMRRel::Write()
     AddVersion();
 
     // Writing METADADES section
+    WriteMETADADES();  // It fills m_szFileIdentifier
+
+    // Writing IDENTIFICATION section
+    WriteIDENTIFICATION();
+
+    // Writting OVERVIEW:ASPECTES_TECNICS
+    WriteOVERVIEW_ASPECTES_TECNICS();
+
+    // Writing SPATIAL_REFERENCE_SYSTEM:HORIZONTAL
+    WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
+
+    // Writing EXTENT section
+    WriteEXTENT();
+
+    // Writing OVERVIEW section
+    WriteOVERVIEW();
+
+    // Writing ATTRIBUTE_DATA section
+    WriteATTRIBUTE_DATA();
+
+    CloseRELFile();
+
+    return true;
+}
+
+// Writes METADADES section
+void MMRRel::WriteMETADADES()
+{
+    if (!GetRELFile())
+        return;
+
     AddSectionStart(SECTION_METADADES);
 
-    char aMessage[MM_MESSAGE_LENGTH],
-        aFileIdentifier[MM_MAX_LEN_LAYER_IDENTIFIER], aMMIDSRS[MM_MAX_ID_SNY];
+    char aMessage[MM_MESSAGE_LENGTH];
     CPLString osFileName = CPLGetBasenameSafe(m_osRelFileName);
     CPLStrlcpy(aMessage, osFileName, sizeof(aMessage));
-    MMGenerateFileIdentifierFromMetadataFileName(aMessage, aFileIdentifier);
+    MMGenerateFileIdentifierFromMetadataFileName(aMessage, m_szFileIdentifier);
 
-    AddKeyValue(KEY_FileIdentifier, aFileIdentifier);
+    AddKeyValue(KEY_FileIdentifier, m_szFileIdentifier);
     AddKeyValue(KEY_language, KEY_Value_eng);
     AddKeyValue(KEY_MDIdiom, KEY_Value_eng);
     AddKeyValue(KEY_characterSet, KEY_Value_characterSet);
     AddSectionEnd();
+}
 
-    // Writing IDENTIFICATION section
+// Writes IDENTIFICATION section
+void MMRRel::WriteIDENTIFICATION()
+{
+    if (!GetRELFile())
+        return;
+
     AddSectionStart(SECTION_IDENTIFICATION);
-    AddKeyValue(KEY_code, aFileIdentifier);
+    AddKeyValue(KEY_code, m_szFileIdentifier);
     AddKey(KEY_codeSpace);
 
     //·$· Title?
@@ -1058,22 +1094,32 @@ bool MMRRel::Write()
     //    AddKeyValue(KEY_DatasetTitle, osTitle);
     AddKeyValue(KEY_language, KEY_Value_eng);
     AddSectionEnd();
+}
 
-    // OVERVIEW:ASPECTES_TECNICS
-    // If dimensions are not written here (!bAvoidWritingDim)
-    // they can be written for each band.
-    bool bAvoidWritingDim = FALSE;
-    if (m_nWidth || m_nHeight)
+// Writes OVERVIEW:ASPECTES_TECNICS section
+void MMRRel::WriteOVERVIEW_ASPECTES_TECNICS()
+{
+    if (!GetRELFile())
+        return;
+
+    if (m_nWidth && m_nHeight)
     {
         AddSectionStart(SECTION_OVERVIEW, SECTION_ASPECTES_TECNICS);
         AddKeyValue("columns", m_nWidth);
         AddKeyValue("rows", m_nHeight);
         AddSectionEnd();
-        bAvoidWritingDim = TRUE;
+        m_bDimWrittenInOverview = TRUE;
     }
+}
 
-    // SPATIAL_REFERENCE_SYSTEM:HORIZONTAL
+// Writes SPATIAL_REFERENCE_SYSTEM:HORIZONTAL section
+void MMRRel::WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL()
+{
+    if (!GetRELFile())
+        return;
+
     AddSectionStart(SECTION_SPATIAL_REFERENCE_SYSTEM, SECTION_HORIZONTAL);
+    char aMMIDSRS[MM_MAX_ID_SNY];
     if (!ReturnMMIDSRSFromEPSGCodeSRS(m_osEPSG, aMMIDSRS) &&
         !MMIsEmptyString(aMMIDSRS))
     {
@@ -1088,8 +1134,14 @@ bool MMRRel::Write()
         AddKeyValue(KEY_HorizontalSystemDefinition, "local");
     }
     AddSectionEnd();
+}
 
-    // Writing EXTENT section
+// Writes EXTENT section
+void MMRRel::WriteEXTENT()
+{
+    if (!GetRELFile())
+        return;
+
     AddSectionStart(SECTION_EXTENT);
     if (m_dfMinX != MM_UNDEFINED_STATISTICAL_VALUE &&
         m_dfMaxX != -MM_UNDEFINED_STATISTICAL_VALUE &&
@@ -1103,28 +1155,75 @@ bool MMRRel::Write()
     }
     AddKeyValue(KEY_toler_env, 0);
     AddSectionEnd();
+}
 
-    // Writing OVERVIEW section
-    /*VSIFPrintfL(pF, LineReturn "[%s]" LineReturn, SECTION_OVERVIEW);
+// Writes OVERVIEW section
+void MMRRel::WriteOVERVIEW()
+{
+    if (!GetRELFile())
+        return;
 
-    currentTime = time(nullptr);
-
+    AddSectionStart(SECTION_OVERVIEW);
+    time_t currentTime = time(nullptr);
     struct tm ltime;
     VSILocalTime(&currentTime, &ltime);
+    char aTimeString[200];
     snprintf(aTimeString, sizeof(aTimeString), "%04d%02d%02d %02d%02d%02d%02d",
              ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday,
              ltime.tm_hour, ltime.tm_min, ltime.tm_sec, 0);
-    VSIFPrintfL(pF, "%s=%s" LineReturn, KEY_CreationDate, aTimeString);
-    VSIFPrintfL(pF, LineReturn);
-    */
+    AddKeyValue(KEY_CreationDate, aTimeString);
+    AddSectionEnd();
+}
+
+// Writes ATTRIBUTE_DATA section
+void MMRRel::WriteATTRIBUTE_DATA()
+{
+    if (!GetRELFile())
+        return;
+
+    if (!m_nBands)
+        return;
+
+    AddSectionStart(SECTION_ATTRIBUTE_DATA);
+
+    CPLString osDataType = m_oBands[0].GetRELDataType();
+    for (int nIBand = 2; nIBand < m_nBands; nIBand++)
+    {
+        if (!EQUAL(osDataType, m_oBands[nIBand].GetRELDataType()))
+        {
+            m_bDataTypeWrittenInAtributeData = FALSE;
+            break;
+        }
+    }
+    if (m_bDataTypeWrittenInAtributeData)
+        AddKeyValue("TipusCompressio", osDataType);
 
     // TODO
+    //TipusRelacio=RELACIO_1_1_DICC
+    //TractamentVariable=Categoric
+    CPLString osIndexsNomsCamps = "1";
+    CPLString osIndex;
     for (int nIBand = 1; nIBand < m_nBands; nIBand++)
     {
-        m_oBands[nIBand].Write(bAvoidWritingDim);
+        osIndex = CPLSPrintf(",%d", nIBand + 1);
+        osIndexsNomsCamps.append(osIndex);
     }
+    AddKeyValue("IndexsNomsCamps", osIndexsNomsCamps);
 
-    CloseRELFile();
+    // Writing bands names
+    CPLString osIndexKey, osIndexValue;
+    for (int nIBand = 0; nIBand < m_nBands; nIBand++)
+    {
+        osIndexKey = CPLSPrintf("NomCamp_%d", nIBand + 1);
+        osIndexValue = CPLSPrintf("%d", nIBand + 1);
+        AddKeyValue(osIndexKey, osIndexValue);
+    }
+    AddSectionEnd();
 
-    return true;
+    // Writing bands sections
+    for (int nIBand = 0; nIBand < m_nBands; nIBand++)
+    {
+        osIndexValue = CPLSPrintf("%d", nIBand + 1);
+        m_oBands[nIBand].WriteRelSection(osIndexValue, *this);
+    }
 }

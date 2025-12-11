@@ -1209,10 +1209,21 @@ bool MMRBand::FillRowOffsets()
 /************************************************************************/
 /*                              Writing part()                          */
 /************************************************************************/
-void MMRBand::Write(bool bAvoidWritingDim)
+void MMRBand::WriteRelSection(const CPLString osIndex, MMRRel &osRel)
 {
+    CPLString osSection = "ATTRIBUTE_DATA";
+    osSection.append(":");
+    osSection.append(osIndex);
+
+    osRel.AddSectionStart(osSection);
+    //NomFitxer=LC08_L1TP_20210812_B1-LA_RT.img
+    //descriptor=Banda 1 [litoral/aerosols 0.433-0.453 µm] (OLI)
+    //min=8888
+    //max=65535
+
     //TODO
-    if (bAvoidWritingDim)
+    if (osRel.GetDimWrittenInOverview() ||
+        osRel.GetDataTypeWrittenInAtributeData())
         return;
 }
 
@@ -1325,4 +1336,36 @@ void MMRBand::UpdateNoDataValueFromRasterBand(GDALRasterBand *papoBand)
     int pbSuccess;
     m_dfNoData = papoBand->GetNoDataValue(&pbSuccess);
     m_bNoDataSet = pbSuccess == 1 ? true : false;
+}
+
+CPLString MMRBand::GetRELDataType()
+{
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
+        return "bit";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE)
+        return "byte";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE)
+        return "byte-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER)
+        return "integer";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE)
+        return "integer-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER)
+        return "uinteger";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
+        return "uinteger-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG)
+        return "long";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG_RLE)
+        return "long-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL)
+        return "real";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL_RLE)
+        return "real-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE)
+        return "double";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)
+        return "double-RLE";
+
+    return "";
 }
