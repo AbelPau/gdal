@@ -17,7 +17,11 @@
 #include "miramon_rel.h"
 #include "miramon_band.h"
 
-#include "../miramon_common/mm_gdal_driver_structs.h"  // For SECTION_ATTRIBUTE_DATA
+#ifdef MSVC
+#include "..\miramon_common\mm_gdal_driver_structs.h"  // For SECTION_VERSIO
+#else
+#include "../miramon_common/mm_gdal_driver_structs.h"  // For SECTION_VERSIO
+#endif
 
 /************************************************************************/
 /*                              MMRBand()                               */
@@ -25,7 +29,6 @@
 MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
     : m_pfRel(&fRel), m_nWidth(0), m_nHeight(0),
       m_osBandSection(osBandSectionIn)
-
 {
     // Getting band and band file name from metadata.
     CPLString osNomFitxer;
@@ -180,11 +183,91 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
     m_bIsValid = true;
 }
 
+MMRBand::MMRBand(GDALRasterBand *papoBand, bool bCompress)
+    : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0), m_osBandSection(""),
+      m_bIsCompressed(bCompress)
+
+{
+    // Getting essential metadata documented at
+    // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
+
+    // Getting number of columns and rows
+    m_nWidth = papoBand->GetXSize();
+    m_nHeight = papoBand->GetYSize();
+
+    if (m_nWidth <= 0 || m_nHeight <= 0)
+    {
+        m_nWidth = 0;
+        m_nHeight = 0;
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : (nWidth <= 0 || nHeight <= 0)");
+        return;
+    }
+
+    // Getting data type and compression from papoBand.
+    // If error, message given inside.
+    if (!UpdateDataTypeAndBytesPerPixelFromRasterBand(papoBand))
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "MMRBand::MMRBand : DataType not supported");
+        return;
+    }
+    m_nDataTypeSizeBytes = std::max(1, static_cast<int>(m_eMMBytesPerPixel));
+    m_bIsCompressed = bCompress;
+
+    // Getting min and max values
+    UpdateMinMaxValuesFromRasterBand(papoBand);
+
+    // Getting min and max values for simbolization
+    m_dfVisuMin = m_dfMin;
+    m_bMinVisuSet = m_bMinSet;
+    m_dfVisuMax = m_dfMax;
+    m_bMaxVisuSet = m_bMaxSet;
+
+    // MiraMon friendly description not available in origin DataSet
+    m_osFriendlyDescription = "";
+
+    // Getting NoData value and definition
+    UpdateNoDataValueFromRasterBand(papoBand);
+
+    // Getting reference system and coordinates of the geographic bounding box
+    // Not in the band, but in the dataset.
+    // UpdateReferenceSystemFromRasterBand(papoBand);
+
+    // Getting the bounding box: coordinates in the terrain
+    // Not in the band, but in the dataset.
+    //UpdateBoundingBoxFromRasterBand(papoBand);
+
+    // Temporal
+
+    /* Tot això va al moment d'escriure la banda
+    // MiraMon IMG files are efficient in going to an specified row.
+    // So le'ts configurate the blocks as line blocks.
+    m_nBlockXSize = m_nWidth;
+    m_nBlockYSize = 1;
+    m_nNRowsPerBlock = 1;
+
+    // Can the binary file that contains all data for this band be opened?
+    m_pfIMG = VSIFOpenL(m_osBandFileName, "rb");
+    if (!m_pfIMG)
+    {
+        m_nWidth = 0;
+        m_nHeight = 0;
+        CPLError(CE_Failure, CPLE_OpenFailed,
+                 "Failed to open MiraMon band file `%s' with access 'rb'.",
+                 m_osBandFileName.c_str());
+        return;
+    }
+    */
+
+    // We have a valid MMRBand.
+    m_bIsValid = true;
+}
+
 /************************************************************************/
 /*                              ~MMRBand()                              */
 /************************************************************************/
 MMRBand::~MMRBand()
-
 {
     if (m_pfIMG != nullptr)
         CPL_IGNORE_RET_VAL(VSIFCloseL(m_pfIMG));
@@ -1122,3 +1205,167 @@ bool MMRBand::FillRowOffsets()
     return true;
 
 }  // End of FillRowOffsets()
+
+/************************************************************************/
+/*                              Writing part()                          */
+/************************************************************************/
+void MMRBand::WriteRelSection(const CPLString osIndex, MMRRel &osRel)
+{
+    CPLString osSection = "ATTRIBUTE_DATA";
+    osSection.append(":");
+    osSection.append(osIndex);
+
+    osRel.AddSectionStart(osSection);
+    //NomFitxer=LC08_L1TP_20210812_B1-LA_RT.img
+    //descriptor=Banda 1 [litoral/aerosols 0.433-0.453 µm] (OLI)
+    //min=8888
+    //max=65535
+
+    //TODO
+    if (osRel.GetDimWrittenInOverview() ||
+        osRel.GetDataTypeWrittenInAtributeData())
+        return;
+}
+
+// Getting data type from dataset
+bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
+    GDALRasterBand *papoBand)
+{
+    switch (papoBand->GetRasterDataType())
+    {
+        case GDT_Byte:
+            if (m_bIsCompressed)
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_BYTE;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_BYTE_RLE;
+
+            m_eMMBytesPerPixel =
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
+            break;
+
+        case GDT_UInt16:
+            if (m_bIsCompressed)
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_UINTEGER;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE;
+
+            m_eMMBytesPerPixel =
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+            break;
+
+        case GDT_Int16:
+            if (m_bIsCompressed)
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_INTEGER;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE;
+
+            m_eMMBytesPerPixel =
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
+            break;
+
+        case GDT_Int32:
+            if (m_bIsCompressed)
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_LONG;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_LONG_RLE;
+
+            m_eMMBytesPerPixel =
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+            break;
+
+        case GDT_Float32:
+            if (m_bIsCompressed)
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_REAL;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_REAL_RLE;
+
+            m_eMMBytesPerPixel =
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
+            break;
+
+        case GDT_Float64:
+            if (m_bIsCompressed)
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_DOUBLE;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE;
+
+            m_eMMBytesPerPixel =
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE;
+            break;
+
+        default:
+            m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
+            m_eMMBytesPerPixel =
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;
+            m_nDataTypeSizeBytes = 0;
+            m_nWidth = 0;
+            m_nHeight = 0;
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "MiraMonRaster: data type unhandled");
+            return false;
+    }
+    return true;
+}
+
+void MMRBand::UpdateMinMaxValuesFromRasterBand(GDALRasterBand *papoBand)
+{
+    int pbSuccess;
+    m_dfMin = papoBand->GetMinimum(&pbSuccess);
+    if (pbSuccess)
+        m_bMinSet = true;
+    else
+        m_bMinSet = false;
+
+    m_dfMax = papoBand->GetMaximum(&pbSuccess);
+    if (pbSuccess)
+        m_bMaxSet = true;
+    else
+        m_bMaxSet = false;
+
+    // Special case: dfMin > dfMax
+    if (m_bMinSet && m_bMaxSet && m_dfMin > m_dfMax)
+    {
+        m_bMinSet = false;
+        m_bMaxSet = false;
+    }
+}
+
+// Getting nodata value from metadata
+void MMRBand::UpdateNoDataValueFromRasterBand(GDALRasterBand *papoBand)
+{
+    int pbSuccess;
+    m_dfNoData = papoBand->GetNoDataValue(&pbSuccess);
+    m_bNoDataSet = pbSuccess == 1 ? true : false;
+}
+
+CPLString MMRBand::GetRELDataType()
+{
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
+        return "bit";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE)
+        return "byte";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE)
+        return "byte-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER)
+        return "integer";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE)
+        return "integer-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER)
+        return "uinteger";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
+        return "uinteger-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG)
+        return "long";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG_RLE)
+        return "long-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL)
+        return "real";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL_RLE)
+        return "real-RLE";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE)
+        return "double";
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)
+        return "double-RLE";
+
+    return "";
+}

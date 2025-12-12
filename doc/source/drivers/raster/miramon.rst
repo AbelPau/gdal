@@ -79,10 +79,22 @@ Open options
 
 None.
 
-Dataset creation options
-------------------------
+Creation Options
+----------------
 
-None.
+|about-creation-options|
+The following creation options are supported:
+
+-  .. co:: COMPRESS
+      :choices: YES, NO
+      :default: YES
+
+      Whether the file will be compressed in RLE indexes mode.
+
+  -  .. co:: PATTERN
+      
+      Indicates the pattern used to create the name of the different bands.
+
 
 See Also
 --------

@@ -19,9 +19,16 @@
 #include "gdal_priv.h"
 #include "miramon_band.h"  // For MMRBand
 
+#ifdef MSVC
+#include "..\miramon_common\mm_gdal_driver_structs.h"  // For SECTION_VERSIO
+#else
+#include "../miramon_common/mm_gdal_driver_structs.h"  // For SECTION_VERSIO
+#endif
+
 constexpr auto pszExtRaster = ".img";
 constexpr auto pszExtRasterREL = "I.rel";
 constexpr auto pszExtREL = ".rel";
+constexpr auto LineReturn = "\r\n";
 
 class MMRBand;
 
@@ -42,7 +49,10 @@ using ExcludedEntry = std::pair<CPLString, CPLString>;
 class MMRRel
 {
   public:
-    MMRRel(const CPLString &, bool);
+    MMRRel(const CPLString &, bool);  // Used in reading
+    MMRRel(const CPLString &, const CPLString &osEPSG, int nWidth, int nHeight,
+           double dfMinX, double dfMaxX, double dfMinY, double dfMaxY,
+           std::vector<MMRBand> &&oBands);  // Used in writing
     MMRRel(const MMRRel &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRRel &operator=(const MMRRel &) =
@@ -83,6 +93,29 @@ class MMRRel
     static int IdentifySubdataSetFile(const CPLString &osFileName);
     static int IdentifyFile(const GDALOpenInfo *poOpenInfo);
 
+    bool Write();
+    void WriteMETADADES();
+    void WriteIDENTIFICATION();
+    void WriteOVERVIEW_ASPECTES_TECNICS();
+    void WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
+    void WriteEXTENT();
+    void WriteOVERVIEW();
+    void WriteATTRIBUTE_DATA();
+
+    // Used when writting bands. If dimensions are the same
+    // for all bands, then they has been written in the main section
+    bool GetDimWrittenInOverview() const
+    {
+        return m_bDimWrittenInOverview;
+    }
+
+    // Used when writting bands. If data type is the same
+    // for all bands, then it has been written in the main section
+    bool GetDataTypeWrittenInAtributeData() const
+    {
+        return m_bDataTypeWrittenInAtributeData;
+    }
+
     bool IsValid() const
     {
         return m_bIsValid;
@@ -109,6 +142,113 @@ class MMRRel
         return false;
     }
 
+    bool CreateRELFile()
+    {
+        if (m_osRelFileName.empty())
+            return false;
+
+        m_pRELFile = VSIFOpenL(m_osRelFileName, "wb");
+        if (m_pRELFile)
+            return true;
+        return false;
+    }
+
+    void AddVersion()
+    {
+        if (!m_pRELFile)
+            return;
+
+        // Writing MiraMon version section
+        VSIFPrintfL(m_pRELFile, "[%s]%s", SECTION_VERSIO, LineReturn);
+
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_VersMetaDades,
+                    static_cast<unsigned>(MM_VERS_METADADES), LineReturn);
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_SubVersMetaDades,
+                    static_cast<unsigned>(MM_SUBVERS_METADADES), LineReturn);
+
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_Vers,
+                    static_cast<unsigned>(MM_VERS), LineReturn);
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_SubVers,
+                    static_cast<unsigned>(MM_SUBVERS), LineReturn);
+
+        VSIFPrintfL(m_pRELFile, "%s", LineReturn);
+    }
+
+    void AddSectionStart(const CPLString osSection)
+    {
+        if (!m_pRELFile)
+            return;
+
+        VSIFPrintfL(m_pRELFile, "[%s]%s", osSection.c_str(), LineReturn);
+    }
+
+    void AddSectionStart(const CPLString osSectionP1,
+                         const CPLString osSectionP2)
+    {
+        if (!m_pRELFile)
+            return;
+
+        VSIFPrintfL(m_pRELFile, "[%s:%s]%s", osSectionP1.c_str(),
+                    osSectionP2.c_str(), LineReturn);
+    }
+
+    void AddSectionEnd()
+    {
+        if (!m_pRELFile)
+            return;
+
+        VSIFPrintfL(m_pRELFile, LineReturn);
+    }
+
+    void AddKey(const CPLString osKey)
+    {
+        if (!m_pRELFile)
+            return;
+
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%s", pzsKey ? pzsKey : osKey.c_str(),
+                    LineReturn);
+        CPLFree(pzsKey);
+    }
+
+    void AddKeyValue(const CPLString osKey, const CPLString osValue)
+    {
+        if (!m_pRELFile)
+            return;
+
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        char *pzsValue = CPLRecode(osValue, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%s%s", pzsKey ? pzsKey : osKey.c_str(),
+                    pzsValue ? pzsValue : osValue.c_str(), LineReturn);
+
+        CPLFree(pzsKey);
+        CPLFree(pzsValue);
+    }
+
+    void AddKeyValue(const CPLString osKey, const int nValue)
+    {
+        if (!m_pRELFile)
+            return;
+
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%d%s", pzsKey ? pzsKey : osKey.c_str(),
+                    nValue, LineReturn);
+
+        CPLFree(pzsKey);
+    }
+
+    void AddKeyValue(const CPLString osKey, const double nValue)
+    {
+        if (!m_pRELFile)
+            return;
+
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%lf%s", pzsKey ? pzsKey : osKey.c_str(),
+                    nValue, LineReturn);
+
+        CPLFree(pzsKey);
+    }
+
     void CloseRELFile()
     {
         if (!m_pRELFile)
@@ -133,12 +273,12 @@ class MMRRel
         return m_nBands;
     }
 
-    MMRBand *GetBand(int nIBand) const
+    MMRBand *GetBand(int nIBand)
     {
         if (nIBand < 0 || nIBand >= m_nBands)
             return nullptr;
 
-        return m_oBands[nIBand].get();
+        return &m_oBands[nIBand];
     }
 
     int isAMiraMonFile() const
@@ -177,6 +317,8 @@ class MMRRel
     VSILFILE *m_pRELFile = nullptr;
     static CPLString m_szImprobableRELChain;
 
+    char m_szFileIdentifier[MM_MAX_LEN_LAYER_IDENTIFIER];
+
     bool m_bIsValid =
         false;  // Determines if the created object is valid or not.
     bool m_bIsAMiraMonFile = false;
@@ -185,7 +327,15 @@ class MMRRel
     std::vector<CPLString> m_papoSDSBands{};
 
     int m_nBands = 0;
-    std::vector<std::unique_ptr<MMRBand>> m_oBands{};
+    std::vector<MMRBand> m_oBands{};
+
+    // Used when writting bands. If dimensions are the same
+    // for all bands, then they has been written in the main section
+    bool m_bDimWrittenInOverview = FALSE;
+
+    // Used when writting bands. If data type is the same
+    // for all bands, then it has been written in the main section
+    bool m_bDataTypeWrittenInAtributeData = TRUE;
 
     // Preserving metadata
 
@@ -199,6 +349,19 @@ class MMRRel
     // List of excluded pairs {Section, Key} to be added to metadata
     // Empty Key means all section
     std::set<ExcludedEntry> m_ExcludedSectionKey = {};
+
+    // For writing part
+    // EPSG number
+    CPLString m_osEPSG = "";
+
+    // Global raster dimensions
+    int m_nWidth = 0;
+    int m_nHeight = 0;
+
+    double m_dfMinX = MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMaxX = -MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMinY = MM_UNDEFINED_STATISTICAL_VALUE;
+    double m_dfMaxY = -MM_UNDEFINED_STATISTICAL_VALUE;
 };
 
 #endif /* ndef MMR_REL_H_INCLUDED */

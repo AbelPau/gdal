@@ -133,6 +133,22 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
     return;
 }
 
+MMRRel::MMRRel(const CPLString &osRELFilenameIn, const CPLString &osEPSG,
+               int nWidth, int nHeight, double dfMinX, double dfMaxX,
+               double dfMinY, double dfMaxY, std::vector<MMRBand> &&oBands)
+    : m_osRelFileName(osRELFilenameIn), m_oBands(std::move(oBands)),
+      m_osEPSG(osEPSG), m_nWidth(nWidth), m_nHeight(nHeight), m_dfMinX(dfMinX),
+      m_dfMaxX(dfMaxX), m_dfMinY(dfMinY), m_dfMaxY(dfMaxY)
+{
+    m_nBands = static_cast<int>(m_oBands.size());
+
+    if (!m_nBands || !m_nWidth || !nHeight)
+        return;
+
+    m_bIsAMiraMonFile = true;
+    m_bIsValid = true;
+}
+
 /************************************************************************/
 /*                              ~MMRRel()                              */
 /************************************************************************/
@@ -861,10 +877,9 @@ CPLErr MMRRel::ParseBandInfo()
         if (m_nBands >= nNBand)
             break;
 
-        m_oBands.emplace_back(
-            std::make_unique<MMRBand>(*this, osBandSectionValue.Trim()));
+        m_oBands.emplace_back(MMRBand(*this, osBandSectionValue.Trim()));
 
-        if (!m_oBands[m_nBands]->IsValid())
+        if (!m_oBands[m_nBands].IsValid())
         {
             // This band is not been completed
             return CE_Failure;
@@ -1004,5 +1019,211 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             poDS->SetMetadataItem(fullKey.c_str(),
                                   osPendingValue.Trim().c_str(),
                                   m_kMetadataDomain);
+    }
+}
+
+/************************************************************************/
+/*                     Writing part                                     */
+/************************************************************************/
+bool MMRRel::Write()
+{
+    // REL File creation
+    if (!CreateRELFile())
+        return false;
+
+    AddVersion();
+
+    // Writing METADADES section
+    WriteMETADADES();  // It fills m_szFileIdentifier
+
+    // Writing IDENTIFICATION section
+    WriteIDENTIFICATION();
+
+    // Writting OVERVIEW:ASPECTES_TECNICS
+    WriteOVERVIEW_ASPECTES_TECNICS();
+
+    // Writing SPATIAL_REFERENCE_SYSTEM:HORIZONTAL
+    WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
+
+    // Writing EXTENT section
+    WriteEXTENT();
+
+    // Writing OVERVIEW section
+    WriteOVERVIEW();
+
+    // Writing ATTRIBUTE_DATA section
+    WriteATTRIBUTE_DATA();
+
+    CloseRELFile();
+
+    return true;
+}
+
+// Writes METADADES section
+void MMRRel::WriteMETADADES()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_METADADES);
+
+    char aMessage[MM_MESSAGE_LENGTH];
+    CPLString osFileName = CPLGetBasenameSafe(m_osRelFileName);
+    CPLStrlcpy(aMessage, osFileName, sizeof(aMessage));
+    MMGenerateFileIdentifierFromMetadataFileName(aMessage, m_szFileIdentifier);
+
+    AddKeyValue(KEY_FileIdentifier, m_szFileIdentifier);
+    AddKeyValue(KEY_language, KEY_Value_eng);
+    AddKeyValue(KEY_MDIdiom, KEY_Value_eng);
+    AddKeyValue(KEY_characterSet, KEY_Value_characterSet);
+    AddSectionEnd();
+}
+
+// Writes IDENTIFICATION section
+void MMRRel::WriteIDENTIFICATION()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_IDENTIFICATION);
+    AddKeyValue(KEY_code, m_szFileIdentifier);
+    AddKey(KEY_codeSpace);
+
+    //·$· Title?
+    //if(!osTitle.empty())
+    //    AddKeyValue(KEY_DatasetTitle, osTitle);
+    AddKeyValue(KEY_language, KEY_Value_eng);
+    AddSectionEnd();
+}
+
+// Writes OVERVIEW:ASPECTES_TECNICS section
+void MMRRel::WriteOVERVIEW_ASPECTES_TECNICS()
+{
+    if (!GetRELFile())
+        return;
+
+    if (m_nWidth && m_nHeight)
+    {
+        AddSectionStart(SECTION_OVERVIEW, SECTION_ASPECTES_TECNICS);
+        AddKeyValue("columns", m_nWidth);
+        AddKeyValue("rows", m_nHeight);
+        AddSectionEnd();
+        m_bDimWrittenInOverview = TRUE;
+    }
+}
+
+// Writes SPATIAL_REFERENCE_SYSTEM:HORIZONTAL section
+void MMRRel::WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_SPATIAL_REFERENCE_SYSTEM, SECTION_HORIZONTAL);
+    char aMMIDSRS[MM_MAX_ID_SNY];
+    if (!ReturnMMIDSRSFromEPSGCodeSRS(m_osEPSG, aMMIDSRS) &&
+        !MMIsEmptyString(aMMIDSRS))
+    {
+        AddKeyValue(KEY_HorizontalSystemIdentifier, aMMIDSRS);
+    }
+    else
+    {
+        CPLError(CE_Warning, CPLE_NotSupported,
+                 "The MiraMon driver cannot assign any HRS.");
+        // Horizontal Reference System
+        AddKeyValue(KEY_HorizontalSystemIdentifier, "plane");
+        AddKeyValue(KEY_HorizontalSystemDefinition, "local");
+    }
+    AddSectionEnd();
+}
+
+// Writes EXTENT section
+void MMRRel::WriteEXTENT()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_EXTENT);
+    if (m_dfMinX != MM_UNDEFINED_STATISTICAL_VALUE &&
+        m_dfMaxX != -MM_UNDEFINED_STATISTICAL_VALUE &&
+        m_dfMinY != MM_UNDEFINED_STATISTICAL_VALUE &&
+        m_dfMaxY != -MM_UNDEFINED_STATISTICAL_VALUE)
+    {
+        AddKeyValue(KEY_MinX, m_dfMinX);
+        AddKeyValue(KEY_MaxX, m_dfMaxX);
+        AddKeyValue(KEY_MinY, m_dfMinY);
+        AddKeyValue(KEY_MaxY, m_dfMaxY);
+    }
+    AddKeyValue(KEY_toler_env, 0);
+    AddSectionEnd();
+}
+
+// Writes OVERVIEW section
+void MMRRel::WriteOVERVIEW()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_OVERVIEW);
+    time_t currentTime = time(nullptr);
+    struct tm ltime;
+    VSILocalTime(&currentTime, &ltime);
+    char aTimeString[200];
+    snprintf(aTimeString, sizeof(aTimeString), "%04d%02d%02d %02d%02d%02d%02d",
+             ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday,
+             ltime.tm_hour, ltime.tm_min, ltime.tm_sec, 0);
+    AddKeyValue(KEY_CreationDate, aTimeString);
+    AddSectionEnd();
+}
+
+// Writes ATTRIBUTE_DATA section
+void MMRRel::WriteATTRIBUTE_DATA()
+{
+    if (!GetRELFile())
+        return;
+
+    if (!m_nBands)
+        return;
+
+    AddSectionStart(SECTION_ATTRIBUTE_DATA);
+
+    CPLString osDataType = m_oBands[0].GetRELDataType();
+    for (int nIBand = 2; nIBand < m_nBands; nIBand++)
+    {
+        if (!EQUAL(osDataType, m_oBands[nIBand].GetRELDataType()))
+        {
+            m_bDataTypeWrittenInAtributeData = FALSE;
+            break;
+        }
+    }
+    if (m_bDataTypeWrittenInAtributeData)
+        AddKeyValue("TipusCompressio", osDataType);
+
+    // TODO
+    //TipusRelacio=RELACIO_1_1_DICC
+    //TractamentVariable=Categoric
+    CPLString osIndexsNomsCamps = "1";
+    CPLString osIndex;
+    for (int nIBand = 1; nIBand < m_nBands; nIBand++)
+    {
+        osIndex = CPLSPrintf(",%d", nIBand + 1);
+        osIndexsNomsCamps.append(osIndex);
+    }
+    AddKeyValue("IndexsNomsCamps", osIndexsNomsCamps);
+
+    // Writing bands names
+    CPLString osIndexKey, osIndexValue;
+    for (int nIBand = 0; nIBand < m_nBands; nIBand++)
+    {
+        osIndexKey = CPLSPrintf("NomCamp_%d", nIBand + 1);
+        osIndexValue = CPLSPrintf("%d", nIBand + 1);
+        AddKeyValue(osIndexKey, osIndexValue);
+    }
+    AddSectionEnd();
+
+    // Writing bands sections
+    for (int nIBand = 0; nIBand < m_nBands; nIBand++)
+    {
+        osIndexValue = CPLSPrintf("%d", nIBand + 1);
+        m_oBands[nIBand].WriteRelSection(osIndexValue, *this);
     }
 }

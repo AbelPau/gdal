@@ -63,9 +63,14 @@ enum class MMBytesPerPixel
 class MMRBand final
 {
   public:
-    MMRBand(MMRRel &pfRel, const CPLString &osSection);
+    MMRBand(MMRRel &pfRel, const CPLString &osSection);  // Used at reading part
+    MMRBand(GDALRasterBand *papoBand,
+            bool bCompress);  // Used at writing part
+
+    // CAMARRACUS
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
+    MMRBand(MMRBand &&) = default;
     MMRBand &operator=(const MMRBand &) =
         delete;  // I don't want to assign a MMRBand to another MMRBand (effc++)
     ~MMRBand();
@@ -212,6 +217,10 @@ class MMRBand final
 
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
+    // Writing part
+    void WriteRelSection(const CPLString osIndex, MMRRel &osRel);
+    CPLString GetRELDataType();
+
   private:
     bool Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
         const CPLString &osSection, const char *pszKey, int *nValue,
@@ -235,6 +244,11 @@ class MMRBand final
     int PositionAtStartOfRowOffsetsInFile();
     bool FillRowOffsets();
     vsi_l_offset GetFileSize();
+
+    // Writing part
+    bool UpdateDataTypeAndBytesPerPixelFromRasterBand(GDALRasterBand *papoBand);
+    void UpdateMinMaxValuesFromRasterBand(GDALRasterBand *papoBand);
+    void UpdateNoDataValueFromRasterBand(GDALRasterBand *papoBand);
 
     bool m_bIsValid =
         false;  // Determines if the created object is valid or not.
