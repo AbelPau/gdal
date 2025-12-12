@@ -142,7 +142,7 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, const CPLString &osEPSG,
 {
     m_nBands = static_cast<int>(m_oBands.size());
 
-    if (!m_nBands || !m_nWidth || !nHeight)
+    if (!m_nBands)
         return;
 
     m_bIsAMiraMonFile = true;
@@ -1052,10 +1052,13 @@ bool MMRRel::Write()
     WriteOVERVIEW();
 
     // Writing ATTRIBUTE_DATA section
-    WriteATTRIBUTE_DATA();
+    if (!WriteATTRIBUTE_DATA())
+    {
+        CloseRELFile();
+        return false;
+    }
 
     CloseRELFile();
-
     return true;
 }
 
@@ -1176,27 +1179,21 @@ void MMRRel::WriteOVERVIEW()
 }
 
 // Writes ATTRIBUTE_DATA section
-void MMRRel::WriteATTRIBUTE_DATA()
+bool MMRRel::WriteATTRIBUTE_DATA()
 {
     if (!GetRELFile())
-        return;
+        return false;
 
     if (!m_nBands)
-        return;
+        return false;
 
     AddSectionStart(SECTION_ATTRIBUTE_DATA);
 
-    CPLString osDataType = m_oBands[0].GetRELDataType();
-    for (int nIBand = 2; nIBand < m_nBands; nIBand++)
-    {
-        if (!EQUAL(osDataType, m_oBands[nIBand].GetRELDataType()))
-        {
-            m_bDataTypeWrittenInAtributeData = FALSE;
-            break;
-        }
-    }
-    if (m_bDataTypeWrittenInAtributeData)
-        AddKeyValue("TipusCompressio", osDataType);
+    const CPLString osDSDataType = m_oBands[0].GetRELDataType();
+    if(osDSDataType.empty())
+        return false;
+    
+    AddKeyValue("TipusCompressio", osDSDataType);
 
     // TODO
     //TipusRelacio=RELACIO_1_1_DICC
@@ -1224,6 +1221,44 @@ void MMRRel::WriteATTRIBUTE_DATA()
     for (int nIBand = 0; nIBand < m_nBands; nIBand++)
     {
         osIndexValue = CPLSPrintf("%d", nIBand + 1);
-        m_oBands[nIBand].WriteRelSection(osIndexValue, *this);
+
+        // Adding band information to REL
+        if(!WriteBandSection(m_oBands[nIBand], osIndexValue, osDSDataType))
+            return false;
+        
+        // Writing IMG binary file
+        //if (! m_oBands[nIBand].WriteBandsFile())
+        //{
+        //    return false;
+        //}
     }
+
+    return true;
+}
+
+bool MMRRel::WriteBandSection(const MMRBand &osBand, const CPLString osIndex, const CPLString osDSDataType)
+{
+    CPLString osSection = "ATTRIBUTE_DATA";
+    osSection.append(":");
+    osSection.append(osIndex);
+
+    AddSectionStart(osSection);
+    CPLString osDataType = osBand.GetRELDataType();
+    if(!EQUAL(osDSDataType, osDataType))
+        AddKeyValue("TipusCompressio", osDataType);
+
+    if(osBand.GetRawBandFileName().empty())
+        return false;
+
+    AddKeyValue("NomFitxer", osBand.GetRawBandFileName());
+    AddKeyValue("descriptor", osBand.GetFriendlyDescription());
+    if(osBand.GetMinSet())
+        AddKeyValue("min", osBand.GetMin());
+    if(osBand.GetMinSet())
+        AddKeyValue("max", osBand.GetMax());
+
+    // TODO if (GetDimWrittenInOverview())        return;
+
+    // BINARIO de la banda
+    return true;
 }

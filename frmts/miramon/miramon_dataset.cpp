@@ -52,7 +52,8 @@ void GDALRegister_MiraMon()
 /************************************************************************/
 /*                            MMRDataset()                              */
 /************************************************************************/
-MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS, bool bCompress)
+MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS,
+    bool bCompress, const CPLString osPattern)
     : m_bIsValid(false)
 {
     nBands = oSrcDS.GetRasterCount();
@@ -103,7 +104,19 @@ MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS, bool bCompress)
     bool bAllBandsSameDim = true;
     for (int nIBand = 1; nIBand <= nBands; nIBand++)
     {
-        oBands.emplace_back(MMRBand(oSrcDS.GetRasterBand(nIBand), bCompress));
+        GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand);
+        if (!pRasterBand)
+        {
+            ReportError(
+                osRelname, CE_Failure, CPLE_AppDefined,
+                "Unable to translate the band %d to MiraMon. Process canceled.",
+                nIBand);
+            return;
+        }
+
+        const CPLString osIndexBand = CPLSPrintf("%d", nIBand);
+        oBands.emplace_back(MMRBand(*pRasterBand, bCompress,
+            osPattern, osIndexBand));
         if (!oBands.back().IsValid())
         {
             ReportError(
@@ -154,10 +167,11 @@ MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS, bool bCompress)
         return;
 
     // Writing all information in files: I.rel, IMG,...
-    pMMfRel->Write();
-
-    if (!pMMfRel->IsValid())
+    if (!pMMfRel->Write())
+    {
+        pMMfRel->SetIsValid(false);
         return;
+    }
 
     m_bIsValid = true;
 }
@@ -299,16 +313,22 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
     bool bCompress =
         EQUAL(CSLFetchNameValueDef(papszOptions, "COMPRESS", "YES"), "YES");
 
-    CPLString oPattern =
-        CSLFetchNameValueDef(papszOptions, "PATTERN", pszFilename);
-
     // pszFilename doesn't have extension or must end in "I.rel"
     const CPLString osFileName = pszFilename;
     CPLString osRelName = CreateAssociatedMetadataFileName(osFileName);
     if (osRelName.empty())
         return nullptr;
 
-    auto poDS = std::make_unique<MMRDataset>(osRelName, *poSrcDS, bCompress);
+    // osPattern is needed to create band names.
+    CPLString osOptPattern =
+        CSLFetchNameValueDef(papszOptions, "PATTERN", "");
+    CPLString osPattern = CreatePatternFileName(osRelName, osOptPattern);
+
+    if (osPattern.empty())
+        osPattern=CPLGetBasenameSafe(osRelName);
+
+
+    auto poDS = std::make_unique<MMRDataset>(osRelName, *poSrcDS, bCompress, osPattern);
 
     if (!poDS->IsValid())
         return nullptr;
@@ -2036,4 +2056,21 @@ MMRDataset::CreateAssociatedMetadataFileName(const CPLString &osFileName)
     // to get the REL file.
     osRELName += pszExtRasterREL;
     return osRELName;
+}
+
+// Finds the pattern name to the bands
+CPLString
+MMRDataset::CreatePatternFileName(const CPLString &osFileName, const CPLString &osPattern)
+{
+    if(!osPattern.empty())
+        return osPattern;
+
+    CPLString osRELName = osFileName;
+
+    if (!cpl::ends_with(osFileName, pszExtRasterREL))
+        return "";
+
+    // Extract I.rel and path
+    osRELName.resize(osRELName.size() - strlen("I.rel"));
+    return CPLGetBasenameSafe(osRELName);
 }

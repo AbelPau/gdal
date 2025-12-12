@@ -37,7 +37,7 @@ class MMRDataset final : public GDALPamDataset
   public:
     explicit MMRDataset(GDALOpenInfo *poOpenInfo);  // Used in reading
     MMRDataset(CPLString osFilename, GDALDataset &oSrcDS,
-               bool bCompress);  // Used in writing
+               bool bCompress, const CPLString osPattern);  // Used in writing
     MMRDataset(const MMRDataset &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRDataset &operator=(const MMRDataset &) =
@@ -71,6 +71,8 @@ class MMRDataset final : public GDALPamDataset
     CPLErr GetGeoTransform(GDALGeoTransform &gt) const override;
     static CPLString
     CreateAssociatedMetadataFileName(const CPLString &osFileName);
+    static CPLString
+    CreatePatternFileName(const CPLString &osFileName, const CPLString &osPattern);
 
     bool IsValid() const
     {

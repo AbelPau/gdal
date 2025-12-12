@@ -64,8 +64,10 @@ class MMRBand final
 {
   public:
     MMRBand(MMRRel &pfRel, const CPLString &osSection);  // Used at reading part
-    MMRBand(GDALRasterBand *papoBand,
-            bool bCompress);  // Used at writing part
+    MMRBand(GDALRasterBand &papoBand,   // Used at writing part
+        bool bCompress,
+        const CPLString osPattern,
+        const CPLString osBandSection);
 
     // CAMARRACUS
     MMRBand(const MMRBand &) =
@@ -218,8 +220,7 @@ class MMRBand final
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
     // Writing part
-    void WriteRelSection(const CPLString osIndex, MMRRel &osRel);
-    CPLString GetRELDataType();
+    CPLString GetRELDataType() const;
 
   private:
     bool Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
@@ -246,9 +247,9 @@ class MMRBand final
     vsi_l_offset GetFileSize();
 
     // Writing part
-    bool UpdateDataTypeAndBytesPerPixelFromRasterBand(GDALRasterBand *papoBand);
-    void UpdateMinMaxValuesFromRasterBand(GDALRasterBand *papoBand);
-    void UpdateNoDataValueFromRasterBand(GDALRasterBand *papoBand);
+    bool UpdateDataTypeAndBytesPerPixelFromRasterBand(GDALRasterBand &papoBand);
+    void UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand);
+    void UpdateNoDataValueFromRasterBand(GDALRasterBand &papoBand);
 
     bool m_bIsValid =
         false;  // Determines if the created object is valid or not.

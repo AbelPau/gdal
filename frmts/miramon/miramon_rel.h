@@ -100,20 +100,15 @@ class MMRRel
     void WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
     void WriteEXTENT();
     void WriteOVERVIEW();
-    void WriteATTRIBUTE_DATA();
+    bool WriteATTRIBUTE_DATA();
+    bool WriteBandSection(const MMRBand &osBand, const CPLString osIndex,
+        const CPLString osDSDataType);
 
     // Used when writting bands. If dimensions are the same
     // for all bands, then they has been written in the main section
     bool GetDimWrittenInOverview() const
     {
         return m_bDimWrittenInOverview;
-    }
-
-    // Used when writting bands. If data type is the same
-    // for all bands, then it has been written in the main section
-    bool GetDataTypeWrittenInAtributeData() const
-    {
-        return m_bDataTypeWrittenInAtributeData;
     }
 
     bool IsValid() const
@@ -213,7 +208,7 @@ class MMRRel
 
     void AddKeyValue(const CPLString osKey, const CPLString osValue)
     {
-        if (!m_pRELFile)
+        if (!m_pRELFile || osValue.empty())
             return;
 
         char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
@@ -331,11 +326,7 @@ class MMRRel
 
     // Used when writting bands. If dimensions are the same
     // for all bands, then they has been written in the main section
-    bool m_bDimWrittenInOverview = FALSE;
-
-    // Used when writting bands. If data type is the same
-    // for all bands, then it has been written in the main section
-    bool m_bDataTypeWrittenInAtributeData = TRUE;
+    bool m_bDimWrittenInOverview = false;
 
     // Preserving metadata
 

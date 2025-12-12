@@ -183,17 +183,21 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
     m_bIsValid = true;
 }
 
-MMRBand::MMRBand(GDALRasterBand *papoBand, bool bCompress)
-    : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0), m_osBandSection(""),
-      m_bIsCompressed(bCompress)
+MMRBand::MMRBand(GDALRasterBand &papoBand, bool bCompress, const CPLString osPattern,
+    const CPLString osBandSection)
+    : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0), m_osBandSection(osBandSection),
+        m_osRawBandFileName(""), m_osBandFileName(""),
+        m_osBandName(osPattern + osBandSection),
+        m_osFriendlyDescription(papoBand.GetDescription()),
+        m_bIsCompressed(bCompress)
 
 {
     // Getting essential metadata documented at
     // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
 
     // Getting number of columns and rows
-    m_nWidth = papoBand->GetXSize();
-    m_nHeight = papoBand->GetYSize();
+    m_nWidth = papoBand.GetXSize();
+    m_nHeight = papoBand.GetYSize();
 
     if (m_nWidth <= 0 || m_nHeight <= 0)
     {
@@ -223,9 +227,6 @@ MMRBand::MMRBand(GDALRasterBand *papoBand, bool bCompress)
     m_bMinVisuSet = m_bMinSet;
     m_dfVisuMax = m_dfMax;
     m_bMaxVisuSet = m_bMaxSet;
-
-    // MiraMon friendly description not available in origin DataSet
-    m_osFriendlyDescription = "";
 
     // Getting NoData value and definition
     UpdateNoDataValueFromRasterBand(papoBand);
@@ -1209,29 +1210,11 @@ bool MMRBand::FillRowOffsets()
 /************************************************************************/
 /*                              Writing part()                          */
 /************************************************************************/
-void MMRBand::WriteRelSection(const CPLString osIndex, MMRRel &osRel)
-{
-    CPLString osSection = "ATTRIBUTE_DATA";
-    osSection.append(":");
-    osSection.append(osIndex);
-
-    osRel.AddSectionStart(osSection);
-    //NomFitxer=LC08_L1TP_20210812_B1-LA_RT.img
-    //descriptor=Banda 1 [litoral/aerosols 0.433-0.453 µm] (OLI)
-    //min=8888
-    //max=65535
-
-    //TODO
-    if (osRel.GetDimWrittenInOverview() ||
-        osRel.GetDataTypeWrittenInAtributeData())
-        return;
-}
-
 // Getting data type from dataset
 bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
-    GDALRasterBand *papoBand)
+    GDALRasterBand &papoBand)
 {
-    switch (papoBand->GetRasterDataType())
+    switch (papoBand.GetRasterDataType())
     {
         case GDT_Byte:
             if (m_bIsCompressed)
@@ -1307,16 +1290,16 @@ bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
     return true;
 }
 
-void MMRBand::UpdateMinMaxValuesFromRasterBand(GDALRasterBand *papoBand)
+void MMRBand::UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand)
 {
     int pbSuccess;
-    m_dfMin = papoBand->GetMinimum(&pbSuccess);
+    m_dfMin = papoBand.GetMinimum(&pbSuccess);
     if (pbSuccess)
         m_bMinSet = true;
     else
         m_bMinSet = false;
 
-    m_dfMax = papoBand->GetMaximum(&pbSuccess);
+    m_dfMax =  papoBand.GetMaximum(&pbSuccess);
     if (pbSuccess)
         m_bMaxSet = true;
     else
@@ -1331,41 +1314,63 @@ void MMRBand::UpdateMinMaxValuesFromRasterBand(GDALRasterBand *papoBand)
 }
 
 // Getting nodata value from metadata
-void MMRBand::UpdateNoDataValueFromRasterBand(GDALRasterBand *papoBand)
+void MMRBand::UpdateNoDataValueFromRasterBand(GDALRasterBand &papoBand)
 {
     int pbSuccess;
-    m_dfNoData = papoBand->GetNoDataValue(&pbSuccess);
+    m_dfNoData =  papoBand.GetNoDataValue(&pbSuccess);
     m_bNoDataSet = pbSuccess == 1 ? true : false;
 }
 
-CPLString MMRBand::GetRELDataType()
+CPLString MMRBand::GetRELDataType() const
 {
     if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BIT)
         return "bit";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE)
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE ||
+        m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE)
+    {
+        if (m_bIsCompressed)
+            return "byte-RLE";
         return "byte";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE)
-        return "byte-RLE";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER)
+    }
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER ||
+        m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE)
+    {
+        if (m_bIsCompressed)
+            return "integer-RLE";
         return "integer";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE)
-        return "integer-RLE";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER)
+    }
+
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER ||
+        m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
+    {
+        if (m_bIsCompressed)
+            return "uinteger-RLE";
         return "uinteger";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
-        return "uinteger-RLE";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG)
+    }
+
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG ||
+        m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG_RLE)
+    {
+        if (m_bIsCompressed)
+            return "long-RLE";
         return "long";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_LONG_RLE)
-        return "long-RLE";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL)
+    }
+
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL ||
+        m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL_RLE)
+    {
+        if (m_bIsCompressed)
+            return "real-RLE";
         return "real";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_REAL_RLE)
-        return "real-RLE";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE)
+    }
+        
+    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE ||
+        m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)
+    {
+        if (m_bIsCompressed)
+            return "double-RLE";
         return "double";
-    if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)
-        return "double-RLE";
+    }
 
     return "";
 }
