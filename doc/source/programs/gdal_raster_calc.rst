@@ -37,7 +37,7 @@ Starting with GDAL 3.12, it is also possible to use a :ref:`VRT C++ pixel functi
 The inputs should have the same spatial reference system and should cover the same spatial extent but are not required to have the same
 spatial resolution. The spatial extent check can be disabled with :option:`--no-check-extent`,
 in which case the inputs must have the same dimensions. The spatial reference system check can be
-disabled with :option:`--no-check-srs`.
+disabled with :option:`--no-check-crs`.
 
 Since GDAL 3.12, this algorithm can be part of a :ref:`gdal_pipeline` or :ref:`gdal_raster_pipeline`.
 
@@ -117,7 +117,7 @@ The following options are available:
     Do not verify that the input rasters have the same spatial extent. The input rasters will instead be required to
     have the same dimensions. The geotransform of the first input will be assigned to the output.
 
-.. option:: --no-check-srs
+.. option:: --no-check-crs
 
     Do not check the spatial reference systems of the inputs for consistency. All inputs will be assumed to have the
     spatial reference system of the first input, and this spatial reference system will be used for the output.
@@ -184,3 +184,11 @@ Examples
    .. code-block:: bash
 
        gdal raster calc -i A=input1.tif -i B=input2.tif -o result.tif --flatten --calc=mean --dialect=builtin
+
+
+.. example::
+   :title: Generate a masked aspect layer where the slope angle is greater than 2 degrees, using nested pipelines (since GDAL 3.12.1)
+
+   .. code-block:: bash
+
+       gdal raster calc -i "SLOPE=[ read dem.tif ! slope ]" -i "ASPECT=[ read dem.tif ! aspect ]" -o result.tif --calc "(SLOPE >= 2) ? ASPECT : -9999" --nodata -9999

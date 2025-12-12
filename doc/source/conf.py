@@ -384,6 +384,9 @@ html_static_path = ["_static"]
 # For generated content and robots.txt
 html_extra_path = [os.path.join(build_dir, "html_extra"), "extra_path"]
 
+html_js_files = ["announcement.js"]
+html_css_files = ["announcement.css"]
+
 # If true, links to the reST sources are added to the pages.
 html_show_sourcelink = False
 
@@ -942,7 +945,7 @@ man_pages = [
     (
         "programs/gdal_vector_swap_xy",
         "gdal-vector-swap-xy",
-        "Swap X and Y coordinates of geometries of a vector datasett",
+        "Swap X and Y coordinates of geometries of a vector dataset",
         [author_evenr],
         1,
     ),

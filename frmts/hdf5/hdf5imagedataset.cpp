@@ -1123,7 +1123,6 @@ GDALDataset *HDF5ImageDataset::Open(GDALOpenInfo *poOpenInfo)
                     poDS->ndims)
             {
                 int iDim = 0;
-                std::shared_ptr<GDALMDArray> poXDim, poYDim;
                 for (const auto &oDim : oGridDataFieldMetadata.aoDimensions)
                 {
                     if (oDim.osName == "XDim")
@@ -1287,6 +1286,10 @@ GDALDataset *HDF5ImageDataset::Open(GDALOpenInfo *poOpenInfo)
             {
                 poDS->m_nBandChunkSize =
                     static_cast<int>(panChunkDims[poDS->m_nOtherDimIndex]);
+
+                if (poDS->m_nBandChunkSize > 1)
+                    poDS->SetMetadataItem("INTERLEAVE", "PIXEL",
+                                          "IMAGE_STRUCTURE");
 
                 poDS->SetMetadataItem("BAND_CHUNK_SIZE",
                                       CPLSPrintf("%d", poDS->m_nBandChunkSize),

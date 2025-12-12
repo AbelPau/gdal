@@ -184,11 +184,7 @@ void GDALPipelineStepAlgorithm::AddVectorOutputArgs(
         outputDatasetArg.SetPositional();
     if (!hiddenForCLI && m_constructorOptions.outputDatasetRequired)
         outputDatasetArg.SetRequired();
-    if (!m_constructorOptions.outputDatasetMutualExclusionGroup.empty())
-    {
-        outputDatasetArg.SetMutualExclusionGroup(
-            m_constructorOptions.outputDatasetMutualExclusionGroup);
-    }
+
     AddCreationOptionsArg(&m_creationOptions).SetHiddenForCLI(hiddenForCLI);
     AddLayerCreationOptionsArg(&m_layerCreationOptions)
         .SetHiddenForCLI(hiddenForCLI);
@@ -197,11 +193,6 @@ void GDALPipelineStepAlgorithm::AddVectorOutputArgs(
     if (m_constructorOptions.addUpdateArgument)
     {
         updateArg = &AddUpdateArg(&m_update).SetHiddenForCLI(hiddenForCLI);
-    }
-    if (updateArg && !m_constructorOptions.updateMutualExclusionGroup.empty())
-    {
-        updateArg->SetMutualExclusionGroup(
-            m_constructorOptions.updateMutualExclusionGroup);
     }
     if (m_constructorOptions.addOverwriteLayerArgument)
     {
@@ -616,7 +607,6 @@ GDALPipelineAlgorithm::GetUsageForCLI(bool shortUsage,
     if (!m_helpDocCategory.empty() && m_helpDocCategory != "main")
     {
         auto alg = GetStepAlg(m_helpDocCategory);
-        std::string ret;
         if (alg)
         {
             alg->SetCallPath({CPLString(m_helpDocCategory)
