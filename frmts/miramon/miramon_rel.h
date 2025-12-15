@@ -93,16 +93,15 @@ class MMRRel
     static int IdentifySubdataSetFile(const CPLString &osFileName);
     static int IdentifyFile(const GDALOpenInfo *poOpenInfo);
 
-    bool Write();
+    bool Write(GDALDataset &oSrcDS);
     void WriteMETADADES();
     void WriteIDENTIFICATION();
     void WriteOVERVIEW_ASPECTES_TECNICS();
     void WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
     void WriteEXTENT();
     void WriteOVERVIEW();
-    bool WriteATTRIBUTE_DATA();
-    bool WriteBandSection(const MMRBand &osBand, const CPLString osIndex,
-                          const CPLString osDSDataType);
+    bool WriteATTRIBUTE_DATA(GDALDataset &oSrcDS);
+    bool WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
 
     // Used when writting bands. If dimensions are the same
     // for all bands, then they has been written in the main section

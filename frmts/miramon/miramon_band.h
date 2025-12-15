@@ -64,11 +64,10 @@ class MMRBand final
 {
   public:
     MMRBand(MMRRel &pfRel, const CPLString &osSection);  // Used at reading part
-    MMRBand(GDALRasterBand &papoBand,                    // Used at writing part
+    MMRBand(CPLString osDestPath,
+            GDALRasterBand &papoBand,  // Used at writing part
             bool bCompress, const CPLString osPattern,
             const CPLString osBandSection);
-
-    // CAMARRACUS
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
     MMRBand(MMRBand &&) = default;
@@ -220,6 +219,7 @@ class MMRBand final
 
     // Writing part
     CPLString GetRELDataType() const;
+    bool WriteBandFile(GDALDataset &oSrcDS, int nIBand);
 
   private:
     bool Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(

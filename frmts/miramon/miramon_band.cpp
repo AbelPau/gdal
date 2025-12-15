@@ -183,15 +183,20 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
     m_bIsValid = true;
 }
 
-MMRBand::MMRBand(GDALRasterBand &papoBand, bool bCompress,
+MMRBand::MMRBand(CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
                  const CPLString osPattern, const CPLString osBandSection)
     : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
-      m_osBandFileName(""), m_osBandName(osPattern + osBandSection),
+      m_osBandFileName(""), m_osBandName(osPattern + "_" + osBandSection),
       m_osFriendlyDescription(papoBand.GetDescription()),
       m_bIsCompressed(bCompress)
 
 {
+    // Getting the binary filename
+    m_osRawBandFileName = m_osBandName + pszExtRaster;
+    m_osBandFileName =
+        CPLFormFilenameSafe(osDestPath, m_osBandName, pszExtRaster);
+
     // Getting essential metadata documented at
     // https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf
 
@@ -271,7 +276,10 @@ MMRBand::MMRBand(GDALRasterBand &papoBand, bool bCompress,
 MMRBand::~MMRBand()
 {
     if (m_pfIMG != nullptr)
+    {
         CPL_IGNORE_RET_VAL(VSIFCloseL(m_pfIMG));
+        m_pfIMG = nullptr;
+    }
 }
 
 const CPLString MMRBand::GetRELFileName() const
@@ -1373,4 +1381,83 @@ CPLString MMRBand::GetRELDataType() const
     }
 
     return "";
+}
+
+bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nIBand)
+{
+
+    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
+    if (!pRasterBand)
+        return false;
+
+    m_pfIMG = VSIFOpenL(m_osBandFileName, "wb");
+    if (!m_pfIMG)
+    {
+        CPLError(CE_Failure, CPLE_OpenFailed,
+                 "Failed to create MiraMon band file `%s' with access 'wb'.",
+                 m_osBandFileName.c_str());
+        return false;
+    }
+
+    if (m_bIsCompressed)
+    {
+        try
+        {
+            m_aFileOffsets.resize(static_cast<size_t>(m_nHeight) + 1);
+        }
+        catch (const std::bad_alloc &e)
+        {
+            CPLError(CE_Failure, CPLE_OutOfMemory, "%s", e.what());
+            return false;
+        }
+    }
+
+    GDALDataType eDT = pRasterBand->GetRasterDataType();
+
+    // Temporary buffer for one scanline
+    void *pBuffer =
+        VSI_MALLOC2_VERBOSE(m_nWidth, GDALGetDataTypeSizeBytes(eDT));
+    if (pBuffer == nullptr)
+    {
+        VSIFCloseL(m_pfIMG);
+        return false;
+    }
+
+    // Loop over each line
+    for (int iLine = 0; iLine < m_nHeight; ++iLine)
+    {
+        // Read one line from the raster band
+        CPLErr err =
+            pRasterBand->RasterIO(GF_Read, 0, iLine, m_nWidth, 1, pBuffer,
+                                  m_nWidth, 1, eDT, 0, 0, nullptr);
+
+        if (err != CE_None)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Error reading line %d from raster band", iLine);
+            VSIFCloseL(m_pfIMG);
+            m_pfIMG = nullptr;
+            return false;
+        }
+
+        if (m_bIsCompressed)
+            m_aFileOffsets[iLine] = VSIFTellL(m_pfIMG);
+
+        // Write the line to the MiraMon band file
+        // TODO if compressed
+        size_t nWritten = VSIFWriteL(pBuffer, GDALGetDataTypeSizeBytes(eDT),
+                                     m_nWidth, m_pfIMG);
+        if (nWritten != static_cast<size_t>(m_nWidth))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Failed to write line %d to MiraMon band file", iLine);
+            VSIFCloseL(m_pfIMG);
+            m_pfIMG = nullptr;
+            return false;
+        }
+    }
+
+    VSIFCloseL(m_pfIMG);
+    m_pfIMG = nullptr;
+    return true;
 }
