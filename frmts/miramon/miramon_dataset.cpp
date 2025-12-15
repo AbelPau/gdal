@@ -52,8 +52,8 @@ void GDALRegister_MiraMon()
 /************************************************************************/
 /*                            MMRDataset()                              */
 /************************************************************************/
-MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS,
-    bool bCompress, const CPLString osPattern)
+MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS, bool bCompress,
+                       const CPLString osPattern)
     : m_bIsValid(false)
 {
     nBands = oSrcDS.GetRasterCount();
@@ -115,8 +115,8 @@ MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS,
         }
 
         const CPLString osIndexBand = CPLSPrintf("%d", nIBand);
-        oBands.emplace_back(MMRBand(*pRasterBand, bCompress,
-            osPattern, osIndexBand));
+        oBands.emplace_back(
+            MMRBand(*pRasterBand, bCompress, osPattern, osIndexBand));
         if (!oBands.back().IsValid())
         {
             ReportError(
@@ -320,15 +320,14 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
         return nullptr;
 
     // osPattern is needed to create band names.
-    CPLString osOptPattern =
-        CSLFetchNameValueDef(papszOptions, "PATTERN", "");
+    CPLString osOptPattern = CSLFetchNameValueDef(papszOptions, "PATTERN", "");
     CPLString osPattern = CreatePatternFileName(osRelName, osOptPattern);
 
     if (osPattern.empty())
-        osPattern=CPLGetBasenameSafe(osRelName);
+        osPattern = CPLGetBasenameSafe(osRelName);
 
-
-    auto poDS = std::make_unique<MMRDataset>(osRelName, *poSrcDS, bCompress, osPattern);
+    auto poDS =
+        std::make_unique<MMRDataset>(osRelName, *poSrcDS, bCompress, osPattern);
 
     if (!poDS->IsValid())
         return nullptr;
@@ -2059,10 +2058,10 @@ MMRDataset::CreateAssociatedMetadataFileName(const CPLString &osFileName)
 }
 
 // Finds the pattern name to the bands
-CPLString
-MMRDataset::CreatePatternFileName(const CPLString &osFileName, const CPLString &osPattern)
+CPLString MMRDataset::CreatePatternFileName(const CPLString &osFileName,
+                                            const CPLString &osPattern)
 {
-    if(!osPattern.empty())
+    if (!osPattern.empty())
         return osPattern;
 
     CPLString osRELName = osFileName;

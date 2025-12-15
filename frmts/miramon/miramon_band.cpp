@@ -183,13 +183,13 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
     m_bIsValid = true;
 }
 
-MMRBand::MMRBand(GDALRasterBand &papoBand, bool bCompress, const CPLString osPattern,
-    const CPLString osBandSection)
-    : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0), m_osBandSection(osBandSection),
-        m_osRawBandFileName(""), m_osBandFileName(""),
-        m_osBandName(osPattern + osBandSection),
-        m_osFriendlyDescription(papoBand.GetDescription()),
-        m_bIsCompressed(bCompress)
+MMRBand::MMRBand(GDALRasterBand &papoBand, bool bCompress,
+                 const CPLString osPattern, const CPLString osBandSection)
+    : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
+      m_osBandSection(osBandSection), m_osRawBandFileName(""),
+      m_osBandFileName(""), m_osBandName(osPattern + osBandSection),
+      m_osFriendlyDescription(papoBand.GetDescription()),
+      m_bIsCompressed(bCompress)
 
 {
     // Getting essential metadata documented at
@@ -1299,7 +1299,7 @@ void MMRBand::UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand)
     else
         m_bMinSet = false;
 
-    m_dfMax =  papoBand.GetMaximum(&pbSuccess);
+    m_dfMax = papoBand.GetMaximum(&pbSuccess);
     if (pbSuccess)
         m_bMaxSet = true;
     else
@@ -1317,7 +1317,7 @@ void MMRBand::UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand)
 void MMRBand::UpdateNoDataValueFromRasterBand(GDALRasterBand &papoBand)
 {
     int pbSuccess;
-    m_dfNoData =  papoBand.GetNoDataValue(&pbSuccess);
+    m_dfNoData = papoBand.GetNoDataValue(&pbSuccess);
     m_bNoDataSet = pbSuccess == 1 ? true : false;
 }
 
@@ -1363,7 +1363,7 @@ CPLString MMRBand::GetRELDataType() const
             return "real-RLE";
         return "real";
     }
-        
+
     if (m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE ||
         m_eMMDataType == MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE)
     {

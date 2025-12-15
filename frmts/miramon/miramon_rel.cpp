@@ -1190,9 +1190,9 @@ bool MMRRel::WriteATTRIBUTE_DATA()
     AddSectionStart(SECTION_ATTRIBUTE_DATA);
 
     const CPLString osDSDataType = m_oBands[0].GetRELDataType();
-    if(osDSDataType.empty())
+    if (osDSDataType.empty())
         return false;
-    
+
     AddKeyValue("TipusCompressio", osDSDataType);
 
     // TODO
@@ -1223,9 +1223,9 @@ bool MMRRel::WriteATTRIBUTE_DATA()
         osIndexValue = CPLSPrintf("%d", nIBand + 1);
 
         // Adding band information to REL
-        if(!WriteBandSection(m_oBands[nIBand], osIndexValue, osDSDataType))
+        if (!WriteBandSection(m_oBands[nIBand], osIndexValue, osDSDataType))
             return false;
-        
+
         // Writing IMG binary file
         //if (! m_oBands[nIBand].WriteBandsFile())
         //{
@@ -1236,7 +1236,8 @@ bool MMRRel::WriteATTRIBUTE_DATA()
     return true;
 }
 
-bool MMRRel::WriteBandSection(const MMRBand &osBand, const CPLString osIndex, const CPLString osDSDataType)
+bool MMRRel::WriteBandSection(const MMRBand &osBand, const CPLString osIndex,
+                              const CPLString osDSDataType)
 {
     CPLString osSection = "ATTRIBUTE_DATA";
     osSection.append(":");
@@ -1244,17 +1245,17 @@ bool MMRRel::WriteBandSection(const MMRBand &osBand, const CPLString osIndex, co
 
     AddSectionStart(osSection);
     CPLString osDataType = osBand.GetRELDataType();
-    if(!EQUAL(osDSDataType, osDataType))
+    if (!EQUAL(osDSDataType, osDataType))
         AddKeyValue("TipusCompressio", osDataType);
 
-    if(osBand.GetRawBandFileName().empty())
+    if (osBand.GetRawBandFileName().empty())
         return false;
 
     AddKeyValue("NomFitxer", osBand.GetRawBandFileName());
     AddKeyValue("descriptor", osBand.GetFriendlyDescription());
-    if(osBand.GetMinSet())
+    if (osBand.GetMinSet())
         AddKeyValue("min", osBand.GetMin());
-    if(osBand.GetMinSet())
+    if (osBand.GetMinSet())
         AddKeyValue("max", osBand.GetMax());
 
     // TODO if (GetDimWrittenInOverview())        return;

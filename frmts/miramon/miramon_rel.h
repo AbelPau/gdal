@@ -102,7 +102,7 @@ class MMRRel
     void WriteOVERVIEW();
     bool WriteATTRIBUTE_DATA();
     bool WriteBandSection(const MMRBand &osBand, const CPLString osIndex,
-        const CPLString osDSDataType);
+                          const CPLString osDSDataType);
 
     // Used when writting bands. If dimensions are the same
     // for all bands, then they has been written in the main section

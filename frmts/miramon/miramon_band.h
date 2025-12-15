@@ -64,10 +64,9 @@ class MMRBand final
 {
   public:
     MMRBand(MMRRel &pfRel, const CPLString &osSection);  // Used at reading part
-    MMRBand(GDALRasterBand &papoBand,   // Used at writing part
-        bool bCompress,
-        const CPLString osPattern,
-        const CPLString osBandSection);
+    MMRBand(GDALRasterBand &papoBand,                    // Used at writing part
+            bool bCompress, const CPLString osPattern,
+            const CPLString osBandSection);
 
     // CAMARRACUS
     MMRBand(const MMRBand &) =
