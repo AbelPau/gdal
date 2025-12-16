@@ -1422,6 +1422,13 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nIBand)
         VSIFCloseL(m_pfIMG);
         return false;
     }
+    void *pPow =
+        VSI_MALLOC2_VERBOSE(m_nWidth, (GDALGetDataTypeSizeBytes(eDT) + 1));
+    if (pPow == nullptr)
+    {
+        VSIFCloseL(m_pfIMG);
+        return false;
+    }
 
     // Loop over each line
     for (int iLine = 0; iLine < m_nHeight; ++iLine)
@@ -1444,20 +1451,169 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nIBand)
             m_aFileOffsets[iLine] = VSIFTellL(m_pfIMG);
 
         // Write the line to the MiraMon band file
-        // TODO if compressed
-        size_t nWritten = VSIFWriteL(pBuffer, GDALGetDataTypeSizeBytes(eDT),
-                                     m_nWidth, m_pfIMG);
-        if (nWritten != static_cast<size_t>(m_nWidth))
+        size_t nWritten, nCompressed;
+        if (m_bIsCompressed)
         {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Failed to write line %d to MiraMon band file", iLine);
-            VSIFCloseL(m_pfIMG);
-            m_pfIMG = nullptr;
-            return false;
+            nCompressed =
+                CompressRowType(m_eMMDataType, pBuffer, m_nWidth, pPow);
+            nWritten = VSIFWriteL(pPow, 1, nCompressed, m_pfIMG);
+            if (nWritten != nCompressed)
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Failed to write line %d to MiraMon band file", iLine);
+                VSIFCloseL(m_pfIMG);
+                m_pfIMG = nullptr;
+                return false;
+            }
+        }
+        else
+        {
+            nWritten = VSIFWriteL(pBuffer, GDALGetDataTypeSizeBytes(eDT),
+                                  m_nWidth, m_pfIMG);
+            if (nWritten != static_cast<size_t>(m_nWidth))
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Failed to write line %d to MiraMon band file", iLine);
+                VSIFCloseL(m_pfIMG);
+                m_pfIMG = nullptr;
+                return false;
+            }
         }
     }
 
     VSIFCloseL(m_pfIMG);
     m_pfIMG = nullptr;
     return true;
+}
+
+constexpr uint8_t LIMIT = 255;
+
+template <typename T>
+size_t MMRBand::ComprimeixFilaTipusTpl(const T *pRow, int nCol,
+                                       void *pBufferVoid)
+{
+    uint8_t *pBuffer = static_cast<uint8_t *>(pBufferVoid);
+
+    T tPreviousValue = pRow[0];
+    uint8_t nCounter = 0;
+    size_t nRowBytes = 0;
+
+    for (int i = 0; i < nCol; ++i)
+    {
+        if (tPreviousValue == pRow[i] && nCounter < LIMIT)
+        {
+            ++nCounter;
+        }
+        else
+        {
+            if (nCounter == 1)
+            {
+                if (i + 2 < nCol && pRow[i] != pRow[i + 1] &&
+                    pRow[i + 1] != pRow[i + 2])
+                {
+                    // uncompressed series
+                    *pBuffer++ = 0;  // mark
+                    uint8_t *ptr_quants = pBuffer++;
+                    nRowBytes += 2;
+
+                    // Writing first three
+                    *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+                    pBuffer += sizeof(T);
+
+                    tPreviousValue = pRow[i];
+                    *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+                    pBuffer += sizeof(T);
+                    ++i;
+
+                    tPreviousValue = pRow[i];
+                    *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+                    pBuffer += sizeof(T);
+
+                    nRowBytes += 3 * sizeof(T);
+
+                    nCounter = 3;
+
+                    for (++i; i + 1 < nCol && nCounter < LIMIT; ++i, ++nCounter)
+                    {
+                        if (pRow[i] == pRow[i + 1])
+                            break;
+                        *reinterpret_cast<T *>(pBuffer) = pRow[i];
+                        pBuffer += sizeof(T);
+                        nRowBytes += sizeof(T);
+                    }
+
+                    if (i + 1 == nCol && nCounter < LIMIT)
+                    {
+                        *ptr_quants = ++nCounter;
+                        *reinterpret_cast<T *>(pBuffer) = pRow[i];
+                        nRowBytes += sizeof(T);
+                        return nRowBytes;
+                    }
+
+                    *ptr_quants = nCounter;
+                    tPreviousValue = pRow[i];
+                    nCounter = 1;
+                    continue;
+                }
+            }
+
+            // Normal RLE
+            *pBuffer++ = nCounter;
+            *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+            pBuffer += sizeof(T);
+            nRowBytes += 1 + sizeof(T);
+
+            tPreviousValue = pRow[i];
+            nCounter = 1;
+        }
+    }
+
+    // Last element
+    *pBuffer++ = nCounter;
+
+    *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+    nRowBytes += 1 + sizeof(T);
+
+    return nRowBytes;
+}
+
+size_t MMRBand::CompressRowType(MMDataType nDataType, const void *pRow,
+                                int nCol, void *pBuffer)
+{
+    switch (nDataType)
+    {
+        case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_BYTE:
+            return ComprimeixFilaTipusTpl<uint8_t>(
+                static_cast<const uint8_t *>(pRow), nCol, pBuffer);
+
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER:
+            return ComprimeixFilaTipusTpl<short>(
+                static_cast<const short *>(pRow), nCol, pBuffer);
+
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
+            return ComprimeixFilaTipusTpl<unsigned short>(
+                static_cast<const unsigned short *>(pRow), nCol, pBuffer);
+
+        case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_LONG:
+            return ComprimeixFilaTipusTpl<long>(static_cast<const long *>(pRow),
+                                                nCol, pBuffer);
+
+        case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_REAL:
+            return ComprimeixFilaTipusTpl<float>(
+                static_cast<const float *>(pRow), nCol, pBuffer);
+
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
+            return ComprimeixFilaTipusTpl<double>(
+                static_cast<const double *>(pRow), nCol, pBuffer);
+
+        default:
+            // same treatment than the original
+            return 0;
+    }
 }

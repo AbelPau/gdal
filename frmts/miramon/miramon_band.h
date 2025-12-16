@@ -220,6 +220,10 @@ class MMRBand final
     // Writing part
     CPLString GetRELDataType() const;
     bool WriteBandFile(GDALDataset &oSrcDS, int nIBand);
+    size_t CompressRowType(MMDataType nDataType, const void *pRow, int nCol,
+                           void *pBuffer);
+    template <typename T>
+    size_t ComprimeixFilaTipusTpl(const T *pRow, int nCol, void *pBufferVoid);
 
   private:
     bool Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(
