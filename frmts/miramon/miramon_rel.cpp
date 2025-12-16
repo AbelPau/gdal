@@ -1194,11 +1194,12 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
         return false;
 
     AddKeyValue("TipusCompressio", osDSDataType);
-    AddKeyValue("TractamentVariable", "Categoric");  // TODO
+    // for every band?
+    //AddKeyValue("TractamentVariable", "Categoric");  // TODO
 
     // TODO
     //TipusRelacio=RELACIO_1_1_DICC
-    //TractamentVariable=Categoric
+
     CPLString osIndexsNomsCamps = "1";
     CPLString osIndex;
     for (int nIBand = 1; nIBand < m_nBands; nIBand++)
@@ -1244,6 +1245,9 @@ bool MMRRel::WriteBandSection(const MMRBand &osBand,
     CPLString osDataType = osBand.GetRELDataType();
     if (!EQUAL(osDSDataType, osDataType))
         AddKeyValue("TipusCompressio", osDataType);
+
+    if (osBand.IsCategorical())
+        AddKeyValue("TractamentVariable", "Categoric");
 
     if (osBand.GetRawBandFileName().empty())
         return false;

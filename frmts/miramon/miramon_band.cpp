@@ -236,6 +236,15 @@ MMRBand::MMRBand(CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
     // Getting NoData value and definition
     UpdateNoDataValueFromRasterBand(papoBand);
 
+    m_bIsCategorical = false;
+
+    if (papoBand.GetCategoryNames() != NULL)
+        m_bIsCategorical = true;
+    else if (papoBand.GetDefaultRAT() != NULL)
+        m_bIsCategorical = true;
+    else if (papoBand.GetColorTable() != NULL)
+        m_bIsCategorical = true;
+
     // Getting reference system and coordinates of the geographic bounding box
     // Not in the band, but in the dataset.
     // UpdateReferenceSystemFromRasterBand(papoBand);
@@ -1501,9 +1510,7 @@ size_t MMRBand::ComprimeixFilaTipusTpl(const T *pRow, int nCol,
     for (int i = 0; i < nCol; ++i)
     {
         if (tPreviousValue == pRow[i] && nCounter < LIMIT)
-        {
             ++nCounter;
-        }
         else
         {
             if (nCounter == 1)

@@ -215,6 +215,11 @@ class MMRBand final
         return m_bIsValid;
     }
 
+    bool IsCategorical() const
+    {
+        return m_bIsCategorical;
+    }
+
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
     // Writing part
@@ -293,6 +298,7 @@ class MMRBand final
     int m_nDataTypeSizeBytes = 0;
 
     bool m_bIsCompressed = false;
+    bool m_bIsCategorical = false;
 
     // Min and Max values from metadata:  This value should correspond
     // to the actual minimum and maximum, not to an approximation.
