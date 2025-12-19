@@ -3286,7 +3286,12 @@ TIFFReadDirEntryPersampleShort(TIFF *tif, TIFFDirEntry *direntry,
     if (direntry->tdir_count != (uint64_t)tif->tif_dir.td_samplesperpixel)
     {
         const TIFFField *fip = TIFFFieldWithTag(tif, direntry->tdir_tag);
-        if (direntry->tdir_count < (uint64_t)tif->tif_dir.td_samplesperpixel)
+        if (direntry->tdir_count == 0)
+        {
+            return TIFFReadDirEntryErrCount;
+        }
+        else if (direntry->tdir_count <
+                 (uint64_t)tif->tif_dir.td_samplesperpixel)
         {
             TIFFWarningExtR(
                 tif, "TIFFReadDirEntryPersampleShort",
@@ -6379,8 +6384,8 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                     /* TIFFReadDirEntryArrayWithLimit() ensures this can't be
                      * larger than MAX_SIZE_TAG_DATA */
                     assert((uint32_t)dp->tdir_count + 1 == dp->tdir_count + 1);
-                    uint8_t *o =
-                        _TIFFmallocExt(tif, (uint32_t)dp->tdir_count + 1);
+                    uint8_t *o = (uint8_t *)_TIFFmallocExt(
+                        tif, (uint32_t)dp->tdir_count + 1);
                     if (o == NULL)
                     {
                         if (data != NULL)
@@ -6962,8 +6967,8 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                                         "byte. Forcing it to be null",
                                         fip->field_name);
                         /* Enlarge buffer and add terminating null. */
-                        uint8_t *o =
-                            _TIFFmallocExt(tif, (uint32_t)dp->tdir_count + 1);
+                        uint8_t *o = (uint8_t *)_TIFFmallocExt(
+                            tif, (uint32_t)dp->tdir_count + 1);
                         if (o == NULL)
                         {
                             if (data != NULL)
@@ -7333,8 +7338,8 @@ static int TIFFFetchNormalTag(TIFF *tif, TIFFDirEntry *dp, int recover)
                         "in null byte. Forcing it to be null",
                         fip->field_name);
                     /* Enlarge buffer and add terminating null. */
-                    uint8_t *o =
-                        _TIFFmallocExt(tif, (uint32_t)dp->tdir_count + 1);
+                    uint8_t *o = (uint8_t *)_TIFFmallocExt(
+                        tif, (uint32_t)dp->tdir_count + 1);
                     if (o == NULL)
                     {
                         if (data != NULL)
@@ -7890,7 +7895,7 @@ static void allocChoppedUpStripArrays(TIFF *tif, uint32_t nstrips,
  */
 static void ChopUpSingleUncompressedStrip(TIFF *tif)
 {
-    register TIFFDirectory *td = &tif->tif_dir;
+    TIFFDirectory *td = &tif->tif_dir;
     uint64_t bytecount;
     uint64_t offset;
     uint32_t rowblock;
@@ -8406,7 +8411,7 @@ int _TIFFFillStriles(TIFF *tif) { return _TIFFFillStrilesInternal(tif, 1); }
 
 static int _TIFFFillStrilesInternal(TIFF *tif, int loadStripByteCount)
 {
-    register TIFFDirectory *td = &tif->tif_dir;
+    TIFFDirectory *td = &tif->tif_dir;
     int return_value = 1;
 
     /* Do not do anything if TIFF_DEFERSTRILELOAD is not set */
