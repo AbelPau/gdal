@@ -66,7 +66,7 @@ class MMRBand final
     MMRBand(MMRRel &pfRel, const CPLString &osSection);  // Used at reading part
     MMRBand(CPLString osDestPath,
             GDALRasterBand &papoBand,  // Used at writing part
-            bool bCompress, const CPLString osPattern,
+            bool bCompress, bool bCategorical, const CPLString osPattern,
             const CPLString osBandSection);
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)

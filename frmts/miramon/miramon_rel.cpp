@@ -1207,7 +1207,7 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
         osIndex = CPLSPrintf(",%d", nIBand + 1);
         osIndexsNomsCamps.append(osIndex);
     }
-    AddKeyValue("IndexsNomsCamps", osIndexsNomsCamps);
+    AddKeyValue(Key_IndexesNomsCamps, osIndexsNomsCamps);
 
     // Writing bands names
     CPLString osIndexKey, osIndexValue;

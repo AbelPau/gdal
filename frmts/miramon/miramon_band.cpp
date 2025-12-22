@@ -184,12 +184,13 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
 }
 
 MMRBand::MMRBand(CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
-                 const CPLString osPattern, const CPLString osBandSection)
+                 bool bCategorical, const CPLString osPattern,
+                 const CPLString osBandSection)
     : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
       m_osBandFileName(""), m_osBandName(osPattern + "_" + osBandSection),
       m_osFriendlyDescription(papoBand.GetDescription()),
-      m_bIsCompressed(bCompress)
+      m_bIsCompressed(bCompress), m_bIsCategorical(bCategorical)
 
 {
     // Getting the binary filename
@@ -235,15 +236,6 @@ MMRBand::MMRBand(CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
 
     // Getting NoData value and definition
     UpdateNoDataValueFromRasterBand(papoBand);
-
-    m_bIsCategorical = false;
-
-    if (papoBand.GetCategoryNames() != NULL)
-        m_bIsCategorical = true;
-    else if (papoBand.GetDefaultRAT() != NULL)
-        m_bIsCategorical = true;
-    else if (papoBand.GetColorTable() != NULL)
-        m_bIsCategorical = true;
 
     // Getting reference system and coordinates of the geographic bounding box
     // Not in the band, but in the dataset.

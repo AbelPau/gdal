@@ -36,7 +36,8 @@ class MMRDataset final : public GDALPamDataset
 {
   public:
     explicit MMRDataset(GDALOpenInfo *poOpenInfo);  // Used in reading
-    MMRDataset(CPLString osFilename, GDALDataset &oSrcDS, bool bCompress,
+    MMRDataset(char **papszOptions, CPLString osFilename, GDALDataset &oSrcDS,
+               bool bCompress,
                const CPLString osPattern);  // Used in writing
     MMRDataset(const MMRDataset &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
@@ -73,6 +74,10 @@ class MMRDataset final : public GDALPamDataset
     CreateAssociatedMetadataFileName(const CPLString &osFileName);
     static CPLString CreatePatternFileName(const CPLString &osFileName,
                                            const CPLString &osPattern);
+    bool BandInOptionsList(char **papszOptions, CPLString pszType,
+                           CPLString osBand);
+    bool IsCategoricalBand(GDALRasterBand &pRasterBand, char **papszOptions,
+                           CPLString osIndexBand);
 
     bool IsValid() const
     {

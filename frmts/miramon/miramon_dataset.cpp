@@ -52,7 +52,8 @@ void GDALRegister_MiraMon()
 /************************************************************************/
 /*                            MMRDataset()                              */
 /************************************************************************/
-MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS, bool bCompress,
+MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
+                       GDALDataset &oSrcDS, bool bCompress,
                        const CPLString osPattern)
     : m_bIsValid(false)
 {
@@ -115,8 +116,12 @@ MMRDataset::MMRDataset(CPLString osRelname, GDALDataset &oSrcDS, bool bCompress,
         }
 
         const CPLString osIndexBand = CPLSPrintf("%d", nIBand);
+        bool bCategorical =
+            IsCategoricalBand(*pRasterBand, papszOptions, osIndexBand);
+
+        // Emplace back a MMRBand
         oBands.emplace_back(CPLGetPathSafe(osRelname), *pRasterBand, bCompress,
-                            osPattern, osIndexBand);
+                            bCategorical, osPattern, osIndexBand);
         if (!oBands.back().IsValid())
         {
             ReportError(
@@ -326,8 +331,8 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
     if (osPattern.empty())
         osPattern = CPLGetBasenameSafe(osRelName);
 
-    auto poDS =
-        std::make_unique<MMRDataset>(osRelName, *poSrcDS, bCompress, osPattern);
+    auto poDS = std::make_unique<MMRDataset>(papszOptions, osRelName, *poSrcDS,
+                                             bCompress, osPattern);
 
     if (!poDS->IsValid())
         return nullptr;
@@ -708,4 +713,57 @@ CPLString MMRDataset::CreatePatternFileName(const CPLString &osFileName,
     // Extract I.rel and path
     osRELName.resize(osRELName.size() - strlen("I.rel"));
     return CPLGetBasenameSafe(osRELName);
+}
+
+bool MMRDataset::BandInOptionsList(char **papszOptions, CPLString pszType,
+                                   CPLString osIndexBand)
+{
+    if (!papszOptions)
+        return false;
+
+    if (const char *pszCategoricalList =
+            CSLFetchNameValue(papszOptions, pszType))
+    {
+        const CPLStringList aosTokens(
+            CSLTokenizeString2(pszCategoricalList, ", ", 0));
+
+        for (int i = 0; i < aosTokens.size(); ++i)
+        {
+            if (EQUAL(aosTokens[i], osIndexBand))
+                return true;
+        }
+    }
+    return false;
+}
+
+bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
+                                   char **papszOptions, CPLString osIndexBand)
+{
+    bool bUsrCategorical =
+        BandInOptionsList(papszOptions, "Categorical", osIndexBand);
+    bool bUsrContinuous =
+        BandInOptionsList(papszOptions, "Continuous", osIndexBand);
+    if (!bUsrCategorical && !bUsrContinuous)
+    {
+        // Deduction if user doesn't inform about what treatment
+        // wants (Categorical or Continuous)
+        if (pRasterBand.GetCategoryNames() != NULL)
+            return true;
+        else if (pRasterBand.GetDefaultRAT() != NULL)
+            return true;
+    }
+    else if (bUsrCategorical && bUsrContinuous)
+    {
+        // User cannot impose both categorical and continuous treatment
+        CPLError(
+            CE_Failure, CPLE_AppDefined, "%s",
+            "Unable to interpret Categorical and Continuous at the same time. \
+                Categorical treatment used.");
+
+        return true;
+    }
+    else if (bUsrCategorical)
+        return true;
+
+    return false;
 }
