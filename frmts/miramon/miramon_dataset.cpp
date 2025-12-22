@@ -755,10 +755,9 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
     else if (bUsrCategorical && bUsrContinuous)
     {
         // User cannot impose both categorical and continuous treatment
-        CPLError(
-            CE_Failure, CPLE_AppDefined, "%s",
-            "Unable to interpret Categorical and Continuous at the same time. \
-                Categorical treatment used.");
+        CPLError(CE_Failure, CPLE_AppDefined, "%s",
+                 "Unable to interpret band as Categorical and Continuous at "
+                 "the same time. Categorical treatment will be used.");
 
         return true;
     }
