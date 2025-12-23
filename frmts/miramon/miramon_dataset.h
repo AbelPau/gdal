@@ -37,7 +37,7 @@ class MMRDataset final : public GDALPamDataset
   public:
     explicit MMRDataset(GDALOpenInfo *poOpenInfo);  // Used in reading
     MMRDataset(char **papszOptions, CPLString osFilename, GDALDataset &oSrcDS,
-               bool bCompress,
+               bool bCompressDS,
                const CPLString osPattern);  // Used in writing
     MMRDataset(const MMRDataset &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
@@ -57,8 +57,6 @@ class MMRDataset final : public GDALPamDataset
     {
         return m_pMMRRel.get();
     }
-
-    static constexpr int DEFAULT_COLOR_TABLE_MULTIPLIER_257 = 257;
 
   private:
     void ReadProjection();

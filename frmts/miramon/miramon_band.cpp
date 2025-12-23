@@ -1584,32 +1584,32 @@ size_t MMRBand::CompressRowType(MMDataType nDataType, const void *pRow,
         case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
         case MMDataType::DATATYPE_AND_COMPR_BYTE:
             return ComprimeixFilaTipusTpl<uint8_t>(
-                static_cast<const uint8_t *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const uint8_t *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_INTEGER:
             return ComprimeixFilaTipusTpl<short>(
-                static_cast<const short *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const short *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
             return ComprimeixFilaTipusTpl<unsigned short>(
-                static_cast<const unsigned short *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const unsigned short *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
         case MMDataType::DATATYPE_AND_COMPR_LONG:
-            return ComprimeixFilaTipusTpl<long>(static_cast<const long *>(pRow),
-                                                nCol, pBuffer);
+            return ComprimeixFilaTipusTpl<long>(
+                reinterpret_cast<const long *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
         case MMDataType::DATATYPE_AND_COMPR_REAL:
             return ComprimeixFilaTipusTpl<float>(
-                static_cast<const float *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const float *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
             return ComprimeixFilaTipusTpl<double>(
-                static_cast<const double *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const double *>(pRow), nCol, pBuffer);
 
         default:
             // same treatment than the original

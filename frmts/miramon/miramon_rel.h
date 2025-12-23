@@ -144,6 +144,10 @@ class MMRRel
         m_pRELFile = VSIFOpenL(m_osRelFileName, "wb");
         if (m_pRELFile)
             return true;
+
+        CPLError(CE_Failure, CPLE_FileIO, "Failed to create output file: %s",
+                 m_osRelFileName.c_str());
+
         return false;
     }
 

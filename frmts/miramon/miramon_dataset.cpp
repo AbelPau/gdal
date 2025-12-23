@@ -53,10 +53,12 @@ void GDALRegister_MiraMon()
 /*                            MMRDataset()                              */
 /************************************************************************/
 MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
-                       GDALDataset &oSrcDS, bool bCompress,
+                       GDALDataset &oSrcDS, bool bCompressDS,
                        const CPLString osPattern)
     : m_bIsValid(false)
 {
+    // TODO Subdatasets
+
     nBands = oSrcDS.GetRasterCount();
     if (nBands == 0)
     {
@@ -120,8 +122,8 @@ MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
             IsCategoricalBand(*pRasterBand, papszOptions, osIndexBand);
 
         // Emplace back a MMRBand
-        oBands.emplace_back(CPLGetPathSafe(osRelname), *pRasterBand, bCompress,
-                            bCategorical, osPattern, osIndexBand);
+        oBands.emplace_back(CPLGetPathSafe(osRelname), *pRasterBand,
+                            bCompressDS, bCategorical, osPattern, osIndexBand);
         if (!oBands.back().IsValid())
         {
             ReportError(
@@ -309,7 +311,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 /*                             CreateCopy()                             */
 /************************************************************************/
 GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
-                                    GDALDataset *poSrcDS, int bStrict,
+                                    GDALDataset *poSrcDS, int /*bStrict*/,
                                     char **papszOptions,
                                     GDALProgressFunc pfnProgress,
                                     void *pProgressData)
@@ -331,6 +333,9 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
     if (osPattern.empty())
         osPattern = CPLGetBasenameSafe(osRelName);
 
+    if (!pfnProgress(0.0, nullptr, pProgressData))
+        return nullptr;
+
     auto poDS = std::make_unique<MMRDataset>(papszOptions, osRelName, *poSrcDS,
                                              bCompress, osPattern);
 
@@ -339,6 +344,9 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
 
     poDS->SetDescription(pszFilename);
     poDS->eAccess = GA_Update;
+
+    if (!pfnProgress(100.0, nullptr, pProgressData))
+        return nullptr;
 
     return poDS.release();
 }

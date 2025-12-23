@@ -136,9 +136,10 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
 MMRRel::MMRRel(const CPLString &osRELFilenameIn, const CPLString &osEPSG,
                int nWidth, int nHeight, double dfMinX, double dfMaxX,
                double dfMinY, double dfMaxY, std::vector<MMRBand> &&oBands)
-    : m_osRelFileName(osRELFilenameIn), m_oBands(std::move(oBands)),
-      m_osEPSG(osEPSG), m_nWidth(nWidth), m_nHeight(nHeight), m_dfMinX(dfMinX),
-      m_dfMaxX(dfMaxX), m_dfMinY(dfMinY), m_dfMaxY(dfMaxY)
+    : m_osRelFileName(osRELFilenameIn), m_szFileIdentifier(""),
+      m_oBands(std::move(oBands)), m_osEPSG(osEPSG), m_nWidth(nWidth),
+      m_nHeight(nHeight), m_dfMinX(dfMinX), m_dfMaxX(dfMaxX), m_dfMinY(dfMinY),
+      m_dfMaxY(dfMaxY)
 {
     m_nBands = static_cast<int>(m_oBands.size());
 
@@ -1255,10 +1256,9 @@ bool MMRRel::WriteBandSection(const MMRBand &osBand,
     AddKeyValue("NomFitxer", osBand.GetRawBandFileName());
     if (!osBand.GetFriendlyDescription().empty())
         AddKeyValue("descriptor", osBand.GetFriendlyDescription());
-    if (osBand.GetMinSet())
-        AddKeyValue("min", osBand.GetMin());
-    if (osBand.GetMinSet())
-        AddKeyValue("max", osBand.GetMax());
+
+    AddKeyValue("min", osBand.GetMin());
+    AddKeyValue("max", osBand.GetMax());
 
     return true;
 }
