@@ -755,9 +755,9 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
     {
         // Deduction if user doesn't inform about what treatment
         // wants (Categorical or Continuous)
-        if (pRasterBand.GetCategoryNames() != NULL)
+        if (pRasterBand.GetCategoryNames() != nullptr)
             return true;
-        else if (pRasterBand.GetDefaultRAT() != NULL)
+        else if (pRasterBand.GetDefaultRAT() != nullptr)
             return true;
     }
     else if (bUsrCategorical && bUsrContinuous)
