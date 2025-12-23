@@ -18,6 +18,8 @@ identifiers in both systems.
 Driver capabilities
 -------------------
 
+.. supports_createcopy::
+
 .. supports_georeferencing::
 
 .. supports_virtualio::

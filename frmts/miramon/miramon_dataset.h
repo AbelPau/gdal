@@ -72,10 +72,10 @@ class MMRDataset final : public GDALPamDataset
     CreateAssociatedMetadataFileName(const CPLString &osFileName);
     static CPLString CreatePatternFileName(const CPLString &osFileName,
                                            const CPLString &osPattern);
-    bool BandInOptionsList(char **papszOptions, CPLString pszType,
-                           CPLString osBand);
-    bool IsCategoricalBand(GDALRasterBand &pRasterBand, char **papszOptions,
-                           CPLString osIndexBand);
+    static bool BandInOptionsList(char **papszOptions, CPLString pszType,
+                                  CPLString osBand);
+    static bool IsCategoricalBand(GDALRasterBand &pRasterBand,
+                                  char **papszOptions, CPLString osIndexBand);
 
     bool IsValid() const
     {
