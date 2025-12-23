@@ -1260,7 +1260,7 @@ TIFFReadDirEntryArrayWithLimit(TIFF *tif, TIFFDirEntry *direntry,
     void *data;
     uint64_t target_count64;
     int original_datasize_clamped;
-    typesize = TIFFDataWidth(direntry->tdir_type);
+    typesize = TIFFDataWidth((TIFFDataType)direntry->tdir_type);
 
     target_count64 =
         (direntry->tdir_count > maxcount) ? maxcount : direntry->tdir_count;
@@ -4115,7 +4115,7 @@ static int ByteCountLooksBad(TIFF *tif)
  */
 static bool EvaluateIFDdatasizeReading(TIFF *tif, TIFFDirEntry *dp)
 {
-    const uint64_t data_width = TIFFDataWidth(dp->tdir_type);
+    const uint64_t data_width = TIFFDataWidth((TIFFDataType)dp->tdir_type);
     if (data_width != 0 && dp->tdir_count > UINT64_MAX / data_width)
     {
         TIFFErrorExtR(tif, "EvaluateIFDdatasizeReading",
@@ -4340,6 +4340,13 @@ int TIFFReadDirectory(TIFF *tif)
     tif->tif_flags &= ~TIFF_BEENWRITING; /* reset before new dir */
     tif->tif_flags &= ~TIFF_BUF4WRITE;   /* reset before new dir */
     tif->tif_flags &= ~TIFF_CHOPPEDUPARRAYS;
+
+    /* When changing directory, in deferred strile loading mode, we must also
+     * unset the TIFF_LAZYSTRILELOAD_DONE bit if it was initally set,
+     * to make sure the strile offset/bytecount are read again (when they fit
+     * in the tag data area).
+     */
+    tif->tif_flags &= ~TIFF_LAZYSTRILELOAD_DONE;
 
     /* free any old stuff and reinit */
     TIFFFreeDirectory(tif);
@@ -8340,7 +8347,7 @@ static uint64_t _TIFFGetStrileOffsetOrByteCountValue(TIFF *tif, uint32_t strile,
     if ((tif->tif_flags & TIFF_DEFERSTRILELOAD) &&
         !(tif->tif_flags & TIFF_CHOPPEDUPARRAYS))
     {
-        if (!(tif->tif_flags & TIFF_LAZYSTRILELOAD) ||
+        if (!(tif->tif_flags & TIFF_LAZYSTRILELOAD_ASKED) ||
             /* If the values may fit in the toff_long/toff_long8 member */
             /* then use _TIFFFillStriles to simplify _TIFFFetchStrileValue */
             dirent->tdir_count <= 4)
@@ -8419,7 +8426,8 @@ static int _TIFFFillStrilesInternal(TIFF *tif, int loadStripByteCount)
         (tif->tif_flags & TIFF_CHOPPEDUPARRAYS) != 0)
         return 1;
 
-    if (tif->tif_flags & TIFF_LAZYSTRILELOAD)
+    if ((tif->tif_flags & TIFF_LAZYSTRILELOAD_ASKED) &&
+        !(tif->tif_flags & TIFF_LAZYSTRILELOAD_DONE))
     {
         /* In case of lazy loading, reload completely the arrays */
         _TIFFfreeExt(tif, td->td_stripoffset_p);
@@ -8427,7 +8435,7 @@ static int _TIFFFillStrilesInternal(TIFF *tif, int loadStripByteCount)
         td->td_stripoffset_p = NULL;
         td->td_stripbytecount_p = NULL;
         td->td_stripoffsetbyteallocsize = 0;
-        tif->tif_flags &= ~TIFF_LAZYSTRILELOAD;
+        tif->tif_flags |= TIFF_LAZYSTRILELOAD_DONE;
     }
 
     /* If stripoffset array is already loaded, exit with success */
