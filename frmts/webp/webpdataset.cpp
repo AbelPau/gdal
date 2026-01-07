@@ -296,7 +296,8 @@ char **WEBPDataset::GetMetadata(const char *pszDomain)
                 if ((l_nFlags & 8) == 0)
                     break;
 
-                VSIFSeekL(fpImage, nChunkSize - 4, SEEK_CUR);
+                VSIFSeekL(fpImage, static_cast<vsi_l_offset>(nChunkSize - 4),
+                          SEEK_CUR);
 
                 bFirst = false;
             }
@@ -331,7 +332,8 @@ char **WEBPDataset::GetMetadata(const char *pszDomain)
                 break;
             }
             else
-                VSIFSeekL(fpImage, nChunkSize, SEEK_CUR);
+                VSIFSeekL(fpImage, static_cast<vsi_l_offset>(nChunkSize),
+                          SEEK_CUR);
         }
     }
 
@@ -876,7 +878,7 @@ GDALDataset *WEBPDataset::CreateCopy(const char *pszFilename,
     {
         CPLError((bStrict) ? CE_Failure : CE_Warning, CPLE_NotSupported,
                  "WEBP driver doesn't support data type %s. "
-                 "Only eight bit byte bands supported.",
+                 "Only UInt8 bands supported.",
                  GDALGetDataTypeName(
                      poSrcDS->GetRasterBand(1)->GetRasterDataType()));
 
