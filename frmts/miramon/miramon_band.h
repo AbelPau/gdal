@@ -67,7 +67,7 @@ class MMRBand final
     MMRBand(CPLString osDestPath,
             GDALRasterBand &papoBand,  // Used at writing part
             bool bCompress, bool bCategorical, const CPLString osPattern,
-            const CPLString osBandSection);
+            const CPLString osBandSection, bool m_bNeedOfNomFitxer);
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
     MMRBand(MMRBand &&) = default;
@@ -291,6 +291,10 @@ class MMRBand final
     CPLString m_osBandName = "";
     // Descripcion of the band, not the name
     CPLString m_osFriendlyDescription = "";
+
+    // Un a single band files with no pattern asked there is no
+    // need to document NomFitxer.
+    bool m_bNeedOfNomFitxer = true;
 
     MMDataType m_eMMDataType =
         static_cast<MMDataType>(MMDataType::DATATYPE_AND_COMPR_UNDEFINED);

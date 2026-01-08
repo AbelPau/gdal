@@ -37,7 +37,7 @@ class MMRDataset final : public GDALPamDataset
   public:
     explicit MMRDataset(GDALOpenInfo *poOpenInfo);  // Used in reading
     MMRDataset(char **papszOptions, CPLString osFilename, GDALDataset &oSrcDS,
-               bool bCompressDS,
+               bool bCompressDS, const CPLString osUsrPattern,
                const CPLString osPattern);  // Used in writing
     MMRDataset(const MMRDataset &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)

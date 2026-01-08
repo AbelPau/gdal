@@ -133,13 +133,14 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
     return;
 }
 
-MMRRel::MMRRel(const CPLString &osRELFilenameIn, const CPLString &osEPSG,
-               int nWidth, int nHeight, double dfMinX, double dfMaxX,
-               double dfMinY, double dfMaxY, std::vector<MMRBand> &&oBands)
+MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bNeedOfNomFitxer,
+               const CPLString &osEPSG, int nWidth, int nHeight, double dfMinX,
+               double dfMaxX, double dfMinY, double dfMaxY,
+               std::vector<MMRBand> &&oBands)
     : m_osRelFileName(osRELFilenameIn), m_szFileIdentifier(""),
-      m_oBands(std::move(oBands)), m_osEPSG(osEPSG), m_nWidth(nWidth),
-      m_nHeight(nHeight), m_dfMinX(dfMinX), m_dfMaxX(dfMaxX), m_dfMinY(dfMinY),
-      m_dfMaxY(dfMaxY)
+      m_oBands(std::move(oBands)), m_bNeedOfNomFitxer(bNeedOfNomFitxer),
+      m_osEPSG(osEPSG), m_nWidth(nWidth), m_nHeight(nHeight), m_dfMinX(dfMinX),
+      m_dfMaxX(dfMaxX), m_dfMinY(dfMinY), m_dfMaxY(dfMaxY)
 {
     m_nBands = static_cast<int>(m_oBands.size());
 
@@ -1176,6 +1177,7 @@ void MMRRel::WriteOVERVIEW()
              ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday,
              ltime.tm_hour, ltime.tm_min, ltime.tm_sec, 0);
     AddKeyValue(KEY_CreationDate, aTimeString);
+    AddKeyValue(KEY_CoverageContentType, "001");  // Raster image
     AddSectionEnd();
 }
 
@@ -1253,7 +1255,8 @@ bool MMRRel::WriteBandSection(const MMRBand &osBand,
     if (osBand.GetRawBandFileName().empty())
         return false;
 
-    AddKeyValue("NomFitxer", osBand.GetRawBandFileName());
+    if (m_bNeedOfNomFitxer)
+        AddKeyValue(KEY_NomFitxer, osBand.GetRawBandFileName());
     if (!osBand.GetFriendlyDescription().empty())
         AddKeyValue("descriptor", osBand.GetFriendlyDescription());
 

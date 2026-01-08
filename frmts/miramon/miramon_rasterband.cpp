@@ -891,7 +891,7 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
 
     CPLString osShortRELName;
 
-    if (!m_pfRel->GetMetadataValue(osTableNameSection, "NomFitxer",
+    if (!m_pfRel->GetMetadataValue(osTableNameSection, KEY_NomFitxer,
                                    osShortRELName) ||
         osShortRELName.empty())
     {
@@ -912,7 +912,7 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
         MMRRel localRel(osRELName, false);
         CPLString osShortDBFName;
 
-        if (!localRel.GetMetadataValue("TAULA_PRINCIPAL", "NomFitxer",
+        if (!localRel.GetMetadataValue(SECTION_TAULA_PRINCIPAL, KEY_NomFitxer,
                                        osShortDBFName) ||
             osShortDBFName.empty())
         {
@@ -925,7 +925,7 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
             CPLGetPathSafe(localRel.GetRELNameChar()).c_str(), osShortDBFName,
             "");
 
-        if (!localRel.GetMetadataValue("TAULA_PRINCIPAL", "AssociatRel",
+        if (!localRel.GetMetadataValue(SECTION_TAULA_PRINCIPAL, "AssociatRel",
                                        osAssociateREL) ||
             osAssociateREL.empty())
         {
@@ -933,7 +933,8 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
             return CE_Failure;
         }
 
-        CPLString osSection = "TAULA_PRINCIPAL:";
+        CPLString osSection = SECTION_TAULA_PRINCIPAL;
+        osSection.append(":");
         osSection.append(osAssociateREL);
 
         CPLString osTactVar;

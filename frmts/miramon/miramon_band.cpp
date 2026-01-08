@@ -185,15 +185,21 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
 
 MMRBand::MMRBand(CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
                  bool bCategorical, const CPLString osPattern,
-                 const CPLString osBandSection)
+                 const CPLString osBandSection, bool bNeedOfNomFitxer)
     : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
-      m_osBandFileName(""), m_osBandName(osPattern + "_" + osBandSection),
+      m_osBandFileName(""), m_osBandName(""),
+      m_bNeedOfNomFitxer(bNeedOfNomFitxer),
       m_osFriendlyDescription(papoBand.GetDescription()),
       m_bIsCompressed(bCompress), m_bIsCategorical(bCategorical)
 
 {
     // Getting the binary filename
+    if (bNeedOfNomFitxer)
+        m_osBandName = osPattern + "_" + osBandSection;
+    else
+        m_osBandName = osPattern;
+
     m_osRawBandFileName = m_osBandName + pszExtRaster;
     m_osBandFileName =
         CPLFormFilenameSafe(osDestPath, m_osBandName, pszExtRaster);

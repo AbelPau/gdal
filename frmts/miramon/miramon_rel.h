@@ -50,8 +50,9 @@ class MMRRel
 {
   public:
     MMRRel(const CPLString &, bool);  // Used in reading
-    MMRRel(const CPLString &, const CPLString &osEPSG, int nWidth, int nHeight,
-           double dfMinX, double dfMaxX, double dfMinY, double dfMaxY,
+    MMRRel(const CPLString &, bool bNeedOfNomFitxer, const CPLString &osEPSG,
+           int nWidth, int nHeight, double dfMinX, double dfMaxX, double dfMinY,
+           double dfMaxY,
            std::vector<MMRBand> &&oBands);  // Used in writing
     MMRRel(const MMRRel &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
@@ -235,14 +236,15 @@ class MMRRel
         CPLFree(pzsKey);
     }
 
-    void AddKeyValue(const CPLString osKey, const double nValue)
+    void AddKeyValue(const CPLString osKey, const double dfValue)
     {
         if (!m_pRELFile)
             return;
 
         char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
-        VSIFPrintfL(m_pRELFile, "%s=%lf%s", pzsKey ? pzsKey : osKey.c_str(),
-                    nValue, LineReturn);
+        CPLString osValue = CPLSPrintf("%.15g", dfValue);
+        VSIFPrintfL(m_pRELFile, "%s=%s%s", pzsKey ? pzsKey : osKey.c_str(),
+                    osValue.c_str(), LineReturn);
 
         CPLFree(pzsKey);
     }
@@ -277,6 +279,11 @@ class MMRRel
             return nullptr;
 
         return &m_oBands[nIBand];
+    }
+
+    CPLString GetPattern() const
+    {
+        return osPattern;
     }
 
     int isAMiraMonFile() const
@@ -326,6 +333,8 @@ class MMRRel
 
     int m_nBands = 0;
     std::vector<MMRBand> m_oBands{};
+    CPLString osPattern = "";  // A pattern used to create all band names
+    bool m_bNeedOfNomFitxer = true;
 
     // Used when writting bands. If dimensions are the same
     // for all bands, then they has been written in the main section

@@ -54,7 +54,7 @@ void GDALRegister_MiraMon()
 /************************************************************************/
 MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
                        GDALDataset &oSrcDS, bool bCompressDS,
-                       const CPLString osPattern)
+                       const CPLString osUsrPattern, const CPLString osPattern)
     : m_bIsValid(false)
 {
     // TODO Subdatasets
@@ -100,6 +100,8 @@ MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
     }
 
     // Getting bands information
+    bool bNeedOfNomFitxer = (nBands > 1 || !osUsrPattern.empty());
+
     std::vector<MMRBand> oBands{};
     oBands.reserve(nBands);
 
@@ -123,7 +125,8 @@ MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
 
         // Emplace back a MMRBand
         oBands.emplace_back(CPLGetPathSafe(osRelname), *pRasterBand,
-                            bCompressDS, bCategorical, osPattern, osIndexBand);
+                            bCompressDS, bCategorical, osPattern, osIndexBand,
+                            bNeedOfNomFitxer);
         if (!oBands.back().IsValid())
         {
             ReportError(
@@ -167,8 +170,8 @@ MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
 
     // Getting REL information (and metadata stuff)
     auto pMMfRel = std::make_unique<MMRRel>(
-        osRelname, m_osEPSG, m_nWidth, m_nHeight, m_dfMinX, m_dfMaxX, m_dfMinY,
-        m_dfMaxY, std::move(oBands));
+        osRelname, bNeedOfNomFitxer, m_osEPSG, m_nWidth, m_nHeight, m_dfMinX,
+        m_dfMaxX, m_dfMinY, m_dfMaxY, std::move(oBands));
 
     if (!pMMfRel->IsValid())
         return;
@@ -327,8 +330,8 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
         return nullptr;
 
     // osPattern is needed to create band names.
-    CPLString osOptPattern = CSLFetchNameValueDef(papszOptions, "PATTERN", "");
-    CPLString osPattern = CreatePatternFileName(osRelName, osOptPattern);
+    CPLString osUsrPattern = CSLFetchNameValueDef(papszOptions, "PATTERN", "");
+    CPLString osPattern = CreatePatternFileName(osRelName, osUsrPattern);
 
     if (osPattern.empty())
         osPattern = CPLGetBasenameSafe(osRelName);
@@ -336,8 +339,8 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
     if (!pfnProgress(0.0, nullptr, pProgressData))
         return nullptr;
 
-    auto poDS = std::make_unique<MMRDataset>(papszOptions, osRelName, *poSrcDS,
-                                             bCompress, osPattern);
+    auto poDS = std::make_unique<MMRDataset>(
+        papszOptions, osRelName, *poSrcDS, bCompress, osUsrPattern, osPattern);
 
     if (!poDS->IsValid())
         return nullptr;

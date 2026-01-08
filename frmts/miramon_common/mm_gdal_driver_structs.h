@@ -38,6 +38,7 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define KEY_MinY "MinY"
 #define KEY_MaxY "MaxY"
 #define KEY_CreationDate "CreationDate"
+#define KEY_CoverageContentType "CoverageContentType"
 #define SECTION_SPATIAL_REFERENCE_SYSTEM "SPATIAL_REFERENCE_SYSTEM"
 #define SECTION_HORIZONTAL "HORIZONTAL"
 #define SECTION_VERTICAL "VERTICAL"
