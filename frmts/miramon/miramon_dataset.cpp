@@ -52,13 +52,12 @@ void GDALRegister_MiraMon()
 /************************************************************************/
 /*                            MMRDataset()                              */
 /************************************************************************/
-MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
+MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
+                       char **papszOptions, CPLString osRelname,
                        GDALDataset &oSrcDS, bool bCompressDS,
                        const CPLString osUsrPattern, const CPLString osPattern)
     : m_bIsValid(false)
 {
-    // TODO Subdatasets
-
     nBands = oSrcDS.GetRasterCount();
     if (nBands == 0)
     {
@@ -124,7 +123,8 @@ MMRDataset::MMRDataset(char **papszOptions, CPLString osRelname,
             IsCategoricalBand(*pRasterBand, papszOptions, osIndexBand);
 
         // Emplace back a MMRBand
-        oBands.emplace_back(CPLGetPathSafe(osRelname), *pRasterBand,
+        oBands.emplace_back(pfnProgress, pProgressData,
+                            CPLGetPathSafe(osRelname), *pRasterBand,
                             bCompressDS, bCategorical, osPattern, osIndexBand,
                             bNeedOfNomFitxer);
         if (!oBands.back().IsValid())
@@ -340,7 +340,8 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
         return nullptr;
 
     auto poDS = std::make_unique<MMRDataset>(
-        papszOptions, osRelName, *poSrcDS, bCompress, osUsrPattern, osPattern);
+        pfnProgress, pProgressData, papszOptions, osRelName, *poSrcDS,
+        bCompress, osUsrPattern, osPattern);
 
     if (!poDS->IsValid())
         return nullptr;
@@ -348,7 +349,7 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
     poDS->SetDescription(pszFilename);
     poDS->eAccess = GA_Update;
 
-    if (!pfnProgress(100.0, nullptr, pProgressData))
+    if (!pfnProgress(1.0, nullptr, pProgressData))
         return nullptr;
 
     return poDS.release();

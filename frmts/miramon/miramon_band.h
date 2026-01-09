@@ -64,10 +64,11 @@ class MMRBand final
 {
   public:
     MMRBand(MMRRel &pfRel, const CPLString &osSection);  // Used at reading part
-    MMRBand(CPLString osDestPath,
+    MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
+            CPLString osDestPath,
             GDALRasterBand &papoBand,  // Used at writing part
             bool bCompress, bool bCategorical, const CPLString osPattern,
-            const CPLString osBandSection, bool m_bNeedOfNomFitxer);
+            const CPLString osBandSection, bool bNeedOfNomFitxer);
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
     MMRBand(MMRBand &&) = default;
@@ -224,7 +225,7 @@ class MMRBand final
 
     // Writing part
     CPLString GetRELDataType() const;
-    bool WriteBandFile(GDALDataset &oSrcDS, int nIBand);
+    bool WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand);
     static size_t CompressRowType(MMDataType nDataType, const void *pRow,
                                   int nCol, void *pBuffer);
     template <typename T>
@@ -259,6 +260,9 @@ class MMRBand final
     bool UpdateDataTypeAndBytesPerPixelFromRasterBand(GDALRasterBand &papoBand);
     void UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand);
     void UpdateNoDataValueFromRasterBand(GDALRasterBand &papoBand);
+
+    GDALProgressFunc m_pfnProgress = nullptr;  // Inherited from DataSet
+    void *m_pProgressData = nullptr;           // Inherited from DataSet
 
     bool m_bIsValid =
         false;  // Determines if the created object is valid or not.

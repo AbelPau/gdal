@@ -1230,7 +1230,7 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
             return false;
 
         // Writing IMG binary file
-        if (!m_oBands[nIBand].WriteBandFile(oSrcDS, nIBand))
+        if (!m_oBands[nIBand].WriteBandFile(oSrcDS, m_nBands, nIBand))
             return false;
     }
 

@@ -183,10 +183,12 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
     m_bIsValid = true;
 }
 
-MMRBand::MMRBand(CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
+MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
+                 CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
                  bool bCategorical, const CPLString osPattern,
                  const CPLString osBandSection, bool bNeedOfNomFitxer)
-    : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
+    : m_pfnProgress(pfnProgress), m_pProgressData(pProgressData),
+      m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
       m_osBandFileName(""), m_osBandName(""),
       m_osFriendlyDescription(papoBand.GetDescription()),
@@ -1390,7 +1392,7 @@ CPLString MMRBand::GetRELDataType() const
     return "";
 }
 
-bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nIBand)
+bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
 {
 
     GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
@@ -1438,6 +1440,10 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nIBand)
     }
 
     // Loop over each line
+    double dfComplete = nIBand * 1.0 / nNBands;
+    double dfIncr = 1.0 / (nNBands * m_nHeight);
+    if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
+        return nullptr;
     for (int iLine = 0; iLine < m_nHeight; ++iLine)
     {
         // Read one line from the raster band
@@ -1486,7 +1492,14 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nIBand)
                 return false;
             }
         }
+        dfComplete += dfIncr;
+        if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
+            return nullptr;
     }
+
+    dfComplete = (nIBand + 1.0) / nNBands;
+    if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
+        return nullptr;
 
     VSIFCloseL(m_pfIMG);
     m_pfIMG = nullptr;

@@ -36,7 +36,8 @@ class MMRDataset final : public GDALPamDataset
 {
   public:
     explicit MMRDataset(GDALOpenInfo *poOpenInfo);  // Used in reading
-    MMRDataset(char **papszOptions, CPLString osFilename, GDALDataset &oSrcDS,
+    MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
+               char **papszOptions, CPLString osFilename, GDALDataset &oSrcDS,
                bool bCompressDS, const CPLString osUsrPattern,
                const CPLString osPattern);  // Used in writing
     MMRDataset(const MMRDataset &) =
