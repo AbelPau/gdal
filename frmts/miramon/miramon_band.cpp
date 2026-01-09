@@ -189,9 +189,9 @@ MMRBand::MMRBand(CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
     : m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
       m_osBandFileName(""), m_osBandName(""),
-      m_bNeedOfNomFitxer(bNeedOfNomFitxer),
       m_osFriendlyDescription(papoBand.GetDescription()),
-      m_bIsCompressed(bCompress), m_bIsCategorical(bCategorical)
+      m_bNeedOfNomFitxer(bNeedOfNomFitxer), m_bIsCompressed(bCompress),
+      m_bIsCategorical(bCategorical)
 
 {
     // Getting the binary filename
