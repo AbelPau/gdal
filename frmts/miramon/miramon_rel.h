@@ -88,6 +88,7 @@ class MMRRel
                                          CPLString &osValue);
     void RELToGDALMetadata(GDALDataset *poDS);
 
+    static CPLString MMRGetFileNameWithOutI(const CPLString &osRELFile);
     static CPLString MMRGetFileNameFromRelName(const CPLString &osRELFile);
     int GetColumnsNumberFromREL();
     int GetRowsNumberFromREL();
@@ -103,13 +104,8 @@ class MMRRel
     void WriteOVERVIEW();
     bool WriteATTRIBUTE_DATA(GDALDataset &oSrcDS);
     bool WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
-
-    // Used when writting bands. If dimensions are the same
-    // for all bands, then they has been written in the main section
-    bool GetDimWrittenInOverview() const
-    {
-        return m_bDimWrittenInOverview;
-    }
+    void WriteCOLOR_TEXTSection();
+    void WriteVISU_LLEGENDASection();
 
     bool IsValid() const
     {
@@ -319,6 +315,7 @@ class MMRRel
     CPLErr ParseBandInfo();
 
     CPLString m_osRelFileName = "";
+    CPLString m_osTitle = "";
     VSILFILE *m_pRELFile = nullptr;
     static CPLString m_szImprobableRELChain;
 
@@ -334,11 +331,19 @@ class MMRRel
     int m_nBands = 0;
     std::vector<MMRBand> m_oBands{};
     CPLString osPattern = "";  // A pattern used to create all band names
+
+    // If there is only one band and the name of the rel is the same than the
+    // name of the band (ex: band.img and bandI.rel) then NomFitxer
+    // is not necessary to be written in the REL
     bool m_bNeedOfNomFitxer = true;
 
-    // Used when writting bands. If dimensions are the same
-    // for all bands, then they has been written in the main section
-    bool m_bDimWrittenInOverview = false;
+    // If a key-value pair is the same for all bands, it must be written
+    // in a single general section. Otherwise, the most common key-value
+    // (or any chosen one) can be written in the general section, and
+    // all bands with a different value must write it in their
+    // corresponding specific section.
+    bool m_bDimAlreadyWritten = false;
+    bool m_bTractamentVariableAlreadyWritten = false;
 
     // Preserving metadata
 
