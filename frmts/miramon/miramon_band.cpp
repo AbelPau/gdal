@@ -1225,6 +1225,7 @@ bool MMRBand::FillRowOffsets()
 
 /************************************************************************/
 /*                              Writing part()                          */
+/* Indexing a compressed file increments the efficiency when reading it */
 /************************************************************************/
 bool MMRBand::WriteRowOffsets()
 {
@@ -1290,7 +1291,7 @@ bool MMRBand::WriteRowOffsets()
         }
     }
 
-    // End of file
+    // End part of file
     nAux = 0;
     for (int nIndex = 0; nIndex < 4; nIndex++)
     {
