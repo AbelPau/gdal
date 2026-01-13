@@ -1509,16 +1509,23 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
     if (pBuffer == nullptr)
         return false;
 
-    void *pPow =
+    void *pRow =
         VSI_MALLOC2_VERBOSE(m_nWidth, (GDALGetDataTypeSizeBytes(eDT) + 1));
-    if (pPow == nullptr)
+    if (pRow == nullptr)
+    {
+        VSIFree(pBuffer);
         return false;
+    }
 
     // Loop over each line
     double dfComplete = nIBand * 1.0 / nNBands;
     double dfIncr = 1.0 / (nNBands * m_nHeight);
     if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
+    {
+        VSIFree(pBuffer);
+        VSIFree(pRow);
         return false;
+    }
     for (int iLine = 0; iLine < m_nHeight; ++iLine)
     {
         // Read one line from the raster band
@@ -1530,6 +1537,8 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "Error reading line %d from raster band", iLine);
+            VSIFree(pBuffer);
+            VSIFree(pRow);
             return false;
         }
 
@@ -1541,12 +1550,14 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
         if (m_bIsCompressed)
         {
             nCompressed =
-                CompressRowType(m_eMMDataType, pBuffer, m_nWidth, pPow);
-            nWritten = VSIFWriteL(pPow, 1, nCompressed, m_pfIMG);
+                CompressRowType(m_eMMDataType, pBuffer, m_nWidth, pRow);
+            nWritten = VSIFWriteL(pRow, 1, nCompressed, m_pfIMG);
             if (nWritten != nCompressed)
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
                          "Failed to write line %d to MiraMon band file", iLine);
+                VSIFree(pBuffer);
+                VSIFree(pRow);
                 return false;
             }
         }
@@ -1558,14 +1569,22 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
                          "Failed to write line %d to MiraMon band file", iLine);
+                VSIFree(pBuffer);
+                VSIFree(pRow);
                 return false;
             }
         }
 
         dfComplete += dfIncr;
         if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
+        {
+            VSIFree(pBuffer);
+            VSIFree(pRow);
             return false;
+        }
     }
+    VSIFree(pBuffer);
+    VSIFree(pRow);
 
     // There is a final part that contain the indexs to every row
     if (m_bIsCompressed)
