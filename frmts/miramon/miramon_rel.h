@@ -104,7 +104,7 @@ class MMRRel
     void WriteOVERVIEW();
     bool WriteATTRIBUTE_DATA(GDALDataset &oSrcDS);
     bool WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
-    void WriteCOLOR_TEXTSection();
+    void WriteCOLOR_TEXTSection(bool bIsCategorical);
     void WriteVISU_LLEGENDASection();
 
     bool IsValid() const
@@ -148,25 +148,40 @@ class MMRRel
         return false;
     }
 
-    void AddVersion()
+    void AddRELVersion()
     {
         if (!m_pRELFile)
             return;
 
         // Writing MiraMon version section
-        VSIFPrintfL(m_pRELFile, "[%s]%s", SECTION_VERSIO, LineReturn);
+        AddSectionStart(SECTION_VERSIO);
+        AddKeyValue(KEY_VersMetaDades,
+                    static_cast<unsigned>(MM_VERS_METADADES));
+        AddKeyValue(KEY_SubVersMetaDades,
+                    static_cast<unsigned>(MM_SUBVERS_METADADES));
+        AddKeyValue(KEY_Vers, static_cast<unsigned>(MM_VERS));
+        AddKeyValue(KEY_SubVers, static_cast<unsigned>(MM_SUBVERS));
+        AddSectionEnd();
+    }
 
-        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_VersMetaDades,
-                    static_cast<unsigned>(MM_VERS_METADADES), LineReturn);
-        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_SubVersMetaDades,
-                    static_cast<unsigned>(MM_SUBVERS_METADADES), LineReturn);
+    void AddCOLOR_TEXTVersion()
+    {
+        if (!m_pRELFile)
+            return;
 
-        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_Vers,
-                    static_cast<unsigned>(MM_VERS), LineReturn);
-        VSIFPrintfL(m_pRELFile, "%s=%u%s", KEY_SubVers,
-                    static_cast<unsigned>(MM_SUBVERS), LineReturn);
+        // Writing COLOR_TEXT version keys
+        AddKeyValue("Simb_Vers", 5);
+        AddKeyValue("Simb_SubVers", 1);
+    }
 
-        VSIFPrintfL(m_pRELFile, "%s", LineReturn);
+    void AddVISU_LLEGENDAVersion()
+    {
+        if (!m_pRELFile)
+            return;
+
+        // Writing VISU_LLEGENDA version keys
+        AddKeyValue("LlegSimb_Vers", 4);
+        AddKeyValue("LlegSimb_SubVers", 5);
     }
 
     void AddSectionStart(const CPLString osSection)
@@ -227,6 +242,18 @@ class MMRRel
 
         char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
         VSIFPrintfL(m_pRELFile, "%s=%d%s", pzsKey ? pzsKey : osKey.c_str(),
+                    nValue, LineReturn);
+
+        CPLFree(pzsKey);
+    }
+
+    void AddKeyValue(const CPLString osKey, const unsigned nValue)
+    {
+        if (!m_pRELFile)
+            return;
+
+        char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
+        VSIFPrintfL(m_pRELFile, "%s=%u%s", pzsKey ? pzsKey : osKey.c_str(),
                     nValue, LineReturn);
 
         CPLFree(pzsKey);

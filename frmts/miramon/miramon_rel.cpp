@@ -1051,7 +1051,7 @@ bool MMRRel::Write(GDALDataset &oSrcDS)
     if (!CreateRELFile())
         return false;
 
-    AddVersion();
+    AddRELVersion();
 
     // Writing METADADES section
     WriteMETADADES();  // It fills m_szFileIdentifier
@@ -1077,6 +1077,10 @@ bool MMRRel::Write(GDALDataset &oSrcDS)
         CloseRELFile();
         return false;
     }
+
+    // Writing visualization sections
+    WriteCOLOR_TEXTSection(false);  // TODO: segons la paleta
+    WriteVISU_LLEGENDASection();
 
     CloseRELFile();
     return true;
@@ -1260,9 +1264,6 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
             return false;
     }
 
-    WriteCOLOR_TEXTSection();
-    WriteVISU_LLEGENDASection();
-
     return true;
 }
 
@@ -1283,7 +1284,7 @@ bool MMRRel::WriteBandSection(const MMRBand &osBand,
 
     // If the band is categorical it has been written in the main section
     if (!osBand.IsCategorical())
-        AddKeyValue("TractamentVariable", "Contiunous");
+        AddKeyValue("TractamentVariable", "QuantitatiuContinu");
 
     // If there is need of NomFitxer this is the place to wrote it.
     if (!osBand.GetRawBandFileName().empty() && m_bNeedOfNomFitxer)
@@ -1303,19 +1304,21 @@ bool MMRRel::WriteBandSection(const MMRBand &osBand,
     return true;
 }
 
-void MMRRel::WriteCOLOR_TEXTSection()
+void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
 {
     AddSectionStart(SECTION_COLOR_TEXT);
-    AddKeyValue("Simb_Vers", 5);
-    AddKeyValue("Simb_SubVers", 5);
+    AddCOLOR_TEXTVersion();
     AddKeyValue("UnificVisCons", 1);
     AddKeyValue("visualitzable", 1);
     AddKeyValue("consultable", 1);
-    AddKeyValue("EscalaMaxima", 0);                        //TODO
-    AddKeyValue("EscalaMinima", 900000000);                //TODO
-    AddKeyValue("Color_Const", 0);                         //TODO
-    AddKeyValue("Color_TractamentVariable", "Categoric");  //TODO
-    AddKeyValue("Color_Paleta", "<Automatic>");            //TODO
+    AddKeyValue("EscalaMaxima", 0);
+    AddKeyValue("EscalaMinima", 900000000);
+    AddKeyValue("Color_Const", 0);  //TODO
+    if (bIsCategorical)
+        AddKeyValue("Color_TractamentVariable", "Categoric");
+    else
+        AddKeyValue("Color_TractamentVariable", "QuantitatiuContinu");
+    AddKeyValue("Color_Paleta", "<Automatic>");  //TODO
     AddKeyValue("Tooltips_Const", 1);
 
     AddSectionEnd();
@@ -1325,8 +1328,7 @@ void MMRRel::WriteVISU_LLEGENDASection()
 {
     AddSectionStart(SECTION_VISU_LLEGENDA);
 
-    AddKeyValue("LlegSimb_Vers", 4);
-    AddKeyValue("LlegSimb_SubVers", 5);
+    AddVISU_LLEGENDAVersion();
     AddKeyValue("Color_VisibleALleg", 1);
     AddKeyValue("Color_TitolLlegenda", "Al·leluia 1");  // TODO
     AddKeyValue("Color_CategAMostrar", "N");            // TODO

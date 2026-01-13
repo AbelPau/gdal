@@ -284,11 +284,11 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
 /************************************************************************/
 MMRBand::~MMRBand()
 {
-    if (m_pfIMG != nullptr)
-    {
-        CPL_IGNORE_RET_VAL(VSIFCloseL(m_pfIMG));
-        m_pfIMG = nullptr;
-    }
+    if (m_pfIMG == nullptr)
+        return;
+
+    CPL_IGNORE_RET_VAL(VSIFCloseL(m_pfIMG));
+    m_pfIMG = nullptr;
 }
 
 const CPLString MMRBand::GetRELFileName() const
@@ -1227,6 +1227,87 @@ bool MMRBand::FillRowOffsets()
 /************************************************************************/
 /*                              Writing part()                          */
 /************************************************************************/
+bool MMRBand::WriteRowOffsets()
+{
+    if (m_aFileOffsets.empty() || m_nHeight == 0)
+        return true;
+
+    VSIFSeekL(m_pfIMG, 0L, SEEK_END);
+
+    vsi_l_offset nStartOffset = VSIFTellL(m_pfIMG);
+    if (nStartOffset == 0)
+        return false;
+
+    if (VSIFWriteL("IMG 1.0\0", sizeof("IMG 1.0\0"), 1, m_pfIMG) != 1)
+        return false;
+
+    // Type of section
+    int nAux = 2;
+    if (VSIFWriteL(&nAux, 4, 1, m_pfIMG) != 1)
+        return false;
+
+    int nIndexOffset = m_nHeight;
+    vsi_l_offset nOffsetSize;
+
+    if (m_aFileOffsets[nIndexOffset - 1] < static_cast<vsi_l_offset>(UCHAR_MAX))
+        nOffsetSize = 1;
+    else if (m_aFileOffsets[nIndexOffset - 1] <
+             static_cast<vsi_l_offset>(USHRT_MAX))
+        nOffsetSize = 2;
+    else if (m_aFileOffsets[nIndexOffset - 1] <
+             static_cast<vsi_l_offset>(_UI32_MAX))
+        nOffsetSize = 4;
+    else
+        nOffsetSize = 8;
+
+    if (VSIFWriteL(&nOffsetSize, 4, 1, m_pfIMG) != 1)
+        return false;
+
+    nAux = 0;
+    if (VSIFWriteL(&nAux, 4, 1, m_pfIMG) != 1)
+        return false;
+    if (VSIFWriteL(&nAux, 4, 1, m_pfIMG) != 1)
+        return false;
+
+    vsi_l_offset nUnusefulOffset = 0;
+    if (VSIFWriteL(&nUnusefulOffset, sizeof(vsi_l_offset), 1, m_pfIMG) != 1)
+        return false;
+
+    // The main part
+    if (nOffsetSize == sizeof(vsi_l_offset))
+    {
+        if (VSIFWriteL(&(m_aFileOffsets[0]), sizeof(vsi_l_offset), nIndexOffset,
+                       m_pfIMG) != nIndexOffset)
+            return false;
+    }
+    else
+    {
+        for (nIndexOffset = 0; nIndexOffset < m_aFileOffsets.size() - 1;
+             nIndexOffset++)
+        {
+            if (VSIFWriteL(&(m_aFileOffsets[nIndexOffset]), nOffsetSize, 1,
+                           m_pfIMG) != 1)
+                return false;
+        }
+    }
+
+    // End of file
+    nAux = 0;
+    for (int nIndex = 0; nIndex < 4; nIndex++)
+    {
+        if (VSIFWriteL(&nAux, 4, 1, m_pfIMG) != 1)
+            return false;
+    }
+    if (VSIFWriteL("IMG 1.0\0", sizeof("IMG 1.0\0"), 1, m_pfIMG) != 1)
+        return false;
+
+    if (VSIFWriteL(&nStartOffset, sizeof(vsi_l_offset), 1, m_pfIMG) != 1)
+        return false;
+
+    return true;
+
+}  // End of WriteRowOffsets()
+
 // Getting data type from dataset
 bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
     GDALRasterBand &papoBand)
@@ -1427,23 +1508,18 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
     void *pBuffer =
         VSI_MALLOC2_VERBOSE(m_nWidth, GDALGetDataTypeSizeBytes(eDT));
     if (pBuffer == nullptr)
-    {
-        VSIFCloseL(m_pfIMG);
         return false;
-    }
+
     void *pPow =
         VSI_MALLOC2_VERBOSE(m_nWidth, (GDALGetDataTypeSizeBytes(eDT) + 1));
     if (pPow == nullptr)
-    {
-        VSIFCloseL(m_pfIMG);
         return false;
-    }
 
     // Loop over each line
     double dfComplete = nIBand * 1.0 / nNBands;
     double dfIncr = 1.0 / (nNBands * m_nHeight);
     if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
-        return nullptr;
+        return false;
     for (int iLine = 0; iLine < m_nHeight; ++iLine)
     {
         // Read one line from the raster band
@@ -1455,8 +1531,6 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
         {
             CPLError(CE_Failure, CPLE_AppDefined,
                      "Error reading line %d from raster band", iLine);
-            VSIFCloseL(m_pfIMG);
-            m_pfIMG = nullptr;
             return false;
         }
 
@@ -1474,8 +1548,6 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
                          "Failed to write line %d to MiraMon band file", iLine);
-                VSIFCloseL(m_pfIMG);
-                m_pfIMG = nullptr;
                 return false;
             }
         }
@@ -1487,22 +1559,28 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
             {
                 CPLError(CE_Failure, CPLE_AppDefined,
                          "Failed to write line %d to MiraMon band file", iLine);
-                VSIFCloseL(m_pfIMG);
-                m_pfIMG = nullptr;
                 return false;
             }
         }
+
         dfComplete += dfIncr;
         if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
-            return nullptr;
+            return false;
+    }
+
+    // There is a final part that contain the indexs to every row
+    if (m_bIsCompressed)
+    {
+        if (WriteRowOffsets() == false)
+            return false;
     }
 
     dfComplete = (nIBand + 1.0) / nNBands;
     if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
-        return nullptr;
+        return false;
 
-    VSIFCloseL(m_pfIMG);
-    m_pfIMG = nullptr;
+    //VSIFCloseL(m_pfIMG);
+    //m_pfIMG = nullptr;
     return true;
 }
 

@@ -257,6 +257,7 @@ class MMRBand final
     vsi_l_offset GetFileSize();
 
     // Writing part
+    bool WriteRowOffsets();
     bool UpdateDataTypeAndBytesPerPixelFromRasterBand(GDALRasterBand &papoBand);
     void UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand);
     void UpdateNoDataValueFromRasterBand(GDALRasterBand &papoBand);
