@@ -370,7 +370,7 @@ class MMRRel
     // all bands with a different value must write it in their
     // corresponding specific section.
     bool m_bDimAlreadyWritten = false;
-    bool m_bTractamentVariableAlreadyWritten = false;
+    //bool m_bTractamentVariableAlreadyWritten = false;
 
     // Preserving metadata
 

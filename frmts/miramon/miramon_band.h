@@ -65,7 +65,7 @@ class MMRBand final
   public:
     MMRBand(MMRRel &pfRel, const CPLString &osSection);  // Used at reading part
     MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
-            CPLString osDestPath,
+            GDALDataset &oSrcDS, int nIBand, CPLString osDestPath,
             GDALRasterBand &papoBand,  // Used at writing part
             bool bCompress, bool bCategorical, const CPLString osPattern,
             const CPLString osBandSection, bool bNeedOfNomFitxer);
@@ -335,6 +335,12 @@ class MMRBand final
     // Nodata stuff
     bool m_bNoDataSet = false;  // There is nodata?
     double m_dfNoData = 0.0;    // Value of nodata
+
+    // Color table in writting part of the driver
+    GDALColorTable *m_poCT = nullptr;
+
+    // Attributte table in writting part of the driver
+    GDALRasterAttributeTable *m_poRAT = nullptr;
 };
 
 #endif /* ndef MM_BAND_INCLUDED */

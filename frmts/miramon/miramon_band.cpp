@@ -184,9 +184,10 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
 }
 
 MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
-                 CPLString osDestPath, GDALRasterBand &papoBand, bool bCompress,
-                 bool bCategorical, const CPLString osPattern,
-                 const CPLString osBandSection, bool bNeedOfNomFitxer)
+                 GDALDataset &oSrcDS, int nIBand, CPLString osDestPath,
+                 GDALRasterBand &papoBand, bool bCompress, bool bCategorical,
+                 const CPLString osPattern, const CPLString osBandSection,
+                 bool bNeedOfNomFitxer)
     : m_pfnProgress(pfnProgress), m_pProgressData(pProgressData),
       m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
@@ -252,27 +253,14 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
     // Not in the band, but in the dataset.
     //UpdateBoundingBoxFromRasterBand(papoBand);
 
-    // Temporal
-
-    /* Tot això va al moment d'escriure la banda
-    // MiraMon IMG files are efficient in going to an specified row.
-    // So le'ts configurate the blocks as line blocks.
-    m_nBlockXSize = m_nWidth;
-    m_nBlockYSize = 1;
-    m_nNRowsPerBlock = 1;
-
-    // Can the binary file that contains all data for this band be opened?
-    m_pfIMG = VSIFOpenL(m_osBandFileName, "rb");
-    if (!m_pfIMG)
-    {
-        m_nWidth = 0;
-        m_nHeight = 0;
-        CPLError(CE_Failure, CPLE_OpenFailed,
-                 "Failed to open MiraMon band file `%s' with access 'rb'.",
-                 m_osBandFileName.c_str());
+    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
+    if (!pRasterBand)
         return;
-    }
-    */
+    // COLOR_TABLE
+    m_poCT = pRasterBand->GetColorTable();
+
+    // ATRIBUTTE TABLE
+    m_poRAT = pRasterBand->GetDefaultRAT();
 
     // We have a valid MMRBand.
     m_bIsValid = true;
@@ -1480,6 +1468,12 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
     if (!pRasterBand)
         return false;
 
+    // Updating variable to suitable values
+    m_nBlockXSize = m_nWidth;
+    m_nBlockYSize = 1;
+    m_nNRowsPerBlock = 1;
+
+    // Opening the RAW file
     m_pfIMG = VSIFOpenL(m_osBandFileName, "wb");
     if (!m_pfIMG)
     {
@@ -1489,6 +1483,7 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
         return false;
     }
 
+    // Creating index information
     if (m_bIsCompressed)
     {
         try

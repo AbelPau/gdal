@@ -54,8 +54,8 @@ void GDALRegister_MiraMon()
 /************************************************************************/
 MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
                        char **papszOptions, CPLString osRelname,
-                       GDALDataset &oSrcDS, bool bCompressDS,
-                       const CPLString osUsrPattern, const CPLString osPattern)
+                       GDALDataset &oSrcDS, const CPLString osUsrPattern,
+                       const CPLString osPattern)
     : m_bIsValid(false)
 {
     nBands = oSrcDS.GetRasterCount();
@@ -122,8 +122,11 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         bool bCategorical =
             IsCategoricalBand(*pRasterBand, papszOptions, osIndexBand);
 
+        bool bCompressDS =
+            EQUAL(CSLFetchNameValueDef(papszOptions, "COMPRESS", "YES"), "YES");
+
         // Emplace back a MMRBand
-        oBands.emplace_back(pfnProgress, pProgressData,
+        oBands.emplace_back(pfnProgress, pProgressData, oSrcDS, nIBand - 1,
                             CPLGetPathSafe(osRelname), *pRasterBand,
                             bCompressDS, bCategorical, osPattern, osIndexBand,
                             bNeedOfNomFitxer);
@@ -320,9 +323,6 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
                                     void *pProgressData)
 
 {
-    bool bCompress =
-        EQUAL(CSLFetchNameValueDef(papszOptions, "COMPRESS", "YES"), "YES");
-
     // pszFilename doesn't have extension or must end in "I.rel"
     const CPLString osFileName = pszFilename;
     CPLString osRelName = CreateAssociatedMetadataFileName(osFileName);
@@ -334,23 +334,17 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
     CPLString osPattern = CreatePatternFileName(osRelName, osUsrPattern);
 
     if (osPattern.empty())
-        osPattern = CPLGetBasenameSafe(osRelName);
-
-    if (!pfnProgress(0.0, nullptr, pProgressData))
         return nullptr;
 
-    auto poDS = std::make_unique<MMRDataset>(
-        pfnProgress, pProgressData, papszOptions, osRelName, *poSrcDS,
-        bCompress, osUsrPattern, osPattern);
+    auto poDS = std::make_unique<MMRDataset>(pfnProgress, pProgressData,
+                                             papszOptions, osRelName, *poSrcDS,
+                                             osUsrPattern, osPattern);
 
     if (!poDS->IsValid())
         return nullptr;
 
     poDS->SetDescription(pszFilename);
     poDS->eAccess = GA_Update;
-
-    if (!pfnProgress(1.0, nullptr, pProgressData))
-        return nullptr;
 
     return poDS.release();
 }
