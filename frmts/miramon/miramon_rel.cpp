@@ -1270,7 +1270,7 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
                               const CPLString osDSDataType)
 {
     if (osBand.GetBandSection().empty())
-        return true;  // It's not an error.
+        return;  // It's not an error.
 
     CPLString osSection = "ATTRIBUTE_DATA";
     osSection.append(":");
