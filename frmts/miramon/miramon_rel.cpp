@@ -1300,7 +1300,6 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
     //JoinTaula_G1_1_BYTE_2X3_6_CATEGS_DBF=G1_1_BYTE_2X3_6_CATEGS_DBF
 
     AddSectionEnd();
-    return true;
 }
 
 void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
