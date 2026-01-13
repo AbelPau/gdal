@@ -192,8 +192,7 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
       m_osBandFileName(""), m_osBandName(""),
       m_osFriendlyDescription(papoBand.GetDescription()),
-      m_bNeedOfNomFitxer(bNeedOfNomFitxer), m_bIsCompressed(bCompress),
-      m_bIsCategorical(bCategorical)
+      m_bIsCompressed(bCompress), m_bIsCategorical(bCategorical)
 
 {
     // Getting the binary filename
@@ -1232,7 +1231,7 @@ bool MMRBand::WriteRowOffsets()
     if (m_aFileOffsets.empty() || m_nHeight == 0)
         return true;
 
-    VSIFSeekL(m_pfIMG, 0L, SEEK_END);
+    VSIFSeekL(m_pfIMG, 0, SEEK_END);
 
     vsi_l_offset nStartOffset = VSIFTellL(m_pfIMG);
     if (nStartOffset == 0)
@@ -1246,7 +1245,7 @@ bool MMRBand::WriteRowOffsets()
     if (VSIFWriteL(&nAux, 4, 1, m_pfIMG) != 1)
         return false;
 
-    int nIndexOffset = m_nHeight;
+    size_t nIndexOffset = static_cast<size_t>(m_nHeight);
     vsi_l_offset nOffsetSize;
 
     if (m_aFileOffsets[nIndexOffset - 1] < static_cast<vsi_l_offset>(UCHAR_MAX))
@@ -1255,7 +1254,7 @@ bool MMRBand::WriteRowOffsets()
              static_cast<vsi_l_offset>(USHRT_MAX))
         nOffsetSize = 2;
     else if (m_aFileOffsets[nIndexOffset - 1] <
-             static_cast<vsi_l_offset>(_UI32_MAX))
+             static_cast<vsi_l_offset>(UINT32_MAX))
         nOffsetSize = 4;
     else
         nOffsetSize = 8;

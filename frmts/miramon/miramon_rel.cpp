@@ -1256,8 +1256,7 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
     for (int nIBand = 0; nIBand < m_nBands; nIBand++)
     {
         // Adding band information to REL
-        if (!WriteBandSection(m_oBands[nIBand], osDSDataType))
-            return false;
+        WriteBandSection(m_oBands[nIBand], osDSDataType);
 
         // Writing IMG binary file
         if (!m_oBands[nIBand].WriteBandFile(oSrcDS, m_nBands, nIBand))
@@ -1267,7 +1266,7 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
     return true;
 }
 
-bool MMRRel::WriteBandSection(const MMRBand &osBand,
+void MMRRel::WriteBandSection(const MMRBand &osBand,
                               const CPLString osDSDataType)
 {
     if (osBand.GetBandSection().empty())
