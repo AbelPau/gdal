@@ -1235,7 +1235,7 @@ bool MMRBand::WriteRowOffsets()
         return false;
 
     size_t nIndexOffset = static_cast<size_t>(m_nHeight);
-    vsi_l_offset nOffsetSize;
+    int nOffsetSize;
 
     if (m_aFileOffsets[nIndexOffset - 1] < static_cast<vsi_l_offset>(UCHAR_MAX))
         nOffsetSize = 1;
@@ -1262,7 +1262,8 @@ bool MMRBand::WriteRowOffsets()
         return false;
 
     // The main part
-    if (nOffsetSize == sizeof(vsi_l_offset))
+    size_t nSizeTOffsetSize = nOffsetSize;
+    if (nSizeTOffsetSize == sizeof(vsi_l_offset))
     {
         if (VSIFWriteL(&(m_aFileOffsets[0]), sizeof(vsi_l_offset), nIndexOffset,
                        m_pfIMG) != nIndexOffset)
@@ -1273,7 +1274,7 @@ bool MMRBand::WriteRowOffsets()
         for (nIndexOffset = 0; nIndexOffset < m_aFileOffsets.size() - 1;
              nIndexOffset++)
         {
-            if (VSIFWriteL(&(m_aFileOffsets[nIndexOffset]), nOffsetSize, 1,
+            if (VSIFWriteL(&(m_aFileOffsets[nIndexOffset]), nSizeTOffsetSize, 1,
                            m_pfIMG) != 1)
                 return false;
         }
