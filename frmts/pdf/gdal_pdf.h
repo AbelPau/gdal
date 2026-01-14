@@ -249,7 +249,8 @@ class PDFDataset final : public GDALPamDataset
     int m_nBlockYSize = 0;
     int CheckTiledRaster();
 
-    void GuessDPI(GDALPDFDictionary *poPageDict, int *pnBands);
+    void GuessDPIAndBandCount(GDALPDFDictionary *poPageDict, double &dfPI,
+                              int &nBandsGuessed);
     void FindXMP(GDALPDFObject *poObj);
     void ParseInfo(GDALPDFObject *poObj);
 
@@ -421,8 +422,8 @@ class PDFDataset final : public GDALPamDataset
     CPLErr SetSpatialRef(const OGRSpatialReference *poSRS) override;
 
     char **GetMetadataDomainList() override;
-    char **GetMetadata(const char *pszDomain = "") override;
-    CPLErr SetMetadata(char **papszMetadata,
+    CSLConstList GetMetadata(const char *pszDomain = "") override;
+    CPLErr SetMetadata(CSLConstList papszMetadata,
                        const char *pszDomain = "") override;
     virtual const char *GetMetadataItem(const char *pszName,
                                         const char *pszDomain = "") override;
@@ -495,6 +496,8 @@ class PDFRasterBand CPL_NON_FINAL : public GDALPamRasterBand
     int nResolutionLevel;
 
     CPLErr IReadBlockFromTile(int, int, void *);
+
+    void SetSize(int nXSize, int nYSize);
 
   public:
     PDFRasterBand(PDFDataset *, int, int);
