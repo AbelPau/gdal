@@ -1723,6 +1723,9 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
         return 0;
 
     m_poCT = pRasterBand->GetColorTable();
+    if (!m_poCT)
+        return 0;
+
     if (!m_poCT->GetColorEntryCount())
         return 0;
 
