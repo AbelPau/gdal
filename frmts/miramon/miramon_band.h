@@ -221,6 +221,11 @@ class MMRBand final
         return m_bIsCategorical;
     }
 
+    CPLString GetColorTableNameFile() const
+    {
+        return m_osCTName;
+    }
+
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
     // Writing part
@@ -261,6 +266,8 @@ class MMRBand final
     bool UpdateDataTypeAndBytesPerPixelFromRasterBand(GDALRasterBand &papoBand);
     void UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand);
     void UpdateNoDataValueFromRasterBand(GDALRasterBand &papoBand);
+    int WriteColorTable(GDALDataset &oSrcDS, int nIBand);
+    int WriteAttributeTable(GDALDataset &oSrcDS, int nIBand);
 
     GDALProgressFunc m_pfnProgress = nullptr;  // Inherited from DataSet
     void *m_pProgressData = nullptr;           // Inherited from DataSet
@@ -338,6 +345,7 @@ class MMRBand final
 
     // Color table in writting part of the driver
     GDALColorTable *m_poCT = nullptr;
+    CPLString m_osCTName = "";
 
     // Attributte table in writting part of the driver
     GDALRasterAttributeTable *m_poRAT = nullptr;

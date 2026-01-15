@@ -1295,6 +1295,11 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
     AddKeyValue("min", osBand.GetMin());
     AddKeyValue("max", osBand.GetMax());
 
+    if (osBand.GetColorTableNameFile().empty())
+    {
+        // TODO
+    }
+
     // TODO:
     //IndexsJoinTaula=G1_1_BYTE_2X3_6_CATEGS_DBF
     //JoinTaula_G1_1_BYTE_2X3_6_CATEGS_DBF=G1_1_BYTE_2X3_6_CATEGS_DBF
@@ -1304,6 +1309,12 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
 
 void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
 {
+    if (!GetRELFile())
+        return;
+
+    if (!m_nBands)
+        return;
+
     AddSectionStart(SECTION_COLOR_TEXT);
     AddCOLOR_TEXTVersion();
     AddKeyValue("UnificVisCons", 1);
@@ -1311,15 +1322,67 @@ void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
     AddKeyValue("consultable", 1);
     AddKeyValue("EscalaMaxima", 0);
     AddKeyValue("EscalaMinima", 900000000);
-    AddKeyValue("Color_Const", 0);  //TODO
-    if (bIsCategorical)
-        AddKeyValue("Color_TractamentVariable", "Categoric");
-    else
-        AddKeyValue("Color_TractamentVariable", "QuantitatiuContinu");
-    AddKeyValue("Color_Paleta", "<Automatic>");  //TODO
-    AddKeyValue("Tooltips_Const", 1);
+    AddKeyValue("Color_Const", 0);
 
+    CPLString osColor_DefaultTractamentVariable;
+    CPLString osColor_DefaultColor_Paleta;
+    if (!m_oBands[0].GetColorTableNameFile().empty())
+    {
+        osColor_DefaultTractamentVariable = "Categoric";
+        osColor_DefaultColor_Paleta = m_oBands[0].GetColorTableNameFile();
+    }
+    else
+    {
+        osColor_DefaultTractamentVariable = "QuantitatiuContinu";
+        osColor_DefaultColor_Paleta = "<Automatic>";
+    }
+    AddKeyValue("Color_TractamentVariable", osColor_DefaultTractamentVariable);
+    AddKeyValue("Color_Paleta", osColor_DefaultColor_Paleta);
+
+    AddKeyValue("Tooltips_Const", 1);
     AddSectionEnd();
+
+    // Are there any ColorTractamentVariable and Color_Paleta
+    // Different from the default one?
+    bool bAllUseSameCT = true;
+    for (int nIBand = 1; nIBand < m_nBands; nIBand++)
+    {
+        if (!EQUAL(m_oBands[nIBand].GetColorTableNameFile(),
+                   m_oBands[0].GetColorTableNameFile()))
+        {
+            bAllUseSameCT = false;
+            break;
+        }
+    }
+
+    // Different key values from the first one in a new section
+    if (!bAllUseSameCT)
+    {
+        for (int nIBand = 1; nIBand < m_nBands; nIBand++)
+        {
+            if (!EQUAL(m_oBands[nIBand].GetColorTableNameFile(),
+                       m_oBands[0].GetColorTableNameFile()))
+            {
+                CPLString osSectionColorBand = SECTION_COLOR_TEXT;
+                osSectionColorBand.append(m_oBands[nIBand].GetBandSection());
+                AddSectionStart(osSectionColorBand);
+                AddCOLOR_TEXTVersion();
+                if (!m_oBands[nIBand].GetColorTableNameFile().empty())
+                {
+                    AddKeyValue("Color_TractamentVariable", "Categoric");
+                    AddKeyValue("Color_Paleta",
+                                m_oBands[0].GetColorTableNameFile());
+                }
+                else
+                {
+                    AddKeyValue("Color_TractamentVariable",
+                                "QuantitatiuContinu");
+                    AddKeyValue("Color_Paleta", "<Automatic>");
+                }
+                AddSectionEnd();
+            }
+        }
+    }
 }
 
 void MMRRel::WriteVISU_LLEGENDASection()

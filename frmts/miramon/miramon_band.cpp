@@ -17,11 +17,8 @@
 #include "miramon_rel.h"
 #include "miramon_band.h"
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_driver_structs.h"  // For SECTION_VERSIO
-#else
 #include "../miramon_common/mm_gdal_driver_structs.h"  // For SECTION_VERSIO
-#endif
+#include "../miramon_common/mm_gdal_functions.h"       // For SECTION_VERSIO
 
 /************************************************************************/
 /*                              MMRBand()                               */
@@ -245,22 +242,14 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
     // Getting NoData value and definition
     UpdateNoDataValueFromRasterBand(papoBand);
 
-    // Getting reference system and coordinates of the geographic bounding box
-    // Not in the band, but in the dataset.
-    // UpdateReferenceSystemFromRasterBand(papoBand);
+    if (WriteColorTable(oSrcDS, nIBand))
+    {
+        m_osCTName = "";
+        CPLError(CE_Warning, CPLE_AppDefined,
+                 "MMRBand::MMRBand : Existant color table  but not imported");
+    }
 
-    // Getting the bounding box: coordinates in the terrain
-    // Not in the band, but in the dataset.
-    //UpdateBoundingBoxFromRasterBand(papoBand);
-
-    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
-    if (!pRasterBand)
-        return;
-    // COLOR_TABLE
-    m_poCT = pRasterBand->GetColorTable();
-
-    // ATRIBUTTE TABLE
-    m_poRAT = pRasterBand->GetDefaultRAT();
+    WriteAttributeTable(oSrcDS, nIBand);
 
     // We have a valid MMRBand.
     m_bIsValid = true;
@@ -1594,8 +1583,6 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
     if (!m_pfnProgress(dfComplete, nullptr, m_pProgressData))
         return false;
 
-    //VSIFCloseL(m_pfIMG);
-    //m_pfIMG = nullptr;
     return true;
 }
 
@@ -1727,4 +1714,147 @@ size_t MMRBand::CompressRowType(MMDataType nDataType, const void *pRow,
             // same treatment than the original
             return 0;
     }
+}
+
+int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
+{
+    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
+    if (!pRasterBand)
+        return 0;
+
+    m_poCT = pRasterBand->GetColorTable();
+    if (!m_poCT->GetColorEntryCount())
+        return 0;
+
+    // Creating DBF table name
+    if (!cpl::ends_with(m_osBandFileName, pszExtRaster))
+        return 1;
+
+    // Extract .img
+    m_osCTName = m_osBandFileName;
+    m_osCTName.resize(m_osCTName.size() - strlen(".img"));
+    m_osCTName.append("_CT.dbf");
+
+    // Creating DBF
+    struct MM_DATA_BASE_XP *pBD_XP =
+        MM_CreateDBFHeader(4, MM_JOC_CARAC_UTF8_DBF);
+    if (!pBD_XP)
+        return 1;
+
+    // Assigning DBF table name
+    CPLStrlcpy(pBD_XP->szFileName, m_osCTName, sizeof(pBD_XP->szFileName));
+
+    // Initializing the table
+    MM_EXT_DBF_N_RECORDS nPaletteColors =
+        static_cast<MM_EXT_DBF_N_RECORDS>(m_poCT->GetColorEntryCount());
+    pBD_XP->nFields = 4;
+    pBD_XP->nRecords = nPaletteColors;
+    pBD_XP->FirstRecordOffset =
+        static_cast<MM_FIRST_RECORD_OFFSET_TYPE>(33 + (pBD_XP->nFields * 32));
+    pBD_XP->CharSet = MM_JOC_CARAC_ANSI_DBASE;
+    pBD_XP->dbf_version = MM_MARCA_DBASE4;
+    pBD_XP->BytesPerRecord = 1;  // First not used byte
+
+    MM_ACCUMULATED_BYTES_TYPE_DBF nClauSimbolNBytes = 0;
+    do
+    {
+        nClauSimbolNBytes++;
+        nPaletteColors /= 10;
+    } while (nPaletteColors > 0);
+    nClauSimbolNBytes++;
+
+    // Fields of the DBF table
+    struct MM_FIELD MMField;
+    MM_InitializeField(&MMField);
+    MMField.FieldType = 'N';
+    CPLStrlcpy(MMField.FieldName, "CLAUSIMBOL", MM_MAX_LON_FIELD_NAME_DBF);
+    MMField.BytesPerField = nClauSimbolNBytes;
+    MM_DuplicateFieldDBXP(pBD_XP->pField, &MMField);
+
+    CPLStrlcpy(MMField.FieldName, "R_COLOR", MM_MAX_LON_FIELD_NAME_DBF);
+    MMField.BytesPerField = 3;
+    MM_DuplicateFieldDBXP(pBD_XP->pField + 1, &MMField);
+
+    CPLStrlcpy(MMField.FieldName, "G_COLOR", MM_MAX_LON_FIELD_NAME_DBF);
+    MMField.BytesPerField = 3;
+    MM_DuplicateFieldDBXP(pBD_XP->pField + 2, &MMField);
+
+    CPLStrlcpy(MMField.FieldName, "B_COLOR", MM_MAX_LON_FIELD_NAME_DBF);
+    MMField.BytesPerField = 3;
+    MM_DuplicateFieldDBXP(pBD_XP->pField + 3, &MMField);
+
+    // Opening the table
+    if (!MM_CreateAndOpenDBFFile(pBD_XP, pBD_XP->szFileName))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+
+    //	Writting records to the table
+    if (0 != VSIFSeekL(pBD_XP->pfDataBase,
+                       static_cast<vsi_l_offset>(pBD_XP->FirstRecordOffset),
+                       SEEK_SET))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+
+    GDALColorEntry colorEntry;
+    bool bColorNoDataNeeded = false;
+    int nIColor;
+    for (nIColor = 0; nIColor < pBD_XP->nRecords; nIColor++)
+    {
+        m_poCT->GetColorEntryAsRGB(nIColor, &colorEntry);
+
+        // Nodata color detected if alpha channel is 0
+        if (colorEntry.c4 == 0)
+            bColorNoDataNeeded = true;
+
+        // Important: the space before %
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, " %*ld", (int)nClauSimbolNBytes,
+                         nIColor))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d", (int)(colorEntry.c1),
+                         (int)(colorEntry.c2), (int)(colorEntry.c3)))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
+    }
+
+    if (bColorNoDataNeeded)
+    {
+        pBD_XP->nRecords++;
+        // Important: the space before %
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, " %*ld", (int)nClauSimbolNBytes,
+                         nIColor))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d", -1, -1, -1))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
+    }
+    fclose_and_nullify(&pBD_XP->pfDataBase);
+    MM_ReleaseDBFHeader(&pBD_XP);
+    return 0;
+}
+
+int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
+{
+    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
+    if (!pRasterBand)
+        return 0;
+
+    m_poRAT = pRasterBand->GetDefaultRAT();
+
+    // TODO
+
+    return 1;
 }
