@@ -1812,7 +1812,7 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
         m_poCT->GetColorEntryAsRGB(nIColor, &colorEntry);
 
         // Important: the space before %
-        if (!VSIFPrintfL(pBD_XP->pfDataBase, " %*ld",
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, " %*d",
                          static_cast<int>(nClauSimbolNBytes), nIColor))
         {
             MM_ReleaseDBFHeader(&pBD_XP);

@@ -1344,10 +1344,13 @@ void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
 
     CPLString osColor_DefaultTractamentVariable;
     CPLString osColor_DefaultColor_Paleta;
+    CPLString osRELPath = CPLGetPathSafe(m_osRelFileName);
+
     if (!m_oBands[0].GetColorTableNameFile().empty())
     {
         osColor_DefaultTractamentVariable = "Categoric";
-        osColor_DefaultColor_Paleta = m_oBands[0].GetColorTableNameFile();
+        osColor_DefaultColor_Paleta = CPLExtractRelativePath(
+            osRELPath, m_oBands[0].GetColorTableNameFile(), nullptr);
     }
     else
     {
@@ -1355,10 +1358,7 @@ void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
         osColor_DefaultColor_Paleta = "<Automatic>";
     }
     AddKeyValue("Color_TractamentVariable", osColor_DefaultTractamentVariable);
-    CPLString osRELPath = CPLGetPathSafe(m_osRelFileName);
-    CPLString osRelative =
-        CPLExtractRelativePath(osRELPath, osColor_DefaultColor_Paleta, nullptr);
-    AddKeyValue("Color_Paleta", osRelative);
+    AddKeyValue("Color_Paleta", osColor_DefaultColor_Paleta);
 
     AddKeyValue("Tooltips_Const", 1);
     AddSectionEnd();
@@ -1391,10 +1391,10 @@ void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
                 if (!m_oBands[nIBand].GetColorTableNameFile().empty())
                 {
                     AddKeyValue("Color_TractamentVariable", "Categoric");
-                    osRelative = CPLExtractRelativePath(
+                    osColor_DefaultColor_Paleta = CPLExtractRelativePath(
                         osRELPath, m_oBands[nIBand].GetColorTableNameFile(),
                         nullptr);
-                    AddKeyValue("Color_Paleta", osRelative);
+                    AddKeyValue("Color_Paleta", osColor_DefaultColor_Paleta);
                 }
                 else
                 {
