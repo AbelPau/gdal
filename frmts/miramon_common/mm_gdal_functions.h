@@ -34,7 +34,7 @@ CPL_DLL MM_BOOLEAN MM_CreateAndOpenDBFFile(struct MM_DATA_BASE_XP *bd_xp,
                                            const char *NomFitxer);
 CPL_DLL int MM_DuplicateFieldDBXP(struct MM_FIELD *camp_final,
                                   const struct MM_FIELD *camp_inicial);
-CPL_DLL int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB);
+CPL_DLL int MM_WriteNRecordsMMBD_XPFile(struct MM_DATA_BASE_XP *pMMBDXP);
 
 CPL_DLL int MM_ModifyFieldNameAndDescriptorIfPresentBD_XP(
     struct MM_FIELD *camp, struct MM_DATA_BASE_XP *bd_xp,

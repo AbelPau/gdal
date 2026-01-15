@@ -755,7 +755,11 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
         // wants (Categorical or Continuous)
         if (pRasterBand.GetCategoryNames() != nullptr)
             return true;
-        else if (pRasterBand.GetDefaultRAT() != nullptr)
+        if (pRasterBand.GetDefaultRAT() != nullptr)
+            return true;
+
+        // Assume that if data type is an integer, then the band is categorical.
+        if (pRasterBand.GetRasterDataType() <= GDT_Int64)
             return true;
     }
     else if (bUsrCategorical && bUsrContinuous)

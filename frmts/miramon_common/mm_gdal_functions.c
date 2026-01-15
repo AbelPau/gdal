@@ -465,52 +465,46 @@ MM_GiveOffsetExtendedFieldName(const struct MM_FIELD *camp)
     return offset_nom_camp;
 }
 
-CPL_DLL int MM_WriteNRecordsMMBD_XPFile(struct MMAdmDatabase *MMAdmDB)
+CPL_DLL int MM_WriteNRecordsMMBD_XPFile(struct MM_DATA_BASE_XP *pMMBDXP)
 {
-    if (!MMAdmDB->pMMBDXP || !MMAdmDB->pMMBDXP->pfDataBase)
+    if (!pMMBDXP || !pMMBDXP->pfDataBase)
         return 0;
 
     // Updating number of features in features table
-    VSIFSeekL(MMAdmDB->pMMBDXP->pfDataBase, MM_FIRST_OFFSET_to_N_RECORDS,
-              SEEK_SET);
+    VSIFSeekL(pMMBDXP->pfDataBase, MM_FIRST_OFFSET_to_N_RECORDS, SEEK_SET);
 
-    if (MMAdmDB->pMMBDXP->nRecords > UINT32_MAX)
+    if (pMMBDXP->nRecords > UINT32_MAX)
     {
-        MMAdmDB->pMMBDXP->dbf_version = MM_MARCA_VERSIO_1_DBF_ESTESA;
+        pMMBDXP->dbf_version = MM_MARCA_VERSIO_1_DBF_ESTESA;
     }
     else
     {
-        MMAdmDB->pMMBDXP->dbf_version = MM_MARCA_DBASE4;
+        pMMBDXP->dbf_version = MM_MARCA_DBASE4;
     }
 
     {
-        GUInt32 nRecords32LowBits =
-            (GUInt32)(MMAdmDB->pMMBDXP->nRecords & UINT32_MAX);
-        if (VSIFWriteL(&nRecords32LowBits, 4, 1,
-                       MMAdmDB->pMMBDXP->pfDataBase) != 1)
+        GUInt32 nRecords32LowBits = (GUInt32)(pMMBDXP->nRecords & UINT32_MAX);
+        if (VSIFWriteL(&nRecords32LowBits, 4, 1, pMMBDXP->pfDataBase) != 1)
             return 1;
     }
 
-    VSIFSeekL(MMAdmDB->pMMBDXP->pfDataBase, MM_SECOND_OFFSET_to_N_RECORDS,
-              SEEK_SET);
-    if (MMAdmDB->pMMBDXP->dbf_version == MM_MARCA_VERSIO_1_DBF_ESTESA)
+    VSIFSeekL(pMMBDXP->pfDataBase, MM_SECOND_OFFSET_to_N_RECORDS, SEEK_SET);
+    if (pMMBDXP->dbf_version == MM_MARCA_VERSIO_1_DBF_ESTESA)
     {
         /* from 16 to 19, position MM_SECOND_OFFSET_to_N_RECORDS */
-        GUInt32 nRecords32HighBits =
-            (GUInt32)(MMAdmDB->pMMBDXP->nRecords >> 32);
-        if (VSIFWriteL(&nRecords32HighBits, 4, 1,
-                       MMAdmDB->pMMBDXP->pfDataBase) != 1)
+        GUInt32 nRecords32HighBits = (GUInt32)(pMMBDXP->nRecords >> 32);
+        if (VSIFWriteL(&nRecords32HighBits, 4, 1, pMMBDXP->pfDataBase) != 1)
             return 1;
 
         /* from 20 to 27 */
-        if (VSIFWriteL(&(MMAdmDB->pMMBDXP->dbf_on_a_LAN), 8, 1,
-                       MMAdmDB->pMMBDXP->pfDataBase) != 1)
+        if (VSIFWriteL(&(pMMBDXP->dbf_on_a_LAN), 8, 1, pMMBDXP->pfDataBase) !=
+            1)
             return 1;
     }
     else
     {
-        if (VSIFWriteL(&(MMAdmDB->pMMBDXP->dbf_on_a_LAN), 12, 1,
-                       MMAdmDB->pMMBDXP->pfDataBase) != 1)
+        if (VSIFWriteL(&(pMMBDXP->dbf_on_a_LAN), 12, 1, pMMBDXP->pfDataBase) !=
+            1)
             return 1;
     }
 

@@ -1726,6 +1726,9 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
     if (!m_poCT->GetColorEntryCount())
         return 0;
 
+    if (m_poCT->GetColorEntryCount() > 255)
+        return 1;
+
     // Creating DBF table name
     if (!cpl::ends_with(m_osBandFileName, pszExtRaster))
         return 1;
@@ -1800,47 +1803,39 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
     }
 
     GDALColorEntry colorEntry;
-    bool bColorNoDataNeeded = false;
     int nIColor;
-    for (nIColor = 0; nIColor < pBD_XP->nRecords; nIColor++)
+    for (nIColor = 0; nIColor < static_cast<int>(pBD_XP->nRecords); nIColor++)
     {
         m_poCT->GetColorEntryAsRGB(nIColor, &colorEntry);
 
-        // Nodata color detected if alpha channel is 0
+        // Important: the space before %
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, " %*ld",
+                         static_cast<int>(nClauSimbolNBytes), nIColor))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
         if (colorEntry.c4 == 0)
-            bColorNoDataNeeded = true;
-
-        // Important: the space before %
-        if (!VSIFPrintfL(pBD_XP->pfDataBase, " %*ld", (int)nClauSimbolNBytes,
-                         nIColor))
         {
-            MM_ReleaseDBFHeader(&pBD_XP);
-            return 1;
+            if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d", -1, -1, -1))
+            {
+                MM_ReleaseDBFHeader(&pBD_XP);
+                return 1;
+            }
         }
-        if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d", (int)(colorEntry.c1),
-                         (int)(colorEntry.c2), (int)(colorEntry.c3)))
+        else
         {
-            MM_ReleaseDBFHeader(&pBD_XP);
-            return 1;
-        }
-    }
-
-    if (bColorNoDataNeeded)
-    {
-        pBD_XP->nRecords++;
-        // Important: the space before %
-        if (!VSIFPrintfL(pBD_XP->pfDataBase, " %*ld", (int)nClauSimbolNBytes,
-                         nIColor))
-        {
-            MM_ReleaseDBFHeader(&pBD_XP);
-            return 1;
-        }
-        if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d", -1, -1, -1))
-        {
-            MM_ReleaseDBFHeader(&pBD_XP);
-            return 1;
+            if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d",
+                             static_cast<int>(colorEntry.c1),
+                             static_cast<int>(colorEntry.c2),
+                             static_cast<int>(colorEntry.c3)))
+            {
+                MM_ReleaseDBFHeader(&pBD_XP);
+                return 1;
+            }
         }
     }
+
     fclose_and_nullify(&pBD_XP->pfDataBase);
     MM_ReleaseDBFHeader(&pBD_XP);
     return 0;

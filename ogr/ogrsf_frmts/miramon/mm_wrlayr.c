@@ -6135,7 +6135,7 @@ MMTestAndFixValueToRecordDBXP(struct MiraMonVectLayerInfo *hMiraMonLayer,
 
     if (nNewWidth > camp->BytesPerField)
     {
-        if (MM_WriteNRecordsMMBD_XPFile(pMMAdmDB))
+        if (MM_WriteNRecordsMMBD_XPFile(pMMAdmDB->pMMBDXP))
             return 1;
 
         // Flushing all to be flushed
@@ -6964,7 +6964,7 @@ static int MMCloseMMBD_XPFile(struct MiraMonVectLayerInfo *hMiraMonLayer,
             }
         }
 
-        if (MM_WriteNRecordsMMBD_XPFile(MMAdmDB))
+        if (MM_WriteNRecordsMMBD_XPFile(MMAdmDB->pMMBDXP))
             goto end_label;
 
         // Flushing all to be flushed

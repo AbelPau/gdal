@@ -1292,8 +1292,26 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
     if (!osBand.GetFriendlyDescription().empty())
         AddKeyValue("descriptor", osBand.GetFriendlyDescription());
 
-    AddKeyValue("min", osBand.GetMin());
-    AddKeyValue("max", osBand.GetMax());
+    if (osBand.BandHasNoData())
+    {
+        AddKeyValue("NODATA", osBand.GetNoDataValue());
+        AddKeyValue("NODATADef", "NODATA");
+
+        if (osBand.GetMin() == osBand.GetNoDataValue())
+            AddKeyValue("min", osBand.GetMin() + 1);
+        else
+            AddKeyValue("min", osBand.GetMin());
+
+        if (osBand.GetMax() == osBand.GetNoDataValue())
+            AddKeyValue("max", osBand.GetMax() - 1);
+        else
+            AddKeyValue("max", osBand.GetMax());
+    }
+    else
+    {
+        AddKeyValue("min", osBand.GetMin());
+        AddKeyValue("max", osBand.GetMax());
+    }
 
     if (osBand.GetColorTableNameFile().empty())
     {
@@ -1337,7 +1355,10 @@ void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
         osColor_DefaultColor_Paleta = "<Automatic>";
     }
     AddKeyValue("Color_TractamentVariable", osColor_DefaultTractamentVariable);
-    AddKeyValue("Color_Paleta", osColor_DefaultColor_Paleta);
+    CPLString osRELPath = CPLGetPathSafe(m_osRelFileName);
+    CPLString osRelative =
+        CPLExtractRelativePath(osRELPath, osColor_DefaultColor_Paleta, nullptr);
+    AddKeyValue("Color_Paleta", osRelative);
 
     AddKeyValue("Tooltips_Const", 1);
     AddSectionEnd();
@@ -1370,8 +1391,10 @@ void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
                 if (!m_oBands[nIBand].GetColorTableNameFile().empty())
                 {
                     AddKeyValue("Color_TractamentVariable", "Categoric");
-                    AddKeyValue("Color_Paleta",
-                                m_oBands[0].GetColorTableNameFile());
+                    osRelative = CPLExtractRelativePath(
+                        osRELPath, m_oBands[nIBand].GetColorTableNameFile(),
+                        nullptr);
+                    AddKeyValue("Color_Paleta", osRelative);
                 }
                 else
                 {
