@@ -1079,7 +1079,7 @@ bool MMRRel::Write(GDALDataset &oSrcDS)
     }
 
     // Writing visualization sections
-    WriteCOLOR_TEXTSection(false);  // TODO: segons la paleta
+    WriteCOLOR_TEXTSection();
     WriteVISU_LLEGENDASection();
 
     CloseRELFile();
@@ -1325,7 +1325,7 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
     AddSectionEnd();
 }
 
-void MMRRel::WriteCOLOR_TEXTSection(bool bIsCategorical)
+void MMRRel::WriteCOLOR_TEXTSection()
 {
     if (!GetRELFile())
         return;

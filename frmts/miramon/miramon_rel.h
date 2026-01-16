@@ -104,7 +104,7 @@ class MMRRel
     void WriteOVERVIEW();
     bool WriteATTRIBUTE_DATA(GDALDataset &oSrcDS);
     void WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
-    void WriteCOLOR_TEXTSection(bool bIsCategorical);
+    void WriteCOLOR_TEXTSection();
     void WriteVISU_LLEGENDASection();
 
     bool IsValid() const
