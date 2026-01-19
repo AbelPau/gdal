@@ -54,7 +54,7 @@ class MMRRel
            int nWidth, int nHeight, double dfMinX, double dfMaxX, double dfMinY,
            double dfMaxY,
            std::vector<MMRBand> &&oBands);  // Used in writing
-    MMRRel(const CPLString &);              // Used in writing. Simple version
+    explicit MMRRel(const CPLString &);     // Used in writing. Simple version
     MMRRel(const MMRRel &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRRel &operator=(const MMRRel &) =
