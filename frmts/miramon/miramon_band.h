@@ -226,6 +226,16 @@ class MMRBand final
         return m_osCTName;
     }
 
+    CPLString GetAttributeTableDBFNameFile() const
+    {
+        return m_osRATDBFName;
+    }
+
+    CPLString GetAttributeTableRELNameFile() const
+    {
+        return m_osRATRELName;
+    }
+
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
     // Writing part
@@ -349,6 +359,10 @@ class MMRBand final
 
     // Attributte table in writting part of the driver
     GDALRasterAttributeTable *m_poRAT = nullptr;
+    CPLString m_osRATDBFName = "";
+    CPLString m_osRATRELName = "";
+    // Name of the column that relates the band with the RAT
+    CPLString m_osValue = "";
 };
 
 #endif /* ndef MM_BAND_INCLUDED */

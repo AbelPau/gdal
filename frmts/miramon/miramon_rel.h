@@ -54,6 +54,7 @@ class MMRRel
            int nWidth, int nHeight, double dfMinX, double dfMaxX, double dfMinY,
            double dfMaxY,
            std::vector<MMRBand> &&oBands);  // Used in writing
+    MMRRel(const CPLString &);              // Used in writing. Simple version
     MMRRel(const MMRRel &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRRel &operator=(const MMRRel &) =
@@ -127,7 +128,7 @@ class MMRRel
         if (m_osRelFileName.empty())
             return false;
 
-        m_pRELFile = VSIFOpenL(m_osRelFileName, "rb");
+        m_pRELFile = VSIFOpenL(m_osRelFileName, "wb");
         if (m_pRELFile)
             return true;
         return false;
@@ -223,16 +224,23 @@ class MMRRel
 
     void AddKeyValue(const CPLString osKey, const CPLString osValue)
     {
-        if (!m_pRELFile || osValue.empty())
+        if (!m_pRELFile)
             return;
 
         char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
-        char *pzsValue = CPLRecode(osValue, CPL_ENC_UTF8, "CP1252");
-        VSIFPrintfL(m_pRELFile, "%s=%s%s", pzsKey ? pzsKey : osKey.c_str(),
-                    pzsValue ? pzsValue : osValue.c_str(), LineReturn);
-
+        if (osValue.empty())
+        {
+            VSIFPrintfL(m_pRELFile, "%s=%s", pzsKey ? pzsKey : osKey.c_str(),
+                        LineReturn);
+        }
+        else
+        {
+            char *pzsValue = CPLRecode(osValue, CPL_ENC_UTF8, "CP1252");
+            VSIFPrintfL(m_pRELFile, "%s=%s%s", pzsKey ? pzsKey : osKey.c_str(),
+                        pzsValue ? pzsValue : osValue.c_str(), LineReturn);
+            CPLFree(pzsValue);
+        }
         CPLFree(pzsKey);
-        CPLFree(pzsValue);
     }
 
     void AddKeyValue(const CPLString osKey, const int nValue)

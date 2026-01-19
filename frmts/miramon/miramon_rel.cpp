@@ -154,6 +154,12 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bNeedOfNomFitxer,
     m_bIsValid = true;
 }
 
+MMRRel::MMRRel(const CPLString &osRELFilenameIn)
+    : m_osRelFileName(osRELFilenameIn), m_osTitle(""), m_szFileIdentifier(""),
+      m_bIsValid(true), m_bIsAMiraMonFile(true), m_nBands(0)
+{
+}
+
 /************************************************************************/
 /*                              ~MMRRel()                              */
 /************************************************************************/
@@ -1290,7 +1296,7 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
         AddKeyValue(KEY_NomFitxer, osBand.GetRawBandFileName());
 
     if (!osBand.GetFriendlyDescription().empty())
-        AddKeyValue("descriptor", osBand.GetFriendlyDescription());
+        AddKeyValue(KEY_descriptor, osBand.GetFriendlyDescription());
 
     if (osBand.BandHasNoData())
     {
@@ -1313,16 +1319,28 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
         AddKeyValue("max", osBand.GetMax());
     }
 
-    if (osBand.GetColorTableNameFile().empty())
+    CPLString osIJT = "";
+    if (!osBand.GetAttributeTableDBFNameFile().empty())
     {
-        // TODO
+        osIJT = osBand.GetBandSection();
+        osIJT.append("_DBF");
+        AddKeyValue("IndexsJoinTaula", osIJT);
+
+        CPLString osJT = "JoinTaula_";
+        osJT.append(osIJT);
+        AddKeyValue(osJT, osIJT);
     }
-
-    // TODO:
-    //IndexsJoinTaula=G1_1_BYTE_2X3_6_CATEGS_DBF
-    //JoinTaula_G1_1_BYTE_2X3_6_CATEGS_DBF=G1_1_BYTE_2X3_6_CATEGS_DBF
-
     AddSectionEnd();
+
+    if (!osIJT.empty())
+    {
+        CPLString osTAULA_SECTION = "TAULA_";
+        osTAULA_SECTION.append(osIJT);
+        AddSectionStart(osTAULA_SECTION);
+        AddKeyValue(KEY_NomFitxer,
+                    CPLGetFilename(osBand.GetAttributeTableRELNameFile()));
+        AddSectionEnd();
+    }
 }
 
 void MMRRel::WriteCOLOR_TEXTSection()

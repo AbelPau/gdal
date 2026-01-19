@@ -13,12 +13,12 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 #include <algorithm>
+#include "gdal_rat.h"
 
 #include "miramon_rel.h"
 #include "miramon_band.h"
 
-#include "../miramon_common/mm_gdal_driver_structs.h"  // For SECTION_VERSIO
-#include "../miramon_common/mm_gdal_functions.h"       // For SECTION_VERSIO
+#include "../miramon_common/mm_gdal_functions.h"  // For MM_CreateDBFHeader
 
 /************************************************************************/
 /*                              MMRBand()                               */
@@ -249,7 +249,13 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
                  "MMRBand::MMRBand : Existant color table  but not imported");
     }
 
-    WriteAttributeTable(oSrcDS, nIBand);
+    if (WriteAttributeTable(oSrcDS, nIBand))
+    {
+        m_osRATDBFName = "";
+        m_osRATRELName = "";
+        CPLError(CE_Warning, CPLE_AppDefined,
+                 "MMRBand::MMRBand : Existant color table  but not imported");
+    }
 
     // We have a valid MMRBand.
     m_bIsValid = true;
@@ -603,7 +609,7 @@ void MMRBand::UpdateFriendlyDescriptionFromREL(const CPLString &osSection)
 {
     // This "if" is due to CID 1620830 in Coverity Scan
     if (!m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
-                                   "descriptor", m_osFriendlyDescription))
+                                   KEY_descriptor, m_osFriendlyDescription))
         m_osFriendlyDescription = "";
 }
 
@@ -1729,9 +1735,6 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
     if (!m_poCT->GetColorEntryCount())
         return 0;
 
-    if (m_poCT->GetColorEntryCount() > 255)
-        return 1;
-
     // Creating DBF table name
     if (!cpl::ends_with(m_osBandFileName, pszExtRaster))
         return 1;
@@ -1759,7 +1762,7 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
         static_cast<MM_FIRST_RECORD_OFFSET_TYPE>(33 + (pBD_XP->nFields * 32));
     pBD_XP->CharSet = MM_JOC_CARAC_ANSI_DBASE;
     pBD_XP->dbf_version = MM_MARCA_DBASE4;
-    pBD_XP->BytesPerRecord = 1;  // First not used byte
+    pBD_XP->BytesPerRecord = 1;
 
     MM_ACCUMULATED_BYTES_TYPE_DBF nClauSimbolNBytes = 0;
     do
@@ -1811,8 +1814,14 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
     {
         m_poCT->GetColorEntryAsRGB(nIColor, &colorEntry);
 
-        // Important: the space before %
-        if (!VSIFPrintfL(pBD_XP->pfDataBase, " %*d",
+        // Deletion flag
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, " "))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
+
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, "%*d",
                          static_cast<int>(nClauSimbolNBytes), nIColor))
         {
             MM_ReleaseDBFHeader(&pBD_XP);
@@ -1844,6 +1853,7 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
     return 0;
 }
 
+// Writes DBF and REL attribute table in MiraMon format
 int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
 {
     GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
@@ -1851,8 +1861,252 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
         return 0;
 
     m_poRAT = pRasterBand->GetDefaultRAT();
+    if (!m_poRAT)
+        return 0;
 
-    // TODO
+    if (!m_poRAT->GetColumnCount())
+        return 0;
 
-    return 1;
+    if (!m_poRAT->GetRowCount())
+        return 0;
+
+    // Creating DBF table name
+    if (!cpl::ends_with(m_osBandFileName, pszExtRaster))
+        return 1;
+
+    // Extract .img and create DBF file name
+    m_osRATDBFName = m_osBandFileName;
+    m_osRATDBFName.resize(m_osRATDBFName.size() - strlen(".img"));
+    m_osRATDBFName.append("_RAT.dbf");
+
+    // Extract .img and create REL file name
+    m_osRATRELName = m_osBandFileName;
+    m_osRATRELName.resize(m_osRATRELName.size() - strlen(".img"));
+    m_osRATRELName.append("_RAT.rel");
+
+    // Creating DBF
+    int nFields = m_poRAT->GetColumnCount();
+    struct MM_DATA_BASE_XP *pBD_XP =
+        MM_CreateDBFHeader(nFields, MM_JOC_CARAC_UTF8_DBF);
+    if (!pBD_XP)
+        return 1;
+
+    // Creating a simple REL that allows to MiraMon user to
+    // document this RAT in case of need.
+    auto pRATRel = std::make_unique<MMRRel>(m_osRATRELName);
+    if (!pRATRel->OpenRELFile())
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+
+    pRATRel->AddSectionStart(SECTION_VERSIO);
+    pRATRel->AddKeyValue(KEY_Vers, "4");
+    pRATRel->AddKeyValue(KEY_SubVers, "3");
+    pRATRel->AddSectionEnd();
+
+    pRATRel->AddSectionStart(SECTION_TAULA_PRINCIPAL);
+    // Get path relative to REL file
+    pRATRel->AddKeyValue(KEY_NomFitxer, CPLGetFilename(m_osRATDBFName));
+    pRATRel->AddKeyValue(KEY_TipusRelacio, "RELACIO_N_1");
+
+    int nIField;
+    for (nIField = 0; nIField < m_poRAT->GetColumnCount(); nIField++)
+    {
+        if (m_poRAT->GetTypeOfCol(nIField) == GFT_Integer)
+        {
+            m_osValue = m_poRAT->GetNameOfCol(nIField);
+            pRATRel->AddKeyValue("AssociatRel", m_osValue);
+            break;
+        }
+    }
+    // If the RAT has no numertical type, MiraMon can't handle that
+    if (nIField == m_poRAT->GetColumnCount())
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+    pRATRel->AddSectionEnd();
+
+    // Assigning DBF table name
+    CPLStrlcpy(pBD_XP->szFileName, m_osRATDBFName, sizeof(pBD_XP->szFileName));
+
+    // Initializing the table
+    MM_EXT_DBF_N_RECORDS nRecords =
+        static_cast<MM_EXT_DBF_N_RECORDS>(m_poRAT->GetRowCount());
+    pBD_XP->nFields = nFields;
+    pBD_XP->nRecords = nRecords;
+    pBD_XP->FirstRecordOffset =
+        static_cast<MM_FIRST_RECORD_OFFSET_TYPE>(33 + (pBD_XP->nFields * 32));
+    pBD_XP->CharSet = MM_JOC_CARAC_ANSI_DBASE;
+    pBD_XP->dbf_version = MM_MARCA_DBASE4;
+    pBD_XP->BytesPerRecord = 1;
+
+    // Fields of the DBF table
+    struct MM_FIELD MMField;
+    for (nIField = 0; nIField < m_poRAT->GetColumnCount(); nIField++)
+    {
+        // DBF part
+        MM_InitializeField(&MMField);
+        CPLStrlcpy(MMField.FieldName, m_poRAT->GetNameOfCol(nIField), 8);
+
+        MMField.BytesPerField = 0;
+        for (int nIRow = 0; nIRow < m_poRAT->GetRowCount(); nIRow++)
+        {
+            if (m_poRAT->GetTypeOfCol(nIField) == GFT_DateTime)
+            {
+                MMField.FieldType = 'D';
+                MMField.DecimalsIfFloat = 0;
+                MMField.BytesPerField = MM_MAX_AMPLADA_CAMP_D_DBF;
+                break;
+            }
+            else if (m_poRAT->GetTypeOfCol(nIField) == GFT_Boolean)
+            {
+                MMField.FieldType = 'L';
+                MMField.DecimalsIfFloat = 0;
+                MMField.BytesPerField = 1;
+                break;
+            }
+            else
+            {
+                if (m_poRAT->GetTypeOfCol(nIField) == GFT_String ||
+                    m_poRAT->GetTypeOfCol(nIField) == GFT_WKBGeometry)
+                {
+                    MMField.FieldType = 'C';
+                    MMField.DecimalsIfFloat = 0;
+                }
+                else
+                {
+                    MMField.FieldType = 'N';
+                    if (m_poRAT->GetTypeOfCol(nIField) == GFT_Real)
+                    {
+                        MMField.BytesPerField = 20;
+                        MMField.DecimalsIfFloat = MAX_RELIABLE_SF_DOUBLE;
+                    }
+                    else
+                        MMField.DecimalsIfFloat = 0;
+                }
+                char *pszString =
+                    CPLRecode(m_poRAT->GetValueAsString(nIRow, nIField),
+                              CPL_ENC_UTF8, "CP1252");
+
+                if (strlen(pszString) > MMField.BytesPerField)
+                    MMField.BytesPerField =
+                        static_cast<MM_BYTES_PER_FIELD_TYPE_DBF>(
+                            strlen(pszString));
+
+                CPLFree(pszString);
+            }
+        }
+        MM_DuplicateFieldDBXP(pBD_XP->pField + nIField, &MMField);
+
+        // REL part
+        CPLString osSection = SECTION_TAULA_PRINCIPAL;
+        osSection.append(":");
+        osSection.append(MMField.FieldName);
+        pRATRel->AddSectionStart(osSection);
+
+        if (EQUAL(MMField.FieldName, m_osValue))
+        {
+            pRATRel->AddKeyValue("visible", "0");
+            pRATRel->AddKeyValue("TractamentVariable", "Categoric");
+        }
+        pRATRel->AddKeyValue(KEY_descriptor, "");
+        pRATRel->AddSectionEnd();
+    }
+
+    // Closing the REL
+    pRATRel->CloseRELFile();
+
+    // Opening the table
+    if (!MM_CreateAndOpenDBFFile(pBD_XP, pBD_XP->szFileName))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+
+    //	Writting records to the table
+    if (0 != VSIFSeekL(pBD_XP->pfDataBase,
+                       static_cast<vsi_l_offset>(pBD_XP->FirstRecordOffset),
+                       SEEK_SET))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+
+    for (int nIRow = 0; nIRow < static_cast<int>(pBD_XP->nRecords); nIRow++)
+    {
+        // Deletion flag
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, " "))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
+        for (nIField = 0; nIField < static_cast<int>(pBD_XP->nFields);
+             nIField++)
+        {
+            if (m_poRAT->GetTypeOfCol(nIRow) == GFT_DateTime)
+            {
+                char szDate[9];
+                const GDALRATDateTime osDT =
+                    m_poRAT->GetValueAsDateTime(nIRow, nIField);
+                if (osDT.nYear >= 0)
+                    snprintf(szDate, sizeof(szDate), "%04d%02d%02d", osDT.nYear,
+                             osDT.nMonth, osDT.nDay);
+                else
+                    snprintf(szDate, sizeof(szDate), "%04d%02d%02d", 0, 0, 0);
+
+                if (pBD_XP->pField[nIField].BytesPerField !=
+                    VSIFWriteL(szDate, 1, pBD_XP->pField[nIField].BytesPerField,
+                               pBD_XP->pfDataBase))
+                {
+                    MM_ReleaseDBFHeader(&pBD_XP);
+                    return 1;
+                }
+            }
+            else if (m_poRAT->GetTypeOfCol(nIRow) == GFT_Boolean)
+            {
+                if (pBD_XP->pField[nIField].BytesPerField !=
+                    VSIFWriteL(m_poRAT->GetValueAsBoolean(nIRow, nIField) ? "T"
+                                                                          : "F",
+                               1, pBD_XP->pField[nIField].BytesPerField,
+                               pBD_XP->pfDataBase))
+                {
+                    MM_ReleaseDBFHeader(&pBD_XP);
+                    return 1;
+                }
+            }
+            else if (m_poRAT->GetTypeOfCol(nIRow) == GFT_WKBGeometry)
+            {
+                if (pBD_XP->pField[nIField].BytesPerField !=
+                    VSIFWriteL(m_poRAT->GetValueAsString(nIRow, nIField), 1,
+                               pBD_XP->pField[nIField].BytesPerField,
+                               pBD_XP->pfDataBase))
+                {
+                    MM_ReleaseDBFHeader(&pBD_XP);
+                    return 1;
+                }
+            }
+            else
+            {
+                char *pszString =
+                    CPLRecode(m_poRAT->GetValueAsString(nIRow, nIField),
+                              CPL_ENC_UTF8, "CP1252");
+
+                if (pBD_XP->pField[nIField].BytesPerField !=
+                    VSIFWriteL(pszString, 1,
+                               pBD_XP->pField[nIField].BytesPerField,
+                               pBD_XP->pfDataBase))
+                {
+                    MM_ReleaseDBFHeader(&pBD_XP);
+                    return 1;
+                }
+                CPLFree(pszString);
+            }
+        }
+    }
+
+    fclose_and_nullify(&pBD_XP->pfDataBase);
+    MM_ReleaseDBFHeader(&pBD_XP);
+    return 0;
 }
