@@ -120,7 +120,7 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
     UpdateRELNameChar(osRelCandidate);
 
     // We let it be opened
-    if (!OpenRELFile(rb))
+    if (!OpenRELFile("rb"))
         return;
 
     // Collect band information
