@@ -1894,7 +1894,7 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
     // Creating a simple REL that allows to MiraMon user to
     // document this RAT in case of need.
     auto pRATRel = std::make_unique<MMRRel>(m_osRATRELName);
-    if (!pRATRel->OpenRELFile())
+    if (!pRATRel->OpenRELFile("wb"))
     {
         MM_ReleaseDBFHeader(&pBD_XP);
         return 1;

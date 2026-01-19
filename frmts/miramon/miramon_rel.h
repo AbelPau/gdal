@@ -123,12 +123,12 @@ class MMRRel
         return m_pRELFile;
     }
 
-    bool OpenRELFile()
+    bool OpenRELFile(const char *pszAccess)
     {
         if (m_osRelFileName.empty())
             return false;
 
-        m_pRELFile = VSIFOpenL(m_osRelFileName, "wb");
+        m_pRELFile = VSIFOpenL(m_osRelFileName, pszAccess);
         if (m_pRELFile)
             return true;
         return false;

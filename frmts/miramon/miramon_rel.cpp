@@ -82,7 +82,7 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
                 // and we can ask things to this Rel file.
                 UpdateRELNameChar(m_osRelFileName);
                 m_bIsAMiraMonFile = true;
-                if (!OpenRELFile())
+                if (!OpenRELFile("rb"))
                     return;
             }
             return;
@@ -120,7 +120,7 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
     UpdateRELNameChar(osRelCandidate);
 
     // We let it be opened
-    if (!OpenRELFile())
+    if (!OpenRELFile(rb))
         return;
 
     // Collect band information
