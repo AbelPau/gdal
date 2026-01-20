@@ -18,7 +18,7 @@ import tempfile
 from osgeo import gdal, osr
 
 
-def test_miramonraster_multiband_roundtrip_no_numpy():
+def test_miramonraster_multiband():
 
     gdal.AllRegister()
 

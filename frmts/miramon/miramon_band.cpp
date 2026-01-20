@@ -13,6 +13,7 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 #include <algorithm>
+#include <limits>
 #include "gdal_rat.h"
 
 #include "miramon_rel.h"
