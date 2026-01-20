@@ -23,8 +23,8 @@ def test_miramonraster_multiband_roundtrip_no_numpy():
     gdal.AllRegister()
 
     # --- Raster parameters ---
-    xsize = 4
-    ysize = 3
+    xsize = 3
+    ysize = 2
     nbands = 2
     geotransform = (100.0, 10.0, 0.0, 200.0, 0.0, -10.0)
 
@@ -40,8 +40,8 @@ def test_miramonraster_multiband_roundtrip_no_numpy():
     src_ds.SetProjection(wkt)
 
     # --- Create deterministic pixel values ---
-    # band 1: 0..19
-    # band 2: 100..119
+    # band 1: 0..12
+    # band 2: 100..112
     band1_values = list(range(xsize * ysize))
     band2_values = [v + 100 for v in band1_values]
 
@@ -162,6 +162,16 @@ def test_miramonraster_multiband_roundtrip_no_numpy():
     assert dst_rat is not None
     assert dst_rat.GetRowCount() == rat.GetRowCount()
     assert dst_rat.GetNameOfCol(1) == "ClassName"
+
+    # --- Min / Max checks ---
+    min1, max1 = dst_band1.ComputeRasterMinMax(False)
+    dst_band2 = dst_ds.GetRasterBand(2)
+    min2, max2 = dst_band2.ComputeRasterMinMax(False)
+
+    assert min1 == 0
+    assert max1 == 5
+    assert min2 == 100
+    assert max2 == 105
 
     dst_ds = None
     src_ds = None
