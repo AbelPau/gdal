@@ -276,6 +276,35 @@ class MMRBand final
     bool UpdateDataTypeAndBytesPerPixelFromRasterBand(GDALRasterBand &papoBand);
     void UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand);
     void UpdateNoDataValueFromRasterBand(GDALRasterBand &papoBand);
+    void UpdateRowMinMax(const void *pBuffer);
+
+    template <typename T> void UpdateRowMinMax(const void *pBufferT)
+    {
+        const T *pBuffer = static_cast<const T *>(pBufferT);
+
+        if (!m_nWidth)
+            return;
+
+        for (int nICol = 0; nICol < m_nWidth; nICol++)
+        {
+            double value = static_cast<double>(pBuffer[nICol]);
+            if (m_bNoDataSet && m_dfNoData == value)
+                continue;
+
+            if (value <= m_dfMin)  // "=" just in case of the minimum case
+            {
+                m_bMinSet = true;
+                m_dfMin = value;
+            }
+
+            if (value >= m_dfMax)  // "=" just in case of the maximum case
+            {
+                m_bMaxSet = true;
+                m_dfMax = value;
+            }
+        }
+    }
+
     int WriteColorTable(GDALDataset &oSrcDS, int nIBand);
     int WriteAttributeTable(GDALDataset &oSrcDS, int nIBand);
 

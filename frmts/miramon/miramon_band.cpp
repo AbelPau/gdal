@@ -1459,6 +1459,48 @@ CPLString MMRBand::GetRELDataType() const
     return "";
 }
 
+void MMRBand::UpdateRowMinMax(const void *pBuffer)
+{
+    switch (m_eMMDataType)
+    {
+        case MMDataType::DATATYPE_AND_COMPR_BIT:
+        case MMDataType::DATATYPE_AND_COMPR_BYTE:
+        case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
+            UpdateRowMinMax<unsigned char>(pBuffer);
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
+        case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
+            UpdateRowMinMax<unsigned short>(pBuffer);
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_INTEGER_ASCII:
+            UpdateRowMinMax<short>(pBuffer);
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_LONG:
+        case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
+            UpdateRowMinMax<int>(pBuffer);
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_REAL:
+        case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
+        case MMDataType::DATATYPE_AND_COMPR_REAL_ASCII:
+            UpdateRowMinMax<float>(pBuffer);
+            break;
+
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
+        case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
+            UpdateRowMinMax<double>(pBuffer);
+            break;
+
+        default:
+            break;
+    }
+}
+
 bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
 {
 
@@ -1520,6 +1562,12 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
         VSIFree(pRow);
         return false;
     }
+
+    m_bMinSet = false;
+    m_dfMin = std::numeric_limits<double>::max();
+    m_bMaxSet = false;
+    m_dfMax = -std::numeric_limits<double>::max();
+
     for (int iLine = 0; iLine < m_nHeight; ++iLine)
     {
         // Read one line from the raster band
@@ -1535,6 +1583,9 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
             VSIFree(pRow);
             return false;
         }
+
+        // MinMax calculation
+        UpdateRowMinMax(pBuffer);
 
         if (m_bIsCompressed)
             m_aFileOffsets[iLine] = VSIFTellL(m_pfIMG);

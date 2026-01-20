@@ -1261,12 +1261,12 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
     // Writing bands sections: particular band information
     for (int nIBand = 0; nIBand < m_nBands; nIBand++)
     {
-        // Adding band information to REL
-        WriteBandSection(m_oBands[nIBand], osDSDataType);
-
-        // Writing IMG binary file
+        // Writing IMG binary file. This calculates min and max values of the band
         if (!m_oBands[nIBand].WriteBandFile(oSrcDS, m_nBands, nIBand))
             return false;
+
+        // Adding band information to REL. This srites min max values of the band
+        WriteBandSection(m_oBands[nIBand], osDSDataType);
     }
 
     return true;
