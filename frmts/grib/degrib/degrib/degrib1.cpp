@@ -43,11 +43,11 @@
 #define GRIB_SIGN_INT2(a,b) ((1-(int) ((unsigned) (a & 0x80) >> 6)) * (int) (((a & 0x7f) << 8) + b))
 
 /* various centers */
-#define NMC	7
+#define NMC 7
 #define US_OTHER 9
 #define CPTEC 46
 /* Canada Center */
-#define CMC	54
+#define CMC 54
 #define AFWA 57
 #define DWD 78
 #define ECMWF 98

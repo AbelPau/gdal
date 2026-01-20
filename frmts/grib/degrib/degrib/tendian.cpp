@@ -536,7 +536,7 @@ int main (int argc, char **argv)
 #ifdef BIG_ENDIAN
 size_t norfread (void *Dst, size_t elem_size, size_t num_elem, VSILFILE *fp)
 {
-	return VSIFReadL(Dst, elem_size, num_elem, fp);
+    return VSIFReadL(Dst, elem_size, num_elem, fp);
 }
 #endif
 
