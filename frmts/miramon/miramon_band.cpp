@@ -1799,7 +1799,7 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
         return 1;
     }
 
-    //	Writting records to the table
+    // Writting records to the table
     if (0 != VSIFSeekL(pBD_XP->pfDataBase,
                        static_cast<vsi_l_offset>(pBD_XP->FirstRecordOffset),
                        SEEK_SET))
@@ -2025,7 +2025,7 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
         return 1;
     }
 
-    //	Writting records to the table
+    // Writting records to the table
     if (0 != VSIFSeekL(pBD_XP->pfDataBase,
                        static_cast<vsi_l_offset>(pBD_XP->FirstRecordOffset),
                        SEEK_SET))
