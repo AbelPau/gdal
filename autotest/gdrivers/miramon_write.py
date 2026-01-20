@@ -164,14 +164,9 @@ def test_miramonraster_multiband_roundtrip_no_numpy():
     assert dst_rat.GetNameOfCol(1) == "ClassName"
 
     # --- Min / Max checks ---
-    min1, max1 = dst_band1.ComputeRasterMinMax(False)
+    assert dst_band1.ComputeRasterMinMax(False) == (0, 5)
     dst_band2 = dst_ds.GetRasterBand(2)
-    min2, max2 = dst_band2.ComputeRasterMinMax(False)
-
-    assert min1 == 0
-    assert max1 == 5
-    assert min2 == 100
-    assert max2 == 105
+    assert dst_band2.ComputeRasterMinMax(False) == (100, 105)
 
     dst_ds = None
     src_ds = None
