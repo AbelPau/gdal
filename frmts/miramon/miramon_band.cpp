@@ -2047,7 +2047,7 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
         {
             if (m_poRAT->GetTypeOfCol(nIRow) == GFT_DateTime)
             {
-                char szDate[9];
+                char szDate[15];
                 const GDALRATDateTime osDT =
                     m_poRAT->GetValueAsDateTime(nIRow, nIField);
                 if (osDT.nYear >= 0)
