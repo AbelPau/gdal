@@ -677,9 +677,10 @@ MMRDataset::CreateAssociatedMetadataFileName(const CPLString &osFileName)
     if (cpl::ends_with(osFileName, pszExtRasterREL))
         return osRELName;
 
-    // If the string finishes in ".img" we consider it can converted to rel
-    // just changing "img" for "I.rel"
-    if (cpl::ends_with(osFileName, pszExtRaster))
+    // If the string finishes in ".img" or ".rel" (and not "I.rel")
+    // we consider it can converted to "I.rel"
+    if (cpl::ends_with(osFileName, pszExtRaster) ||
+        cpl::ends_with(osFileName, pszExtREL))
     {
         // Extract extension
         osRELName = CPLResetExtensionSafe(osRELName, "");

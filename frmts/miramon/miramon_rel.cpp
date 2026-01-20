@@ -1343,6 +1343,26 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
     }
 }
 
+CPLString MMRRel::GetColor_TractamentVariable(int nIBand)
+{
+    if (m_oBands[nIBand].IsCategorical())
+        return "Categoric";
+    else
+        return "QuantitatiuContinu";
+}
+
+CPLString MMRRel::GetColor_Paleta(int nIBand)
+{
+    if (!m_oBands[nIBand].GetColorTableNameFile().empty())
+    {
+        CPLString osRELPath = CPLGetPathSafe(m_osRelFileName);
+        return CPLExtractRelativePath(
+            osRELPath, m_oBands[0].GetColorTableNameFile(), nullptr);
+    }
+    else
+        return "<Automatic>";
+}
+
 void MMRRel::WriteCOLOR_TEXTSection()
 {
     if (!GetRELFile())
@@ -1360,69 +1380,46 @@ void MMRRel::WriteCOLOR_TEXTSection()
     AddKeyValue("EscalaMinima", 900000000);
     AddKeyValue("Color_Const", 0);
 
-    CPLString osColor_DefaultTractamentVariable;
-    CPLString osColor_DefaultColor_Paleta;
-    CPLString osRELPath = CPLGetPathSafe(m_osRelFileName);
+    // Setting the default values of "DefaultTractamentVariable"
+    CPLString osDefaultColor_TractamentVariable =
+        GetColor_TractamentVariable(0);
+    AddKeyValue("Color_TractamentVariable", osDefaultColor_TractamentVariable);
 
-    if (!m_oBands[0].GetColorTableNameFile().empty())
-    {
-        osColor_DefaultTractamentVariable = "Categoric";
-        osColor_DefaultColor_Paleta = CPLExtractRelativePath(
-            osRELPath, m_oBands[0].GetColorTableNameFile(), nullptr);
-    }
-    else
-    {
-        osColor_DefaultTractamentVariable = "QuantitatiuContinu";
-        osColor_DefaultColor_Paleta = "<Automatic>";
-    }
-    AddKeyValue("Color_TractamentVariable", osColor_DefaultTractamentVariable);
-    AddKeyValue("Color_Paleta", osColor_DefaultColor_Paleta);
+    // Setting the default values of "Color_Paleta"
+    CPLString os_DefaultColor_Paleta = GetColor_Paleta(0);
+    AddKeyValue("Color_Paleta", os_DefaultColor_Paleta);
 
     AddKeyValue("Tooltips_Const", 1);
     AddSectionEnd();
 
-    // Are there any ColorTractamentVariable and Color_Paleta
-    // Different from the default one?
-    bool bAllUseSameCT = true;
+    // Different key values from the first one in a new section
+    // Band 0 has been already documented. Let's check other bands.
     for (int nIBand = 1; nIBand < m_nBands; nIBand++)
     {
-        if (!EQUAL(m_oBands[nIBand].GetColorTableNameFile(),
-                   m_oBands[0].GetColorTableNameFile()))
-        {
-            bAllUseSameCT = false;
-            break;
-        }
-    }
+        CPLString osSection = SECTION_COLOR_TEXT;
+        osSection.append(":");
+        osSection.append(m_oBands[nIBand].GetBandSection());
+        bool bSectionStarted = false;
 
-    // Different key values from the first one in a new section
-    if (!bAllUseSameCT)
-    {
-        for (int nIBand = 1; nIBand < m_nBands; nIBand++)
+        CPLString osColor_TractamentVariable =
+            GetColor_TractamentVariable(nIBand);
+        if (!EQUAL(osDefaultColor_TractamentVariable,
+                   osColor_TractamentVariable))
         {
-            if (!EQUAL(m_oBands[nIBand].GetColorTableNameFile(),
-                       m_oBands[0].GetColorTableNameFile()))
-            {
-                CPLString osSectionColorBand = SECTION_COLOR_TEXT;
-                osSectionColorBand.append(m_oBands[nIBand].GetBandSection());
-                AddSectionStart(osSectionColorBand);
-                AddCOLOR_TEXTVersion();
-                if (!m_oBands[nIBand].GetColorTableNameFile().empty())
-                {
-                    AddKeyValue("Color_TractamentVariable", "Categoric");
-                    osColor_DefaultColor_Paleta = CPLExtractRelativePath(
-                        osRELPath, m_oBands[nIBand].GetColorTableNameFile(),
-                        nullptr);
-                    AddKeyValue("Color_Paleta", osColor_DefaultColor_Paleta);
-                }
-                else
-                {
-                    AddKeyValue("Color_TractamentVariable",
-                                "QuantitatiuContinu");
-                    AddKeyValue("Color_Paleta", "<Automatic>");
-                }
-                AddSectionEnd();
-            }
+            AddSectionStart(osSection);
+            bSectionStarted = true;
+            AddKeyValue("Color_TractamentVariable", osColor_TractamentVariable);
         }
+
+        CPLString osColor_Paleta = GetColor_Paleta(nIBand);
+        if (!EQUAL(os_DefaultColor_Paleta, osColor_Paleta))
+        {
+            if (!bSectionStarted)
+                AddSectionStart(osSection);
+            AddKeyValue("Color_Paleta", osColor_Paleta);
+        }
+
+        AddSectionEnd();
     }
 }
 
@@ -1432,9 +1429,9 @@ void MMRRel::WriteVISU_LLEGENDASection()
 
     AddVISU_LLEGENDAVersion();
     AddKeyValue("Color_VisibleALleg", 1);
-    AddKeyValue("Color_TitolLlegenda", "Al·leluia 1");  // TODO
-    AddKeyValue("Color_CategAMostrar", "N");            // TODO
-    AddKeyValue("Color_N_ClassesLleg", 256);            // TODO
+    AddKeyValue("Color_TitolLlegenda", "");
+    AddKeyValue("Color_CategAMostrar", "N");  // TODO
+    AddKeyValue("Color_N_ClassesLleg", 256);  // TODO
     AddKeyValue("Color_InvertOrdPresentColorLleg", 0);
     AddKeyValue("Color_MostrarIndColorLleg", 0);
     AddKeyValue("Color_MostrarValColorLleg", 0);

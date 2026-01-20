@@ -246,7 +246,8 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
     {
         m_osCTName = "";
         CPLError(CE_Warning, CPLE_AppDefined,
-                 "MMRBand::MMRBand : Existant color table  but not imported");
+                 "MMRBand::MMRBand : Existant color table but not imported"
+                 "due to some existant errors");
     }
 
     if (WriteAttributeTable(oSrcDS, nIBand))
@@ -254,7 +255,8 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
         m_osRATDBFName = "";
         m_osRATRELName = "";
         CPLError(CE_Warning, CPLE_AppDefined,
-                 "MMRBand::MMRBand : Existant color table  but not imported");
+                 "MMRBand::MMRBand : Existant attribute table but not imported "
+                 "due to some existant errors");
     }
 
     // We have a valid MMRBand.
@@ -1948,7 +1950,8 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
     {
         // DBF part
         MM_InitializeField(&MMField);
-        CPLStrlcpy(MMField.FieldName, m_poRAT->GetNameOfCol(nIField), 8);
+        CPLStrlcpy(MMField.FieldName, m_poRAT->GetNameOfCol(nIField),
+                   sizeof(MMField.FieldName));
 
         MMField.BytesPerField = 0;
         for (int nIRow = 0; nIRow < m_poRAT->GetRowCount(); nIRow++)
