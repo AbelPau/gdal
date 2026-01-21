@@ -18,7 +18,7 @@ import tempfile
 from osgeo import gdal, osr
 
 
-def test_miramonraster_multiband_roundtrip_no_numpy():
+def test_miramonraster_multiband_tmp():
 
     gdal.AllRegister()
 
@@ -40,8 +40,8 @@ def test_miramonraster_multiband_roundtrip_no_numpy():
     src_ds.SetProjection(wkt)
 
     # --- Create deterministic pixel values ---
-    # band 1: 0..19
-    # band 2: 100..119
+    # band 1: 0..12
+    # band 2: 100..112
     band1_values = list(range(xsize * ysize))
     band2_values = [v + 100 for v in band1_values]
 
@@ -73,7 +73,7 @@ def test_miramonraster_multiband_roundtrip_no_numpy():
 
     for i in range(1, nbands + 1):
         band = src_ds.GetRasterBand(i)
-        band.SetNoDataValue(-9999)
+        band.SetNoDataValue(0)
         band.FlushCache()
 
     band1 = src_ds.GetRasterBand(1)

@@ -73,12 +73,12 @@ def test_miramonraster_multiband():
 
     for i in range(1, nbands + 1):
         band = src_ds.GetRasterBand(i)
-        band.SetNoDataValue(-9999)
+        band.SetNoDataValue(0)
         band.FlushCache()
 
     # --- Color table on band 1 ---
     ct = gdal.ColorTable()
-    ct.SetColorEntry(0, (0, 0, 0, 255))
+    ct.SetColorEntry(0, (0, 0, 0, 0))
     ct.SetColorEntry(1, (255, 0, 0, 255))
     ct.SetColorEntry(2, (0, 255, 0, 255))
     ct.SetColorEntry(3, (0, 0, 255, 255))
@@ -164,7 +164,7 @@ def test_miramonraster_multiband():
     assert dst_rat.GetNameOfCol(1) == "ClassName"
 
     # --- Min / Max checks ---
-    assert dst_band1.ComputeRasterMinMax(False) == (0, 5)
+    assert dst_band1.ComputeRasterMinMax(False) == (1, 5)
     dst_band2 = dst_ds.GetRasterBand(2)
     assert dst_band2.ComputeRasterMinMax(False) == (100, 105)
 

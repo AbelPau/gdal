@@ -1303,9 +1303,9 @@ bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
     {
         case GDT_Byte:
             if (m_bIsCompressed)
-                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_BYTE;
-            else
                 m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_BYTE_RLE;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_BYTE;
 
             m_eMMBytesPerPixel =
                 MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE;
@@ -1313,9 +1313,9 @@ bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
 
         case GDT_UInt16:
             if (m_bIsCompressed)
-                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_UINTEGER;
-            else
                 m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_UINTEGER;
 
             m_eMMBytesPerPixel =
                 MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
@@ -1323,9 +1323,9 @@ bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
 
         case GDT_Int16:
             if (m_bIsCompressed)
-                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_INTEGER;
-            else
                 m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_INTEGER;
 
             m_eMMBytesPerPixel =
                 MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE;
@@ -1333,9 +1333,9 @@ bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
 
         case GDT_Int32:
             if (m_bIsCompressed)
-                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_LONG;
-            else
                 m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_LONG_RLE;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_LONG;
 
             m_eMMBytesPerPixel =
                 MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
@@ -1343,9 +1343,9 @@ bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
 
         case GDT_Float32:
             if (m_bIsCompressed)
-                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_REAL;
-            else
                 m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_REAL_RLE;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_REAL;
 
             m_eMMBytesPerPixel =
                 MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_LONG_REAL_I_RLE;
@@ -1353,9 +1353,9 @@ bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
 
         case GDT_Float64:
             if (m_bIsCompressed)
-                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_DOUBLE;
-            else
                 m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE;
+            else
+                m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_DOUBLE;
 
             m_eMMBytesPerPixel =
                 MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_DOUBLE_I_RLE;
