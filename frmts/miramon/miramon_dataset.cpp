@@ -175,17 +175,17 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
     }
 
     // Getting REL information (and metadata stuff)
-    auto pMMfRel = std::make_unique<MMRRel>(
+    m_pMMRRel = std::make_unique<MMRRel>(
         osRelname, bNeedOfNomFitxer, m_osEPSG, m_nWidth, m_nHeight, m_dfMinX,
         m_dfMaxX, m_dfMinY, m_dfMaxY, std::move(oBands));
 
-    if (!pMMfRel->IsValid())
+    if (!m_pMMRRel->IsValid())
         return;
 
     // Writing all information in files: I.rel, IMG,...
-    if (!pMMfRel->Write(oSrcDS))
+    if (!m_pMMRRel->Write(oSrcDS))
     {
-        pMMfRel->SetIsValid(false);
+        m_pMMRRel->SetIsValid(false);
         return;
     }
 
