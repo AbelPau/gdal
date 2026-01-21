@@ -141,7 +141,7 @@ def test_miramonraster_multiband():
     assert dst_ds.RasterYSize == ysize
     assert dst_ds.RasterCount == nbands
     assert dst_ds.GetGeoTransform() == geotransform
-    assert dst_ds.GetProjection() == wkt
+    assert dst_ds.GetProjectionRef() == wkt
 
     # --- Pixel data checks ---
     dst_band1_bytes = dst_ds.GetRasterBand(1).ReadRaster(
