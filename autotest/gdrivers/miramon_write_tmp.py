@@ -15,7 +15,11 @@ import os
 import struct
 import tempfile
 
+import pytest
+
 from osgeo import gdal, osr
+
+pytestmark = pytest.mark.require_driver("MiraMonRaster")
 
 
 def test_miramonraster_multiband_tmp():
