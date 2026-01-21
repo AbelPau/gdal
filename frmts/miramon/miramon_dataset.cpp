@@ -42,6 +42,10 @@ void GDALRegister_MiraMon()
     poDriver->SetMetadataItem(GDAL_DCAP_VIRTUALIO, "YES");
     poDriver->SetMetadataItem(GDAL_DMD_SUBDATASETS, "YES");
 
+    poDriver->SetMetadataItem(GDAL_DCAP_OPEN, "YES");
+    poDriver->SetMetadataItem(GDAL_DCAP_CREATE, "YES");
+    poDriver->SetMetadataItem(GDAL_DCAP_CREATECOPY, "YES");
+
     poDriver->pfnOpen = MMRDataset::Open;
     poDriver->pfnCreateCopy = MMRDataset::CreateCopy;
     poDriver->pfnIdentify = MMRDataset::Identify;
