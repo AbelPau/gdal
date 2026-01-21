@@ -1729,7 +1729,7 @@ size_t MMRBand::ComprimeixFilaTipusTpl(const T *pRow, int nCol,
     // Last element
     *pBuffer++ = nCounter;
 
-    *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+    memcpy(pBuffer, &tPreviousValue, sizeof(T));
     nRowBytes += 1 + sizeof(T);
 
     return nRowBytes;
