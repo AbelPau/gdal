@@ -274,7 +274,6 @@ class MMRBand final
     // Writing part
     bool WriteRowOffsets();
     bool UpdateDataTypeAndBytesPerPixelFromRasterBand(GDALRasterBand &papoBand);
-    void UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand);
     void UpdateNoDataValueFromRasterBand(GDALRasterBand &papoBand);
     void UpdateRowMinMax(const void *pBuffer);
 

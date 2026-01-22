@@ -231,15 +231,6 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
     m_nDataTypeSizeBytes = std::max(1, static_cast<int>(m_eMMBytesPerPixel));
     m_bIsCompressed = bCompress;
 
-    // Getting min and max values
-    UpdateMinMaxValuesFromRasterBand(papoBand);
-
-    // Getting min and max values for simbolization
-    m_dfVisuMin = m_dfMin;
-    m_bMinVisuSet = m_bMinSet;
-    m_dfVisuMax = m_dfMax;
-    m_bMaxVisuSet = m_bMaxSet;
-
     // Getting NoData value and definition
     UpdateNoDataValueFromRasterBand(papoBand);
 
@@ -1224,7 +1215,7 @@ bool MMRBand::WriteRowOffsets()
     if (nStartOffset == 0)
         return false;
 
-    if (VSIFWriteL("IMG 1.0\0", sizeof("IMG 1.0\0"), 1, m_pfIMG) != 1)
+    if (VSIFWriteL("IMG 1.0\0", sizeof("IMG 1.0"), 1, m_pfIMG) != 1)
         return false;
 
     // Type of section
@@ -1285,7 +1276,7 @@ bool MMRBand::WriteRowOffsets()
         if (VSIFWriteL(&nAux, 4, 1, m_pfIMG) != 1)
             return false;
     }
-    if (VSIFWriteL("IMG 1.0\0", sizeof("IMG 1.0\0"), 1, m_pfIMG) != 1)
+    if (VSIFWriteL("IMG 1.0\0", sizeof("IMG 1.0"), 1, m_pfIMG) != 1)
         return false;
 
     if (VSIFWriteL(&nStartOffset, sizeof(vsi_l_offset), 1, m_pfIMG) != 1)
@@ -1373,29 +1364,6 @@ bool MMRBand::UpdateDataTypeAndBytesPerPixelFromRasterBand(
             return false;
     }
     return true;
-}
-
-void MMRBand::UpdateMinMaxValuesFromRasterBand(GDALRasterBand &papoBand)
-{
-    int pbSuccess;
-    m_dfMin = papoBand.GetMinimum(&pbSuccess);
-    if (pbSuccess)
-        m_bMinSet = true;
-    else
-        m_bMinSet = false;
-
-    m_dfMax = papoBand.GetMaximum(&pbSuccess);
-    if (pbSuccess)
-        m_bMaxSet = true;
-    else
-        m_bMaxSet = false;
-
-    // Special case: dfMin > dfMax
-    if (m_bMinSet && m_bMaxSet && m_dfMin > m_dfMax)
-    {
-        m_bMinSet = false;
-        m_bMaxSet = false;
-    }
 }
 
 // Getting nodata value from metadata
@@ -1631,6 +1599,12 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
     }
     VSIFree(pBuffer);
     VSIFree(pRow);
+
+    // Udating min and max values for simbolization
+    m_dfVisuMin = m_dfMin;
+    m_bMinVisuSet = m_bMinSet;
+    m_dfVisuMax = m_dfMax;
+    m_bMaxVisuSet = m_bMaxSet;
 
     // There is a final part that contain the indexs to every row
     if (m_bIsCompressed)

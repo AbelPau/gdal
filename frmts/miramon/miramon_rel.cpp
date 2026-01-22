@@ -1265,7 +1265,7 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
         if (!m_oBands[nIBand].WriteBandFile(oSrcDS, m_nBands, nIBand))
             return false;
 
-        // Adding band information to REL. This srites min max values of the band
+        // Adding band information to REL. This writes min max values of the band
         WriteBandSection(m_oBands[nIBand], osDSDataType);
     }
 
