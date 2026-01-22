@@ -895,7 +895,7 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
 {
     vsi_l_offset nFileSize, nHeaderOffset;
     char szChain[16];
-    short int nVersion, nSubVersion;
+    GInt16 int nVersion, nSubVersion;
     int nOffsetSize, nOffsetsSectionType;
 
     if (VSIFSeekL(m_pfIMG, 0, SEEK_END))
@@ -1472,13 +1472,13 @@ void MMRBand::UpdateRowMinMax(const void *pBuffer)
 
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
-            UpdateRowMinMax<unsigned short>(pBuffer);
+            UpdateRowMinMax<GUInt16>(pBuffer);
             break;
 
         case MMDataType::DATATYPE_AND_COMPR_INTEGER:
         case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_INTEGER_ASCII:
-            UpdateRowMinMax<short>(pBuffer);
+            UpdateRowMinMax<GInt16>(pBuffer);
             break;
 
         case MMDataType::DATATYPE_AND_COMPR_LONG:
@@ -1747,18 +1747,18 @@ size_t MMRBand::CompressRowType(MMDataType nDataType, const void *pRow,
 
         case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_INTEGER:
-            return ComprimeixFilaTipusTpl<short>(
-                reinterpret_cast<const short *>(pRow), nCol, pBuffer);
+            return ComprimeixFilaTipusTpl<GInt16>(
+                reinterpret_cast<const GInt16 *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
-            return ComprimeixFilaTipusTpl<unsigned short>(
-                reinterpret_cast<const unsigned short *>(pRow), nCol, pBuffer);
+            return ComprimeixFilaTipusTpl<GUInt16>(
+                reinterpret_cast<const GUInt16 *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
         case MMDataType::DATATYPE_AND_COMPR_LONG:
-            return ComprimeixFilaTipusTpl<long>(
-                reinterpret_cast<const long *>(pRow), nCol, pBuffer);
+            return ComprimeixFilaTipusTpl<GInt32>(
+                reinterpret_cast<const GInt32 *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
         case MMDataType::DATATYPE_AND_COMPR_REAL:
