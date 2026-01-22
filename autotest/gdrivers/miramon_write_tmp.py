@@ -22,8 +22,60 @@ from osgeo import gdal, osr
 pytestmark = pytest.mark.require_driver("MiraMonRaster")
 
 
-def test_miramonraster_multiband_tmp():
+gdal_to_struct = {
+    gdal.GDT_UInt8: "B",
+    gdal.GDT_Int16: "h",
+    gdal.GDT_UInt16: "H",
+    gdal.GDT_Int32: "i",
+    gdal.GDT_Float32: "f",
+    gdal.GDT_Float64: "d",
+}
 
+init_list = [
+    (
+        "int8",
+        gdal.GDT_UInt8,
+        gdal.GDT_Int16,
+        "True",
+    ),
+    (
+        "int16",
+        gdal.GDT_Int16,
+        gdal.GDT_UInt16,
+        "False",
+    ),
+    (
+        "uint16",
+        gdal.GDT_UInt16,
+        gdal.GDT_Int32,
+        "False",
+    ),
+    (
+        "int32",
+        gdal.GDT_Int32,
+        gdal.GDT_Float32,
+        "False",
+    ),
+    (
+        "float32",
+        gdal.GDT_Float32,
+        gdal.GDT_UInt8,
+        "False",
+    ),
+    (
+        "float64",
+        gdal.GDT_Float64,
+        gdal.GDT_UInt8,
+        "False",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "dbg_name,data_type1,data_type2,use_color_table",
+    init_list,
+)
+def test_miramonraster_multiband(dbg_name, data_type1, data_type2, use_color_table):
     gdal.AllRegister()
 
     # --- Raster parameters ---
@@ -33,12 +85,13 @@ def test_miramonraster_multiband_tmp():
     geotransform = (100.0, 10.0, 0.0, 200.0, 0.0, -10.0)
 
     srs = osr.SpatialReference()
-    srs.ImportFromEPSG(25831)
+    epsg_code = 25831
+    srs.ImportFromEPSG(epsg_code)
     wkt = srs.ExportToWkt()
 
     # --- Create in-memory dataset ---
     mem_driver = gdal.GetDriverByName("MEM")
-    src_ds = mem_driver.Create("", xsize, ysize, nbands, gdal.GDT_Int16)
+    src_ds = mem_driver.Create("", xsize, ysize, nbands, data_type1)
 
     src_ds.SetGeoTransform(geotransform)
     src_ds.SetProjection(wkt)
@@ -49,8 +102,10 @@ def test_miramonraster_multiband_tmp():
     band1_values = list(range(xsize * ysize))
     band2_values = [v + 100 for v in band1_values]
 
-    band1_bytes = struct.pack("<" + "h" * len(band1_values), *band1_values)
-    band2_bytes = struct.pack("<" + "h" * len(band2_values), *band2_values)
+    fmt1 = gdal_to_struct[data_type1]
+    fmt2 = gdal_to_struct[data_type2]
+    band1_bytes = struct.pack("<" + fmt1 * len(band1_values), *band1_values)
+    band2_bytes = struct.pack("<" + fmt2 * len(band2_values), *band2_values)
 
     # --- Write raster data ---
     src_ds.GetRasterBand(1).WriteRaster(
@@ -61,7 +116,7 @@ def test_miramonraster_multiband_tmp():
         band1_bytes,
         buf_xsize=xsize,
         buf_ysize=ysize,
-        buf_type=gdal.GDT_Int16,
+        buf_type=data_type1,
     )
 
     src_ds.GetRasterBand(2).WriteRaster(
@@ -72,7 +127,7 @@ def test_miramonraster_multiband_tmp():
         band2_bytes,
         buf_xsize=xsize,
         buf_ysize=ysize,
-        buf_type=gdal.GDT_Int16,
+        buf_type=data_type2,
     )
 
     for i in range(1, nbands + 1):
@@ -81,7 +136,19 @@ def test_miramonraster_multiband_tmp():
         band.FlushCache()
 
     band1 = src_ds.GetRasterBand(1)
-    band1.SetRasterColorInterpretation(gdal.GCI_PaletteIndex)
+
+    # --- Color table on band 1 ---
+    if use_color_table == "True":
+        ct = gdal.ColorTable()
+        ct.SetColorEntry(0, (0, 0, 0, 0))  # NoData
+        ct.SetColorEntry(1, (255, 0, 0, 255))
+        ct.SetColorEntry(2, (0, 255, 0, 255))
+        ct.SetColorEntry(3, (0, 0, 255, 255))
+        ct.SetColorEntry(4, (0, 125, 125, 255))
+        ct.SetColorEntry(5, (125, 125, 255, 255))
+
+        band1.SetRasterColorTable(ct)
+        band1.SetRasterColorInterpretation(gdal.GCI_PaletteIndex)
 
     # --- Raster Attribute Table (RAT) ---
     rat = gdal.RasterAttributeTable()
@@ -115,7 +182,7 @@ def test_miramonraster_multiband_tmp():
     assert mm_driver is not None, "GTiff driver not available"
 
     tmpdir = tempfile.mkdtemp()
-    mm_path = os.path.join(tmpdir, "test.tiff")
+    mm_path = os.path.join(tmpdir, "test" + dbg_name + ".tiff")
 
     mm_ds = mm_driver.CreateCopy(mm_path, src_ds)
     assert mm_ds is not None
