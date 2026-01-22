@@ -895,7 +895,7 @@ int MMRBand::PositionAtStartOfRowOffsetsInFile()
 {
     vsi_l_offset nFileSize, nHeaderOffset;
     char szChain[16];
-    GInt16 int nVersion, nSubVersion;
+    GInt16 nVersion, nSubVersion;
     int nOffsetSize, nOffsetsSectionType;
 
     if (VSIFSeekL(m_pfIMG, 0, SEEK_END))
