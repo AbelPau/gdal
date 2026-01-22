@@ -33,37 +33,31 @@ gdal_to_struct = {
 
 init_list = [
     (
-        "int8",
         gdal.GDT_UInt8,
         gdal.GDT_Int16,
         "True",
     ),
     (
-        "int16",
         gdal.GDT_Int16,
         gdal.GDT_UInt16,
         "False",
     ),
     (
-        "uint16",
         gdal.GDT_UInt16,
         gdal.GDT_Int32,
         "False",
     ),
     (
-        "int32",
         gdal.GDT_Int32,
         gdal.GDT_Float32,
         "False",
     ),
     (
-        "float32",
         gdal.GDT_Float32,
         gdal.GDT_Float16,
         "False",
     ),
     (
-        "float64",
         gdal.GDT_Float64,
         gdal.GDT_UInt8,
         "False",
@@ -72,7 +66,7 @@ init_list = [
 
 
 @pytest.mark.parametrize(
-    "dbg_name,data_type1,data_type2,use_color_table",
+    "data_type1,data_type2,use_color_table",
     init_list,
 )
 def test_miramonraster_multiband(data_type1, data_type2, use_color_table):
