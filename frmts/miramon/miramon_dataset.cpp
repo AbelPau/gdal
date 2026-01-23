@@ -786,7 +786,8 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
             return true;
 
         // Assume that if data type is float or double , then the band is continuous.
-        if (pRasterBand.GetRasterDataType() >= GDT_Float32)
+        if (pRasterBand.GetRasterDataType() == GDT_Float32 ||
+            pRasterBand.GetRasterDataType() == GDT_Float64)
             return false;
 
         // Assume that if data type is 8-bit with color table,

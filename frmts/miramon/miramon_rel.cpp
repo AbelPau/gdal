@@ -1237,7 +1237,8 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
     AddKeyValue(KEY_TractamentVariable, m_osDefTractVariable);
 
     // Units by default
-    m_osDefUnits = m_oBands[0].GetUnits().empty() ? "" : m_oBands[0].GetUnits();
+    m_osDefUnits = m_oBands[0].GetUnits().empty() ? static_cast<CPLString>("")
+                                                  : m_oBands[0].GetUnits();
     if (m_osDefUnits.empty())
         AddKeyValue(KEY_MostrarUnitats, "0");
     else
