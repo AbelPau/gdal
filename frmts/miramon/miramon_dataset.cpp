@@ -122,6 +122,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         }
 
         CPLString osIndexBand;
+        CPLString osNumberIndexBand;
         if (pRasterBand->GetColorInterpretation() == GCI_RedBand)
         {
             osIndexBand = "R";
@@ -142,8 +143,9 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         else
             osIndexBand = CPLSPrintf("%d", nIBand + 1);
 
+        osNumberIndexBand = CPLSPrintf("%d", nIBand + 1);
         bool bCategorical =
-            IsCategoricalBand(*pRasterBand, papszOptions, osIndexBand);
+            IsCategoricalBand(*pRasterBand, papszOptions, osNumberIndexBand);
 
         bool bCompressDS =
             EQUAL(CSLFetchNameValueDef(papszOptions, "COMPRESS", "YES"), "YES");
@@ -789,7 +791,8 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
 
         // Assume that if data type is 8-bit with color table,
         // then the band might be categorical.
-        if (pRasterBand.GetRasterDataType() < GDT_Int8 &&
+        if ((pRasterBand.GetRasterDataType() == GDT_UInt8 ||
+             pRasterBand.GetRasterDataType() == GDT_Int8) &&
             pRasterBand.GetColorTable() != nullptr)
             return true;
 
