@@ -36,6 +36,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     m_osBandSection = poBand->GetBandSection();
     m_eMMRDataTypeMiraMon = poBand->GeteMMDataType();
     m_eMMBytesPerPixel = poBand->GeteMMBytesPerPixel();
+    SetUnitType(poBand->GetUnits());
     nBlockXSize = poBand->GetBlockXSize();
     nBlockYSize = poBand->GetBlockYSize();
 
@@ -170,6 +171,31 @@ double MMRRasterBand::GetMaximum(int *pbSuccess)
         *pbSuccess = TRUE;
 
     return poBand->GetMax();
+}
+
+/************************************************************************/
+/*                            GetUnitType()                             */
+/************************************************************************/
+
+const char *MMRRasterBand::GetUnitType()
+
+{
+    return osUnitType.c_str();
+}
+
+/************************************************************************/
+/*                            SetUnitType()                             */
+/************************************************************************/
+
+CPLErr MMRRasterBand::SetUnitType(const char *pszUnit)
+
+{
+    if (pszUnit == nullptr)
+        osUnitType.clear();
+    else
+        osUnitType = pszUnit;
+
+    return CE_None;
 }
 
 /************************************************************************/

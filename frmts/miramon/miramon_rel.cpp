@@ -293,8 +293,9 @@ CPLString MMRRel::MMRGetFileNameWithOutI(const CPLString &osRELFile)
     return osFile;
 }
 
-// Converts FileNameI.rel to FileName.img
-CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString &osRELFile)
+// Converts FileNameI.rel to FileName.xxx (where xxx is an extension)
+CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString &osRELFile,
+                                            const CPLString osExtension)
 {
     if (osRELFile.empty())
         return "";
@@ -303,8 +304,11 @@ CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString &osRELFile)
     CPLString osFile =
         MMRGetFileNameWithOutI(CPLResetExtensionSafe(osRELFile, ""));
 
-    // Adds .img
-    osFile += pszExtRaster;
+    if (!osExtension.empty())
+    {
+        // Adds extension (with the ".", ex: ".img")
+        osFile += osExtension;
+    }
 
     return osFile;
 }
@@ -387,7 +391,8 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(
                                             osDocumentedLayerName) ||
         osDocumentedLayerName.empty())
     {
-        CPLString osIIMGFromREL = MMRGetFileNameFromRelName(osRELFile);
+        CPLString osIIMGFromREL =
+            MMRGetFileNameFromRelName(osRELFile, pszExtRaster);
         if (SameFile(osIIMGFromREL, osLayerName))
             return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
 
@@ -644,7 +649,8 @@ CPLErr MMRRel::CheckBandInRel(const CPLString &osRELFileName,
                                       KEY_NomFitxer, osRawBandFileName) ||
             osRawBandFileName.empty())
         {
-            CPLString osBandFileName = MMRGetFileNameFromRelName(osRELFileName);
+            CPLString osBandFileName =
+                MMRGetFileNameFromRelName(osRELFileName, pszExtRaster);
             if (osBandFileName.empty())
                 return CE_Failure;
         }
@@ -1225,18 +1231,17 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
     AddKeyValue("TipusCompressio", osDSDataType);
     AddKeyValue("TipusRelacio", "RELACIO_1_1_DICC");
 
-    // TractamentVariable
-    bool bAtLeastOneCategoricalBand = false;
-    for (int nIBand = 0; nIBand < m_nBands; nIBand++)
-    {
-        if (m_oBands[nIBand].IsCategorical())
-        {
-            bAtLeastOneCategoricalBand = true;
-            break;
-        }
-    }
-    if (bAtLeastOneCategoricalBand)
-        AddKeyValue("TractamentVariable", "Categoric");
+    // TractamentVariable by default
+    m_osDefTractVariable =
+        m_oBands[0].IsCategorical() ? "Categoric" : "QuantitatiuContinu";
+    AddKeyValue(KEY_TractamentVariable, m_osDefTractVariable);
+
+    // Units by default
+    m_osDefUnits = m_oBands[0].GetUnits().empty() ? "" : m_oBands[0].GetUnits();
+    if (m_osDefUnits.empty())
+        AddKeyValue(KEY_MostrarUnitats, "0");
+    else
+        AddKeyValue(KEY_unitats, m_osDefUnits);
 
     // Key_IndexesNomsCamps
     CPLString osIndexsNomsCamps = "1";
@@ -1253,7 +1258,7 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
     for (int nIBand = 0; nIBand < m_nBands; nIBand++)
     {
         osIndexKey = CPLSPrintf("NomCamp_%d", nIBand + 1);
-        osIndexValue = CPLSPrintf("%d", nIBand + 1);
+        osIndexValue = m_oBands[nIBand].GetBandSection();
         AddKeyValue(osIndexKey, osIndexValue);
     }
     AddSectionEnd();
@@ -1287,14 +1292,30 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
     if (!EQUAL(osDSDataType, osDataType))
         AddKeyValue("TipusCompressio", osDataType);
 
-    // If the band is categorical it has been written in the main section
-    if (!osBand.IsCategorical())
-        AddKeyValue("TractamentVariable", "QuantitatiuContinu");
+    // TractamentVariable of the band (only written if diferent from default)
+    CPLString osTractVariable =
+        osBand.IsCategorical() ? "Categoric" : "QuantitatiuContinu";
+    if (!EQUAL(m_osDefTractVariable, osTractVariable))
+        AddKeyValue(KEY_TractamentVariable, osTractVariable);
+
+    // Units of the band (only written if diferent from default)
+    CPLString osUnits = osBand.GetUnits().empty() ? "" : osBand.GetUnits();
+    if (!EQUAL(m_osDefUnits, osUnits))
+    {
+        if (osUnits.empty())
+            AddKeyValue(KEY_MostrarUnitats, "0");
+        else
+        {
+            AddKeyValue(KEY_MostrarUnitats, "1");
+            AddKeyValue(KEY_unitats, osUnits);
+        }
+    }
 
     // If there is need of NomFitxer this is the place to wrote it.
     if (!osBand.GetRawBandFileName().empty() && m_bNeedOfNomFitxer)
         AddKeyValue(KEY_NomFitxer, osBand.GetRawBandFileName());
 
+    // Description
     if (!osBand.GetFriendlyDescription().empty())
         AddKeyValue(KEY_descriptor, osBand.GetFriendlyDescription());
 

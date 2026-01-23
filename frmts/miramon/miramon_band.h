@@ -236,6 +236,11 @@ class MMRBand final
         return m_osRATRELName;
     }
 
+    CPLString GetUnits() const
+    {
+        return m_osUnitType;
+    }
+
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
     // Writing part
@@ -261,8 +266,10 @@ class MMRBand final
     void UpdateBoundingBoxFromREL(const CPLString &osSection);
     void UpdateReferenceSystemFromREL();
     void UpdateMinMaxValuesFromREL(const CPLString &osSection);
+    void UpdateUnitTypeValueFromREL(const CPLString &osSection);
     void UpdateMinMaxVisuValuesFromREL(const CPLString &osSection);
     void UpdateFriendlyDescriptionFromREL(const CPLString &osSection);
+    const char *UpdateUnitType();
 
     template <typename TYPE>
     CPLErr UncompressRow(void *rowBuffer, size_t nCompressedRawSize);
@@ -350,6 +357,8 @@ class MMRBand final
 
     bool m_bIsCompressed = false;
     bool m_bIsCategorical = false;
+
+    CPLString m_osUnitType = "";
 
     // Min and Max values from metadata:  This value should correspond
     // to the actual minimum and maximum, not to an approximation.

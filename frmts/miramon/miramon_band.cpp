@@ -48,8 +48,8 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
             m_osBandFileName = "";
         else
         {
-            m_osBandFileName =
-                m_pfRel->MMRGetFileNameFromRelName(m_pfRel->GetRELName());
+            m_osBandFileName = m_pfRel->MMRGetFileNameFromRelName(
+                m_pfRel->GetRELName(), pszExtRaster);
         }
 
         if (m_osBandFileName.empty())
@@ -127,6 +127,9 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
 
     // Getting min and max values
     UpdateMinMaxValuesFromREL(m_osBandSection);
+
+    // Getting unit type
+    UpdateUnitTypeValueFromREL(m_osBandSection);
 
     // Getting min and max values for simbolization
     UpdateMinMaxVisuValuesFromREL(m_osBandSection);
@@ -219,6 +222,9 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
                  "MMRBand::MMRBand : (nWidth <= 0 || nHeight <= 0)");
         return;
     }
+
+    // Getting units
+    m_osUnitType = papoBand.GetUnitType();
 
     // Getting data type and compression from papoBand.
     // If error, message given inside.
@@ -570,6 +576,20 @@ void MMRBand::UpdateMinMaxValuesFromREL(const CPLString &osSection)
     {
         m_bMinSet = false;
         m_bMaxSet = false;
+    }
+}
+
+void MMRBand::UpdateUnitTypeValueFromREL(const CPLString &osSection)
+{
+    CPLString osValue;
+
+    CPLString osAuxSection = SECTION_ATTRIBUTE_DATA;
+    osAuxSection.append(":");
+    osAuxSection.append(osSection);
+    if (m_pfRel->GetMetadataValue(osAuxSection, "unitats", osValue) &&
+        !osValue.empty())
+    {
+        m_osUnitType = osValue;
     }
 }
 
@@ -1428,6 +1448,12 @@ CPLString MMRBand::GetRELDataType() const
     return "";
 }
 
+const char *MMRBand::UpdateUnitType()
+
+{
+    return m_osUnitType.c_str();
+}
+
 void MMRBand::UpdateRowMinMax(const void *pBuffer)
 {
     switch (m_eMMDataType)
@@ -2038,7 +2064,7 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
         if (EQUAL(MMField.FieldName, m_osValue))
         {
             pRATRel->AddKeyValue("visible", "0");
-            pRATRel->AddKeyValue("TractamentVariable", "Categoric");
+            pRATRel->AddKeyValue(KEY_TractamentVariable, "Categoric");
         }
         pRATRel->AddKeyValue(KEY_descriptor, "");
         pRATRel->AddSectionEnd();

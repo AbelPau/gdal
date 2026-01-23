@@ -21,6 +21,7 @@ from osgeo import gdal, osr
 
 pytestmark = pytest.mark.require_driver("MiraMonRaster")
 
+working_mode = "Release"  # Debug to generate GTiff files for debugging
 
 gdal_to_struct = {
     gdal.GDT_UInt8: "B",
@@ -132,6 +133,10 @@ def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_ra
         band.FlushCache()
 
     band1 = src_ds.GetRasterBand(1)
+
+    band2 = src_ds.GetRasterBand(2)
+    band2.SetUnitType("m")
+
     if use_color_table == "True":
         # --- Color table on band 1 ---
         color1 = (0, 0, 0, 0)  # NoData
@@ -184,6 +189,19 @@ def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_ra
         rat.SetValueAsString(5, 1, classname6)
 
         band1.SetDefaultRAT(rat)
+
+    if working_mode == "Debug":
+        # --- Write to MiraMonRaster ---
+        mm_driver = gdal.GetDriverByName("GTiff")
+        assert mm_driver is not None, "GTiff"
+
+        tmpdir = tempfile.mkdtemp()
+        mm_path = os.path.join(tmpdir, "test" + str(data_type1) + ".tiff")
+
+        mm_ds = mm_driver.CreateCopy(mm_path, src_ds)
+        assert mm_ds is not None
+        mm_ds = None
+        return
 
     # --- Write to MiraMonRaster ---
     mm_driver = gdal.GetDriverByName("MiraMonRaster")
@@ -268,5 +286,9 @@ def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_ra
     dst_band2 = dst_ds.GetRasterBand(2)
     assert dst_band2.ComputeRasterMinMax(False) == (100, 105)
 
+    # --- Unit checks ---
+    assert dst_band2.GetUnitType() == band2.GetUnitType()
+
+    # --- Cleanup ---
     dst_ds = None
     src_ds = None

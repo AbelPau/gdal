@@ -49,12 +49,14 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define KEY_descriptor "descriptor"
 #define KEY_HorizontalSystemDefinition "HorizontalSystemDefinition"
 #define KEY_unitats "unitats"
+#define KEY_MostrarUnitats "MostrarUnitats"
 #define KEY_unitatsY "unitatsY"
 #define KEY_language "language"
 #define KEY_Value_eng "eng"
 #define KEY_MDIdiom "MDIdiom"
 #define KEY_characterSet "characterSet"
 #define KEY_Value_characterSet "006"
+#define KEY_TractamentVariable "TractamentVariable"
 
 // Raster
 #define SECTION_ATTRIBUTE_DATA "ATTRIBUTE_DATA"

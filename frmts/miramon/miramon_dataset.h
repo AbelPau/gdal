@@ -77,6 +77,7 @@ class MMRDataset final : public GDALPamDataset
                                   CPLString osBand);
     static bool IsCategoricalBand(GDALRasterBand &pRasterBand,
                                   char **papszOptions, CPLString osIndexBand);
+    void WriteRGBMap();
 
     bool IsValid() const
     {
@@ -107,6 +108,11 @@ class MMRDataset final : public GDALPamDataset
     double m_dfMaxX = -MM_UNDEFINED_STATISTICAL_VALUE;
     double m_dfMinY = MM_UNDEFINED_STATISTICAL_VALUE;
     double m_dfMaxY = -MM_UNDEFINED_STATISTICAL_VALUE;
+
+    // If a RGB combination can be done, then a map ".mmm" will be generated
+    int m_nIBandR = -1;
+    int m_nIBandG = -1;
+    int m_nIBandB = -1;
 };
 
 #endif  // MMRDATASET_H_INCLUDED

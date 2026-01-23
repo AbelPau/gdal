@@ -56,7 +56,7 @@ MMRPalettes::MMRPalettes(MMRRel &fRel, const CPLString &osBandSectionIn)
     {
         CPLString os_TractamentVariable;
         if (!m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA,
-                                       "TractamentVariable",
+                                       KEY_TractamentVariable,
                                        os_TractamentVariable))
             os_TractamentVariable = "";
 

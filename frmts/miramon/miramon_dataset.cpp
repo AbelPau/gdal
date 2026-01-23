@@ -109,9 +109,9 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
 
     // Getting bands information
     bool bAllBandsSameDim = true;
-    for (int nIBand = 1; nIBand <= nBands; nIBand++)
+    for (int nIBand = 0; nIBand < nBands; nIBand++)
     {
-        GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand);
+        GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
         if (!pRasterBand)
         {
             ReportError(
@@ -121,7 +121,27 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
             return;
         }
 
-        const CPLString osIndexBand = CPLSPrintf("%d", nIBand);
+        CPLString osIndexBand;
+        if (pRasterBand->GetColorInterpretation() == GCI_RedBand)
+        {
+            osIndexBand = "R";
+            m_nIBandR = nIBand;
+        }
+        else if (pRasterBand->GetColorInterpretation() == GCI_GreenBand)
+        {
+            osIndexBand = "G";
+            m_nIBandG = nIBand;
+        }
+        else if (pRasterBand->GetColorInterpretation() == GCI_BlueBand)
+        {
+            osIndexBand = "B";
+            m_nIBandB = nIBand;
+        }
+        else if (pRasterBand->GetColorInterpretation() == GCI_AlphaBand)
+            osIndexBand = "Alpha";
+        else
+            osIndexBand = CPLSPrintf("%d", nIBand + 1);
+
         bool bCategorical =
             IsCategoricalBand(*pRasterBand, papszOptions, osIndexBand);
 
@@ -129,7 +149,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
             EQUAL(CSLFetchNameValueDef(papszOptions, "COMPRESS", "YES"), "YES");
 
         // Emplace back a MMRBand
-        oBands.emplace_back(pfnProgress, pProgressData, oSrcDS, nIBand - 1,
+        oBands.emplace_back(pfnProgress, pProgressData, oSrcDS, nIBand,
                             CPLGetPathSafe(osRelname), *pRasterBand,
                             bCompressDS, bCategorical, osPattern, osIndexBand,
                             bNeedOfNomFitxer);
@@ -141,7 +161,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
                 nIBand);
             return;
         }
-        if (nIBand == 1)
+        if (nIBand == 0)
         {
             m_nWidth = oBands.back().GetWidth();
             m_nHeight = oBands.back().GetHeight();
@@ -188,6 +208,9 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         m_pMMRRel->SetIsValid(false);
         return;
     }
+
+    // If is the RGB case a map (.mmm) is generated
+    WriteRGBMap();
 
     m_bIsValid = true;
 }
@@ -764,6 +787,12 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
         if (pRasterBand.GetRasterDataType() >= GDT_Float32)
             return false;
 
+        // Assume that if data type is 8-bit with color table,
+        // then the band might be categorical.
+        if (pRasterBand.GetRasterDataType() < GDT_Int8 &&
+            pRasterBand.GetColorTable() != nullptr)
+            return true;
+
         if (pRasterBand.GetDefaultRAT() != nullptr)
             return true;
     }
@@ -781,3 +810,68 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
 
     return false;
 }
+
+void MMRDataset::WriteRGBMap()
+{
+    if (m_nIBandR == -1 || m_nIBandG == -1 || m_nIBandB == -1)
+        return;
+
+    CPLString osMapNameAux = m_pMMRRel->GetRELName();
+    CPLString osMapNameAux2 =
+        m_pMMRRel->MMRGetFileNameFromRelName(osMapNameAux, ".mmm");
+
+    auto pMMMap = std::make_unique<MMRRel>(osMapNameAux2);
+    if (!pMMMap->OpenRELFile("wb"))
+        return;
+
+    pMMMap->AddSectionStart(SECTION_VERSIO);
+    pMMMap->AddKeyValue(KEY_Vers, "2");
+    pMMMap->AddKeyValue(KEY_SubVers, "0");
+    pMMMap->AddKeyValue("variant", "b");
+    pMMMap->AddSectionEnd();
+
+    pMMMap->AddSectionStart("DOCUMENT");
+    pMMMap->AddKeyValue("Titol", CPLGetBasenameSafe(osMapNameAux2));
+    pMMMap->AddSectionEnd();
+
+    pMMMap->AddSectionStart("VISTA");
+    pMMMap->AddKeyValue("ordre", "RASTER_RGB_1");
+    pMMMap->AddSectionEnd();
+
+    pMMMap->AddSectionStart("RASTER_RGB_1");
+    pMMMap->AddKeyValue(
+        "FitxerR",
+        CPLGetFilename(m_pMMRRel->GetBand(m_nIBandR)->GetRawBandFileName()));
+    pMMMap->AddKeyValue(
+        "FitxerG",
+        CPLGetFilename(m_pMMRRel->GetBand(m_nIBandG)->GetRawBandFileName()));
+    pMMMap->AddKeyValue(
+        "FitxerB",
+        CPLGetFilename(m_pMMRRel->GetBand(m_nIBandB)->GetRawBandFileName()));
+    pMMMap->AddKeyValue("UnificVisCons", "1");
+    pMMMap->AddKeyValue("visualitzable", "1");
+    pMMMap->AddKeyValue("consultable", "1");
+    pMMMap->AddKeyValue("EscalaMaxima", "0");
+    pMMMap->AddKeyValue("EscalaMinima", "900000000");
+    pMMMap->AddKeyValue("LlegSimb_Vers", "4");
+    pMMMap->AddKeyValue("LlegSimb_SubVers", "5");
+    pMMMap->AddKeyValue("Color_VisibleALleg", "1");
+    CPLString osLlegTitle = "RGB:";
+    osLlegTitle.append(
+        CPLGetFilename(m_pMMRRel->GetBand(m_nIBandR)->GetBandName()));
+    osLlegTitle.append("+");
+    osLlegTitle.append(
+        CPLGetFilename(m_pMMRRel->GetBand(m_nIBandG)->GetBandName()));
+    osLlegTitle.append("+");
+    osLlegTitle.append(
+        CPLGetFilename(m_pMMRRel->GetBand(m_nIBandB)->GetBandName()));
+    pMMMap->AddKeyValue("Color_TitolLlegenda", osLlegTitle);
+    pMMMap->AddSectionEnd();
+}
+
+/*
+LlegSimb_Vers=4
+LlegSimb_SubVers=5
+Color_VisibleALleg=1
+Color_TitolLlegenda=RGB:Europa_despres_1a_Guerra_Mundial_original_R+Europa_despres_1a_Guerra_Mundial_original_G+Europa_despres_1a_Guerra_Mundial_original_B
+*/

@@ -90,7 +90,8 @@ class MMRRel
     void RELToGDALMetadata(GDALDataset *poDS);
 
     static CPLString MMRGetFileNameWithOutI(const CPLString &osRELFile);
-    static CPLString MMRGetFileNameFromRelName(const CPLString &osRELFile);
+    static CPLString MMRGetFileNameFromRelName(const CPLString &osRELFile,
+                                               const CPLString osExtension);
     int GetColumnsNumberFromREL();
     int GetRowsNumberFromREL();
     static int IdentifySubdataSetFile(const CPLString &osFileName);
@@ -380,6 +381,8 @@ class MMRRel
     // all bands with a different value must write it in their
     // corresponding specific section.
     bool m_bDimAlreadyWritten = false;
+    CPLString m_osDefTractVariable = "";
+    CPLString m_osDefUnits = "";
 
     // Preserving metadata
 
