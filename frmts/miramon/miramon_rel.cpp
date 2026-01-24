@@ -1237,8 +1237,7 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
     AddKeyValue(KEY_TractamentVariable, m_osDefTractVariable);
 
     // Units by default
-    m_osDefUnits = m_oBands[0].GetUnits().empty() ? static_cast<CPLString>("")
-                                                  : m_oBands[0].GetUnits();
+    m_osDefUnits = m_oBands[0].GetUnits();
     if (m_osDefUnits.empty())
         AddKeyValue(KEY_MostrarUnitats, "0");
     else
@@ -1300,7 +1299,7 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
         AddKeyValue(KEY_TractamentVariable, osTractVariable);
 
     // Units of the band (only written if diferent from default)
-    CPLString osUnits = osBand.GetUnits().empty() ? "" : osBand.GetUnits();
+    CPLString osUnits = osBand.GetUnits();
     if (!EQUAL(m_osDefUnits, osUnits))
     {
         if (osUnits.empty())

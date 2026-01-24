@@ -224,7 +224,7 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
     }
 
     // Getting units
-    m_osUnitType = papoBand.GetUnitType();
+    m_osBandUnitType = papoBand.GetUnitType();
 
     // Getting data type and compression from papoBand.
     // If error, message given inside.
@@ -589,7 +589,7 @@ void MMRBand::UpdateUnitTypeValueFromREL(const CPLString &osSection)
     if (m_pfRel->GetMetadataValue(osAuxSection, "unitats", osValue) &&
         !osValue.empty())
     {
-        m_osUnitType = osValue;
+        m_osBandUnitType = osValue;
     }
 }
 
@@ -1446,12 +1446,6 @@ CPLString MMRBand::GetRELDataType() const
     }
 
     return "";
-}
-
-const char *MMRBand::UpdateUnitType()
-
-{
-    return m_osUnitType.c_str();
 }
 
 void MMRBand::UpdateRowMinMax(const void *pBuffer)
