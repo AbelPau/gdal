@@ -36,6 +36,7 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
     m_osBandSection = poBand->GetBandSection();
     m_eMMRDataTypeMiraMon = poBand->GeteMMDataType();
     m_eMMBytesPerPixel = poBand->GeteMMBytesPerPixel();
+    SetUnitType(poBand->GetUnits());
     nBlockXSize = poBand->GetBlockXSize();
     nBlockYSize = poBand->GetBlockYSize();
 
@@ -170,6 +171,31 @@ double MMRRasterBand::GetMaximum(int *pbSuccess)
         *pbSuccess = TRUE;
 
     return poBand->GetMax();
+}
+
+/************************************************************************/
+/*                            GetUnitType()                             */
+/************************************************************************/
+
+const char *MMRRasterBand::GetUnitType()
+
+{
+    return osUnitType.c_str();
+}
+
+/************************************************************************/
+/*                            SetUnitType()                             */
+/************************************************************************/
+
+CPLErr MMRRasterBand::SetUnitType(const char *pszUnit)
+
+{
+    if (pszUnit == nullptr)
+        osUnitType.clear();
+    else
+        osUnitType = pszUnit;
+
+    return CE_None;
 }
 
 /************************************************************************/
@@ -750,7 +776,8 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinuousMode()
         return CE_Failure;
 
     // TODO: more types of scaling
-    if (m_Palette->GetColorScaling() != ColorTreatment::LINEAR_SCALING)
+    if (m_Palette->GetColorScaling() != ColorTreatment::LINEAR_SCALING &&
+        m_Palette->GetColorScaling() != ColorTreatment::DIRECT_ASSIGNATION)
         return CE_Failure;
 
     MMRBand *poBand = m_pfRel->GetBand(nBand - 1);
@@ -802,7 +829,8 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinuousMode()
         nFirstValidPaletteIndex = 0;
 
     int nIPaletteColorNoData = 0;
-    if (static_cast<int>(m_eMMBytesPerPixel) == 2)
+    if (static_cast<int>(m_eMMBytesPerPixel) == 2 ||
+        m_Palette->GetColorScaling() != ColorTreatment::DIRECT_ASSIGNATION)
     {
         // A scaling is applied between the minimum and maximum display values.
         dfSlope = (static_cast<double>(m_Palette->GetNumberOfColors()) - 1) /
@@ -841,7 +869,9 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinuousMode()
             {
                 // Between the minimum and maximum, we apply the value
                 // read from the table.
-                if (static_cast<int>(m_eMMBytesPerPixel) < 2)
+                if (static_cast<int>(m_eMMBytesPerPixel) < 2 ||
+                    m_Palette->GetColorScaling() ==
+                        ColorTreatment::DIRECT_ASSIGNATION)
                 {
                     // The value is applied directly.
                     AssignRGBColor(nIPaletteColor, nFirstValidPaletteIndex);
@@ -891,7 +921,7 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
 
     CPLString osShortRELName;
 
-    if (!m_pfRel->GetMetadataValue(osTableNameSection, "NomFitxer",
+    if (!m_pfRel->GetMetadataValue(osTableNameSection, KEY_NomFitxer,
                                    osShortRELName) ||
         osShortRELName.empty())
     {
@@ -912,7 +942,7 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
         MMRRel localRel(osRELName, false);
         CPLString osShortDBFName;
 
-        if (!localRel.GetMetadataValue("TAULA_PRINCIPAL", "NomFitxer",
+        if (!localRel.GetMetadataValue(SECTION_TAULA_PRINCIPAL, KEY_NomFitxer,
                                        osShortDBFName) ||
             osShortDBFName.empty())
         {
@@ -925,7 +955,7 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
             CPLGetPathSafe(localRel.GetRELNameChar()).c_str(), osShortDBFName,
             "");
 
-        if (!localRel.GetMetadataValue("TAULA_PRINCIPAL", "AssociatRel",
+        if (!localRel.GetMetadataValue(SECTION_TAULA_PRINCIPAL, "AssociatRel",
                                        osAssociateREL) ||
             osAssociateREL.empty())
         {
@@ -933,7 +963,8 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
             return CE_Failure;
         }
 
-        CPLString osSection = "TAULA_PRINCIPAL:";
+        CPLString osSection = SECTION_TAULA_PRINCIPAL;
+        osSection.append(":");
         osSection.append(osAssociateREL);
 
         CPLString osTactVar;

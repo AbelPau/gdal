@@ -82,7 +82,7 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
                 // and we can ask things to this Rel file.
                 UpdateRELNameChar(m_osRelFileName);
                 m_bIsAMiraMonFile = true;
-                if (!OpenRELFile())
+                if (!OpenRELFile("rb"))
                     return;
             }
             return;
@@ -120,7 +120,7 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
     UpdateRELNameChar(osRelCandidate);
 
     // We let it be opened
-    if (!OpenRELFile())
+    if (!OpenRELFile("rb"))
         return;
 
     // Collect band information
@@ -131,6 +131,33 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
     m_bIsValid = true;
 
     return;
+}
+
+MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bNeedOfNomFitxer,
+               const CPLString &osEPSG, int nWidth, int nHeight, double dfMinX,
+               double dfMaxX, double dfMinY, double dfMaxY,
+               std::vector<MMRBand> &&oBands)
+    : m_osRelFileName(osRELFilenameIn), m_szFileIdentifier(""),
+      m_oBands(std::move(oBands)), m_bNeedOfNomFitxer(bNeedOfNomFitxer),
+      m_osEPSG(osEPSG), m_nWidth(nWidth), m_nHeight(nHeight), m_dfMinX(dfMinX),
+      m_dfMaxX(dfMaxX), m_dfMinY(dfMinY), m_dfMaxY(dfMaxY)
+{
+    m_nBands = static_cast<int>(m_oBands.size());
+
+    if (!m_nBands)
+        return;
+
+    // Getting the title of the rel
+    m_osTitle = MMRGetFileNameWithOutI(CPLGetBasenameSafe(osRELFilenameIn));
+
+    m_bIsAMiraMonFile = true;
+    m_bIsValid = true;
+}
+
+MMRRel::MMRRel(const CPLString &osRELFilenameIn)
+    : m_osRelFileName(osRELFilenameIn), m_osTitle(""), m_szFileIdentifier(""),
+      m_bIsValid(true), m_bIsAMiraMonFile(true), m_nBands(0)
+{
 }
 
 /************************************************************************/
@@ -250,8 +277,8 @@ CPLString MMRRel::GetValueFromSectionKey(VSILFILE *pf,
 /*                     Other functions                                  */
 /************************************************************************/
 
-// Converts FileNameI.rel to FileName.img
-CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString &osRELFile)
+// Converts FileNameI.rel to FileName
+CPLString MMRRel::MMRGetFileNameWithOutI(const CPLString &osRELFile)
 {
     if (osRELFile.empty())
         return "";
@@ -262,7 +289,26 @@ CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString &osRELFile)
         return "";
 
     osFile.resize(osFile.size() - 2);  // I.
-    osFile += pszExtRaster;
+
+    return osFile;
+}
+
+// Converts FileNameI.rel to FileName.xxx (where xxx is an extension)
+CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString &osRELFile,
+                                            const CPLString osExtension)
+{
+    if (osRELFile.empty())
+        return "";
+
+    // Extracts I.rel
+    CPLString osFile =
+        MMRGetFileNameWithOutI(CPLResetExtensionSafe(osRELFile, ""));
+
+    if (!osExtension.empty())
+    {
+        // Adds extension (with the ".", ex: ".img")
+        osFile += osExtension;
+    }
 
     return osFile;
 }
@@ -345,7 +391,8 @@ MMRNomFitxerState MMRRel::MMRStateOfNomFitxerInSection(
                                             osDocumentedLayerName) ||
         osDocumentedLayerName.empty())
     {
-        CPLString osIIMGFromREL = MMRGetFileNameFromRelName(osRELFile);
+        CPLString osIIMGFromREL =
+            MMRGetFileNameFromRelName(osRELFile, pszExtRaster);
         if (SameFile(osIIMGFromREL, osLayerName))
             return MMRNomFitxerState::NOMFITXER_VALUE_EXPECTED;
 
@@ -602,7 +649,8 @@ CPLErr MMRRel::CheckBandInRel(const CPLString &osRELFileName,
                                       KEY_NomFitxer, osRawBandFileName) ||
             osRawBandFileName.empty())
         {
-            CPLString osBandFileName = MMRGetFileNameFromRelName(osRELFileName);
+            CPLString osBandFileName =
+                MMRGetFileNameFromRelName(osRELFileName, pszExtRaster);
             if (osBandFileName.empty())
                 return CE_Failure;
         }
@@ -861,10 +909,9 @@ CPLErr MMRRel::ParseBandInfo()
         if (m_nBands >= nNBand)
             break;
 
-        m_oBands.emplace_back(
-            std::make_unique<MMRBand>(*this, osBandSectionValue.Trim()));
+        m_oBands.emplace_back(*this, osBandSectionValue.Trim());
 
-        if (!m_oBands[m_nBands]->IsValid())
+        if (!m_oBands[m_nBands].IsValid())
         {
             // This band is not been completed
             return CE_Failure;
@@ -1005,4 +1052,414 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
                                   osPendingValue.Trim().c_str(),
                                   m_kMetadataDomain);
     }
+}
+
+/************************************************************************/
+/*                     Writing part                                     */
+/************************************************************************/
+bool MMRRel::Write(GDALDataset &oSrcDS)
+{
+    // REL File creation
+    if (!CreateRELFile())
+        return false;
+
+    AddRELVersion();
+
+    // Writing METADADES section
+    WriteMETADADES();  // It fills m_szFileIdentifier
+
+    // Writing IDENTIFICATION section
+    WriteIDENTIFICATION();
+
+    // Writting OVERVIEW:ASPECTES_TECNICS
+    WriteOVERVIEW_ASPECTES_TECNICS();
+
+    // Writing SPATIAL_REFERENCE_SYSTEM:HORIZONTAL
+    WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
+
+    // Writing EXTENT section
+    WriteEXTENT();
+
+    // Writing OVERVIEW section
+    WriteOVERVIEW();
+
+    // Writing ATTRIBUTE_DATA section
+    if (!WriteATTRIBUTE_DATA(oSrcDS))
+    {
+        CloseRELFile();
+        return false;
+    }
+
+    // Writing visualization sections
+    WriteCOLOR_TEXTSection();
+    WriteVISU_LLEGENDASection();
+
+    CloseRELFile();
+    return true;
+}
+
+// Writes METADADES section
+void MMRRel::WriteMETADADES()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_METADADES);
+    AddKeyValue(KEY_language, KEY_Value_eng);
+    AddKeyValue(KEY_MDIdiom, KEY_Value_eng);
+
+    char aMessage[MM_MESSAGE_LENGTH];
+    CPLString osFileName = CPLGetBasenameSafe(m_osRelFileName);
+    CPLStrlcpy(aMessage, osFileName, sizeof(aMessage));
+    MMGenerateFileIdentifierFromMetadataFileName(aMessage, m_szFileIdentifier);
+
+    AddKeyValue(KEY_FileIdentifier, m_szFileIdentifier);
+    AddKeyValue(KEY_characterSet, KEY_Value_characterSet);
+    AddSectionEnd();
+}
+
+// Writes IDENTIFICATION section
+void MMRRel::WriteIDENTIFICATION()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_IDENTIFICATION);
+    AddKeyValue(KEY_code, m_szFileIdentifier);
+    AddKey(KEY_codeSpace);
+
+    if (!m_osTitle.empty())
+        AddKeyValue(KEY_DatasetTitle, m_osTitle);
+    AddSectionEnd();
+}
+
+// Writes OVERVIEW:ASPECTES_TECNICS section
+void MMRRel::WriteOVERVIEW_ASPECTES_TECNICS()
+{
+    if (!GetRELFile())
+        return;
+
+    if (m_nWidth && m_nHeight)
+    {
+        AddSectionStart(SECTION_OVERVIEW, SECTION_ASPECTES_TECNICS);
+        AddKeyValue("columns", m_nWidth);
+        AddKeyValue("rows", m_nHeight);
+        AddSectionEnd();
+        m_bDimAlreadyWritten = TRUE;
+    }
+}
+
+// Writes SPATIAL_REFERENCE_SYSTEM:HORIZONTAL section
+void MMRRel::WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_SPATIAL_REFERENCE_SYSTEM, SECTION_HORIZONTAL);
+    char aMMIDSRS[MM_MAX_ID_SNY];
+    if (!ReturnMMIDSRSFromEPSGCodeSRS(m_osEPSG, aMMIDSRS) &&
+        !MMIsEmptyString(aMMIDSRS))
+    {
+        AddKeyValue(KEY_HorizontalSystemIdentifier, aMMIDSRS);
+    }
+    else
+    {
+        CPLError(CE_Warning, CPLE_NotSupported,
+                 "The MiraMon driver cannot assign any HRS.");
+        // Horizontal Reference System
+        AddKeyValue(KEY_HorizontalSystemIdentifier, "plane");
+        AddKeyValue(KEY_HorizontalSystemDefinition, "local");
+    }
+    AddSectionEnd();
+}
+
+// Writes EXTENT section
+void MMRRel::WriteEXTENT()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_EXTENT);
+    if (m_dfMinX != MM_UNDEFINED_STATISTICAL_VALUE &&
+        m_dfMaxX != -MM_UNDEFINED_STATISTICAL_VALUE &&
+        m_dfMinY != MM_UNDEFINED_STATISTICAL_VALUE &&
+        m_dfMaxY != -MM_UNDEFINED_STATISTICAL_VALUE)
+    {
+        AddKeyValue(KEY_MinX, m_dfMinX);
+        AddKeyValue(KEY_MaxX, m_dfMaxX);
+        AddKeyValue(KEY_MinY, m_dfMinY);
+        AddKeyValue(KEY_MaxY, m_dfMaxY);
+    }
+    AddKeyValue(KEY_toler_env, 0);
+    AddSectionEnd();
+}
+
+// Writes OVERVIEW section
+void MMRRel::WriteOVERVIEW()
+{
+    if (!GetRELFile())
+        return;
+
+    AddSectionStart(SECTION_OVERVIEW);
+    time_t currentTime = time(nullptr);
+    struct tm ltime;
+    VSILocalTime(&currentTime, &ltime);
+    char aTimeString[200];
+    snprintf(aTimeString, sizeof(aTimeString), "%04d%02d%02d %02d%02d%02d%02d",
+             ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday,
+             ltime.tm_hour, ltime.tm_min, ltime.tm_sec, 0);
+    AddKeyValue(KEY_CreationDate, aTimeString);
+    AddKeyValue(KEY_CoverageContentType, "001");  // Raster image
+    AddSectionEnd();
+}
+
+// Writes ATTRIBUTE_DATA section
+bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
+{
+    if (!GetRELFile())
+        return false;
+
+    if (!m_nBands)
+        return false;
+
+    AddSectionStart(SECTION_ATTRIBUTE_DATA);
+
+    const CPLString osDSDataType = m_oBands[0].GetRELDataType();
+    if (osDSDataType.empty())
+        return false;
+
+    AddKeyValue("TipusCompressio", osDSDataType);
+    AddKeyValue("TipusRelacio", "RELACIO_1_1_DICC");
+
+    // TractamentVariable by default
+    m_osDefTractVariable =
+        m_oBands[0].IsCategorical() ? "Categoric" : "QuantitatiuContinu";
+    AddKeyValue(KEY_TractamentVariable, m_osDefTractVariable);
+
+    // Units by default
+    m_osDefUnits = m_oBands[0].GetUnits();
+    if (m_osDefUnits.empty())
+        AddKeyValue(KEY_MostrarUnitats, "0");
+    else
+        AddKeyValue(KEY_unitats, m_osDefUnits);
+
+    // Key_IndexesNomsCamps
+    CPLString osIndexsNomsCamps = "1";
+    CPLString osIndex;
+    for (int nIBand = 1; nIBand < m_nBands; nIBand++)
+    {
+        osIndex = CPLSPrintf(",%d", nIBand + 1);
+        osIndexsNomsCamps.append(osIndex);
+    }
+    AddKeyValue(Key_IndexesNomsCamps, osIndexsNomsCamps);
+
+    // Writing bands names
+    CPLString osIndexKey, osIndexValue;
+    for (int nIBand = 0; nIBand < m_nBands; nIBand++)
+    {
+        osIndexKey = CPLSPrintf("NomCamp_%d", nIBand + 1);
+        osIndexValue = m_oBands[nIBand].GetBandSection();
+        AddKeyValue(osIndexKey, osIndexValue);
+    }
+    AddSectionEnd();
+
+    // Writing bands sections: particular band information
+    for (int nIBand = 0; nIBand < m_nBands; nIBand++)
+    {
+        // Writing IMG binary file. This calculates min and max values of the band
+        if (!m_oBands[nIBand].WriteBandFile(oSrcDS, m_nBands, nIBand))
+            return false;
+
+        // Adding band information to REL. This writes min max values of the band
+        WriteBandSection(m_oBands[nIBand], osDSDataType);
+    }
+
+    return true;
+}
+
+void MMRRel::WriteBandSection(const MMRBand &osBand,
+                              const CPLString osDSDataType)
+{
+    if (osBand.GetBandSection().empty())
+        return;  // It's not an error.
+
+    CPLString osSection = "ATTRIBUTE_DATA";
+    osSection.append(":");
+    osSection.append(osBand.GetBandSection());
+
+    AddSectionStart(osSection);
+    CPLString osDataType = osBand.GetRELDataType();
+    if (!EQUAL(osDSDataType, osDataType))
+        AddKeyValue("TipusCompressio", osDataType);
+
+    // TractamentVariable of the band (only written if diferent from default)
+    CPLString osTractVariable =
+        osBand.IsCategorical() ? "Categoric" : "QuantitatiuContinu";
+    if (!EQUAL(m_osDefTractVariable, osTractVariable))
+        AddKeyValue(KEY_TractamentVariable, osTractVariable);
+
+    // Units of the band (only written if diferent from default)
+    CPLString osUnits = osBand.GetUnits();
+    if (!EQUAL(m_osDefUnits, osUnits))
+    {
+        if (osUnits.empty())
+            AddKeyValue(KEY_MostrarUnitats, "0");
+        else
+        {
+            AddKeyValue(KEY_MostrarUnitats, "1");
+            AddKeyValue(KEY_unitats, osUnits);
+        }
+    }
+
+    // If there is need of NomFitxer this is the place to wrote it.
+    if (!osBand.GetRawBandFileName().empty() && m_bNeedOfNomFitxer)
+        AddKeyValue(KEY_NomFitxer, osBand.GetRawBandFileName());
+
+    // Description
+    if (!osBand.GetFriendlyDescription().empty())
+        AddKeyValue(KEY_descriptor, osBand.GetFriendlyDescription());
+
+    if (osBand.BandHasNoData())
+    {
+        AddKeyValue("NODATA", osBand.GetNoDataValue());
+        AddKeyValue("NODATADef", "NODATA");
+
+        if (osBand.GetMin() == osBand.GetNoDataValue())
+            AddKeyValue("min", osBand.GetMin() + 1);
+        else
+            AddKeyValue("min", osBand.GetMin());
+
+        if (osBand.GetMax() == osBand.GetNoDataValue())
+            AddKeyValue("max", osBand.GetMax() - 1);
+        else
+            AddKeyValue("max", osBand.GetMax());
+    }
+    else
+    {
+        AddKeyValue("min", osBand.GetMin());
+        AddKeyValue("max", osBand.GetMax());
+    }
+
+    CPLString osIJT = "";
+    if (!osBand.GetAttributeTableDBFNameFile().empty())
+    {
+        osIJT = osBand.GetBandSection();
+        osIJT.append("_DBF");
+        AddKeyValue("IndexsJoinTaula", osIJT);
+
+        CPLString osJT = "JoinTaula_";
+        osJT.append(osIJT);
+        AddKeyValue(osJT, osIJT);
+    }
+    AddSectionEnd();
+
+    if (!osIJT.empty())
+    {
+        CPLString osTAULA_SECTION = "TAULA_";
+        osTAULA_SECTION.append(osIJT);
+        AddSectionStart(osTAULA_SECTION);
+        AddKeyValue(KEY_NomFitxer,
+                    CPLGetFilename(osBand.GetAttributeTableRELNameFile()));
+        AddSectionEnd();
+    }
+}
+
+CPLString MMRRel::GetColor_TractamentVariable(int nIBand)
+{
+    if (m_oBands[nIBand].IsCategorical())
+        return "Categoric";
+    else
+        return "QuantitatiuContinu";
+}
+
+CPLString MMRRel::GetColor_Paleta(int nIBand)
+{
+    if (!m_oBands[nIBand].GetColorTableNameFile().empty())
+    {
+        CPLString osRELPath = CPLGetPathSafe(m_osRelFileName);
+        return CPLExtractRelativePath(
+            osRELPath, m_oBands[0].GetColorTableNameFile(), nullptr);
+    }
+    else
+        return "<Automatic>";
+}
+
+void MMRRel::WriteCOLOR_TEXTSection()
+{
+    if (!GetRELFile())
+        return;
+
+    if (!m_nBands)
+        return;
+
+    AddSectionStart(SECTION_COLOR_TEXT);
+    AddCOLOR_TEXTVersion();
+    AddKeyValue("UnificVisCons", 1);
+    AddKeyValue("visualitzable", 1);
+    AddKeyValue("consultable", 1);
+    AddKeyValue("EscalaMaxima", 0);
+    AddKeyValue("EscalaMinima", 900000000);
+    AddKeyValue("Color_Const", 0);
+
+    // Setting the default values of "DefaultTractamentVariable"
+    CPLString osDefaultColor_TractamentVariable =
+        GetColor_TractamentVariable(0);
+    AddKeyValue("Color_TractamentVariable", osDefaultColor_TractamentVariable);
+
+    // Setting the default values of "Color_Paleta"
+    CPLString os_DefaultColor_Paleta = GetColor_Paleta(0);
+    AddKeyValue("Color_Paleta", os_DefaultColor_Paleta);
+
+    AddKeyValue("Tooltips_Const", 1);
+    AddSectionEnd();
+
+    // Different key values from the first one in a new section
+    // Band 0 has been already documented. Let's check other bands.
+    for (int nIBand = 1; nIBand < m_nBands; nIBand++)
+    {
+        CPLString osSection = SECTION_COLOR_TEXT;
+        osSection.append(":");
+        osSection.append(m_oBands[nIBand].GetBandSection());
+        bool bSectionStarted = false;
+
+        CPLString osColor_TractamentVariable =
+            GetColor_TractamentVariable(nIBand);
+        if (!EQUAL(osDefaultColor_TractamentVariable,
+                   osColor_TractamentVariable))
+        {
+            AddSectionStart(osSection);
+            bSectionStarted = true;
+            AddKeyValue("Color_TractamentVariable", osColor_TractamentVariable);
+        }
+
+        CPLString osColor_Paleta = GetColor_Paleta(nIBand);
+        if (!EQUAL(os_DefaultColor_Paleta, osColor_Paleta))
+        {
+            if (!bSectionStarted)
+                AddSectionStart(osSection);
+            AddKeyValue("Color_Paleta", osColor_Paleta);
+        }
+
+        AddSectionEnd();
+    }
+}
+
+void MMRRel::WriteVISU_LLEGENDASection()
+{
+    AddSectionStart(SECTION_VISU_LLEGENDA);
+
+    AddVISU_LLEGENDAVersion();
+    AddKeyValue("Color_VisibleALleg", 1);
+    AddKeyValue("Color_TitolLlegenda", "");
+    AddKeyValue("Color_CategAMostrar", "N");  // TODO
+    AddKeyValue("Color_N_ClassesLleg", 256);  // TODO
+    AddKeyValue("Color_InvertOrdPresentColorLleg", 0);
+    AddKeyValue("Color_MostrarIndColorLleg", 0);
+    AddKeyValue("Color_MostrarValColorLleg", 0);
+    AddKeyValue("Color_MostrarCatColorLleg", 1);  // TODO
+    AddKeyValue("Color_MostrarNODATA", 0);        // TODO
+    AddKeyValue("Color_MostrarEntradesBuides", 0);
+    AddKeyValue("Color_NovaColumnaLlegImpresa", 0);
+
+    AddSectionEnd();
 }

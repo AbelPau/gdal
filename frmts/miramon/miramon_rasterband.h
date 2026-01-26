@@ -47,6 +47,8 @@ class MMRRasterBand final : public GDALPamRasterBand
     GDALColorTable *GetColorTable() override;
     double GetMinimum(int *pbSuccess = nullptr) override;
     double GetMaximum(int *pbSuccess = nullptr) override;
+    const char *GetUnitType() override;
+    CPLErr SetUnitType(const char *pszNewValue) override;
     double GetNoDataValue(int *pbSuccess = nullptr) override;
     GDALRasterAttributeTable *GetDefaultRAT() override;
 
@@ -123,6 +125,8 @@ class MMRRasterBand final : public GDALPamRasterBand
     std::array<std::vector<double>, 4> m_aadfPCT{};
 
     CPLString m_osBandSection = "";  // Name of the band
+
+    CPLString osUnitType = "";
 
     MMDataType m_eMMRDataTypeMiraMon = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     MMBytesPerPixel m_eMMBytesPerPixel =

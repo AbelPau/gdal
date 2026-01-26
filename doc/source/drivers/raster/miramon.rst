@@ -9,7 +9,7 @@ MiraMon Raster
 
 .. built_in_by_default::
 
-This driver is capable of reading raster files in the MiraMon format. Write support is expected soon.
+This driver is capable of reading raster files in the MiraMon format and create a copy to the MiraMon format.
 
 A `look-up table of MiraMon <https://www.miramon.cat/help/eng/mm32/AP6.htm>`__ and
 `EPSG <https://epsg.org/home.html>`__ Spatial Reference Systems allows matching
@@ -17,6 +17,8 @@ identifiers in both systems.
 
 Driver capabilities
 -------------------
+
+.. supports_createcopy::
 
 .. supports_georeferencing::
 
@@ -43,6 +45,11 @@ By specifying either the name of the `.rel` metadata file or the name of any `.i
   - *UInt64*: 8 bytes, unsigned integer
   - *Real*: 4 bytes, floating-point
   - *Double*: 8 bytes, double precision floating-point
+
+Writing behavior
+-----------
+
+If the dataset has documented R, G, and B bands, the copy will also generate a map (in .mmm format) to allow the file to be visualized in MiraMon as an RGB raster (24-bit, when the bands are 8-bit).
 
 Color Table
 -----------
@@ -79,10 +86,22 @@ Open options
 
 None.
 
-Dataset creation options
-------------------------
+Creation Options
+----------------
 
-None.
+|about-creation-options|
+The following creation options are supported:
+
+-  .. co:: COMPRESS
+      :choices: YES, NO
+      :default: YES
+
+      Whether the file will be compressed in RLE indexes mode.
+
+-  .. co:: PATTERN
+      
+      Indicates the pattern used to create the name of the different bands. In case of RGB sufixes "_R", "_G" and "_B" will be added to the base name.
+
 
 See Also
 --------
