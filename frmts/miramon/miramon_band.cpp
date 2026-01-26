@@ -2105,7 +2105,7 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
     m_osValue = "";
     for (nIField = 0; nIField < m_poRAT->GetColumnCount(); nIField++)
     {
-        if (m_poRAT->GetTypeOfCol(nIField) == GFU_MinMax)
+        if (m_poRAT->GetUsageOfCol(nIField) == GFU_MinMax)
         {
             m_osValue = m_poRAT->GetNameOfCol(nIField);
             break;
