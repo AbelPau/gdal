@@ -294,21 +294,24 @@ def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_ra
     src_ds = None
 
 
-def test_miramon_rgb_creates_expected_files(tmp_path):
+def test_miramon_rgb_single_dataset(tmp_path):
 
     # ------------------------------------------------------------------
-    # 1. Create MEM RGB dataset
+    # 1. Create MEM RGB dataset with primary colors
     # ------------------------------------------------------------------
-    mem_ds = gdal.GetDriverByName("MEM").Create("", 10, 10, 3, gdal.GDT_Byte)
+    mem_ds = gdal.GetDriverByName("MEM").Create("", 3, 1, 3, gdal.GDT_Byte)
 
     mem_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
     mem_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
     mem_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
 
-    # Optional but realistic
-    mem_ds.GetRasterBand(1).SetDescription("Red")
-    mem_ds.GetRasterBand(2).SetDescription("Green")
-    mem_ds.GetRasterBand(3).SetDescription("Blue")
+    # Pixels:
+    # X=0: Red   -> 255,0,0
+    # X=1: Green -> 0,255,0
+    # X=2: Blue  -> 0,0,255
+    mem_ds.GetRasterBand(1).WriteRaster(0, 0, 3, 1, bytes([255, 0, 0]))
+    mem_ds.GetRasterBand(2).WriteRaster(0, 0, 3, 1, bytes([0, 255, 0]))
+    mem_ds.GetRasterBand(3).WriteRaster(0, 0, 3, 1, bytes([0, 0, 255]))
 
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
@@ -318,30 +321,41 @@ def test_miramon_rgb_creates_expected_files(tmp_path):
     # ------------------------------------------------------------------
     # 2. Create MiraMonRaster copy
     # ------------------------------------------------------------------
-    out_base = tmp_path / "rgb_test"
+    out_base = tmp_path / "rgb_primary"
 
-    miramon_drv = gdal.GetDriverByName("MiraMonRaster")
-    assert miramon_drv is not None
+    drv = gdal.GetDriverByName("MiraMonRaster")
+    assert drv is not None
 
-    miramon_drv.CreateCopy(str(out_base), mem_ds)
-
-    mem_ds = None  # close
+    drv.CreateCopy(str(out_base), mem_ds)
+    mem_ds = None
 
     # ------------------------------------------------------------------
-    # 3. Check generated files
+    # 3. Check generated files (physical)
     # ------------------------------------------------------------------
     expected_files = {
-        "rgb_testI.rel",
-        "rgb_test_R.img",
-        "rgb_test_G.img",
-        "rgb_test_B.img",
-        "rgb_test.mmm",
+        "rgb_primaryI.rel",
+        "rgb_primary_R.img",
+        "rgb_primary_G.img",
+        "rgb_primary_B.img",
+        "rgb_primary.mmm",
     }
 
     generated_files = {f.name for f in tmp_path.iterdir() if f.is_file()}
 
-    missing = expected_files - generated_files
-    extra = generated_files - expected_files
+    assert expected_files == generated_files
 
-    assert not missing, f"Missing files: {missing}"
-    assert not extra, f"Unexpected files: {extra}"
+    # ------------------------------------------------------------------
+    # 4. Open logical dataset (.I.rel) and check bands
+    # ------------------------------------------------------------------
+    ds = gdal.Open(str(tmp_path / "rgb_primaryI.rel"))
+    assert ds is not None
+    assert ds.RasterCount == 3
+
+    r = ds.GetRasterBand(1).ReadRaster(0, 0, 3, 1)
+    g = ds.GetRasterBand(2).ReadRaster(0, 0, 3, 1)
+    b = ds.GetRasterBand(3).ReadRaster(0, 0, 3, 1)
+
+    assert r == bytes([255, 0, 0])
+    assert g == bytes([0, 255, 0])
+    assert b == bytes([0, 0, 255])
+    ds = None

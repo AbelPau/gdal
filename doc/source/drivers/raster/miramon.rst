@@ -47,7 +47,7 @@ By specifying either the name of the `.rel` metadata file or the name of any `.i
   - *Double*: 8 bytes, double precision floating-point
 
 Writing behavior
------------
+----------------
 
 If the dataset has documented R, G, and B bands, the copy will also generate a map (in .mmm format) to allow the file to be visualized in MiraMon as an RGB raster (24-bit, when the bands are 8-bit).
 
