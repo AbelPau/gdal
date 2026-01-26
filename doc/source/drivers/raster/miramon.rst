@@ -100,7 +100,7 @@ The following creation options are supported:
 
 -  .. co:: PATTERN
       
-      Indicates the pattern used to create the name of the different bands. In case of RGB sufixes "_R", "_G" and "_B" will be added to the base name.
+      Indicates the pattern used to create the name of the different bands. In case of RGB suffixes "_R", "_G" and "_B" will be added to the base name.
 
 
 See Also

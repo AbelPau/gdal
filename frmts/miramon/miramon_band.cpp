@@ -1778,7 +1778,10 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
 
     m_poCT = pRasterBand->GetColorTable();
     if (!m_poCT)
-        return 0;
+    {
+        // Perhaps the RAT contains colors and MiraMon can use them as a palette
+        return WriteColorTableFromRAT(oSrcDS, nIBand);
+    }
 
     if (!m_poCT->GetColorEntryCount())
         return 0;
@@ -1902,6 +1905,185 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
 }
 
 // Writes DBF and REL attribute table in MiraMon format
+int MMRBand::WriteColorTableFromRAT(GDALDataset &oSrcDS, int nIBand)
+{
+    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
+    if (!pRasterBand)
+        return 0;
+
+    m_poRAT = pRasterBand->GetDefaultRAT();
+    if (!m_poRAT)
+        return 0;
+
+    // At least a value and RGB columns are required
+    if (m_poRAT->GetColumnCount() < 4)
+        return 0;
+
+    if (!m_poRAT->GetRowCount())
+        return 0;
+
+    // Getting the columns that can be converted to a MiraMon palette
+    int nIValueMinMax = m_poRAT->GetColOfUsage(GFU_MinMax);
+    int nIValueMin = m_poRAT->GetColOfUsage(GFU_Min);
+    int nIValueMax = m_poRAT->GetColOfUsage(GFU_Max);
+    int nIRed = m_poRAT->GetColOfUsage(GFU_Red);
+    int nIGreen = m_poRAT->GetColOfUsage(GFU_Green);
+    int nIBlue = m_poRAT->GetColOfUsage(GFU_Blue);
+    int nIAlpha = m_poRAT->GetColOfUsage(GFU_Alpha);
+
+    // If the RAT has no value type nor RGB colors, MiraMon can't handle that
+    // as a color table. MinMax or Min and Max are accepted as values.
+    if (!(nIValueMinMax != -1 || (nIValueMin != -1 && nIValueMax != -1) ||
+          nIRed == -1 || nIGreen == -1 || nIBlue == -1))
+        return 0;
+
+    // Creating DBF table name
+    if (!cpl::ends_with(m_osBandFileName, pszExtRaster))
+        return 1;
+
+    // Extract .img
+    m_osCTName = m_osBandFileName;
+    m_osCTName.resize(m_osCTName.size() - strlen(".img"));
+    m_osCTName.append("_CT.dbf");
+
+    // Creating DBF
+    struct MM_DATA_BASE_XP *pBD_XP =
+        MM_CreateDBFHeader(4, MM_JOC_CARAC_UTF8_DBF);
+    if (!pBD_XP)
+        return 1;
+
+    // Assigning DBF table name
+    CPLStrlcpy(pBD_XP->szFileName, m_osCTName, sizeof(pBD_XP->szFileName));
+
+    // Initializing the table
+    MM_EXT_DBF_N_RECORDS nPaletteColors =
+        static_cast<MM_EXT_DBF_N_RECORDS>(m_poRAT->GetRowCount());
+    pBD_XP->nFields = 4;
+    pBD_XP->nRecords = nPaletteColors;
+    pBD_XP->FirstRecordOffset =
+        static_cast<MM_FIRST_RECORD_OFFSET_TYPE>(33 + (pBD_XP->nFields * 32));
+    pBD_XP->CharSet = MM_JOC_CARAC_ANSI_DBASE;
+    pBD_XP->dbf_version = MM_MARCA_DBASE4;
+    pBD_XP->BytesPerRecord = 1;
+
+    MM_ACCUMULATED_BYTES_TYPE_DBF nClauSimbolNBytes = 0;
+    do
+    {
+        nClauSimbolNBytes++;
+        nPaletteColors /= 10;
+    } while (nPaletteColors > 0);
+    nClauSimbolNBytes++;
+
+    // Fields of the DBF table
+    struct MM_FIELD MMField;
+    MM_InitializeField(&MMField);
+    MMField.FieldType = 'N';
+    CPLStrlcpy(MMField.FieldName, "CLAUSIMBOL", MM_MAX_LON_FIELD_NAME_DBF);
+    MMField.BytesPerField = nClauSimbolNBytes;
+    MM_DuplicateFieldDBXP(pBD_XP->pField, &MMField);
+
+    CPLStrlcpy(MMField.FieldName, "R_COLOR", MM_MAX_LON_FIELD_NAME_DBF);
+    MMField.BytesPerField = 3;
+    MM_DuplicateFieldDBXP(pBD_XP->pField + 1, &MMField);
+
+    CPLStrlcpy(MMField.FieldName, "G_COLOR", MM_MAX_LON_FIELD_NAME_DBF);
+    MMField.BytesPerField = 3;
+    MM_DuplicateFieldDBXP(pBD_XP->pField + 2, &MMField);
+
+    CPLStrlcpy(MMField.FieldName, "B_COLOR", MM_MAX_LON_FIELD_NAME_DBF);
+    MMField.BytesPerField = 3;
+    MM_DuplicateFieldDBXP(pBD_XP->pField + 3, &MMField);
+
+    // Opening the table
+    if (!MM_CreateAndOpenDBFFile(pBD_XP, pBD_XP->szFileName))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+
+    // Writting records to the table
+    if (0 != VSIFSeekL(pBD_XP->pfDataBase,
+                       static_cast<vsi_l_offset>(pBD_XP->FirstRecordOffset),
+                       SEEK_SET))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+
+    int nIRow;
+    for (nIRow = 0; nIRow < static_cast<int>(pBD_XP->nRecords); nIRow++)
+    {
+        if (nIRow > 0 && nIValueMin != -1 && nIValueMax != -1)
+        {
+            if (m_poRAT->GetValueAsInt(nIRow, nIValueMin) ==
+                m_poRAT->GetValueAsInt(nIRow, nIValueMax))
+                break;
+        }
+        // Deletion flag
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, " "))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
+
+        if (!VSIFPrintfL(pBD_XP->pfDataBase, "%*d",
+                         static_cast<int>(nClauSimbolNBytes), nIRow))
+        {
+            MM_ReleaseDBFHeader(&pBD_XP);
+            return 1;
+        }
+        if (nIAlpha != -1 && m_poRAT->GetValueAsInt(nIRow, nIAlpha) == 0)
+        {
+            if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d", -1, -1, -1))
+            {
+                MM_ReleaseDBFHeader(&pBD_XP);
+                return 1;
+            }
+        }
+        else
+        {
+            if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d",
+                             m_poRAT->GetValueAsInt(nIRow, nIRed),
+                             m_poRAT->GetValueAsInt(nIRow, nIGreen),
+                             m_poRAT->GetValueAsInt(nIRow, nIBlue)))
+            {
+                MM_ReleaseDBFHeader(&pBD_XP);
+                return 1;
+            }
+        }
+    }
+
+    // Nodata color
+    if (!VSIFPrintfL(pBD_XP->pfDataBase, " "))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+    if (!VSIFPrintfL(pBD_XP->pfDataBase, "%*s",
+                     static_cast<int>(nClauSimbolNBytes), ""))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+    if (!VSIFPrintfL(pBD_XP->pfDataBase, "%3d%3d%3d", -1, -1, -1))
+    {
+        MM_ReleaseDBFHeader(&pBD_XP);
+        return 1;
+    }
+    nIRow++;
+
+    if (nIRow != static_cast<int>(pBD_XP->nRecords))
+    {
+        pBD_XP->nRecords = nIRow;
+        MM_WriteNRecordsMMBD_XPFile(pBD_XP);
+    }
+
+    fclose_and_nullify(&pBD_XP->pfDataBase);
+    MM_ReleaseDBFHeader(&pBD_XP);
+    return 0;
+}
+
+// Writes DBF and REL attribute table in MiraMon format
 int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
 {
     GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
@@ -1917,6 +2099,23 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
 
     if (!m_poRAT->GetRowCount())
         return 0;
+
+    // Getting the Value column
+    int nIField;
+    m_osValue = "";
+    for (nIField = 0; nIField < m_poRAT->GetColumnCount(); nIField++)
+    {
+        if (m_poRAT->GetTypeOfCol(nIField) == GFU_MinMax)
+        {
+            m_osValue = m_poRAT->GetNameOfCol(nIField);
+            break;
+        }
+    }
+
+    // If the RAT has no value type, MiraMon can't handle that
+    // as a RAT
+    if (nIField == m_poRAT->GetColumnCount())
+        return 1;
 
     // Creating DBF table name
     if (!cpl::ends_with(m_osBandFileName, pszExtRaster))
@@ -1957,23 +2156,7 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
     // Get path relative to REL file
     pRATRel->AddKeyValue(KEY_NomFitxer, CPLGetFilename(m_osRATDBFName));
     pRATRel->AddKeyValue(KEY_TipusRelacio, "RELACIO_N_1");
-
-    int nIField;
-    for (nIField = 0; nIField < m_poRAT->GetColumnCount(); nIField++)
-    {
-        if (m_poRAT->GetTypeOfCol(nIField) == GFT_Integer)
-        {
-            m_osValue = m_poRAT->GetNameOfCol(nIField);
-            pRATRel->AddKeyValue("AssociatRel", m_osValue);
-            break;
-        }
-    }
-    // If the RAT has no numertical type, MiraMon can't handle that
-    if (nIField == m_poRAT->GetColumnCount())
-    {
-        MM_ReleaseDBFHeader(&pBD_XP);
-        return 1;
-    }
+    pRATRel->AddKeyValue("AssociatRel", m_osValue);
     pRATRel->AddSectionEnd();
 
     // Assigning DBF table name

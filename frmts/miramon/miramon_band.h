@@ -311,6 +311,7 @@ class MMRBand final
     }
 
     int WriteColorTable(GDALDataset &oSrcDS, int nIBand);
+    int WriteColorTableFromRAT(GDALDataset &oSrcDS, int nIBand);
     int WriteAttributeTable(GDALDataset &oSrcDS, int nIBand);
 
     GDALProgressFunc m_pfnProgress = nullptr;  // Inherited from DataSet
