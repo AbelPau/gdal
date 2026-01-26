@@ -37,8 +37,8 @@ class MMRDataset final : public GDALPamDataset
   public:
     explicit MMRDataset(GDALOpenInfo *poOpenInfo);  // Used in reading
     MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
-               char **papszOptions, CPLString osFilename, GDALDataset &oSrcDS,
-               const CPLString osUsrPattern,
+               CSLConstList papszOptions, CPLString osFilename,
+               GDALDataset &oSrcDS, const CPLString osUsrPattern,
                const CPLString osPattern);  // Used in writing
     MMRDataset(const MMRDataset &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
@@ -50,7 +50,7 @@ class MMRDataset final : public GDALPamDataset
     static GDALDataset *Open(GDALOpenInfo *);
     static GDALDataset *CreateCopy(const char *pszFilename,
                                    GDALDataset *poSrcDS, int bStrict,
-                                   char **papszOptions,
+                                   CSLConstList papszOptions,
                                    GDALProgressFunc pfnProgress,
                                    void *pProgressData);
 
@@ -73,10 +73,11 @@ class MMRDataset final : public GDALPamDataset
     CreateAssociatedMetadataFileName(const CPLString &osFileName);
     static CPLString CreatePatternFileName(const CPLString &osFileName,
                                            const CPLString &osPattern);
-    static bool BandInOptionsList(char **papszOptions, CPLString pszType,
+    static bool BandInOptionsList(CSLConstList papszOptions, CPLString pszType,
                                   CPLString osBand);
     static bool IsCategoricalBand(GDALRasterBand &pRasterBand,
-                                  char **papszOptions, CPLString osIndexBand);
+                                  CSLConstList papszOptions,
+                                  CPLString osIndexBand);
     void WriteRGBMap();
 
     bool IsValid() const

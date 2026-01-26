@@ -56,7 +56,7 @@ void GDALRegister_MiraMon()
 /*                             MMRDataset()                             */
 /************************************************************************/
 MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
-                       char **papszOptions, CPLString osRelname,
+                       CSLConstList papszOptions, CPLString osRelname,
                        GDALDataset &oSrcDS, const CPLString osUsrPattern,
                        const CPLString osPattern)
     : m_bIsValid(false)
@@ -346,7 +346,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
 /************************************************************************/
 GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
                                     GDALDataset *poSrcDS, int /*bStrict*/,
-                                    char **papszOptions,
+                                    CSLConstList papszOptions,
                                     GDALProgressFunc pfnProgress,
                                     void *pProgressData)
 
@@ -685,7 +685,7 @@ CPLErr MMRDataset::GetGeoTransform(GDALGeoTransform &gt) const
 }
 
 /************************************************************************/
-/*                          REL/IMG names                               */
+/*                            REL/IMG names                             */
 /************************************************************************/
 
 // Finds the metadata filename associated to osFileName (usually an IMG file)
@@ -750,7 +750,7 @@ CPLString MMRDataset::CreatePatternFileName(const CPLString &osFileName,
     return CPLGetBasenameSafe(osRELName);
 }
 
-bool MMRDataset::BandInOptionsList(char **papszOptions, CPLString pszType,
+bool MMRDataset::BandInOptionsList(CSLConstList papszOptions, CPLString pszType,
                                    CPLString osIndexBand)
 {
     if (!papszOptions)
@@ -772,7 +772,8 @@ bool MMRDataset::BandInOptionsList(char **papszOptions, CPLString pszType,
 }
 
 bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
-                                   char **papszOptions, CPLString osIndexBand)
+                                   CSLConstList papszOptions,
+                                   CPLString osIndexBand)
 {
     bool bUsrCategorical =
         BandInOptionsList(papszOptions, "Categorical", osIndexBand);
