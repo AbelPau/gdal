@@ -22,7 +22,7 @@
 #include "../miramon_common/mm_gdal_functions.h"  // For MMCheck_REL_FILE()
 
 /************************************************************************/
-/*                GDALRegister_MiraMon()                                */
+/*                        GDALRegister_MiraMon()                        */
 /************************************************************************/
 void GDALRegister_MiraMon()
 
@@ -53,7 +53,7 @@ void GDALRegister_MiraMon()
 }
 
 /************************************************************************/
-/*                            MMRDataset()                              */
+/*                             MMRDataset()                             */
 /************************************************************************/
 MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
                        char **papszOptions, CPLString osRelname,
@@ -288,7 +288,7 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 }
 
 /************************************************************************/
-/*                           ~MMRDataset()                              */
+/*                            ~MMRDataset()                             */
 /************************************************************************/
 
 MMRDataset::~MMRDataset()
@@ -448,7 +448,7 @@ void MMRDataset::ReadProjection()
 }
 
 /************************************************************************/
-/*                           SUBDATASETS                                */
+/*                             SUBDATASETS                              */
 /************************************************************************/
 // Assigns every band to a subdataset
 void MMRDataset::AssignBandsToSubdataSets()
@@ -604,7 +604,7 @@ bool MMRDataset::IsNextBandInANewDataSet(int nIBand) const
 }
 
 /************************************************************************/
-/*                          UpdateGeoTransform()                     */
+/*                         UpdateGeoTransform()                         */
 /************************************************************************/
 int MMRDataset::UpdateGeoTransform()
 {

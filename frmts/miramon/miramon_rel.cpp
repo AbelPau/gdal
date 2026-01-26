@@ -25,7 +25,7 @@
 CPLString MMRRel::m_szImprobableRELChain = "@#&%$|``|$%&#@";
 
 /************************************************************************/
-/*                              MMRRel()                               */
+/*                               MMRRel()                               */
 /************************************************************************/
 MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
     : m_osRelFileName(osRELFilenameIn)
@@ -161,7 +161,7 @@ MMRRel::MMRRel(const CPLString &osRELFilenameIn)
 }
 
 /************************************************************************/
-/*                              ~MMRRel()                              */
+/*                              ~MMRRel()                               */
 /************************************************************************/
 
 MMRRel::~MMRRel()
@@ -170,7 +170,7 @@ MMRRel::~MMRRel()
 }
 
 /************************************************************************/
-/*                     Getting section-key-value                        */
+/*                      Getting section-key-value                       */
 /************************************************************************/
 // Used when the MMRREL is not yet constructed.
 CPLString
@@ -274,7 +274,7 @@ CPLString MMRRel::GetValueFromSectionKey(VSILFILE *pf,
 }
 
 /************************************************************************/
-/*                     Other functions                                  */
+/*                           Other functions                            */
 /************************************************************************/
 
 // Converts FileNameI.rel to FileName
@@ -606,7 +606,7 @@ CPLString MMRRel::GetAssociatedMetadataFileName(const CPLString &osFileName)
 }
 
 /************************************************************************/
-/*                         CheckBandInRel()                             */
+/*                           CheckBandInRel()                           */
 /************************************************************************/
 CPLErr MMRRel::CheckBandInRel(const CPLString &osRELFileName,
                               const CPLString &osIMGFile)
@@ -743,7 +743,7 @@ int MMRRel::IdentifyFile(const GDALOpenInfo *poOpenInfo)
 }
 
 /************************************************************************/
-/*                     GetMetadataValue()                               */
+/*                          GetMetadataValue()                          */
 /************************************************************************/
 bool MMRRel::GetMetadataValue(const CPLString &osMainSection,
                               const CPLString &osSubSection,
@@ -828,7 +828,7 @@ void MMRRel::UpdateRELNameChar(const CPLString &osRelFileNameIn)
 }
 
 /************************************************************************/
-/*                          ParseBandInfo()                             */
+/*                           ParseBandInfo()                            */
 /************************************************************************/
 CPLErr MMRRel::ParseBandInfo()
 {
@@ -959,7 +959,7 @@ int MMRRel::GetRowsNumberFromREL()
 }
 
 /************************************************************************/
-/*                     Preserving metadata                              */
+/*                         Preserving metadata                          */
 /************************************************************************/
 void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
 {
