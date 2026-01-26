@@ -292,3 +292,56 @@ def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_ra
     # --- Cleanup ---
     dst_ds = None
     src_ds = None
+
+
+def test_miramon_rgb_creates_expected_files(tmp_path):
+
+    # ------------------------------------------------------------------
+    # 1. Create MEM RGB dataset
+    # ------------------------------------------------------------------
+    mem_ds = gdal.GetDriverByName("MEM").Create("", 10, 10, 3, gdal.GDT_Byte)
+
+    mem_ds.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+    mem_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+    mem_ds.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+
+    # Optional but realistic
+    mem_ds.GetRasterBand(1).SetDescription("Red")
+    mem_ds.GetRasterBand(2).SetDescription("Green")
+    mem_ds.GetRasterBand(3).SetDescription("Blue")
+
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    mem_ds.SetProjection(srs.ExportToWkt())
+    mem_ds.SetGeoTransform((0, 1, 0, 0, 0, -1))
+
+    # ------------------------------------------------------------------
+    # 2. Create MiraMonRaster copy
+    # ------------------------------------------------------------------
+    out_base = tmp_path / "rgb_test"
+
+    miramon_drv = gdal.GetDriverByName("MiraMonRaster")
+    assert miramon_drv is not None
+
+    miramon_drv.CreateCopy(str(out_base), mem_ds)
+
+    mem_ds = None  # close
+
+    # ------------------------------------------------------------------
+    # 3. Check generated files
+    # ------------------------------------------------------------------
+    expected_files = {
+        "rgb_testI.rel",
+        "rgb_test_R.img",
+        "rgb_test_G.img",
+        "rgb_test_B.img",
+        "rgb_test.mmm",
+    }
+
+    generated_files = {f.name for f in tmp_path.iterdir() if f.is_file()}
+
+    missing = expected_files - generated_files
+    extra = generated_files - expected_files
+
+    assert not missing, f"Missing files: {missing}"
+    assert not extra, f"Unexpected files: {extra}"
