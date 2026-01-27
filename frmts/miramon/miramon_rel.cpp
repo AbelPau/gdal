@@ -1158,7 +1158,6 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
     // add comments. It's could be useful if some raster contains METADATA from
     // MiraMon and an expert user wants to recover and use it.
     const CSLConstList aosMiraMonMetaData(oSrcDS.GetMetadata("MIRAMON"));
-    std::vector<std::string> keysToErase;
     int nComment = 1;
     CPLString osValue;
     CPLString osCommentValue;
