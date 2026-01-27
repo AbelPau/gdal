@@ -1154,7 +1154,9 @@ void MMRRel::WriteOVERVIEW_ASPECTES_TECNICS(GDALDataset &oSrcDS)
 
 void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
 {
-    // Writing domain MIRAMON metadata
+    // Writing domain MIRAMON metadata to a section in REL that is used to
+    // add comments. It's could be useful if some raster contains METADATA from
+    // MiraMon and an expert user wants to recover and use it.
     const CSLConstList aosMiraMonMetaData(oSrcDS.GetMetadata("MIRAMON"));
     std::vector<std::string> keysToErase;
     int nComment = 1;
