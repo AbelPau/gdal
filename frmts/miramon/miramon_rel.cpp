@@ -1055,7 +1055,7 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
 }
 
 /************************************************************************/
-/*                     Writing part                                     */
+/*                             Writing part                             */
 /************************************************************************/
 bool MMRRel::Write(GDALDataset &oSrcDS)
 {
