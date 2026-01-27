@@ -1145,44 +1145,50 @@ void MMRRel::WriteOVERVIEW_ASPECTES_TECNICS(GDALDataset &oSrcDS)
         AddKeyValue("columns", m_nWidth);
         AddKeyValue("rows", m_nHeight);
 
-        // Writing domain MIRAMON metadata
-        const CSLConstList aosMiraMonMetaData(oSrcDS.GetMetadata("MIRAMON"));
-        std::vector<std::string> keysToErase;
-        int nComment = 1;
-        CPLString osValue;
-        CPLString osCommentValue;
-        for (const auto &[pszKey, pszValue] :
-             cpl::IterateNameValue(aosMiraMonMetaData))
-        {
-            CPLString osCommenti = CPLSPrintf("comment%d", nComment++);
-            CPLString osAux = pszValue;
-            size_t nPos = osAux.find(m_SecKeySeparator);
-            if (nPos != std::string::npos)
-            {
-                CPLString osKey2 = osAux.substr(0, nPos);
-                CPLString osKeyValue =
-                    osAux.substr(nPos + strlen(m_SecKeySeparator));
-                osCommentValue = CPLSPrintf("[%s:%s]->%s", pszKey,
-                                            osKey2.c_str(), osKeyValue.c_str());
-            }
-            else
-            {
-                CPLString osKey = pszKey;
-                size_t nPos = osKey.find(m_SecKeySeparator);
-                if (nPos != std::string::npos)
-                    osCommentValue = CPLSPrintf(
-                        "[%s]->%s=%s", osKey.substr(0, nPos).c_str(),
-                        osKey.substr(nPos + strlen(m_SecKeySeparator)).c_str(),
-                        pszValue);
-                else
-                    osCommentValue =
-                        CPLSPrintf("[%s]->%s", osKey.c_str(), pszValue);
-            }
-            AddKeyValue(osCommenti, osCommentValue);
-        }
+        WriteMetadataInComments(oSrcDS);
 
         AddSectionEnd();
         m_bDimAlreadyWritten = TRUE;
+    }
+}
+
+void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
+{
+    // Writing domain MIRAMON metadata
+    const CSLConstList aosMiraMonMetaData(oSrcDS.GetMetadata("MIRAMON"));
+    std::vector<std::string> keysToErase;
+    int nComment = 1;
+    CPLString osValue;
+    CPLString osCommentValue;
+    size_t nPos;
+    for (const auto &[pszKey, pszValue] :
+         cpl::IterateNameValue(aosMiraMonMetaData))
+    {
+        CPLString osCommenti = CPLSPrintf("comment%d", nComment++);
+        CPLString osAux = pszValue;
+        nPos = osAux.find(m_SecKeySeparator);
+        if (nPos != std::string::npos)
+        {
+            CPLString osKey2 = osAux.substr(0, nPos);
+            CPLString osKeyValue =
+                osAux.substr(nPos + strlen(m_SecKeySeparator));
+            osCommentValue = CPLSPrintf("[%s:%s]->%s", pszKey, osKey2.c_str(),
+                                        osKeyValue.c_str());
+        }
+        else
+        {
+            CPLString osKey = pszKey;
+            nPos = osKey.find(m_SecKeySeparator);
+            if (nPos != std::string::npos)
+                osCommentValue = CPLSPrintf(
+                    "[%s]->%s=%s", osKey.substr(0, nPos).c_str(),
+                    osKey.substr(nPos + strlen(m_SecKeySeparator)).c_str(),
+                    pszValue);
+            else
+                osCommentValue =
+                    CPLSPrintf("[%s]->%s", osKey.c_str(), pszValue);
+        }
+        AddKeyValue(osCommenti, osCommentValue);
     }
 }
 

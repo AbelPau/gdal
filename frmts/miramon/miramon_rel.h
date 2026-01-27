@@ -101,6 +101,7 @@ class MMRRel
     void WriteMETADADES();
     void WriteIDENTIFICATION();
     void WriteOVERVIEW_ASPECTES_TECNICS(GDALDataset &oSrcDS);
+    void WriteMetadataInComments(GDALDataset &oSrcDS);
     void WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
     void WriteEXTENT();
     void WriteOVERVIEW();
