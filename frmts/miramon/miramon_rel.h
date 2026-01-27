@@ -100,7 +100,7 @@ class MMRRel
     bool Write(GDALDataset &oSrcDS);
     void WriteMETADADES();
     void WriteIDENTIFICATION();
-    void WriteOVERVIEW_ASPECTES_TECNICS();
+    void WriteOVERVIEW_ASPECTES_TECNICS(GDALDataset &oSrcDS);
     void WriteSPATIAL_REFERENCE_SYSTEM_HORIZONTAL();
     void WriteEXTENT();
     void WriteOVERVIEW();

@@ -71,7 +71,9 @@ Metadata
 Metadata from MiraMon raster datasets are exposed through the "MIRAMON" domain.  
 Only a subset of the metadata is used by the driver to interpret the dataset (e.g., georeferencing, data type, etc), but all other metadata entries are preserved and accessible via ``GetMetadata("MIRAMON")``.
 
-This allows applications to access additional information embedded in the original dataset, even if it is not required for reading or displaying the data.
+This allows applications to access additional information embedded in the original dataset, even if it is not required for reading or displaying the data (use of -co SRC_MDD=MIRAMON will copy to destination dataset all this  MIRAMON metadata).
+
+When creating a copy, some MIRAMON metadata items are copied to comments part of REL file.
 
 Encoding
 --------
