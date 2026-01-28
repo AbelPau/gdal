@@ -24,7 +24,6 @@ pytestmark = pytest.mark.require_driver("MiraMonRaster")
 
 # MiraMon driver
 mm_driver = gdal.GetDriverByName("MiraMonRaster")
-assert mm_driver is not None, "MiraMonRaster driver not available"
 
 working_mode = "Release"  # Debug to generate GTiff files for debugging
 
