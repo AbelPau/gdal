@@ -98,7 +98,7 @@ The following creation options are supported:
       :choices: YES, NO
       :default: YES
 
-      Whether the file will be compressed in RLE indexes mode.
+      Indicates whether the file will be compressed in RLE indexed mode.
 
 -  .. co:: PATTERN
       

@@ -45,6 +45,17 @@ void GDALRegister_MiraMon()
     poDriver->SetMetadataItem(GDAL_DCAP_OPEN, "YES");
     poDriver->SetMetadataItem(GDAL_DCAP_CREATECOPY, "YES");
 
+    poDriver->SetMetadataItem(
+        GDAL_DMD_CREATIONOPTIONLIST,
+        "<CreationOptionList>"
+        "   <Option name='COMPRESS' type='boolean' description='Indicates  "
+        "whether the file will be compressed in RLE indexed mode'/>"
+        "   <Option name='PATTERN' type='int' description='Indicates the "
+        "pattern used to create the names of the different bands. In the "
+        "case of RGB, the suffixes “_R”, “_G”, and “_B” will be added to "
+        "the base name.'/>"
+        "</CreationOptionList>");
+
     poDriver->pfnOpen = MMRDataset::Open;
     poDriver->pfnCreateCopy = MMRDataset::CreateCopy;
     poDriver->pfnIdentify = MMRDataset::Identify;
