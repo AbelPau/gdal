@@ -9,7 +9,7 @@ MiraMon Raster
 
 .. built_in_by_default::
 
-This driver is capable of reading raster files in the MiraMon format and create a copy to the MiraMon format.
+This driver is capable of reading raster files in MiraMon format as well as to create a copy to MiraMon format.
 
 A `look-up table of MiraMon <https://www.miramon.cat/help/eng/mm32/AP6.htm>`__ and
 `EPSG <https://epsg.org/home.html>`__ Spatial Reference Systems allows matching

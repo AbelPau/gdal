@@ -13,6 +13,7 @@
 
 import os
 import struct
+import sys
 import tempfile
 
 import pytest
@@ -20,6 +21,10 @@ import pytest
 from osgeo import gdal, osr
 
 pytestmark = pytest.mark.require_driver("MiraMonRaster")
+
+# MiraMon driver
+mm_driver = gdal.GetDriverByName("MiraMonRaster")
+assert mm_driver is not None, "MiraMonRaster driver not available"
 
 working_mode = "Release"  # Debug to generate GTiff files for debugging
 
@@ -71,9 +76,17 @@ init_list = [
     "data_type1,data_type2,use_color_table,use_rat",
     init_list,
 )
-def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_rat):
-
-    gdal.AllRegister()
+@pytest.mark.parametrize(
+    "compress",
+    ["YES", "NO"],
+)
+@pytest.mark.parametrize(
+    "pattern",
+    [None, "UserPattern"],
+)
+def test_miramonraster_multiband(
+    data_type1, data_type2, use_color_table, use_rat, compress, pattern
+):
 
     # --- Raster parameters ---
     xsize = 3
@@ -133,25 +146,26 @@ def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_ra
         band.FlushCache()
 
     band1 = src_ds.GetRasterBand(1)
-
     band2 = src_ds.GetRasterBand(2)
     band2.SetUnitType("m")
 
     if use_color_table == "True":
         # --- Color table on band 1 ---
-        color1 = (0, 0, 0, 0)  # NoData
-        color2 = (255, 0, 0, 255)
-        color3 = (0, 255, 0, 255)
-        color4 = (0, 0, 255, 255)
-        color5 = (0, 125, 125, 255)
-        color6 = (125, 125, 255, 255)
+        colors = [
+            (0, 0, 0, 0),  # NoData
+            (255, 0, 0, 255),
+            (0, 255, 0, 255),
+            (0, 0, 255, 255),
+            (0, 125, 125, 255),
+            (125, 125, 255, 255),
+        ]
         ct = gdal.ColorTable()
-        ct.SetColorEntry(0, color1)
-        ct.SetColorEntry(1, color2)
-        ct.SetColorEntry(2, color3)
-        ct.SetColorEntry(3, color4)
-        ct.SetColorEntry(4, color5)
-        ct.SetColorEntry(5, color6)
+        ct.SetColorEntry(0, colors[0])
+        ct.SetColorEntry(1, colors[1])
+        ct.SetColorEntry(2, colors[2])
+        ct.SetColorEntry(3, colors[3])
+        ct.SetColorEntry(4, colors[4])
+        ct.SetColorEntry(5, colors[5])
 
         band1.SetRasterColorTable(ct)
         band1.SetRasterColorInterpretation(gdal.GCI_PaletteIndex)
@@ -192,25 +206,25 @@ def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_ra
 
     if working_mode == "Debug":
         # --- Write to MiraMonRaster ---
-        mm_driver = gdal.GetDriverByName("GTiff")
-        assert mm_driver is not None, "GTiff"
+        gtiff_driver = gdal.GetDriverByName("GTiff")
+        assert gtiff_driver is not None, "GTiff"
 
         tmpdir = tempfile.mkdtemp()
         mm_path = os.path.join(tmpdir, "test" + str(data_type1) + ".tiff")
 
-        mm_ds = mm_driver.CreateCopy(mm_path, src_ds)
+        mm_ds = gtiff_driver.CreateCopy(mm_path, src_ds)
         assert mm_ds is not None
         mm_ds = None
         return
 
     # --- Write to MiraMonRaster ---
-    mm_driver = gdal.GetDriverByName("MiraMonRaster")
-    assert mm_driver is not None, "MiraMonRaster driver not available"
-
     tmpdir = tempfile.mkdtemp()
     mm_path = os.path.join(tmpdir, "testI.rel")
 
-    mm_ds = mm_driver.CreateCopy(mm_path, src_ds)
+    co = [f"COMPRESS={compress}"]
+    if pattern is not None:
+        co.append(f"PATTERN={pattern}")
+    mm_ds = mm_driver.CreateCopy(mm_path, src_ds, options=co)
     assert mm_ds is not None
     mm_ds = None
 
@@ -254,12 +268,12 @@ def test_miramonraster_multiband(data_type1, data_type2, use_color_table, use_ra
     if use_color_table == "True":
         dst_ct = dst_band1.GetRasterColorTable()
         assert dst_ct is not None
-        assert dst_ct.GetColorEntry(0) == color1
-        assert dst_ct.GetColorEntry(1) == color2
-        assert dst_ct.GetColorEntry(2) == color3
-        assert dst_ct.GetColorEntry(3) == color4
-        assert dst_ct.GetColorEntry(4) == color5
-        assert dst_ct.GetColorEntry(5) == color6
+        assert dst_ct.GetColorEntry(0) == colors[0]
+        assert dst_ct.GetColorEntry(1) == colors[1]
+        assert dst_ct.GetColorEntry(2) == colors[2]
+        assert dst_ct.GetColorEntry(3) == colors[3]
+        assert dst_ct.GetColorEntry(4) == colors[4]
+        assert dst_ct.GetColorEntry(5) == colors[5]
 
     # --- RAT check ---
     if use_rat == "True":
@@ -359,3 +373,121 @@ def test_miramon_rgb_single_dataset(tmp_path):
     assert g == bytes([0, 255, 0])
     assert b == bytes([0, 0, 255])
     ds = None
+
+
+@pytest.mark.parametrize("separate_minmax", [True, False])
+def test_miramon_raster_RAT_to_CT(separate_minmax):
+    # --- Raster parameters ---
+    xsize = 3
+    ysize = 2
+
+    # --- Create in-memory dataset ---
+    mem_driver = gdal.GetDriverByName("MEM")
+    src_ds = mem_driver.Create("", xsize, ysize, 1, gdal.GDT_Byte)
+
+    # --- Create deterministic pixel values ---
+    # band 1: 0..5
+    band_values = list(range(xsize * ysize))
+    fmt1 = gdal_to_struct[gdal.GDT_Byte]
+    band_bytes = struct.pack("<" + fmt1 * len(band_values), *band_values)
+
+    # --- Write raster data ---
+    src_ds.GetRasterBand(1).WriteRaster(
+        0,
+        0,
+        xsize,
+        ysize,
+        band_bytes,
+        buf_xsize=xsize,
+        buf_ysize=ysize,
+        buf_type=gdal.GDT_Byte,
+    )
+
+    band = src_ds.GetRasterBand(1)
+
+    # ------------------------
+    # 2. Create a RAT with RGB
+    # columns to convert it into
+    # a color table
+    # ------------------------
+    rat = gdal.RasterAttributeTable()
+    n_classes = 6
+
+    # Create columns for RGB and min/max or VALUE
+    if separate_minmax:
+        rat.CreateColumn("MIN", gdal.GFT_Integer, gdal.GFU_Min)
+        rat.CreateColumn("MAX", gdal.GFT_Integer, gdal.GFU_Max)
+    else:
+        rat.CreateColumn("VALUE", gdal.GFT_Integer, gdal.GFU_MinMax)
+    rat.CreateColumn("R", gdal.GFT_Integer, gdal.GFU_Red)
+    rat.CreateColumn("G", gdal.GFT_Integer, gdal.GFU_Green)
+    rat.CreateColumn("B", gdal.GFT_Integer, gdal.GFU_Blue)
+
+    # --- Color table ---
+    colors = [
+        (0, 0, 0, 255),
+        (255, 0, 0, 255),
+        (0, 255, 0, 255),
+        (0, 0, 255, 255),
+        (0, 125, 125, 255),
+        (125, 125, 255, 255),
+    ]
+
+    for c in range(n_classes):
+        if separate_minmax:
+            rat.SetValueAsInt(c, 0, int(c))
+            rat.SetValueAsInt(c, 1, int(c + 1))
+            rat.SetValueAsInt(c, 2, colors[c][0])
+            rat.SetValueAsInt(c, 3, colors[c][1])
+            rat.SetValueAsInt(c, 4, colors[c][2])
+        else:
+            rat.SetValueAsInt(c, 0, int(c))
+            rat.SetValueAsInt(c, 1, colors[c][0])
+            rat.SetValueAsInt(c, 2, colors[c][1])
+            rat.SetValueAsInt(c, 3, colors[c][2])
+
+    band.SetDefaultRAT(rat)
+
+    if working_mode == "Debug":
+        # --- Write to VRT ---
+        gtiff_driver = gdal.GetDriverByName("VRT")
+        assert gtiff_driver is not None, "VRT"
+
+        tmpdir = tempfile.mkdtemp()
+        print(tmpdir, file=sys.stderr)
+        mm_path = os.path.join(tmpdir, "test" + str(gdal.GDT_Byte) + ".vrt")
+
+        mm_ds = gtiff_driver.CreateCopy(mm_path, src_ds)
+        assert mm_ds is not None
+        mm_ds = None
+        return
+
+    # --- Write to MiraMonRaster ---
+    tmpdir = tempfile.mkdtemp("MM")
+    mm_path = os.path.join(tmpdir, "RareTestI.rel")
+
+    mm_ds = mm_driver.CreateCopy(mm_path, src_ds)
+    assert mm_ds is not None
+    mm_ds = None
+
+    # --- Reopen dataset ---
+    dst_ds = gdal.Open(mm_path)
+    assert dst_ds is not None
+    assert dst_ds.GetDriver().ShortName == "MiraMonRaster"
+
+    dst_band1 = dst_ds.GetRasterBand(1)
+    assert dst_band1 is not None
+
+    # --- Color table check ---
+    dst_ct = dst_band1.GetRasterColorTable()
+    assert dst_ct is not None
+    assert dst_ct.GetColorEntry(0) == colors[0]
+    assert dst_ct.GetColorEntry(1) == colors[1]
+    assert dst_ct.GetColorEntry(2) == colors[2]
+    assert dst_ct.GetColorEntry(3) == colors[3]
+    assert dst_ct.GetColorEntry(4) == colors[4]
+    assert dst_ct.GetColorEntry(5) == colors[5]
+
+    # --- Cleanup ---
+    dst_ds = None
+    src_ds = None

@@ -2103,19 +2103,23 @@ int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
     // Getting the Value column
     int nIField;
     m_osValue = "";
-    for (nIField = 0; nIField < m_poRAT->GetColumnCount(); nIField++)
+    int nIValue = m_poRAT->GetColOfUsage(GFU_MinMax);
+    // If the RAT has no value type, MiraMon can't handle that
+    // as a RAT
+    if (nIValue == -1)
     {
-        if (m_poRAT->GetUsageOfCol(nIField) == GFU_MinMax)
+        nIValue = m_poRAT->GetColOfUsage(GFU_Min);
+        if (nIValue == -1)
         {
-            m_osValue = m_poRAT->GetNameOfCol(nIField);
-            break;
+            GDALRATFieldType nType = m_poRAT->GetTypeOfCol(0);
+            if (nType == GFT_Integer)
+                nIValue = 0;
+            else
+                return 1;
         }
     }
 
-    // If the RAT has no value type, MiraMon can't handle that
-    // as a RAT
-    if (nIField == m_poRAT->GetColumnCount())
-        return 1;
+    m_osValue = m_poRAT->GetNameOfCol(nIValue);
 
     // Creating DBF table name
     if (!cpl::ends_with(m_osBandFileName, pszExtRaster))
