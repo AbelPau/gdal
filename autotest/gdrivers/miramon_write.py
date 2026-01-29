@@ -36,44 +36,23 @@ gdal_to_struct = {
     gdal.GDT_Float64: "d",
 }
 
-init_list = [
-    (
-        gdal.GDT_UInt8,
-        gdal.GDT_Int16,
-        "True",
-        "True",
-    ),
-    (
-        gdal.GDT_Int16,
-        gdal.GDT_UInt16,
-        "False",
-        "True",
-    ),
-    (
-        gdal.GDT_UInt16,
-        gdal.GDT_Int32,
-        "False",
-        "True",
-    ),
-    (
-        gdal.GDT_Int32,
-        gdal.GDT_Float32,
-        "False",
-        "False",
-    ),
-    (gdal.GDT_Float32, gdal.GDT_Float32, "False", "False"),
-    (
-        gdal.GDT_Float64,
-        gdal.GDT_Float64,
-        "False",
-        "False",
-    ),
+init_type_list = [
+    gdal.GDT_UInt8,
+    gdal.GDT_Int16,
+    gdal.GDT_UInt16,
+    gdal.GDT_Int32,
+    gdal.GDT_Float32,
+    gdal.GDT_Float64,
 ]
 
 
 @pytest.mark.parametrize(
-    "data_type1,data_type2,use_color_table,use_rat",
-    init_list,
+    "data_type1",
+    init_type_list,
+)
+@pytest.mark.parametrize(
+    "data_type2",
+    init_type_list,
 )
 @pytest.mark.parametrize(
     "compress",
@@ -83,9 +62,21 @@ init_list = [
     "pattern",
     [None, "UserPattern"],
 )
-def test_miramonraster_multiband(
-    data_type1, data_type2, use_color_table, use_rat, compress, pattern
-):
+def test_miramonraster_multiband(data_type1, data_type2, compress, pattern):
+
+    if data_type1 == gdal.GDT_Int8 or data_type1 == gdal.GDT_UInt8:
+        use_color_table = "True"
+    else:
+        use_color_table = "False"
+
+    if (
+        data_type1 == gdal.GDT_Int8
+        or data_type1 == gdal.GDT_UInt8
+        or data_type1 == gdal.GDT_UInt16
+    ):
+        use_rat = "True"
+    else:
+        use_rat = "False"
 
     # --- Raster parameters ---
     xsize = 3
@@ -174,33 +165,40 @@ def test_miramonraster_multiband(
         rat = gdal.RasterAttributeTable()
         rat.CreateColumn("Value", gdal.GFT_Integer, gdal.GFU_MinMax)
         rat.CreateColumn("ClassName", gdal.GFT_String, gdal.GFU_Name)
+        rat.CreateColumn("Real", gdal.GFT_Real, gdal.GFU_Generic)
 
         rat.SetRowCount(6)
 
-        classname1 = "Background"
-        classname2 = "Class_1"
-        classname3 = "Class_2"
-        classname4 = "Class_3"
-        classname5 = "Class_4"
-        classname6 = "Class_5"
+        classname_list = [
+            "Background",
+            "Class_1",
+            "Class_2",
+            "Class_3",
+            "Class_4",
+            "Class_5",
+        ]
+        classname_double = [0.1, 1.2, 2.3, 3.4, 4.5, 5.6]
+
         rat.SetValueAsInt(0, 0, 0)
-        rat.SetValueAsString(0, 1, classname1)
-
+        rat.SetValueAsString(0, 1, classname_list[0])
+        rat.SetValueAsDouble(0, 2, classname_double[0])
         rat.SetValueAsInt(1, 0, 1)
-        rat.SetValueAsString(1, 1, classname2)
-
+        rat.SetValueAsString(1, 1, classname_list[1])
+        rat.SetValueAsDouble(1, 2, classname_double[1])
         rat.SetValueAsInt(2, 0, 2)
-        rat.SetValueAsString(2, 1, classname3)
+        rat.SetValueAsString(2, 1, classname_list[2])
+        rat.SetValueAsDouble(2, 2, classname_double[2])
 
         rat.SetValueAsInt(3, 0, 3)
-        rat.SetValueAsString(3, 1, classname4)
-
+        rat.SetValueAsString(3, 1, classname_list[3])
+        rat.SetValueAsDouble(3, 2, classname_double[3])
         rat.SetValueAsInt(4, 0, 4)
-        rat.SetValueAsString(4, 1, classname5)
+        rat.SetValueAsString(4, 1, classname_list[4])
+        rat.SetValueAsDouble(4, 2, classname_double[4])
 
         rat.SetValueAsInt(5, 0, 5)
-        rat.SetValueAsString(5, 1, classname6)
-
+        rat.SetValueAsString(5, 1, classname_list[5])
+        rat.SetValueAsDouble(5, 2, classname_double[5])
         band1.SetDefaultRAT(rat)
 
     if working_mode == "Debug":
@@ -262,6 +260,7 @@ def test_miramonraster_multiband(
     assert dst_band2_bytes == band2_bytes
 
     dst_band1 = dst_ds.GetRasterBand(1)
+    dst_band2 = dst_ds.GetRasterBand(2)
 
     # --- Color table check ---
     if use_color_table == "True":
@@ -282,21 +281,26 @@ def test_miramonraster_multiband(
         assert dst_rat.GetNameOfCol(0) == "Value"
         assert dst_rat.GetNameOfCol(1) == "ClassName"
         assert dst_rat.GetValueAsInt(0, 0) == 0
-        assert dst_rat.GetValueAsString(0, 1) == classname1
+        assert dst_rat.GetValueAsString(0, 1) == classname_list[0]
+        assert dst_rat.GetValueAsDouble(0, 2) == classname_double[0]
         assert dst_rat.GetValueAsInt(1, 0) == 1
-        assert dst_rat.GetValueAsString(1, 1) == classname2
+        assert dst_rat.GetValueAsString(1, 1) == classname_list[1]
+        assert dst_rat.GetValueAsDouble(1, 2) == classname_double[1]
         assert dst_rat.GetValueAsInt(2, 0) == 2
-        assert dst_rat.GetValueAsString(2, 1) == classname3
+        assert dst_rat.GetValueAsString(2, 1) == classname_list[2]
+        assert dst_rat.GetValueAsDouble(2, 2) == classname_double[2]
         assert dst_rat.GetValueAsInt(3, 0) == 3
-        assert dst_rat.GetValueAsString(3, 1) == classname4
+        assert dst_rat.GetValueAsString(3, 1) == classname_list[3]
+        assert dst_rat.GetValueAsDouble(3, 2) == classname_double[3]
         assert dst_rat.GetValueAsInt(4, 0) == 4
-        assert dst_rat.GetValueAsString(4, 1) == classname5
+        assert dst_rat.GetValueAsString(4, 1) == classname_list[4]
+        assert dst_rat.GetValueAsDouble(4, 2) == classname_double[4]
         assert dst_rat.GetValueAsInt(5, 0) == 5
-        assert dst_rat.GetValueAsString(5, 1) == classname6
+        assert dst_rat.GetValueAsString(5, 1) == classname_list[5]
+        assert dst_rat.GetValueAsDouble(5, 2) == classname_double[5]
 
     # --- Min / Max checks ---
     assert dst_band1.ComputeRasterMinMax(False) == (1, 5)
-    dst_band2 = dst_ds.GetRasterBand(2)
     assert dst_band2.ComputeRasterMinMax(False) == (100, 105)
 
     # --- Unit checks ---
