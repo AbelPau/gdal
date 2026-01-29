@@ -62,7 +62,12 @@ init_type_list = [
     "pattern",
     [None, "UserPattern"],
 )
-def test_miramonraster_multiband(data_type1, data_type2, compress, pattern):
+@pytest.mark.parametrize(
+    "rat_first_col_type", [gdal.GFU_MinMax, gdal.GFU_Min, gdal.GFU_Generic]
+)
+def test_miramonraster_multiband(
+    data_type1, data_type2, compress, pattern, rat_first_col_type
+):
 
     if data_type1 == gdal.GDT_Int8 or data_type1 == gdal.GDT_UInt8:
         use_color_table = "True"
@@ -163,7 +168,7 @@ def test_miramonraster_multiband(data_type1, data_type2, compress, pattern):
     # --- Raster Attribute Table (RAT) ---
     if use_rat == "True":
         rat = gdal.RasterAttributeTable()
-        rat.CreateColumn("Value", gdal.GFT_Integer, gdal.GFU_MinMax)
+        rat.CreateColumn("Value", gdal.GFT_Integer, rat_first_col_type)
         rat.CreateColumn("ClassName", gdal.GFT_String, gdal.GFU_Name)
         rat.CreateColumn("Real", gdal.GFT_Real, gdal.GFU_Generic)
 
@@ -280,6 +285,7 @@ def test_miramonraster_multiband(data_type1, data_type2, compress, pattern):
         assert dst_rat.GetRowCount() == rat.GetRowCount()
         assert dst_rat.GetNameOfCol(0) == "Value"
         assert dst_rat.GetNameOfCol(1) == "ClassName"
+        assert dst_rat.GetNameOfCol(2) == "Real"
         assert dst_rat.GetValueAsInt(0, 0) == 0
         assert dst_rat.GetValueAsString(0, 1) == classname_list[0]
         assert dst_rat.GetValueAsDouble(0, 2) == classname_double[0]
