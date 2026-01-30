@@ -230,6 +230,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
 
 MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 {
+
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     // Creating the class MMRRel.
@@ -264,13 +265,31 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     ReadProjection();
     nBands = 0;
 
-    // Assign every band to a subdataset (if any)
-    // If all bands should go to a one single Subdataset, then,
-    // no subdataset will be created and all bands will go to this
-    // dataset.
-    AssignBandsToSubdataSets();
+    CPLString osFileName = poOpenInfo->pszFilename;
 
-    // Create subdatasets or add bands, as needed
+    // Getting the open option that determines how to expose subdatasets.
+    // To avoid recusivity subdatasets are exposed as they are.
+    if (cpl::starts_with(osFileName, "MiraMonRaster:"))
+        nSubdatasetBandExposure = SUBDATASET_BAND_EXPOSURE::STRUCTURAL_ONLY;
+    else
+    {
+        const char *pszDataType = CSLFetchNameValue(
+            poOpenInfo->papszOpenOptions, "SUBDATASET_BAND_EXPOSURE");
+        if (pszDataType != nullptr)
+        {
+            if (EQUAL(pszDataType, "STRUCTURAL_ONLY"))
+                nSubdatasetBandExposure =
+                    SUBDATASET_BAND_EXPOSURE::STRUCTURAL_ONLY;
+            else if (EQUAL(pszDataType, "STRUCTURAL_AND_PER_BAND"))
+                nSubdatasetBandExposure =
+                    SUBDATASET_BAND_EXPOSURE::STRUCTURAL_AND_PER_BAND;
+            else if (EQUAL(pszDataType, "PER_BAND_ONLY"))
+                nSubdatasetBandExposure =
+                    SUBDATASET_BAND_EXPOSURE::PER_BAND_ONLY;
+        }
+    }
+
+    AssignBandsToSubdataSets();
     if (m_nNSubdataSets)
     {
         CreateSubdatasetsFromBands();
@@ -474,7 +493,10 @@ void MMRDataset::AssignBandsToSubdataSets()
     if (!pBand)
         return;
 
+    m_nSDS.resize(static_cast<size_t>(m_pMMRRel->GetNBands()) + 1);
+
     pBand->AssignSubDataSet(m_nNSubdataSets);
+    m_nSDS[m_nNSubdataSets]++;
     MMRBand *pNextBand;
     for (; nIBand < m_pMMRRel->GetNBands() - 1; nIBand++)
     {
@@ -485,6 +507,7 @@ void MMRDataset::AssignBandsToSubdataSets()
             if (!pNextBand)
                 return;
             pNextBand->AssignSubDataSet(m_nNSubdataSets);
+            m_nSDS[m_nNSubdataSets]++;
         }
         else
         {
@@ -492,20 +515,24 @@ void MMRDataset::AssignBandsToSubdataSets()
             if (!pNextBand)
                 return;
             pNextBand->AssignSubDataSet(m_nNSubdataSets);
+            m_nSDS[m_nNSubdataSets]++;
         }
     }
+    m_nSDS.resize(static_cast<size_t>(m_nNSubdataSets) + 1);
 
     // If there is only one subdataset, it means that
     // we don't need subdatasets (all assigned to 0)
     if (m_nNSubdataSets == 1)
     {
         m_nNSubdataSets = 0;
+        m_nSDS[m_nNSubdataSets] = 0;
         for (nIBand = 0; nIBand < m_pMMRRel->GetNBands(); nIBand++)
         {
             pBand = m_pMMRRel->GetBand(nIBand);
             if (!pBand)
                 break;
             pBand->AssignSubDataSet(m_nNSubdataSets);
+            m_nSDS[m_nNSubdataSets]++;
         }
     }
 }
@@ -517,7 +544,8 @@ void MMRDataset::CreateSubdatasetsFromBands()
     CPLString osDSDesc;
     MMRBand *pBand;
 
-    for (int iSubdataset = 1; iSubdataset <= m_nNSubdataSets; iSubdataset++)
+    int iSubdataset;
+    for (iSubdataset = 1; iSubdataset <= m_nNSubdataSets; iSubdataset++)
     {
         int nIBand;
         for (nIBand = 0; nIBand < m_pMMRRel->GetNBands(); nIBand++)
@@ -563,6 +591,37 @@ void MMRDataset::CreateSubdatasetsFromBands()
             CPLSPrintf("SUBDATASET_%d_DESC", iSubdataset), osDSDesc);
     }
 
+    if (nSubdatasetBandExposure ==
+        SUBDATASET_BAND_EXPOSURE::STRUCTURAL_AND_PER_BAND)
+    {
+        for (int nIBand = 0; nIBand < m_pMMRRel->GetNBands(); nIBand++)
+        {
+            pBand = m_pMMRRel->GetBand(nIBand);
+            if (!pBand)
+                return;
+
+            // If the band is in a subdataset with only one band, then no need to do this
+            if (m_nSDS.size() >
+                    static_cast<size_t>(pBand->GetAssignedSubDataSet()) &&
+                m_nSDS[pBand->GetAssignedSubDataSet()] <= 1)
+                continue;
+
+            osDSName.Printf("MiraMonRaster:\"%s\",\"%s\"",
+                            pBand->GetRELFileName().c_str(),
+                            pBand->GetRawBandFileName().c_str());
+            osDSDesc.Printf("Subdataset %d: \"%s\"", iSubdataset,
+                            pBand->GetBandName().c_str());
+
+            oSubdatasetList.AddNameValue(
+                CPLSPrintf("SUBDATASET_%d_NAME", iSubdataset), osDSName);
+            oSubdatasetList.AddNameValue(
+                CPLSPrintf("SUBDATASET_%d_DESC", iSubdataset), osDSDesc);
+
+            iSubdataset++;
+            m_nNSubdataSets++;
+        }
+    }
+
     if (oSubdatasetList.Count() > 0)
     {
         // Add metadata to the main dataset
@@ -583,6 +642,9 @@ bool MMRDataset::IsNextBandInANewDataSet(int nIBand) const
     MMRBand *pNextBand = m_pMMRRel->GetBand(nIBand + 1);
     if (!pThisBand || !pNextBand)
         return false;
+
+    if (nSubdatasetBandExposure == SUBDATASET_BAND_EXPOSURE::PER_BAND_ONLY)
+        return true;
 
     // Two images with different numbers of columns are assigned to different subdatasets
     if (pThisBand->GetWidth() != pNextBand->GetWidth())

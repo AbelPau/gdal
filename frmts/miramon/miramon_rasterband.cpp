@@ -180,7 +180,7 @@ double MMRRasterBand::GetMaximum(int *pbSuccess)
 const char *MMRRasterBand::GetUnitType()
 
 {
-    return osUnitType.c_str();
+    return m_osUnitType.c_str();
 }
 
 /************************************************************************/
@@ -191,9 +191,9 @@ CPLErr MMRRasterBand::SetUnitType(const char *pszUnit)
 
 {
     if (pszUnit == nullptr)
-        osUnitType.clear();
+        m_osUnitType.clear();
     else
-        osUnitType = pszUnit;
+        m_osUnitType = pszUnit;
 
     return CE_None;
 }

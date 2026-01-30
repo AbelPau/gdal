@@ -126,7 +126,7 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     CPLString m_osBandSection = "";  // Name of the band
 
-    CPLString osUnitType = "";
+    CPLString m_osUnitType = "";
 
     MMDataType m_eMMRDataTypeMiraMon = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     MMBytesPerPixel m_eMMBytesPerPixel =
