@@ -1162,10 +1162,18 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
     CPLString osValue;
     CPLString osCommentValue;
     size_t nPos;
+    CPLString osRecoveredMD;
+    if (oSrcDS.GetDescription())
+        osRecoveredMD = CPLSPrintf("Recovered MIRAMON domain metadata from %s",
+                                   oSrcDS.GetDescription());
+    else
+        osRecoveredMD = "Recovered MIRAMON domain metadata";
+
+    CPLString osCommenti;
     for (const auto &[pszKey, pszValue] :
          cpl::IterateNameValue(aosMiraMonMetaData))
     {
-        CPLString osCommenti = CPLSPrintf("comment%d", nComment++);
+        osCommenti = CPLSPrintf("comment%d", nComment++);
         CPLString osAux = pszValue;
         nPos = osAux.find(m_SecKeySeparator);
         if (nPos != std::string::npos)
@@ -1189,6 +1197,13 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
                 osCommentValue =
                     CPLSPrintf("[%s]->%s", osKey.c_str(), pszValue);
         }
+        if (!osRecoveredMD.empty())
+        {
+            AddKeyValue(osCommenti, osRecoveredMD);
+            osCommenti = CPLSPrintf("comment%d", nComment++);
+            osRecoveredMD.clear();
+        }
+
         AddKeyValue(osCommenti, osCommentValue);
     }
 }

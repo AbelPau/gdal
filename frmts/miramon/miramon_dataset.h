@@ -64,7 +64,7 @@ class MMRDataset final : public GDALPamDataset
     void AssignBandsToSubdataSets();
     void CreateSubdatasetsFromBands();
     bool CreateRasterBands();
-    bool IsNextBandInANewDataSet(int nIBand) const;
+    bool BandInTheSameDataset(int nIBand1, int nIBan2) const;
 
     int UpdateGeoTransform();
     const OGRSpatialReference *GetSpatialRef() const override;
@@ -125,7 +125,7 @@ class MMRDataset final : public GDALPamDataset
         PER_BAND_ONLY
     };
     SUBDATASET_BAND_EXPOSURE nSubdatasetBandExposure =
-        SUBDATASET_BAND_EXPOSURE::STRUCTURAL_AND_PER_BAND;
+        SUBDATASET_BAND_EXPOSURE::STRUCTURAL_ONLY;
 
     // For writing part
     //

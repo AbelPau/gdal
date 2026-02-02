@@ -124,7 +124,8 @@ class MMRRasterBand final : public GDALPamRasterBand
 
     std::array<std::vector<double>, 4> m_aadfPCT{};
 
-    CPLString m_osBandSection = "";  // Name of the band
+    // Name of the band
+    CPLString m_osBandSection = "";
 
     CPLString m_osUnitType = "";
 

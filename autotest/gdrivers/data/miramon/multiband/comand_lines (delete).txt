@@ -1,0 +1,4 @@
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\multiband\byte_2x3_6_multibandI.rel" "d:\tmp\kk.tiff" -if MiraMonRaster -sds
+-oo SUBDATASET_BAND_EXPOSURE=STRUCTURAL_AND_PER_BAND
+
+"D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\multiband\byte_2x3_1_to_5_categs_NoData_0.img" "d:\tmp\kk.tiff" -if MiraMonRaster -sds
