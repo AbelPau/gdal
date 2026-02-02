@@ -450,7 +450,7 @@ def test_miramon_test_fails(name, message_substring):
 ###### Testing subdatasets
 init_list_subdatasets = [
     (
-        "data/miramon/multiband/byte_2x3_6_multibandI.rel",
+        "data/miramon/multiband/several_datasets/byte_2x3_6_multibandI.rel",
         3,
         0,
         1,
@@ -459,9 +459,10 @@ init_list_subdatasets = [
         None,
         0,
         5,
+        "STRUCTURAL_AND_PER_BAND",
     ),
     (
-        "data/miramon/multiband/byte_2x3_6_categs.img",
+        "data/miramon/multiband/several_datasets/byte_2x3_6_multibandI.rel",
         3,
         0,
         1,
@@ -470,9 +471,34 @@ init_list_subdatasets = [
         None,
         0,
         5,
+        "STRUCTURAL_ONLY",
     ),
     (
-        "data/miramon/multiband/byte_2x3_6_multibandI.rel",
+        "data/miramon/multiband/several_datasets/byte_2x3_6_multibandI.rel",
+        3,
+        0,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        None,
+        0,
+        5,
+        "PER_BAND_ONLY",
+    ),
+    (
+        "data/miramon/multiband/several_datasets/byte_2x3_6_categs.img",
+        3,
+        0,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        None,
+        0,
+        5,
+        "STRUCTURAL_AND_PER_BAND",
+    ),
+    (
+        "data/miramon/multiband/several_datasets/byte_2x3_6_multibandI.rel",
         3,
         1,
         1,
@@ -481,9 +507,10 @@ init_list_subdatasets = [
         255,
         0,
         4,
+        "STRUCTURAL_AND_PER_BAND",
     ),
     (
-        "data/miramon/multiband/byte_2x3_0_to_4_categs_NoData_255.img",
+        "data/miramon/multiband/several_datasets/byte_2x3_0_to_4_categs_NoData_255.img",
         3,
         1,
         1,
@@ -492,9 +519,10 @@ init_list_subdatasets = [
         255,
         0,
         4,
+        "STRUCTURAL_AND_PER_BAND",
     ),
     (
-        "data/miramon/multiband/byte_2x3_6_multibandI.rel",
+        "data/miramon/multiband/several_datasets/byte_2x3_6_multibandI.rel",
         3,
         2,
         1,
@@ -503,9 +531,10 @@ init_list_subdatasets = [
         0,
         1,
         5,
+        "STRUCTURAL_AND_PER_BAND",
     ),
     (
-        "data/miramon/multiband/byte_2x3_1_to_5_categs_NoData_0.img",
+        "data/miramon/multiband/several_datasets/byte_2x3_1_to_5_categs_NoData_0.img",
         3,
         2,
         1,
@@ -514,12 +543,49 @@ init_list_subdatasets = [
         0,
         1,
         5,
+        "STRUCTURAL_AND_PER_BAND",
+    ),
+    (
+        "data/miramon/multiband/one_dataset/byte_2x3_6_multibandI.rel",
+        4,
+        0,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        None,
+        0,
+        5,
+        "STRUCTURAL_AND_PER_BAND",
+    ),
+    (
+        "data/miramon/multiband/one_dataset/byte_2x3_6_multibandI.rel",
+        1,
+        0,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        None,
+        0,
+        5,
+        "STRUCTURAL_ONLY",
+    ),
+    (
+        "data/miramon/multiband/one_dataset/byte_2x3_6_multibandI.rel",
+        3,
+        0,
+        1,
+        [0, 1, 2, 3, 4, 5],
+        15,
+        None,
+        0,
+        5,
+        "PER_BAND_ONLY",
     ),
 ]
 
 
 @pytest.mark.parametrize(
-    "filename,n_exp_sds,idx_sds,idx_bnd,expected,checksum,expected_nodata,exp_min,exp_max",
+    "filename,n_exp_sds,idx_sds,idx_bnd,expected,checksum,expected_nodata,exp_min,exp_max,SUBDATASET_BAND_EXPOSURE",
     init_list_subdatasets,
     ids=[tup[0].split("/")[-1].split(".")[0] for tup in init_list_subdatasets],
 )
@@ -533,8 +599,13 @@ def test_miramon_subdatasets_detection(
     expected_nodata,
     exp_min,
     exp_max,
+    SUBDATASET_BAND_EXPOSURE,
 ):
-    ds = gdal.OpenEx(filename, allowed_drivers=["MiraMonRaster"])
+    ds = gdal.OpenEx(
+        filename,
+        allowed_drivers=["MiraMonRaster"],
+        open_options=[f"SUBDATASET_BAND_EXPOSURE={SUBDATASET_BAND_EXPOSURE}"],
+    )
     assert ds is not None, f"Could not open file: {filename}"
 
     subdatasets = ds.GetSubDatasets()

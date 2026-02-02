@@ -11,7 +11,9 @@
 # SPDX-License-Identifier: MIT
 ###############################################################################
 
+import gc
 import os
+import shutil
 import struct
 import sys
 import tempfile
@@ -315,6 +317,8 @@ def test_miramonraster_multiband(
     # --- Cleanup ---
     dst_ds = None
     src_ds = None
+    gc.collect()
+    shutil.rmtree(tmpdir)
 
 
 def test_miramon_rgb_single_dataset(tmp_path):
@@ -500,3 +504,5 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     # --- Cleanup ---
     dst_ds = None
     src_ds = None
+    gc.collect()
+    shutil.rmtree(tmpdir)
