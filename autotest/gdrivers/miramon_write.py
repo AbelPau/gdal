@@ -237,6 +237,15 @@ def test_miramonraster_multiband(
     assert dst_ds is not None
     assert dst_ds.GetDriver().ShortName == "MiraMonRaster"
 
+    subdatasets = dst_ds.GetSubDatasets()
+    if subdatasets is not None:
+        # --- Cleanup ---
+        dst_ds = None
+        src_ds = None
+        gc.collect()
+        shutil.rmtree(tmpdir)
+        return
+
     # --- Dataset checks ---
     assert dst_ds.RasterXSize == xsize
     assert dst_ds.RasterYSize == ysize

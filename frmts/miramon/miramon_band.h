@@ -254,6 +254,56 @@ class MMRBand final
         return m_osRATRELName;
     }
 
+    CPLString GetColor_Const() const
+    {
+        return m_osColor_Const;
+    }
+
+    GDALColorEntry GetConstantColorRGB() const
+    {
+        return m_sConstantColorRGB;
+    }
+
+    bool ValidConstantColorRGB() const
+    {
+        return m_osValidColorConst;
+    }
+
+    CPLString GetColor_Paleta() const
+    {
+        return m_osColor_Paleta;
+    }
+
+    CPLString GetColor_TractamentVariable() const
+    {
+        return m_osColor_TractamentVariable;
+    }
+
+    CPLString GetTractamentVariable() const
+    {
+        return m_osTractamentVariable;
+    }
+
+    CPLString GetColor_EscalatColor() const
+    {
+        return m_osColor_EscalatColor;
+    }
+
+    CPLString GetColor_N_SimbolsALaTaula() const
+    {
+        return m_osColor_N_SimbolsALaTaula;
+    }
+
+    CPLString GetShortRATName() const
+    {
+        return m_osShortRATName;
+    }
+
+    CPLString GetAssociateREL() const
+    {
+        return m_osAssociateREL;
+    }
+
     CPLString GetUnits() const
     {
         return m_osBandUnitType;
@@ -282,6 +332,8 @@ class MMRBand final
     bool UpdateRowsNumberFromREL(const CPLString &osSection);
     void UpdateNoDataValue(const CPLString &osSection);
     void UpdateBoundingBoxFromREL(const CPLString &osSection);
+    void UpdateSimbolizationInfo(const CPLString &osSection);
+    void UpdateRATInfo(const CPLString &osSection);
     void UpdateReferenceSystemFromREL();
     void UpdateMinMaxValuesFromREL(const CPLString &osSection);
     void UpdateUnitTypeValueFromREL(const CPLString &osSection);
@@ -408,9 +460,25 @@ class MMRBand final
     bool m_bNoDataSet = false;  // There is nodata?
     double m_dfNoData = 0.0;    // Value of nodata
 
+    // Color table information
+    CPLString m_osColor_Const = "";
+    GDALColorEntry m_sConstantColorRGB = {0, 0, 0, 255};
+    bool m_osValidColorConst = false;
+    CPLString m_osColor_Paleta = "";
+    CPLString m_osColor_TractamentVariable = "";
+    CPLString m_osTractamentVariable = "";
+    CPLString m_osColor_EscalatColor = "";
+    CPLString m_osColor_N_SimbolsALaTaula = "";
+
     // Color table in writting part of the driver
     GDALColorTable *m_poCT = nullptr;
     CPLString m_osCTName = "";
+
+    // Attribute table information
+    // Table name
+    CPLString m_osShortRATName = "";
+    // Field in the table that is used as VALUE
+    CPLString m_osAssociateREL = "";
 
     // Attributte table in writting part of the driver
     GDALRasterAttributeTable *m_poRAT = nullptr;

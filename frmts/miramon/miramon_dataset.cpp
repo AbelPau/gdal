@@ -673,6 +673,30 @@ bool MMRDataset::BandInTheSameDataset(int nIBand1, int nIBand2) const
     if (pThisBand->GetBoundingBoxMaxY() != pOtherBand->GetBoundingBoxMaxY())
         return false;
 
+    // Two images with different simbolization are assigned to different subdatasets
+    if (!EQUAL(pThisBand->GetColor_Const(), pOtherBand->GetColor_Const()) ||
+        pThisBand->GetConstantColorRGB().c1 !=
+            pOtherBand->GetConstantColorRGB().c1 ||
+        pThisBand->GetConstantColorRGB().c2 !=
+            pOtherBand->GetConstantColorRGB().c2 ||
+        pThisBand->GetConstantColorRGB().c3 !=
+            pOtherBand->GetConstantColorRGB().c3 ||
+        !EQUAL(pThisBand->GetColor_Paleta(), pOtherBand->GetColor_Paleta()) ||
+        !EQUAL(pThisBand->GetColor_TractamentVariable(),
+               pOtherBand->GetColor_TractamentVariable()) ||
+        !EQUAL(pThisBand->GetTractamentVariable(),
+               pOtherBand->GetTractamentVariable()) ||
+        !EQUAL(pThisBand->GetColor_EscalatColor(),
+               pOtherBand->GetColor_EscalatColor()) ||
+        !EQUAL(pThisBand->GetColor_N_SimbolsALaTaula(),
+               pOtherBand->GetColor_N_SimbolsALaTaula()))
+        return false;
+
+    // Two images with different RATs are assigned to different subdatasets
+    if (!EQUAL(pThisBand->GetShortRATName(), pOtherBand->GetShortRATName()) ||
+        !EQUAL(pThisBand->GetAssociateREL(), pOtherBand->GetAssociateREL()))
+        return false;
+
     // One image has NoData values and the other does not;
     // they are assigned to different subdatasets
     if (pThisBand->BandHasNoData() != pOtherBand->BandHasNoData())

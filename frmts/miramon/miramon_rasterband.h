@@ -106,8 +106,8 @@ class MMRRasterBand final : public GDALPamRasterBand
     CPLErr FromPaletteToAttributeTableDirectAssig();
     CPLErr FromPaletteToAttributeTableLinear();
     void ConvertColorsFromPaletteToColorTable();
-    CPLErr GetRATName(CPLString aosToken, CPLString &osRELName,
-                      CPLString &osDBFName, CPLString &osAssociateREL);
+    CPLErr GetRATName(CPLString &osRELName, CPLString &osDBFName,
+                      CPLString &osAssociateREL);
     CPLErr UpdateAttributeColorsFromPalette();
     CPLErr CreateRATFromDBF(const CPLString &osRELName,
                             const CPLString &osDBFName,

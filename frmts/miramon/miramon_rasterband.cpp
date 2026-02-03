@@ -246,7 +246,7 @@ GDALColorTable *MMRRasterBand::GetColorTable()
 
     m_bTriedLoadColorTable = true;
 
-    m_Palette = std::make_unique<MMRPalettes>(*m_pfRel, m_osBandSection);
+    m_Palette = std::make_unique<MMRPalettes>(*m_pfRel, nBand);
 
     if (!m_Palette->IsValid())
     {
@@ -311,9 +311,11 @@ CPLErr MMRRasterBand::FillRATFromPalette()
 {
     CPLString os_IndexJoin;
 
-    if (!m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, m_osBandSection,
-                                   "IndexsJoinTaula", os_IndexJoin) ||
-        os_IndexJoin.empty())
+    MMRBand *poBand = m_pfRel->GetBand(nBand - 1);
+    if (poBand == nullptr)
+        return CE_None;
+
+    if (poBand->GetShortRATName().empty())
     {
         // I don't have any associated attribute table but
         // perhaps I can create an attribute table with
@@ -325,17 +327,9 @@ CPLErr MMRRasterBand::FillRATFromPalette()
         return CE_None;
     }
 
-    // Here I have some attribute table. I want to expose to RAT.
-    const CPLStringList aosTokens(CSLTokenizeString2(os_IndexJoin, ",", 0));
-    const int nTokens = CSLCount(aosTokens);
-
-    if (nTokens < 1)
-        return CE_Failure;
-
-    // Let's see the conditions to have one.
+    // Let's see the conditions to have a RAT
     CPLString osRELName, osDBFName, osAssociateRel;
-    if (CE_None !=
-            GetRATName(aosTokens[0], osRELName, osDBFName, osAssociateRel) ||
+    if (CE_None != GetRATName(osRELName, osDBFName, osAssociateRel) ||
         osDBFName.empty() || osAssociateRel.empty())
     {
         return CE_Failure;
@@ -354,7 +348,7 @@ CPLErr MMRRasterBand::UpdateAttributeColorsFromPalette()
     // If there is no palette, let's get one
     if (!m_Palette)
     {
-        m_Palette = std::make_unique<MMRPalettes>(*m_pfRel, m_osBandSection);
+        m_Palette = std::make_unique<MMRPalettes>(*m_pfRel, nBand);
 
         if (!m_Palette->IsValid())
         {
@@ -370,20 +364,15 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
                                        const CPLString &osDBFName,
                                        const CPLString &osAssociateRel)
 {
-    // If there is no palette, let's get one
+    // If there is no palette, let's try to get one
+    // and try to get a normal RAT.
     if (!m_Palette)
     {
-        m_Palette = std::make_unique<MMRPalettes>(*m_pfRel, m_osBandSection);
+        m_Palette = std::make_unique<MMRPalettes>(*m_pfRel, nBand);
 
-        if (!m_Palette->IsValid())
-        {
+        if (!m_Palette->IsValid() || !m_Palette->IsCategorical())
             m_Palette = nullptr;
-            return CE_None;
-        }
     }
-
-    if (!m_Palette->IsCategorical())
-        return CE_Failure;
 
     struct MM_DATA_BASE_XP oAttributteTable;
     memset(&oAttributteTable, 0, sizeof(oAttributteTable));
@@ -901,42 +890,23 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinuousMode()
     return CE_None;
 }
 
-CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
-                                 CPLString &osDBFName,
+CPLErr MMRRasterBand::GetRATName(CPLString &osRELName, CPLString &osDBFName,
                                  CPLString &osAssociateREL)
 {
-    CPLString os_Join = "JoinTaula";
-    os_Join.append("_");
-    os_Join.append(aosToken);
-
-    CPLString osTableNameSection_value;
-
-    if (!m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, m_osBandSection,
-                                   os_Join, osTableNameSection_value) ||
-        osTableNameSection_value.empty())
-        return CE_Failure;  // No attribute available
-
-    CPLString osTableNameSection = "TAULA_";
-    osTableNameSection.append(osTableNameSection_value);
-
-    CPLString osShortRELName;
-
-    if (!m_pfRel->GetMetadataValue(osTableNameSection, KEY_NomFitxer,
-                                   osShortRELName) ||
-        osShortRELName.empty())
-    {
-        osRELName = "";
-        osAssociateREL = "";
+    MMRBand *poBand = m_pfRel->GetBand(nBand - 1);
+    if (!poBand)
         return CE_Failure;
-    }
 
-    CPLString osExtension = CPLGetExtensionSafe(osShortRELName);
+    if (poBand->GetShortRATName().empty())
+        return CE_None;  // There is no RAT
+
+    CPLString osExtension = CPLGetExtensionSafe(poBand->GetShortRATName());
     if (osExtension.tolower() == "rel")
     {
         // Get path relative to REL file
         osRELName = CPLFormFilenameSafe(
-            CPLGetPathSafe(m_pfRel->GetRELNameChar()).c_str(), osShortRELName,
-            "");
+            CPLGetPathSafe(m_pfRel->GetRELNameChar()).c_str(),
+            poBand->GetShortRATName(), "");
 
         // Getting information from the associated REL
         MMRRel localRel(osRELName, false);
@@ -982,20 +952,24 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
         return CE_None;
     }
 
-    osExtension = CPLGetExtensionSafe(osShortRELName);
+    osExtension = CPLGetExtensionSafe(poBand->GetShortRATName());
     if (osExtension.tolower() == "dbf")
     {
-        // Get path relative to REL file
-        osDBFName = CPLFormFilenameSafe(
-            CPLGetPathSafe(m_pfRel->GetRELNameChar()).c_str(), osShortRELName,
-            "");
+        if (CPLIsFilenameRelative(poBand->GetShortRATName()))
+        {
+            // Get path relative to REL file
+            osDBFName = CPLFormFilenameSafe(
+                CPLGetPathSafe(m_pfRel->GetRELNameChar()).c_str(),
+                poBand->GetShortRATName(), "");
+        }
+        else
+            osDBFName = poBand->GetShortRATName();
 
-        if (!m_pfRel->GetMetadataValue(osTableNameSection, "AssociatRel",
-                                       osAssociateREL) ||
-            osAssociateREL.empty())
+        osAssociateREL = poBand->GetAssociateREL();
+        if (osAssociateREL.empty())
         {
             osRELName = "";
-            osAssociateREL = "";
+            osDBFName = "";
             return CE_Failure;
         }
         m_poDefaultRAT->SetTableType(GRTT_THEMATIC);
@@ -1003,6 +977,7 @@ CPLErr MMRRasterBand::GetRATName(CPLString aosToken, CPLString &osRELName,
     }
 
     osRELName = "";
+    osDBFName = "";
     osAssociateREL = "";
     return CE_Failure;
 }

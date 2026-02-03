@@ -109,6 +109,8 @@ class MMRRel
     void WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
     CPLString GetColor_TractamentVariable(int nIBand);
     CPLString GetColor_Paleta(int nIBand);
+    CPLErr UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
+                                        GDALColorEntry &m_sConstantColorRGB);
     void WriteCOLOR_TEXTSection();
     void WriteVISU_LLEGENDASection();
 
