@@ -723,7 +723,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
         if (!poBand)
             return CE_Failure;
 
-        if (poBand->GetMaxSet())
+        if (m_Palette->IsAutomatic() && poBand->GetMaxSet())
         {
             // In that case (byte, uint) we can limit the number
             // of colours at the maximum value that the band has.
@@ -797,10 +797,19 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinuousMode()
     if (!poBand)
         return CE_Failure;
 
-    if (m_eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_BYTE &&
-        m_eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_BYTE_RLE &&
-        m_eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_UINTEGER &&
-        m_eMMRDataTypeMiraMon != MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE)
+    bool bAcceptPalette = false;
+    if (m_eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE &&
+        m_eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE &&
+        m_Palette->GetColorScaling() == ColorTreatment::LINEAR_SCALING &&
+        m_Palette->GetColorScaling() == ColorTreatment::DIRECT_ASSIGNATION)
+        bAcceptPalette = true;
+    else if (m_eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER &&
+             m_eMMRDataTypeMiraMon ==
+                 MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE &&
+             m_Palette->GetColorScaling() != ColorTreatment::LINEAR_SCALING)
+        bAcceptPalette = true;
+
+    if (!bAcceptPalette)
         return CE_Failure;  // Attribute table
 
     // Some necessary information
