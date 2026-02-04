@@ -265,8 +265,6 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     ReadProjection();
     nBands = 0;
 
-    CPLString osFileName = poOpenInfo->pszFilename;
-
     // Getting the open option that determines how to expose subdatasets.
     // To avoid recusivity subdatasets are exposed as they are.
     const char *pszDataType =

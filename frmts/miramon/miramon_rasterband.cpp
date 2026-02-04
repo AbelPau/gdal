@@ -798,15 +798,16 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinuousMode()
         return CE_Failure;
 
     bool bAcceptPalette = false;
-    if (m_eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE &&
-        m_eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE &&
-        m_Palette->GetColorScaling() == ColorTreatment::LINEAR_SCALING &&
-        m_Palette->GetColorScaling() == ColorTreatment::DIRECT_ASSIGNATION)
+    if ((m_eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE ||
+         m_eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_BYTE_RLE) &&
+        (m_Palette->GetColorScaling() == ColorTreatment::LINEAR_SCALING ||
+         m_Palette->GetColorScaling() == ColorTreatment::DIRECT_ASSIGNATION))
         bAcceptPalette = true;
-    else if (m_eMMRDataTypeMiraMon == MMDataType::DATATYPE_AND_COMPR_UINTEGER &&
-             m_eMMRDataTypeMiraMon ==
-                 MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE &&
-             m_Palette->GetColorScaling() != ColorTreatment::LINEAR_SCALING)
+    else if ((m_eMMRDataTypeMiraMon ==
+                  MMDataType::DATATYPE_AND_COMPR_UINTEGER ||
+              m_eMMRDataTypeMiraMon ==
+                  MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE) &&
+             m_Palette->GetColorScaling() == ColorTreatment::LINEAR_SCALING)
         bAcceptPalette = true;
 
     if (!bAcceptPalette)
