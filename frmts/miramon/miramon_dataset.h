@@ -32,6 +32,32 @@
 class MMRRasterBand;
 class MMRRel;
 
+/*
+    * -oo  RAT_OR_CT
+    Controls how raster bands are exposed as subdatasets.
+
+      ALL (default):
+        Behaves like RAT, and additionally exposes one subdataset
+        per raster band for any subdataset containing multiple bands. This
+        allows individual bands to be accessed and visualized separately
+        by client applications.
+
+      RAT:
+        Subdatasets are exposed only when strictly required by the dataset
+        structure, such as differing spatial resolution, spatial reference
+        system, or other intrinsic characteristics.
+
+      CT:
+        Each raster band is exposed directly as an individual subdataset.
+        Multi-band subdatasets are not created.
+    */
+enum class RAT_OR_CT
+{
+    ALL,
+    RAT,
+    CT
+};
+
 class MMRDataset final : public GDALPamDataset
 {
   public:
@@ -57,6 +83,11 @@ class MMRDataset final : public GDALPamDataset
     MMRRel *GetRel()
     {
         return m_pMMRRel.get();
+    }
+
+    RAT_OR_CT GetRatOrCT() const
+    {
+        return nRatOrCT;
     }
 
   private:
@@ -99,33 +130,7 @@ class MMRDataset final : public GDALPamDataset
     // Number of bands in the subdataset
     std::vector<int> m_nSDS = {};
 
-    /*
-    * -oo  SUBDATASET_BAND_EXPOSURE
-    Controls how raster bands are exposed as subdatasets.
-
-      STRUCTURAL_ONLY:
-        Subdatasets are exposed only when strictly required by the dataset
-        structure, such as differing spatial resolution, spatial reference
-        system, or other intrinsic characteristics.
-
-      STRUCTURAL_AND_PER_BAND (default):
-        Behaves like STRUCTURAL_ONLY, and additionally exposes one subdataset
-        per raster band for any subdataset containing multiple bands. This
-        allows individual bands to be accessed and visualized separately
-        by client applications.
-
-      PER_BAND_ONLY:
-        Each raster band is exposed directly as an individual subdataset.
-        Multi-band subdatasets are not created.
-    */
-    enum class SUBDATASET_BAND_EXPOSURE
-    {
-        STRUCTURAL_AND_PER_BAND,
-        STRUCTURAL_ONLY,
-        PER_BAND_ONLY
-    };
-    SUBDATASET_BAND_EXPOSURE nSubdatasetBandExposure =
-        SUBDATASET_BAND_EXPOSURE::STRUCTURAL_ONLY;
+    RAT_OR_CT nRatOrCT = RAT_OR_CT::ALL;
 
     // For writing part
     //

@@ -28,6 +28,8 @@ MMRRasterBand::MMRRasterBand(MMRDataset *poDSIn, int nBandIn)
 
     eAccess = poDSIn->GetAccess();
 
+    nRatOrCT = poDSIn->GetRatOrCT();
+
     MMRBand *poBand = m_pfRel->GetBand(nBand - 1);
     if (poBand == nullptr)
         return;
@@ -241,6 +243,10 @@ CPLErr MMRRasterBand::IReadBlock(int nBlockXOff, int nBlockYOff, void *pImage)
 
 GDALColorTable *MMRRasterBand::GetColorTable()
 {
+    // If user doesn't want the CT, it's skipped
+    if (nRatOrCT != RAT_OR_CT::ALL && nRatOrCT != RAT_OR_CT::CT)
+        return nullptr;
+
     if (m_bTriedLoadColorTable)
         return m_poCT.get();
 
@@ -293,6 +299,10 @@ GDALColorInterp MMRRasterBand::GetColorInterpretation()
 GDALRasterAttributeTable *MMRRasterBand::GetDefaultRAT()
 
 {
+    // If user doesn't want the RAT, it's skipped
+    if (nRatOrCT != RAT_OR_CT::ALL && nRatOrCT != RAT_OR_CT::RAT)
+        return nullptr;
+
     if (m_poDefaultRAT != nullptr)
         return m_poDefaultRAT.get();
 

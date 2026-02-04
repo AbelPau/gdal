@@ -122,6 +122,8 @@ class MMRRasterBand final : public GDALPamRasterBand
     bool m_bIsValid =
         false;  // Determines if the created object is valid or not.
 
+    RAT_OR_CT nRatOrCT = RAT_OR_CT::ALL;
+
     std::array<std::vector<double>, 4> m_aadfPCT{};
 
     // Name of the band

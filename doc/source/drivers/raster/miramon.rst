@@ -88,24 +88,18 @@ Open options
 
 The following open options are available:
 
--  .. oo:: SUBDATASET_BAND_EXPOSURE
-      :choices: STRUCTURAL_ONLY, STRUCTURAL_AND_PER_BAND, PER_BAND_ONLY
-      :default: STRUCTURAL_ONLY
+-  .. oo:: RAT_OR_CT
+      :choices: ALL, RAT, CT
+      :default: ALL
 
-      Controls how raster bands are exposed as subdatasets.
+      Controls whether the Raster Attribute Table (RAT) and/or the Color Table (CT) are exposed.
       
-      STRUCTURAL_ONLY
-            Subdatasets are exposed only when strictly required by the dataset
-            structure, such as differing spatial resolution, spatial reference
-            system, or other intrinsic characteristics.
-      STRUCTURAL_AND_PER_BAND
-            Behaves like STRUCTURAL_ONLY, and additionally exposes one subdataset
-            per raster band for any subdataset containing multiple bands. This
-            allows individual bands to be accessed and visualized separately
-            by client applications.
+      ALL
+            Expose both the attribute table and the color table. Note that in some software this option may cause visualization and/or legend issues.
+      RAT
+            Expose the attribute table only, without the color table.
       PER_BAND_ONLY
-            Each raster band is exposed directly as an individual subdataset.
-            Multi-band subdatasets are not created.
+            Expose the color table only, without the attribute table.
 
 
 Creation Options
