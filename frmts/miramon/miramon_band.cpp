@@ -723,8 +723,21 @@ void MMRBand::UpdateSimbolizationInfo(const CPLString &osSection)
                               "Color_TractamentVariable",
                               m_osColor_TractamentVariable);
 
-    m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, KEY_TractamentVariable,
-                              m_osTractamentVariable);
+    m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection,
+                              KEY_TractamentVariable, m_osTractamentVariable);
+
+    // Is categorical?
+    if (m_osTractamentVariable.empty())
+    {
+        m_bIsCategorical = false;
+    }
+    else
+    {
+        if (EQUAL(m_osTractamentVariable, "Categoric"))
+            m_bIsCategorical = true;
+        else
+            m_bIsCategorical = false;
+    }
 
     m_pfRel->GetMetadataValue(SECTION_COLOR_TEXT, osSection,
                               "Color_EscalatColor", m_osColor_EscalatColor);

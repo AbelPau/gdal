@@ -315,7 +315,8 @@ CPLErr MMRRasterBand::FillRATFromPalette()
     if (poBand == nullptr)
         return CE_None;
 
-    if (poBand->GetShortRATName().empty())
+    GetColorTable();
+    if (poBand->GetShortRATName().empty() && !m_poCT)
     {
         // I don't have any associated attribute table but
         // perhaps I can create an attribute table with
@@ -708,8 +709,21 @@ CPLErr MMRRasterBand::FromPaletteToColorTableCategoricalMode()
     else
     {
         // To relax Coverity Scan (CID 1620826)
-        CPLAssert(static_cast<int>(m_eMMBytesPerPixel) > 0);
-        nNPossibleValues = 1 << (8 * static_cast<int>(m_eMMBytesPerPixel));
+        MMRBand *poBand = m_pfRel->GetBand(nBand - 1);
+        if (!poBand)
+            return CE_Failure;
+
+        if (poBand->GetMaxSet())
+        {
+            // In that case (byte, uint) we can limit the number
+            // of colours at the maximum value that the band has.
+            nNPossibleValues = static_cast<int>(poBand->GetMax()) + 1;
+        }
+        else
+        {
+            CPLAssert(static_cast<int>(m_eMMBytesPerPixel) > 0);
+            nNPossibleValues = 1 << (8 * static_cast<int>(m_eMMBytesPerPixel));
+        }
     }
 
     for (int iColumn = 0; iColumn < 4; iColumn++)
@@ -939,7 +953,7 @@ CPLErr MMRRasterBand::GetRATName(CPLString &osRELName, CPLString &osDBFName,
 
         CPLString osTactVar;
 
-        if (localRel.GetMetadataValue(osSection, "TractamentVariable",
+        if (localRel.GetMetadataValue(osSection, KEY_TractamentVariable,
                                       osTactVar) &&
             osTactVar == "Categoric")
             m_poDefaultRAT->SetTableType(GRTT_THEMATIC);

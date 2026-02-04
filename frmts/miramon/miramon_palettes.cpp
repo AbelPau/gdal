@@ -42,13 +42,14 @@ MMRPalettes::MMRPalettes(MMRRel &fRel, int nIBand) : m_pfRel(&fRel)
     }
 
     // Is this an authomatic palette or has a color table (dbf, pal,...)?
-    if (EQUAL(poBand->GetColor_Paleta(), "<Automatic>"))
+    if (EQUAL(poBand->GetColor_Paleta(), "<Automatic>") ||
+        poBand->GetColor_Paleta().empty())
         m_bIsAutomatic = true;
 
     // Treatment of the color variable
     if (poBand->GetColor_TractamentVariable().empty())
     {
-        if (EQUAL(poBand->GetTractamentVariable(), "Categoric"))
+        if (poBand->IsCategorical())
             SetIsCategorical(true);
         else
             SetIsCategorical(false);

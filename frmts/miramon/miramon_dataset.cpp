@@ -691,6 +691,18 @@ bool MMRDataset::BandInTheSameDataset(int nIBand1, int nIBand2) const
         !EQUAL(pThisBand->GetColor_N_SimbolsALaTaula(),
                pOtherBand->GetColor_N_SimbolsALaTaula()))
         return false;
+    if (pThisBand->IsCategorical() != pOtherBand->IsCategorical())
+        return false;
+    if (pThisBand->IsCategorical())
+    {
+        if (pThisBand->GetMaxSet() != pOtherBand->GetMaxSet())
+            return false;
+        if (pThisBand->GetMaxSet())
+        {
+            if (pThisBand->GetMax() != pOtherBand->GetMax())
+                return false;
+        }
+    }
 
     // Two images with different RATs are assigned to different subdatasets
     if (!EQUAL(pThisBand->GetShortRATName(), pOtherBand->GetShortRATName()) ||
