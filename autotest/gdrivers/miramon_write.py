@@ -15,7 +15,6 @@ import gc
 import os
 import shutil
 import struct
-import sys
 import tempfile
 
 import pytest
@@ -27,7 +26,46 @@ pytestmark = pytest.mark.require_driver("MiraMonRaster")
 # MiraMon driver
 mm_driver = gdal.GetDriverByName("MiraMonRaster")
 
-working_mode = "Release"  # Debug to generate GTiff files for debugging
+# --- Write in case of error to debug where it's necessary ---
+def write_gtiff_to_test(suffix_name, src_ds):
+
+    gtiff_driver = gdal.GetDriverByName("GTiff")
+    if gtiff_driver is None:
+        raise RuntimeError("GTiff driver not available")
+
+    tmpdir = tempfile.mkdtemp()
+
+    # 1) Materialize the MEM dataset into a named GeoTIFF
+    out_path = os.path.join(tmpdir, "src_" + suffix_name + ".tif")
+    tmp_src_ds = gtiff_driver.CreateCopy(out_path, src_ds)
+    if tmp_src_ds is None:
+        raise RuntimeError("Failed to materialize MEM dataset to GeoTIFF")
+
+    tmp_src_ds = None  # flush
+
+    raise AssertionError("Test failed, VRT written to: " + out_path)
+
+
+# --- Color table on the band ---
+colors = [
+    (0, 0, 0, 0),  # NoData
+    (255, 0, 0, 255),
+    (0, 255, 0, 255),
+    (0, 0, 255, 255),
+    (0, 125, 125, 255),
+    (125, 125, 255, 255),
+]
+
+# --- RAT on the band ---
+classname_list = [
+    "Background",
+    "Class_1",
+    "Class_2",
+    "Class_3",
+    "Class_4",
+    "Class_5",
+]
+classname_double = [0.1, 1.2, 2.3, 3.4, 4.5, 5.6]
 
 gdal_to_struct = {
     gdal.GDT_UInt8: "B",
@@ -46,6 +84,177 @@ init_type_list = [
     gdal.GDT_Float32,
     gdal.GDT_Float64,
 ]
+
+
+@pytest.mark.parametrize(
+    "data_type",
+    init_type_list,
+)
+@pytest.mark.parametrize(
+    "compress",
+    ["YES", "NO"],
+)
+@pytest.mark.parametrize(
+    "pattern",
+    [None, "UserPattern"],
+)
+@pytest.mark.parametrize(
+    "rat_first_col_type", [gdal.GFU_MinMax, gdal.GFU_Min, gdal.GFU_Generic]
+)
+def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type):
+
+    if data_type == gdal.GDT_UInt8:
+        use_color_table = "True"
+    else:
+        use_color_table = "False"
+
+    if data_type == gdal.GDT_UInt8 or data_type == gdal.GDT_UInt16:
+        use_rat = "True"
+    else:
+        use_rat = "False"
+
+    # --- Raster parameters ---
+    xsize = 3
+    ysize = 2
+    geotransform = (100.0, 10.0, 0.0, 200.0, 0.0, -10.0)
+
+    srs = osr.SpatialReference()
+    epsg_code = 25831
+    srs.ImportFromEPSG(epsg_code)
+    wkt = srs.ExportToWkt()
+
+    # --- Create in-memory dataset ---
+    mem_driver = gdal.GetDriverByName("MEM")
+    src_ds = mem_driver.Create("", xsize, ysize, 1, data_type)
+
+    src_ds.SetGeoTransform(geotransform)
+    src_ds.SetProjection(wkt)
+
+    # --- Create deterministic pixel values ---
+    # values 0..12
+    band_values = list(range(xsize * ysize))
+
+    fmt = gdal_to_struct[data_type]
+    band_bytes = struct.pack("<" + fmt * len(band_values), *band_values)
+
+    # --- Write raster data ---
+    src_ds.GetRasterBand(1).WriteRaster(
+        0,
+        0,
+        xsize,
+        ysize,
+        band_bytes,
+        buf_xsize=xsize,
+        buf_ysize=ysize,
+        buf_type=data_type,
+    )
+
+    band = src_ds.GetRasterBand(1)
+    band.SetNoDataValue(0)
+    band.FlushCache()
+
+    if use_color_table == "True":
+        ct = gdal.ColorTable()
+        for i in range(len(colors)):
+            ct.SetColorEntry(i, colors[i])
+
+        band.SetRasterColorTable(ct)
+        band.SetRasterColorInterpretation(gdal.GCI_PaletteIndex)
+
+    # --- Raster Attribute Table (RAT) ---
+    if use_rat == "True":
+        rat = gdal.RasterAttributeTable()
+        rat.CreateColumn("Value", gdal.GFT_Integer, rat_first_col_type)
+        rat.CreateColumn("ClassName", gdal.GFT_String, gdal.GFU_Name)
+        rat.CreateColumn("Real", gdal.GFT_Real, gdal.GFU_Generic)
+
+        rat.SetRowCount(6)
+
+        for i in range(len(classname_list)):
+            rat.SetValueAsInt(i, 0, i)
+            rat.SetValueAsString(i, 1, classname_list[i])
+            rat.SetValueAsDouble(i, 2, classname_double[i])
+        band.SetDefaultRAT(rat)
+
+    # --- Write to MiraMonRaster ---
+    tmpdir = tempfile.mkdtemp()
+    mm_path = os.path.join(tmpdir, "testI.rel")
+
+    co = [f"COMPRESS={compress}"]
+    if pattern is not None:
+        co.append(f"PATTERN={pattern}")
+    mm_ds = mm_driver.CreateCopy(mm_path, src_ds, options=co)
+    assert mm_ds is not None
+    mm_ds = None
+
+    # --- Reopen dataset ---
+    dst_ds = gdal.Open(mm_path)
+    assert dst_ds is not None
+    assert dst_ds.GetDriver().ShortName == "MiraMonRaster"
+
+    subdatasets = dst_ds.GetSubDatasets()
+    assert subdatasets is None or len(subdatasets) == 0
+
+    # --- Dataset checks ---
+    assert dst_ds.RasterXSize == xsize
+    assert dst_ds.RasterYSize == ysize
+    assert dst_ds.RasterCount == 1
+    assert dst_ds.GetGeoTransform() == geotransform
+
+    # Comparing reference system
+    if geotransform is not None:
+        srs = dst_ds.GetSpatialRef()
+        if (
+            srs is not None
+        ):  # in Fedora it returns None (but it's the only system it does)
+            epsg_code = srs.GetAuthorityCode("PROJCS") or srs.GetAuthorityCode("GEOGCS")
+            assert (
+                epsg_code == epsg_code
+            ), f"incorrect EPSG: {epsg_code}, waited {epsg_code}"
+
+    # --- Pixel data checks ---
+    dst_band_bytes = dst_ds.GetRasterBand(1).ReadRaster(
+        0, 0, xsize, ysize, buf_xsize=xsize, buf_ysize=ysize, buf_type=data_type
+    )
+
+    assert dst_band_bytes == band_bytes
+
+    dst_band = dst_ds.GetRasterBand(1)
+
+    # --- Color table check ---
+    if use_color_table == "True":
+        dst_ct = dst_band.GetRasterColorTable()
+        assert dst_ct is not None
+        for i in range(len(colors)):
+            assert dst_ct.GetColorEntry(i) == colors[i]
+
+    # --- RAT check ---
+    if use_rat == "True":
+        dst_rat = dst_band.GetDefaultRAT()
+        assert dst_rat is not None
+        assert dst_rat.GetRowCount() == rat.GetRowCount()
+        assert dst_rat.GetNameOfCol(0) == "Value"
+        assert dst_rat.GetNameOfCol(1) == "ClassName"
+        assert dst_rat.GetNameOfCol(2) == "Real"
+
+        for i in range(len(classname_list)):
+            assert dst_rat.GetValueAsInt(i, 0) == i
+            assert dst_rat.GetValueAsString(i, 1) == classname_list[i]
+            assert dst_rat.GetValueAsDouble(i, 2) == classname_double[i]
+
+    # --- Min / Max checks ---
+    assert dst_band.ComputeRasterMinMax(False) == (1, 5)
+
+    # To use if some error arises and we need to check the content of
+    # a tiff file to understand what went wrong. It will be written in a temporary
+    # directory and an exception will be raised with the path to the file.
+    # write_gtiff_to_test(data_type, src_ds)
+
+    # --- Cleanup ---
+    dst_ds = None
+    src_ds = None
+    gc.collect()
+    shutil.rmtree(tmpdir)
 
 
 @pytest.mark.parametrize(
@@ -72,18 +281,32 @@ def test_miramonraster_multiband(
 ):
 
     if data_type1 == gdal.GDT_Int8 or data_type1 == gdal.GDT_UInt8:
-        use_color_table = "True"
+        use_color_table1 = "True"
     else:
-        use_color_table = "False"
+        use_color_table1 = "False"
+
+    # if data_type2 == gdal.GDT_Int8 or data_type2 == gdal.GDT_UInt8:
+    #    use_color_table2 = "True"
+    # else:
+    #    use_color_table2 = "False"
 
     if (
         data_type1 == gdal.GDT_Int8
         or data_type1 == gdal.GDT_UInt8
         or data_type1 == gdal.GDT_UInt16
     ):
-        use_rat = "True"
+        use_rat1 = "True"
     else:
-        use_rat = "False"
+        use_rat1 = "False"
+
+    # if (
+    #    data_type2 == gdal.GDT_Int8
+    #    or data_type2 == gdal.GDT_UInt8
+    #    or data_type2 == gdal.GDT_UInt16
+    # ):
+    #    use_rat2 = "True"
+    # else:
+    #    use_rat2 = "False"
 
     # --- Raster parameters ---
     xsize = 3
@@ -146,29 +369,16 @@ def test_miramonraster_multiband(
     band2 = src_ds.GetRasterBand(2)
     band2.SetUnitType("m")
 
-    if use_color_table == "True":
-        # --- Color table on band 1 ---
-        colors = [
-            (0, 0, 0, 0),  # NoData
-            (255, 0, 0, 255),
-            (0, 255, 0, 255),
-            (0, 0, 255, 255),
-            (0, 125, 125, 255),
-            (125, 125, 255, 255),
-        ]
+    if use_color_table1 == "True":
         ct = gdal.ColorTable()
-        ct.SetColorEntry(0, colors[0])
-        ct.SetColorEntry(1, colors[1])
-        ct.SetColorEntry(2, colors[2])
-        ct.SetColorEntry(3, colors[3])
-        ct.SetColorEntry(4, colors[4])
-        ct.SetColorEntry(5, colors[5])
+        for i in range(len(colors)):
+            ct.SetColorEntry(i, colors[i])
 
         band1.SetRasterColorTable(ct)
         band1.SetRasterColorInterpretation(gdal.GCI_PaletteIndex)
 
     # --- Raster Attribute Table (RAT) ---
-    if use_rat == "True":
+    if use_rat1 == "True":
         rat = gdal.RasterAttributeTable()
         rat.CreateColumn("Value", gdal.GFT_Integer, rat_first_col_type)
         rat.CreateColumn("ClassName", gdal.GFT_String, gdal.GFU_Name)
@@ -176,50 +386,17 @@ def test_miramonraster_multiband(
 
         rat.SetRowCount(6)
 
-        classname_list = [
-            "Background",
-            "Class_1",
-            "Class_2",
-            "Class_3",
-            "Class_4",
-            "Class_5",
-        ]
-        classname_double = [0.1, 1.2, 2.3, 3.4, 4.5, 5.6]
+        for i in range(len(classname_list)):
+            rat.SetValueAsInt(i, 0, i)
+            rat.SetValueAsString(i, 1, classname_list[i])
+            rat.SetValueAsDouble(i, 2, classname_double[i])
 
-        rat.SetValueAsInt(0, 0, 0)
-        rat.SetValueAsString(0, 1, classname_list[0])
-        rat.SetValueAsDouble(0, 2, classname_double[0])
-        rat.SetValueAsInt(1, 0, 1)
-        rat.SetValueAsString(1, 1, classname_list[1])
-        rat.SetValueAsDouble(1, 2, classname_double[1])
-        rat.SetValueAsInt(2, 0, 2)
-        rat.SetValueAsString(2, 1, classname_list[2])
-        rat.SetValueAsDouble(2, 2, classname_double[2])
-
-        rat.SetValueAsInt(3, 0, 3)
-        rat.SetValueAsString(3, 1, classname_list[3])
-        rat.SetValueAsDouble(3, 2, classname_double[3])
-        rat.SetValueAsInt(4, 0, 4)
-        rat.SetValueAsString(4, 1, classname_list[4])
-        rat.SetValueAsDouble(4, 2, classname_double[4])
-
-        rat.SetValueAsInt(5, 0, 5)
-        rat.SetValueAsString(5, 1, classname_list[5])
-        rat.SetValueAsDouble(5, 2, classname_double[5])
         band1.SetDefaultRAT(rat)
 
-    if working_mode == "Debug":
-        # --- Write to MiraMonRaster ---
-        gtiff_driver = gdal.GetDriverByName("GTiff")
-        assert gtiff_driver is not None, "GTiff"
-
-        tmpdir = tempfile.mkdtemp()
-        mm_path = os.path.join(tmpdir, "test" + str(data_type1) + ".tiff")
-
-        mm_ds = gtiff_driver.CreateCopy(mm_path, src_ds)
-        assert mm_ds is not None
-        mm_ds = None
-        return
+    # To use if some error arises and we need to check the content of
+    # a tiff file to understand what went wrong. It will be written in a temporary
+    # directory and an exception will be raised with the path to the file.
+    # write_gtiff_to_test(data_type, src_ds)
 
     # --- Write to MiraMonRaster ---
     tmpdir = tempfile.mkdtemp()
@@ -238,90 +415,15 @@ def test_miramonraster_multiband(
     assert dst_ds.GetDriver().ShortName == "MiraMonRaster"
 
     subdatasets = dst_ds.GetSubDatasets()
-    if subdatasets is not None:
-        # --- Cleanup ---
-        dst_ds = None
-        src_ds = None
-        gc.collect()
-        shutil.rmtree(tmpdir)
-        return
-
-    # --- Dataset checks ---
-    assert dst_ds.RasterXSize == xsize
-    assert dst_ds.RasterYSize == ysize
-    assert dst_ds.RasterCount == nbands
-    assert dst_ds.GetGeoTransform() == geotransform
-
-    # Comparing reference system
-    if geotransform is not None:
-        srs = dst_ds.GetSpatialRef()
-        if (
-            srs is not None
-        ):  # in Fedora it returns None (but it's the only system it does)
-            epsg_code = srs.GetAuthorityCode("PROJCS") or srs.GetAuthorityCode("GEOGCS")
-            assert (
-                epsg_code == epsg_code
-            ), f"incorrect EPSG: {epsg_code}, waited {epsg_code}"
-
-    # --- Pixel data checks ---
-    dst_band1_bytes = dst_ds.GetRasterBand(1).ReadRaster(
-        0, 0, xsize, ysize, buf_xsize=xsize, buf_ysize=ysize, buf_type=data_type1
-    )
-
-    dst_band2_bytes = dst_ds.GetRasterBand(2).ReadRaster(
-        0, 0, xsize, ysize, buf_xsize=xsize, buf_ysize=ysize, buf_type=data_type2
-    )
-
-    assert dst_band1_bytes == band1_bytes
-    assert dst_band2_bytes == band2_bytes
-
-    dst_band1 = dst_ds.GetRasterBand(1)
-    dst_band2 = dst_ds.GetRasterBand(2)
-
-    # --- Color table check ---
-    if use_color_table == "True":
-        dst_ct = dst_band1.GetRasterColorTable()
-        assert dst_ct is not None
-        assert dst_ct.GetColorEntry(0) == colors[0]
-        assert dst_ct.GetColorEntry(1) == colors[1]
-        assert dst_ct.GetColorEntry(2) == colors[2]
-        assert dst_ct.GetColorEntry(3) == colors[3]
-        assert dst_ct.GetColorEntry(4) == colors[4]
-        assert dst_ct.GetColorEntry(5) == colors[5]
-
-    # --- RAT check ---
-    if use_rat == "True":
-        dst_rat = dst_band1.GetDefaultRAT()
-        assert dst_rat is not None
-        assert dst_rat.GetRowCount() == rat.GetRowCount()
-        assert dst_rat.GetNameOfCol(0) == "Value"
-        assert dst_rat.GetNameOfCol(1) == "ClassName"
-        assert dst_rat.GetNameOfCol(2) == "Real"
-        assert dst_rat.GetValueAsInt(0, 0) == 0
-        assert dst_rat.GetValueAsString(0, 1) == classname_list[0]
-        assert dst_rat.GetValueAsDouble(0, 2) == classname_double[0]
-        assert dst_rat.GetValueAsInt(1, 0) == 1
-        assert dst_rat.GetValueAsString(1, 1) == classname_list[1]
-        assert dst_rat.GetValueAsDouble(1, 2) == classname_double[1]
-        assert dst_rat.GetValueAsInt(2, 0) == 2
-        assert dst_rat.GetValueAsString(2, 1) == classname_list[2]
-        assert dst_rat.GetValueAsDouble(2, 2) == classname_double[2]
-        assert dst_rat.GetValueAsInt(3, 0) == 3
-        assert dst_rat.GetValueAsString(3, 1) == classname_list[3]
-        assert dst_rat.GetValueAsDouble(3, 2) == classname_double[3]
-        assert dst_rat.GetValueAsInt(4, 0) == 4
-        assert dst_rat.GetValueAsString(4, 1) == classname_list[4]
-        assert dst_rat.GetValueAsDouble(4, 2) == classname_double[4]
-        assert dst_rat.GetValueAsInt(5, 0) == 5
-        assert dst_rat.GetValueAsString(5, 1) == classname_list[5]
-        assert dst_rat.GetValueAsDouble(5, 2) == classname_double[5]
-
-    # --- Min / Max checks ---
-    assert dst_band1.ComputeRasterMinMax(False) == (1, 5)
-    assert dst_band2.ComputeRasterMinMax(False) == (100, 105)
-
-    # --- Unit checks ---
-    assert dst_band2.GetUnitType() == band2.GetUnitType()
+    assert (
+        len(subdatasets) == 2 or len(subdatasets) == 0
+    ), f"Expected 0 or 2 subdatasets, got {len(subdatasets)}"
+    #
+    # if(data_type1 == data_type2 and use_color_table1 == use_color_table2 and use_rat1 == use_rat2):
+    #    assert subdatasets is None or len(subdatasets) == 0
+    # else:
+    #    assert subdatasets is not None
+    #    assert len(subdatasets) == 2, f"Expected 2 subdatasets, got {len(subdatasets)}"
 
     # --- Cleanup ---
     dst_ds = None
@@ -446,43 +548,24 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     rat.CreateColumn("B", gdal.GFT_Integer, gdal.GFU_Blue)
 
     # --- Color table ---
-    colors = [
-        (0, 0, 0, 255),
-        (255, 0, 0, 255),
-        (0, 255, 0, 255),
-        (0, 0, 255, 255),
-        (0, 125, 125, 255),
-        (125, 125, 255, 255),
-    ]
 
     for c in range(n_classes):
         if separate_minmax:
             rat.SetValueAsInt(c, 0, int(c))
             rat.SetValueAsInt(c, 1, int(c + 1))
-            rat.SetValueAsInt(c, 2, colors[c][0])
-            rat.SetValueAsInt(c, 3, colors[c][1])
-            rat.SetValueAsInt(c, 4, colors[c][2])
+            for i, color in enumerate(colors[c]):
+                rat.SetValueAsInt(c, 2 + i, color)
         else:
             rat.SetValueAsInt(c, 0, int(c))
-            rat.SetValueAsInt(c, 1, colors[c][0])
-            rat.SetValueAsInt(c, 2, colors[c][1])
-            rat.SetValueAsInt(c, 3, colors[c][2])
+            for i, color in enumerate(colors[c]):
+                rat.SetValueAsInt(c, 1 + i, color)
 
     band.SetDefaultRAT(rat)
 
-    if working_mode == "Debug":
-        # --- Write to VRT ---
-        gtiff_driver = gdal.GetDriverByName("VRT")
-        assert gtiff_driver is not None, "VRT"
-
-        tmpdir = tempfile.mkdtemp()
-        print(tmpdir, file=sys.stderr)
-        mm_path = os.path.join(tmpdir, "test" + str(gdal.GDT_Byte) + ".vrt")
-
-        mm_ds = gtiff_driver.CreateCopy(mm_path, src_ds)
-        assert mm_ds is not None
-        mm_ds = None
-        return
+    # To use if some error arises and we need to check the content of
+    # a tiff file to understand what went wrong. It will be written in a temporary
+    # directory and an exception will be raised with the path to the file.
+    # write_gtiff_to_test(data_type, src_ds)
 
     # --- Write to MiraMonRaster ---
     tmpdir = tempfile.mkdtemp("MM")
