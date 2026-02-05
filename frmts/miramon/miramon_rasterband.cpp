@@ -807,7 +807,7 @@ CPLErr MMRRasterBand::FromPaletteToColorTableContinuousMode()
                   MMDataType::DATATYPE_AND_COMPR_UINTEGER ||
               m_eMMRDataTypeMiraMon ==
                   MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE) &&
-             m_Palette->GetColorScaling() == ColorTreatment::LINEAR_SCALING)
+             m_Palette->GetColorScaling() == ColorTreatment::DIRECT_ASSIGNATION)
         bAcceptPalette = true;
 
     if (!bAcceptPalette)
