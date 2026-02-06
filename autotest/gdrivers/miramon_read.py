@@ -560,6 +560,27 @@ def test_miramon_subdatasets_detection(
     check_raster(subds, idx_bnd, expected, checksum, exp_min, exp_max, None)
 
 
+###### Testing number of subdatasets for a multiband file
+###### that has diferent characteristics.
+# Tested characteristics:
+# data type
+# compression
+# extension (minx and maxx)
+# extension amplidude
+# Categorical vs continuous
+# nodata value
+# existance of nodata value
+def test_miramon_subdatasets_number():
+    ds = gdal.OpenEx(
+        "data/miramon/subdatasets/byteI.rel", allowed_drivers=["MiraMonRaster"]
+    )
+    assert ds is not None, "Could not open file: data/miramon/subdatasets/byteI.rel"
+
+    subdatasets = ds.GetSubDatasets()
+    assert subdatasets is not None, "GetSubDatasets() returned None"
+    assert len(subdatasets) == 7, f"Expected 7 subdatasets, got {len(subdatasets)}"
+
+
 ###### Testing color table
 init_list_color_tables = [
     (
