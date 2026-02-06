@@ -546,6 +546,7 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     rat.CreateColumn("R", gdal.GFT_Integer, gdal.GFU_Red)
     rat.CreateColumn("G", gdal.GFT_Integer, gdal.GFU_Green)
     rat.CreateColumn("B", gdal.GFT_Integer, gdal.GFU_Blue)
+    rat.CreateColumn("Alpha", gdal.GFT_Integer, gdal.GFU_Alpha)
 
     # --- Color table ---
 
@@ -553,12 +554,12 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
         if separate_minmax:
             rat.SetValueAsInt(c, 0, int(c))
             rat.SetValueAsInt(c, 1, int(c + 1))
-            for i, color in enumerate(colors[c]):
-                rat.SetValueAsInt(c, 2 + i, color)
+            for i in range(4):
+                rat.SetValueAsInt(c, 2 + i, colors[c][i])
         else:
             rat.SetValueAsInt(c, 0, int(c))
-            for i, color in enumerate(colors[c]):
-                rat.SetValueAsInt(c, 1 + i, color)
+            for i in range(4):
+                rat.SetValueAsInt(c, 1 + i, colors[c][i])
 
     band.SetDefaultRAT(rat)
 
@@ -596,5 +597,5 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     # --- Cleanup ---
     dst_ds = None
     src_ds = None
-    gc.collect()
-    shutil.rmtree(tmpdir)
+    # gc.collect()
+    # shutil.rmtree(tmpdir)
