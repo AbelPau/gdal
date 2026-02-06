@@ -479,6 +479,7 @@ void MMRDataset::AssignBandsToSubdataSets()
 
     int nIBand = 0;
     int nIBand2 = 0;
+
     m_nSDS.resize(static_cast<size_t>(m_pMMRRel->GetNBands()) + 1);
 
     MMRBand *pBand;
