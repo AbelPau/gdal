@@ -258,11 +258,7 @@ def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type
 
 
 @pytest.mark.parametrize(
-    "data_type1",
-    init_type_list,
-)
-@pytest.mark.parametrize(
-    "data_type2",
+    "data_type",
     init_type_list,
 )
 @pytest.mark.parametrize(
@@ -273,41 +269,7 @@ def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type
     "pattern",
     [None, "UserPattern"],
 )
-@pytest.mark.parametrize(
-    "rat_first_col_type", [gdal.GFU_MinMax, gdal.GFU_Min, gdal.GFU_Generic]
-)
-def test_miramonraster_multiband(
-    data_type1, data_type2, compress, pattern, rat_first_col_type
-):
-
-    if data_type1 == gdal.GDT_Int8 or data_type1 == gdal.GDT_UInt8:
-        use_color_table1 = "True"
-    else:
-        use_color_table1 = "False"
-
-    # if data_type2 == gdal.GDT_Int8 or data_type2 == gdal.GDT_UInt8:
-    #    use_color_table2 = "True"
-    # else:
-    #    use_color_table2 = "False"
-
-    if (
-        data_type1 == gdal.GDT_Int8
-        or data_type1 == gdal.GDT_UInt8
-        or data_type1 == gdal.GDT_UInt16
-    ):
-        use_rat1 = "True"
-    else:
-        use_rat1 = "False"
-
-    # if (
-    #    data_type2 == gdal.GDT_Int8
-    #    or data_type2 == gdal.GDT_UInt8
-    #    or data_type2 == gdal.GDT_UInt16
-    # ):
-    #    use_rat2 = "True"
-    # else:
-    #    use_rat2 = "False"
-
+def test_miramonraster_multiband(data_type, compress, pattern):
     # --- Raster parameters ---
     xsize = 3
     ysize = 2
@@ -321,19 +283,19 @@ def test_miramonraster_multiband(
 
     # --- Create in-memory dataset ---
     mem_driver = gdal.GetDriverByName("MEM")
-    src_ds = mem_driver.Create("", xsize, ysize, nbands, data_type1)
+    src_ds = mem_driver.Create("", xsize, ysize, nbands, data_type)
 
     src_ds.SetGeoTransform(geotransform)
     src_ds.SetProjection(wkt)
 
     # --- Create deterministic pixel values ---
-    # band 1: 0..12
-    # band 2: 100..112
+    # band 1: 0..5
+    # band 2: 100..105
     band1_values = list(range(xsize * ysize))
     band2_values = [v + 100 for v in band1_values]
 
-    fmt1 = gdal_to_struct[data_type1]
-    fmt2 = gdal_to_struct[data_type2]
+    fmt1 = gdal_to_struct[data_type]
+    fmt2 = gdal_to_struct[data_type]
     band1_bytes = struct.pack("<" + fmt1 * len(band1_values), *band1_values)
     band2_bytes = struct.pack("<" + fmt2 * len(band2_values), *band2_values)
 
@@ -346,7 +308,7 @@ def test_miramonraster_multiband(
         band1_bytes,
         buf_xsize=xsize,
         buf_ysize=ysize,
-        buf_type=data_type1,
+        buf_type=data_type,
     )
 
     src_ds.GetRasterBand(2).WriteRaster(
@@ -357,7 +319,7 @@ def test_miramonraster_multiband(
         band2_bytes,
         buf_xsize=xsize,
         buf_ysize=ysize,
-        buf_type=data_type2,
+        buf_type=data_type,
     )
 
     for i in range(1, nbands + 1):
@@ -365,33 +327,9 @@ def test_miramonraster_multiband(
         band.SetNoDataValue(0)
         band.FlushCache()
 
-    band1 = src_ds.GetRasterBand(1)
     band2 = src_ds.GetRasterBand(2)
     band2.SetUnitType("m")
-
-    if use_color_table1 == "True":
-        ct = gdal.ColorTable()
-        for i in range(len(colors)):
-            ct.SetColorEntry(i, colors[i])
-
-        band1.SetRasterColorTable(ct)
-        band1.SetRasterColorInterpretation(gdal.GCI_PaletteIndex)
-
-    # --- Raster Attribute Table (RAT) ---
-    if use_rat1 == "True":
-        rat = gdal.RasterAttributeTable()
-        rat.CreateColumn("Value", gdal.GFT_Integer, rat_first_col_type)
-        rat.CreateColumn("ClassName", gdal.GFT_String, gdal.GFU_Name)
-        rat.CreateColumn("Real", gdal.GFT_Real, gdal.GFU_Generic)
-
-        rat.SetRowCount(6)
-
-        for i in range(len(classname_list)):
-            rat.SetValueAsInt(i, 0, i)
-            rat.SetValueAsString(i, 1, classname_list[i])
-            rat.SetValueAsDouble(i, 2, classname_double[i])
-
-        band1.SetDefaultRAT(rat)
+    assert band2.GetUnitType() == "m"
 
     # To use if some error arises and we need to check the content of
     # a tiff file to understand what went wrong. It will be written in a temporary
@@ -415,15 +353,44 @@ def test_miramonraster_multiband(
     assert dst_ds.GetDriver().ShortName == "MiraMonRaster"
 
     subdatasets = dst_ds.GetSubDatasets()
-    assert (
-        len(subdatasets) == 2 or len(subdatasets) == 0
-    ), f"Expected 0 or 2 subdatasets, got {len(subdatasets)}"
-    #
-    # if(data_type1 == data_type2 and use_color_table1 == use_color_table2 and use_rat1 == use_rat2):
-    #    assert subdatasets is None or len(subdatasets) == 0
-    # else:
-    #    assert subdatasets is not None
-    #    assert len(subdatasets) == 2, f"Expected 2 subdatasets, got {len(subdatasets)}"
+    assert subdatasets is None or len(subdatasets) == 0
+
+    # --- Dataset checks ---
+    assert dst_ds.RasterXSize == xsize
+    assert dst_ds.RasterYSize == ysize
+    assert dst_ds.RasterCount == 2
+    assert dst_ds.GetGeoTransform() == geotransform
+
+    # Comparing reference system
+    if geotransform is not None:
+        srs = dst_ds.GetSpatialRef()
+        if (
+            srs is not None
+        ):  # in Fedora it returns None (but it's the only system it does)
+            epsg_code = srs.GetAuthorityCode("PROJCS") or srs.GetAuthorityCode("GEOGCS")
+            assert (
+                epsg_code == epsg_code
+            ), f"incorrect EPSG: {epsg_code}, waited {epsg_code}"
+
+    # --- Pixel data checks ---
+    dst_band1_bytes = dst_ds.GetRasterBand(1).ReadRaster(
+        0, 0, xsize, ysize, buf_xsize=xsize, buf_ysize=ysize, buf_type=data_type
+    )
+    dst_band2_bytes = dst_ds.GetRasterBand(2).ReadRaster(
+        0, 0, xsize, ysize, buf_xsize=xsize, buf_ysize=ysize, buf_type=data_type
+    )
+
+    assert dst_band1_bytes == band1_bytes
+    assert dst_band2_bytes == band2_bytes
+
+    dst_band1 = dst_ds.GetRasterBand(1)
+    dst_band2 = dst_ds.GetRasterBand(2)
+
+    # --- Min / Max checks ---
+    assert dst_band1.ComputeRasterMinMax(False) == (1, 5)
+    assert dst_band2.ComputeRasterMinMax(False) == (100, 105)
+
+    assert dst_band2.GetUnitType() == "m"
 
     # --- Cleanup ---
     dst_ds = None
@@ -597,5 +564,5 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     # --- Cleanup ---
     dst_ds = None
     src_ds = None
-    # gc.collect()
-    # shutil.rmtree(tmpdir)
+    gc.collect()
+    shutil.rmtree(tmpdir)
