@@ -61,7 +61,7 @@ void GDALRegister_MiraMon()
         "<OpenOptionList>\n"
         "   <Option name='RAT_OR_CT' type='string-select' "
         "description='Controls whether the Raster Attribute Table (RAT) "
-        "and/or the Color Table (CT) are exposed.'>\n"
+        "and/or the Color Table (CT) are exposed.' default='ALL'>\n"
         "       <Value>ALL</Value>\n"
         "       <Value>RAT</Value>\n"
         "       <Value>CT</Value>\n"
