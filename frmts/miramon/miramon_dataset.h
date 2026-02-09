@@ -34,22 +34,14 @@ class MMRRel;
 
 /*
     * -oo  RAT_OR_CT
-    Controls how raster bands are exposed as subdatasets.
+    Controls whether the Raster Attribute Table (RAT) and/or the Color Table (CT) are exposed.
 
-      ALL (default):
-        Behaves like RAT, and additionally exposes one subdataset
-        per raster band for any subdataset containing multiple bands. This
-        allows individual bands to be accessed and visualized separately
-        by client applications.
-
-      RAT:
-        Subdatasets are exposed only when strictly required by the dataset
-        structure, such as differing spatial resolution, spatial reference
-        system, or other intrinsic characteristics.
-
-      CT:
-        Each raster band is exposed directly as an individual subdataset.
-        Multi-band subdatasets are not created.
+      ALL
+            Expose both the attribute table and the color table. Note that in some software this option may cause visualization and/or legend issues.
+      RAT
+            Expose the attribute table only, without the color table.
+      PER_BAND_ONLY
+            Expose the color table only, without the attribute table.
     */
 enum class RAT_OR_CT
 {

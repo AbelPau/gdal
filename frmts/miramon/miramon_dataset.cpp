@@ -56,6 +56,18 @@ void GDALRegister_MiraMon()
         "the base name.'/>"
         "</CreationOptionList>");
 
+    poDriver->SetMetadataItem(
+        GDAL_DMD_OPENOPTIONLIST,
+        "<OpenOptionList>\n"
+        "   <Option name='RAT_OR_CT' type='string-select' "
+        "description='Controls whether the Raster Attribute Table (RAT) "
+        "and/or the Color Table (CT) are exposed.'>\n"
+        "       <Value>ALL</Value>\n"
+        "       <Value>RAT</Value>\n"
+        "       <Value>CT</Value>\n"
+        "   </Option>\n"
+        "</OpenOptionList>\n");
+
     poDriver->pfnOpen = MMRDataset::Open;
     poDriver->pfnCreateCopy = MMRDataset::CreateCopy;
     poDriver->pfnIdentify = MMRDataset::Identify;

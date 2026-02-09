@@ -83,36 +83,14 @@ regardless of whether the original encoding is ANSI, OEM or UTF-8.
 
 REL files are always encoded in ANSI.
 
-Subdataset generation criteria
-------------------------------
+Subdataset Generation
+---------------------
 
-The driver groups bands into the same GDAL subdataset only when they are fully compatible. If any of the criteria below is not met, bands are exposed as belonging to different subdatasets.
+The MiraMon format allows datasets to contain bands with heterogeneous characteristics. At present, the only strict restriction imposed by the format itself is that all bands must share the same spatial reference system.
 
-- Raster geometry and data type
+For interoperability with other GDAL formats, the MiraMonRaster driver applies, by default, a compatibility-based criterion when exposing multiband datasets. Bands are grouped into the same GDAL subdataset only when they are fully compatible. When this is not the case, bands are exposed as belonging to different subdatasets.
 
-Bands are assigned to different subdatasets if any of the following properties differ:
-
-* **Raster dimensions**: different width or height (number of columns or rows).
-* **Data type**: different MiraMon numeric data types.
-* **Bounding box**: any difference in spatial extent (minimum or maximum X or Y coordinates).
-
-- Symbolization
-
-Symbolization is considered part of the band semantics. Bands with different symbolization settings are assigned to different subdatasets, including differences in:
-
-  * Color definitions, palettes, scaling, or variable treatments.
-  * Categorical versus continuous representation, including category limits when applicable.
-
-- Raster Attribute Tables (RAT)
-
-  Bands are assigned to different subdatasets if they reference different Raster Attribute Tables (RAT), considering both the RAT name and its associated REL table.
-
-- NoData handling: NoData definitions must be consistent: 
-  * If one band defines NoData values and the other does not, they are assigned to different subdatasets.
-  * If both define NoData values but the NoData value differs, they are assigned to different subdatasets.
-
-In summary, subdatasets only group bands that are strictly homogeneous in geometry, data type, symbolization, attribute tables, and NoData definition.
-
+In practice, bands are separated into different subdatasets when there are differences in raster geometry, including raster dimensions or spatial extent, when the numeric data type differs, when symbolization semantics differ, when associated Raster Attribute Tables differ, or when the presence or value of NoData differs.
 
 Open options
 ------------

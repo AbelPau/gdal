@@ -19,11 +19,7 @@
 #include "gdal_priv.h"
 #include "miramon_band.h"  // For MMRBand
 
-#ifdef MSVC
-#include "..\miramon_common\mm_gdal_driver_structs.h"  // For SECTION_VERSIO
-#else
 #include "../miramon_common/mm_gdal_driver_structs.h"  // For SECTION_VERSIO
-#endif
 
 constexpr auto pszExtRaster = ".img";
 constexpr auto pszExtRasterREL = "I.rel";
