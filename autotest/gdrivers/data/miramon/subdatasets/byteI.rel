@@ -7,7 +7,7 @@ SubVers=3
 [METADADES]
 language=cat
 MDIdiom=cat
-dateStamp=20260206 17112626+0100
+dateStamp=20260206 17112626
 characterSet=006
 nOrganismes=2
 FileIdentifier=byte_26137
@@ -39,14 +39,14 @@ MaxY=4638262
 toler_env=0
 
 [OVERVIEW]
-CreationDate=20260206 17034633+0100,20260206 17451773+0100
+CreationDate=20260206 17034633,20260209 10223837+0100
 CoverageContentType=001
 
 [ATTRIBUTE_DATA]
 TipusCompressio=integer-RLE
 TractamentVariable=Categoric
 TipusRelacio=RELACIO_1_1_DICC
-IndexsNomsCamps=1,2,3,4,5,6,7,8
+IndexsNomsCamps=1,2,3,4,5,6,7,8,9,10,11
 NomCamp_1=G1
 NomCamp_2=byte_RLE
 NomCamp_3=integer
@@ -55,48 +55,29 @@ NomCamp_5=integer_ext_min
 NomCamp_6=integer_ext_min_conti
 NomCamp_7=integer_ext_min_conti_nodata
 NomCamp_8=integer_ext_min_conti_nodata_1
+NomCamp_9=integer_ext_min_conti_nodata_1_ct
+NomCamp_10=integer_ext_min_conti_nodata_1_ct_no_rat
+NomCamp_11=integer_ext_min_conti_nodata_1_ct_no_rat_more_col
 
 [COLOR_TEXT]
 Simb_Vers=4
 Simb_SubVers=10
 Color_Paleta=<Automatic>
 
-[QUALITY:LINEAGE:PROCESS1]
-nOrganismes=1
-history=IMGIMG.exe UNRLE D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\subdatasets\byte_RLE.img D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\subdatasets\byte.img
-date=20260206 17112610+0100
-NomFitxer=C:\MiraMon\IMGIMG.exe
+[COLOR_TEXT:integer_ext_min_conti_nodata_1_ct]
+Simb_Vers=4
+Simb_SubVers=10
+Color_Paleta=CT.dbf
 
-[QUALITY:LINEAGE:PROCESS1:ORGANISME_1]
-OrganisationName=Students and educational institutions
+[COLOR_TEXT:integer_ext_min_conti_nodata_1_ct_no_rat]
+Simb_Vers=4
+Simb_SubVers=10
+Color_Paleta=CT.dbf
 
-[QUALITY:LINEAGE:PROCESS1:SOFTWARE_REFERENCE]
-Titol=
-Edition=
-CollectiveTitle=
-ISBN=
-ISSN=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT1]
-identifier=Param1
-TypeValues=C
-ResultValue=UNRLE
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT2]
-identifier=Param2
-TypeValues=C
-ResultValue=D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\subdatasets\byte_RLE.img
-ResultUnits=
-
-[QUALITY:LINEAGE:PROCESS1:INOUT3]
-identifier=Param3
-TypeValues=C
-ResultValue=D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\subdatasets\byte.img
-ResultUnits=
-
-[QUALITY:LINEAGE]
-processes=1
+[COLOR_TEXT:integer_ext_min_conti_nodata_1_ct_no_rat_more_col]
+Simb_Vers=4
+Simb_SubVers=10
+Color_Paleta=CT.dbf
 
 [ATTRIBUTE_DATA:G1]
 NomFitxer=byte.img
@@ -202,3 +183,40 @@ min=0
 max=4
 IndexsJoinTaula=G1_1_RAT
 JoinTaula_G1_1_RAT=G1_1_RAT
+
+[ATTRIBUTE_DATA:integer_ext_min_conti_nodata_1_ct]
+NomFitxer=integer_ext_min_conti_nodata_1_ct.img
+descriptor=Al·leluia 1
+TractamentVariable=QuantitatiuContinu
+unitats=m
+MostrarUnitats=1
+NODATA=5
+NODATADef=Sense dades
+min=0
+max=4
+IndexsJoinTaula=G1_1_RAT
+JoinTaula_G1_1_RAT=G1_1_RAT
+
+[ATTRIBUTE_DATA:integer_ext_min_conti_nodata_1_ct_no_rat]
+NomFitxer=integer_ext_min_conti_nodata_1_ct_no_rat.img
+descriptor=Al·leluia 1
+TractamentVariable=QuantitatiuContinu
+unitats=m
+MostrarUnitats=1
+NODATA=5
+NODATADef=Sense dades
+min=0
+max=4
+
+[ATTRIBUTE_DATA:integer_ext_min_conti_nodata_1_ct_no_rat_more_col]
+NomFitxer=integer_ext_min_conti_nodata_1_ct_no_rat_more_col.img
+columns=16
+rows=24
+descriptor=Al·leluia 1
+TractamentVariable=QuantitatiuContinu
+unitats=m
+MostrarUnitats=1
+NODATA=5
+NODATADef=Sense dades
+min=0
+max=4

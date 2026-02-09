@@ -570,6 +570,9 @@ def test_miramon_subdatasets_detection(
 # Categorical vs continuous
 # nodata value
 # existance of nodata value
+# existance of color table
+
+
 def test_miramon_subdatasets_number():
     ds = gdal.OpenEx(
         "data/miramon/subdatasets/byteI.rel", allowed_drivers=["MiraMonRaster"]
@@ -578,7 +581,7 @@ def test_miramon_subdatasets_number():
 
     subdatasets = ds.GetSubDatasets()
     assert subdatasets is not None, "GetSubDatasets() returned None"
-    assert len(subdatasets) == 7, f"Expected 7 subdatasets, got {len(subdatasets)}"
+    assert len(subdatasets) == 10, f"Expected 10 subdatasets, got {len(subdatasets)}"
 
 
 ###### Testing color table
