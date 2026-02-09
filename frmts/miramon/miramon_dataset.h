@@ -119,9 +119,8 @@ class MMRDataset final : public GDALPamDataset
 
     // Numbers of subdatasets (if any) in this dataset.
     int m_nNSubdataSets = 0;
-    // Number of bands in the subdataset
-    std::vector<int> m_nSDS = {};
 
+    // To expose CT, RAT or both
     RAT_OR_CT nRatOrCT = RAT_OR_CT::ALL;
 
     // For writing part

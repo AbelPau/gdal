@@ -1055,6 +1055,60 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
     }
 }
 
+CPLErr MMRRel::UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
+                                            GDALColorEntry &m_sConstantColorRGB)
+{
+    // Example: Color_Smb=(255,0,255)
+    CPLString os_Color_Smb;
+    if (!GetMetadataValue(SECTION_COLOR_TEXT, m_osBandSection, "Color_Smb",
+                          os_Color_Smb))
+        return CE_None;
+
+    os_Color_Smb.replaceAll(" ", "");
+    if (!os_Color_Smb.empty() && os_Color_Smb.size() >= 7 &&
+        os_Color_Smb[0] == '(' && os_Color_Smb[os_Color_Smb.size() - 1] == ')')
+    {
+        os_Color_Smb.replaceAll("(", "");
+        os_Color_Smb.replaceAll(")", "");
+        const CPLStringList aosTokens(CSLTokenizeString2(os_Color_Smb, ",", 0));
+        if (CSLCount(aosTokens) != 3)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid constant color: \"%s\"", GetRELNameChar());
+            return CE_Failure;
+        }
+
+        int nIColor0;
+        if (1 != sscanf(aosTokens[0], "%d", &nIColor0))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid constant color: \"%s\"", GetRELNameChar());
+            return CE_Failure;
+        }
+
+        int nIColor1;
+        if (1 != sscanf(aosTokens[1], "%d", &nIColor1))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid constant color: \"%s\"", GetRELNameChar());
+            return CE_Failure;
+        }
+
+        int nIColor2;
+        if (1 != sscanf(aosTokens[2], "%d", &nIColor2))
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Invalid constant color: \"%s\"", GetRELNameChar());
+            return CE_Failure;
+        }
+
+        m_sConstantColorRGB.c1 = static_cast<short>(nIColor0);
+        m_sConstantColorRGB.c2 = static_cast<short>(nIColor1);
+        m_sConstantColorRGB.c3 = static_cast<short>(nIColor2);
+    }
+    return CE_None;
+}
+
 /************************************************************************/
 /*                             Writing part                             */
 /************************************************************************/
@@ -1442,60 +1496,6 @@ CPLString MMRRel::GetColor_Paleta(int nIBand)
     }
     else
         return "<Automatic>";
-}
-
-CPLErr MMRRel::UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
-                                            GDALColorEntry &m_sConstantColorRGB)
-{
-    // Example: Color_Smb=(255,0,255)
-    CPLString os_Color_Smb;
-    if (!GetMetadataValue(SECTION_COLOR_TEXT, m_osBandSection, "Color_Smb",
-                          os_Color_Smb))
-        return CE_None;
-
-    os_Color_Smb.replaceAll(" ", "");
-    if (!os_Color_Smb.empty() && os_Color_Smb.size() >= 7 &&
-        os_Color_Smb[0] == '(' && os_Color_Smb[os_Color_Smb.size() - 1] == ')')
-    {
-        os_Color_Smb.replaceAll("(", "");
-        os_Color_Smb.replaceAll(")", "");
-        const CPLStringList aosTokens(CSLTokenizeString2(os_Color_Smb, ",", 0));
-        if (CSLCount(aosTokens) != 3)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Invalid constant color: \"%s\"", GetRELNameChar());
-            return CE_Failure;
-        }
-
-        int nIColor0;
-        if (1 != sscanf(aosTokens[0], "%d", &nIColor0))
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Invalid constant color: \"%s\"", GetRELNameChar());
-            return CE_Failure;
-        }
-
-        int nIColor1;
-        if (1 != sscanf(aosTokens[1], "%d", &nIColor1))
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Invalid constant color: \"%s\"", GetRELNameChar());
-            return CE_Failure;
-        }
-
-        int nIColor2;
-        if (1 != sscanf(aosTokens[2], "%d", &nIColor2))
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Invalid constant color: \"%s\"", GetRELNameChar());
-            return CE_Failure;
-        }
-
-        m_sConstantColorRGB.c1 = static_cast<short>(nIColor0);
-        m_sConstantColorRGB.c2 = static_cast<short>(nIColor1);
-        m_sConstantColorRGB.c3 = static_cast<short>(nIColor2);
-    }
-    return CE_None;
 }
 
 void MMRRel::WriteCOLOR_TEXTSection()

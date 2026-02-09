@@ -234,26 +234,6 @@ class MMRBand final
         return m_bIsValid;
     }
 
-    bool IsCategorical() const
-    {
-        return m_bIsCategorical;
-    }
-
-    CPLString GetColorTableNameFile() const
-    {
-        return m_osCTName;
-    }
-
-    CPLString GetAttributeTableDBFNameFile() const
-    {
-        return m_osRATDBFName;
-    }
-
-    CPLString GetAttributeTableRELNameFile() const
-    {
-        return m_osRATRELName;
-    }
-
     CPLString GetColor_Const() const
     {
         return m_osColor_Const;
@@ -307,6 +287,26 @@ class MMRBand final
     CPLString GetUnits() const
     {
         return m_osBandUnitType;
+    }
+
+    bool IsCategorical() const
+    {
+        return m_bIsCategorical;
+    }
+
+    CPLString GetColorTableNameFile() const
+    {
+        return m_osCTName;
+    }
+
+    CPLString GetAttributeTableDBFNameFile() const
+    {
+        return m_osRATDBFName;
+    }
+
+    CPLString GetAttributeTableRELNameFile() const
+    {
+        return m_osRATRELName;
     }
 
     GDALGeoTransform m_gt{};  // Bounding box for this band
@@ -470,15 +470,15 @@ class MMRBand final
     CPLString m_osColor_EscalatColor = "";
     CPLString m_osColor_N_SimbolsALaTaula = "";
 
-    // Color table in writting part of the driver
-    GDALColorTable *m_poCT = nullptr;
-    CPLString m_osCTName = "";
-
     // Attribute table information
     // Table name
     CPLString m_osShortRATName = "";
     // Field in the table that is used as VALUE
     CPLString m_osAssociateREL = "";
+
+    // Color table in writting part of the driver
+    GDALColorTable *m_poCT = nullptr;
+    CPLString m_osCTName = "";
 
     // Attributte table in writting part of the driver
     GDALRasterAttributeTable *m_poRAT = nullptr;

@@ -92,6 +92,10 @@ class MMRRel
     int GetRowsNumberFromREL();
     static int IdentifySubdataSetFile(const CPLString &osFileName);
     static int IdentifyFile(const GDALOpenInfo *poOpenInfo);
+    CPLString GetColor_TractamentVariable(int nIBand);
+    CPLString GetColor_Paleta(int nIBand);
+    CPLErr UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
+                                        GDALColorEntry &m_sConstantColorRGB);
 
     bool Write(GDALDataset &oSrcDS);
     void WriteMETADADES();
@@ -103,10 +107,6 @@ class MMRRel
     void WriteOVERVIEW();
     bool WriteATTRIBUTE_DATA(GDALDataset &oSrcDS);
     void WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
-    CPLString GetColor_TractamentVariable(int nIBand);
-    CPLString GetColor_Paleta(int nIBand);
-    CPLErr UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
-                                        GDALColorEntry &m_sConstantColorRGB);
     void WriteCOLOR_TEXTSection();
     void WriteVISU_LLEGENDASection();
 

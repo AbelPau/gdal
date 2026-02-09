@@ -242,7 +242,6 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
 
 MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 {
-
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
     // Creating the class MMRRel.
@@ -292,6 +291,8 @@ MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
     }
 
     AssignBandsToSubdataSets();
+
+    // Create subdatasets or add bands, as needed
     if (m_nNSubdataSets)
     {
         CreateSubdatasetsFromBands();
@@ -492,8 +493,6 @@ void MMRDataset::AssignBandsToSubdataSets()
     int nIBand = 0;
     int nIBand2 = 0;
 
-    m_nSDS.resize(static_cast<size_t>(m_pMMRRel->GetNBands()) + 1);
-
     MMRBand *pBand;
     MMRBand *pOtherBand;
     for (; nIBand < m_pMMRRel->GetNBands(); nIBand++)
@@ -507,7 +506,6 @@ void MMRDataset::AssignBandsToSubdataSets()
 
         m_nNSubdataSets++;
         pBand->AssignSubDataSet(m_nNSubdataSets);
-        m_nSDS[m_nNSubdataSets]++;
 
         // Let's put all suitable bands in the same subdataset
         for (nIBand2 = nIBand + 1; nIBand2 < m_pMMRRel->GetNBands(); nIBand2++)
@@ -520,27 +518,21 @@ void MMRDataset::AssignBandsToSubdataSets()
                 continue;
 
             if (BandInTheSameDataset(nIBand, nIBand2))
-            {
                 pOtherBand->AssignSubDataSet(m_nNSubdataSets);
-                m_nSDS[m_nNSubdataSets]++;
-            }
         }
     }
-    m_nSDS.resize(static_cast<size_t>(m_nNSubdataSets) + 1);
 
     // If there is only one subdataset, it means that
     // we don't need subdatasets (all assigned to 0)
     if (m_nNSubdataSets == 1)
     {
         m_nNSubdataSets = 0;
-        m_nSDS[m_nNSubdataSets] = 0;
         for (nIBand = 0; nIBand < m_pMMRRel->GetNBands(); nIBand++)
         {
             pBand = m_pMMRRel->GetBand(nIBand);
             if (!pBand)
                 break;
             pBand->AssignSubDataSet(m_nNSubdataSets);
-            m_nSDS[m_nNSubdataSets]++;
         }
     }
 }
@@ -552,8 +544,7 @@ void MMRDataset::CreateSubdatasetsFromBands()
     CPLString osDSDesc;
     MMRBand *pBand;
 
-    int iSubdataset;
-    for (iSubdataset = 1; iSubdataset <= m_nNSubdataSets; iSubdataset++)
+    for (int iSubdataset = 1; iSubdataset <= m_nNSubdataSets; iSubdataset++)
     {
         int nIBand;
         for (nIBand = 0; nIBand < m_pMMRRel->GetNBands(); nIBand++)
