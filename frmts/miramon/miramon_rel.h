@@ -367,6 +367,7 @@ class MMRRel
 
     int m_nBands = 0;
     std::vector<MMRBand> m_oBands{};
+
     CPLString osPattern = "";  // A pattern used to create all band names
 
     // If there is only one band and the name of the rel is the same than the
