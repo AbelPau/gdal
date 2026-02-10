@@ -86,7 +86,7 @@ REL files are always encoded in ANSI.
 Subdataset Generation
 ---------------------
 
-The MiraMon format allows datasets to contain bands with heterogeneous characteristics. At present, the only strict restriction imposed by the format itself is that all bands must share the same spatial reference system.
+The MiraMon format allows datasets to contain bands with heterogeneous characteristics. At present, the only strict restriction imposed by the format itself is that all bands must share the same spatial reference system (although different spatial extents and/or cell sizes are allowed).
 
 For interoperability with other GDAL formats, the MiraMonRaster driver applies, by default, a compatibility-based criterion when exposing multiband datasets. Bands are grouped into the same GDAL subdataset only when they are fully compatible. When this is not the case, bands are exposed as belonging to different subdatasets.
 
