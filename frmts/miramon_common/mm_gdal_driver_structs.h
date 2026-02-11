@@ -66,6 +66,7 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define KEY_NomCamp "NomCamp"
 #define SECTION_COLOR_TEXT "COLOR_TEXT"
 #define SECTION_VISU_LLEGENDA "VISU_LLEGENDA"
+#define SECTION_QUALITY_LINEAGE "QUALITY:LINEAGE"
 
 // MiraMon feature field names
 #define szMMNomCampIdGraficDefecte "ID_GRAFIC"

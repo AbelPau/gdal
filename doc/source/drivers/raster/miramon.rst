@@ -114,7 +114,6 @@ The following open options are available:
 Creation Options
 ----------------
 
-|about-creation-options|
 The following creation options are supported:
 
 -  .. co:: COMPRESS
@@ -127,6 +126,15 @@ The following creation options are supported:
       
       Indicates the pattern used to create the names of the different bands. In the case of RGB, the suffixes “_R”, “_G”, and “_B” will be added to the base name.
 
+-  .. co:: Categorical
+      :choices: <integer>
+      
+      Indicates which bands have to be treat as categorical.
+
+-  .. co:: Continuous
+      :choices: <integer>
+      
+      Indicates which bands have to be treat as continuous. If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
 
 See Also
 --------

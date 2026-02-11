@@ -380,9 +380,9 @@ class MMRBand final
         }
     }
 
-    int WriteColorTable(GDALDataset &oSrcDS, int nIBand);
-    int WriteColorTableFromRAT(GDALDataset &oSrcDS, int nIBand);
-    int WriteAttributeTable(GDALDataset &oSrcDS, int nIBand);
+    int WriteColorTable(GDALDataset &oSrcDS);
+    int WriteColorTableFromRAT(GDALDataset &oSrcDS);
+    int WriteAttributeTable(GDALDataset &oSrcDS);
 
     GDALProgressFunc m_pfnProgress = nullptr;  // Inherited from DataSet
     void *m_pProgressData = nullptr;           // Inherited from DataSet
@@ -407,6 +407,9 @@ class MMRBand final
 
     // Assigned Subdataset for this band.
     int m_nAssignedSDS = 0;
+
+    // Band index in RasterBand list
+    int m_nIBand = 0;  // Index in MMRBand (0-indexed)
 
     // Section in REL file that give information about the band
     CPLString m_osBandSection;

@@ -97,6 +97,7 @@ class MMRRel
     CPLErr UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
                                         GDALColorEntry &m_sConstantColorRGB);
 
+    void UpdateLineage(CSLConstList papszOptions, GDALDataset &oSrcDS);
     bool Write(GDALDataset &oSrcDS);
     void WriteMETADADES();
     void WriteIDENTIFICATION();
@@ -109,6 +110,12 @@ class MMRRel
     void WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
     void WriteCOLOR_TEXTSection();
     void WriteVISU_LLEGENDASection();
+    void WriteLINEAGE();
+    void WriteCurrentLineage();
+    void WriteINOUTSection(CPLString osSection, int nInOut,
+                           CPLString osIdentifierValue, CPLString osSentitValue,
+                           CPLString osTypeValuesValue,
+                           CPLString osResultValueValue);
 
     bool IsValid() const
     {
@@ -409,6 +416,12 @@ class MMRRel
     double m_dfMaxX = -MM_UNDEFINED_STATISTICAL_VALUE;
     double m_dfMinY = MM_UNDEFINED_STATISTICAL_VALUE;
     double m_dfMaxY = -MM_UNDEFINED_STATISTICAL_VALUE;
+
+    // Lineage
+    CPLString m_osInFile = "";
+    CPLString m_osOutFile = "";
+    int m_nOptions = 0;
+    std::vector<CPLString> m_osOptions{};
 };
 
 #endif /* ndef MMR_REL_H_INCLUDED */

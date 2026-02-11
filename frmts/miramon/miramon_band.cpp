@@ -201,7 +201,7 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
                  const CPLString osPattern, const CPLString osBandSection,
                  bool bNeedOfNomFitxer)
     : m_pfnProgress(pfnProgress), m_pProgressData(pProgressData),
-      m_pfRel(nullptr), m_nWidth(0), m_nHeight(0),
+      m_pfRel(nullptr), m_nWidth(0), m_nHeight(0), m_nIBand(nIBand),
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
       m_osBandFileName(""), m_osBandName(""),
       m_osFriendlyDescription(papoBand.GetDescription()),
@@ -251,7 +251,7 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
     // Getting NoData value and definition
     UpdateNoDataValueFromRasterBand(papoBand);
 
-    if (WriteColorTable(oSrcDS, nIBand))
+    if (WriteColorTable(oSrcDS))
     {
         m_osCTName = "";
         CPLError(CE_Warning, CPLE_AppDefined,
@@ -259,7 +259,7 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
                  "due to some existant errors");
     }
 
-    if (WriteAttributeTable(oSrcDS, nIBand))
+    if (WriteAttributeTable(oSrcDS))
     {
         m_osRATDBFName = "";
         m_osRATRELName = "";
@@ -564,10 +564,8 @@ void MMRBand::UpdateMinMaxValuesFromREL(const CPLString &osSection)
 
     CPLString osValue;
 
-    CPLString osAuxSection = SECTION_ATTRIBUTE_DATA;
-    osAuxSection.append(":");
-    osAuxSection.append(osSection);
-    if (m_pfRel->GetMetadataValue(osAuxSection, "min", osValue) &&
+    if (m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "min",
+                                  osValue) &&
         !osValue.empty())
     {
         if (1 == CPLsscanf(osValue, "%lf", &m_dfMin))
@@ -575,7 +573,8 @@ void MMRBand::UpdateMinMaxValuesFromREL(const CPLString &osSection)
     }
 
     m_bMaxSet = false;
-    if (m_pfRel->GetMetadataValue(osAuxSection, "max", osValue) &&
+    if (m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "max",
+                                  osValue) &&
         !osValue.empty())
     {
         if (1 == CPLsscanf(osValue, "%lf", &m_dfMax))
@@ -594,10 +593,8 @@ void MMRBand::UpdateUnitTypeValueFromREL(const CPLString &osSection)
 {
     CPLString osValue;
 
-    CPLString osAuxSection = SECTION_ATTRIBUTE_DATA;
-    osAuxSection.append(":");
-    osAuxSection.append(osSection);
-    if (m_pfRel->GetMetadataValue(osAuxSection, "unitats", osValue) &&
+    if (m_pfRel->GetMetadataValue(SECTION_ATTRIBUTE_DATA, osSection, "unitats",
+                                  osValue) &&
         !osValue.empty())
     {
         m_osBandUnitType = osValue;
@@ -1867,9 +1864,9 @@ size_t MMRBand::CompressRowType(MMDataType nDataType, const void *pRow,
     }
 }
 
-int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
+int MMRBand::WriteColorTable(GDALDataset &oSrcDS)
 {
-    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
+    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(m_nIBand + 1);
     if (!pRasterBand)
         return 0;
 
@@ -1877,7 +1874,7 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
     if (!m_poCT)
     {
         // Perhaps the RAT contains colors and MiraMon can use them as a palette
-        return WriteColorTableFromRAT(oSrcDS, nIBand);
+        return WriteColorTableFromRAT(oSrcDS);
     }
 
     if (!m_poCT->GetColorEntryCount())
@@ -2002,9 +1999,9 @@ int MMRBand::WriteColorTable(GDALDataset &oSrcDS, int nIBand)
 }
 
 // Writes DBF and REL attribute table in MiraMon format
-int MMRBand::WriteColorTableFromRAT(GDALDataset &oSrcDS, int nIBand)
+int MMRBand::WriteColorTableFromRAT(GDALDataset &oSrcDS)
 {
-    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
+    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(m_nIBand + 1);
     if (!pRasterBand)
         return 0;
 
@@ -2181,9 +2178,9 @@ int MMRBand::WriteColorTableFromRAT(GDALDataset &oSrcDS, int nIBand)
 }
 
 // Writes DBF and REL attribute table in MiraMon format
-int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS, int nIBand)
+int MMRBand::WriteAttributeTable(GDALDataset &oSrcDS)
 {
-    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(nIBand + 1);
+    GDALRasterBand *pRasterBand = oSrcDS.GetRasterBand(m_nIBand + 1);
     if (!pRasterBand)
         return 0;
 

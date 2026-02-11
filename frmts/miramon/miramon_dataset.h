@@ -84,6 +84,7 @@ class MMRDataset final : public GDALPamDataset
 
   private:
     void ReadProjection();
+    void UpdateProjection(GDALDataset &oSrcDS);
     void AssignBandsToSubdataSets();
     void CreateSubdatasetsFromBands();
     bool CreateRasterBands();

@@ -566,3 +566,67 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     src_ds = None
     gc.collect()
     shutil.rmtree(tmpdir)
+
+
+def test_miramon_lineage_in_rel():
+    # --- Raster parameters ---
+    xsize = 3
+    ysize = 2
+
+    # --- Create in-memory dataset ---
+    mem_driver = gdal.GetDriverByName("MEM")
+    src_ds = mem_driver.Create("", xsize, ysize, 1, gdal.GDT_Byte)
+
+    # --- Create deterministic pixel values ---
+    # band 1: 0..5
+    band_values = list(range(xsize * ysize))
+    fmt1 = gdal_to_struct[gdal.GDT_Byte]
+    band_bytes = struct.pack("<" + fmt1 * len(band_values), *band_values)
+
+    # --- Write raster data ---
+    src_ds.GetRasterBand(1).WriteRaster(
+        0,
+        0,
+        xsize,
+        ysize,
+        band_bytes,
+        buf_xsize=xsize,
+        buf_ysize=ysize,
+        buf_type=gdal.GDT_Byte,
+    )
+
+    # --- Write to MiraMonRaster ---
+    tmpdir = tempfile.mkdtemp("MM")
+    mm_path = os.path.join(tmpdir, "LineageTestI.rel")
+
+    mm_ds = mm_driver.CreateCopy(
+        mm_path,
+        src_ds,
+        options=["COMPRESS=YES", "SRC_MDD=MIRAMON", "Categorical=1"],
+    )
+    assert mm_ds is not None
+    mm_ds = None
+
+    # --- Lineage check ---
+    # Just check that somelines appear in the .rel file, we don't need to check the exact content of them
+    # just to check that the rel contains the lineage information in the expected format.
+    with open(mm_path, "r") as f:
+        content = f.read()
+        assert "[QUALITY:LINEAGE]" in content
+        assert "[QUALITY:LINEAGE:PROCESS1]" in content
+        assert "purpose=GDAL translation" in content
+        assert "NomFitxer=" in content
+        assert "[QUALITY:LINEAGE:PROCESS1:INOUT1]" in content
+        assert "identifier=OutFile" in content
+        assert "TypeValues=C" in content
+        assert "identifier=-co COMPRESS" in content
+        assert "ResultValue=YES" in content
+        assert "identifier=-co SRC_MDD" in content
+        assert "ResultValue=MIRAMON" in content
+        assert "identifier=-co Categorical" in content
+        assert "ResultValue=1" in content
+
+    # --- Cleanup ---
+    src_ds = None
+    # gc.collect()
+    # shutil.rmtree(tmpdir)

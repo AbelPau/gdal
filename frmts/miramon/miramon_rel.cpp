@@ -15,6 +15,7 @@
 #include "cpl_port.h"
 #include "gdal_priv.h"
 #include "cpl_string.h"
+#include "cpl_time.h"
 #include <set>
 
 #include "miramon_rel.h"
@@ -28,7 +29,7 @@ CPLString MMRRel::m_szImprobableRELChain = "@#&%$|``|$%&#@";
 /*                               MMRRel()                               */
 /************************************************************************/
 MMRRel::MMRRel(const CPLString &osRELFilenameIn, bool bIMGMustExist)
-    : m_osRelFileName(osRELFilenameIn)
+    : m_osRelFileName(osRELFilenameIn), m_szFileIdentifier("")
 {
     CPLString osRelCandidate = osRELFilenameIn;
 
@@ -964,7 +965,7 @@ int MMRRel::GetRowsNumberFromREL()
 /************************************************************************/
 void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
 {
-    if (!m_pRELFile)
+    if (!m_pRELFile || !poDS)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "REL file cannot be opened: \"%s\"", m_osRelFileName.c_str());
@@ -974,10 +975,10 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
     CPLString osCurrentSection;
     CPLString osPendingKey, osPendingValue;
 
-    auto isExcluded = [&](const CPLString &section, const CPLString &key)
+    auto isExcluded = [&](const CPLString &osSection, const CPLString &osKey)
     {
-        return GetExcludedMetadata().count({section, key}) ||
-               GetExcludedMetadata().count({section, ""});
+        return GetExcludedMetadata().count({osSection, osKey}) ||
+               GetExcludedMetadata().count({osSection, ""});
     };
 
     const char *pszLine;
@@ -1019,7 +1020,7 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
         size_t equalPos = rawLine.find('=');
         if (equalPos != CPLString::npos)
         {
-            // Desa clau anterior
+            // Saves last key
             if (!osPendingKey.empty())
             {
                 if (!isExcluded(osCurrentSection, osPendingKey))
@@ -1049,9 +1050,11 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
     {
         CPLString fullKey = osCurrentSection + m_SecKeySeparator + osPendingKey;
         if (!isExcluded(osCurrentSection, osPendingKey))
+        {
             poDS->SetMetadataItem(fullKey.c_str(),
                                   osPendingValue.Trim().c_str(),
                                   m_kMetadataDomain);
+        }
     }
 }
 
@@ -1112,6 +1115,18 @@ CPLErr MMRRel::UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
 /************************************************************************/
 /*                             Writing part                             */
 /************************************************************************/
+
+void MMRRel::UpdateLineage(CSLConstList papszOptions, GDALDataset &oSrcDS)
+{
+    m_osInFile = oSrcDS.GetDescription();
+    m_osOutFile = m_osRelFileName;
+
+    m_nOptions = CSLCount(papszOptions);
+    m_osOptions.resize(m_nOptions);
+    for (int nIOptions = 0; nIOptions < m_nOptions; nIOptions++)
+        m_osOptions[nIOptions] = CPLStrdup(papszOptions[nIOptions]);
+}
+
 bool MMRRel::Write(GDALDataset &oSrcDS)
 {
     // REL File creation
@@ -1148,6 +1163,9 @@ bool MMRRel::Write(GDALDataset &oSrcDS)
     // Writing visualization sections
     WriteCOLOR_TEXTSection();
     WriteVISU_LLEGENDASection();
+
+    // Writing lineage
+    WriteLINEAGE();
 
     CloseRELFile();
     return true;
@@ -1575,5 +1593,97 @@ void MMRRel::WriteVISU_LLEGENDASection()
     AddKeyValue("Color_MostrarEntradesBuides", 0);
     AddKeyValue("Color_NovaColumnaLlegImpresa", 0);
 
+    AddSectionEnd();
+}
+
+void MMRRel::WriteLINEAGE()
+{
+    // GetPreviousLineage();
+    // WritePreviousLineage();
+    WriteCurrentLineage();
+}
+
+void MMRRel::WriteCurrentLineage()
+{
+    // TODO
+    int nProcesses = 1;
+
+    AddSectionStart(SECTION_QUALITY_LINEAGE);
+    AddKeyValue("processes", CPLSPrintf("%d", nProcesses));
+    AddSectionEnd();
+
+    for (int iProcess = 0; iProcess < nProcesses; iProcess++)
+    {
+        CPLString osSection = SECTION_QUALITY_LINEAGE;
+        osSection.append(":PROCESS");
+        osSection.append(CPLSPrintf("%d", iProcess + 1));
+
+        AddSectionStart(osSection);
+        AddKeyValue("purpose", "GDAL translation");
+
+        struct tm ltime;
+        char aTimeString[200];
+        time_t currentTime = time(nullptr);
+
+        VSILocalTime(&currentTime, &ltime);
+        snprintf(aTimeString, sizeof(aTimeString),
+                 "%04d%02d%02d %02d%02d%02d%02d", ltime.tm_year + 1900,
+                 ltime.tm_mon + 1, ltime.tm_mday, ltime.tm_hour, ltime.tm_min,
+                 ltime.tm_sec, 0);
+
+        AddKeyValue("date", aTimeString);
+        AddKeyValue("NomFitxer", m_osRelFileName);
+        AddSectionEnd();
+
+        int nInOut = 1;
+        if (!m_osInFile.empty())
+        {
+            WriteINOUTSection(osSection, nInOut, "InFile", "", "C", m_osInFile);
+            nInOut++;
+        }
+
+        if (!m_osOutFile.empty())
+        {
+            WriteINOUTSection(osSection, nInOut, "OutFile", "1", "C",
+                              m_osOutFile);
+
+            nInOut++;
+        }
+
+        for (int iOptions = 0; iOptions < m_nOptions; iOptions++)
+        {
+            CPLString osOption = m_osOptions[iOptions];
+            size_t nPos = osOption.find('=');
+            if (nPos == std::string::npos)
+                continue;
+            CPLString osIdentifierValue = "-co ";
+            osIdentifierValue.append(osOption.substr(0, nPos));
+            WriteINOUTSection(osSection, nInOut, osIdentifierValue, "", "C",
+                              osOption.substr(nPos + 1));
+            nInOut++;
+        }
+    }
+}
+
+void MMRRel::WriteINOUTSection(CPLString osSection, int nInOut,
+                               CPLString osIdentifierValue,
+                               CPLString osSentitValue,
+                               CPLString osTypeValuesValue,
+                               CPLString osResultValueValue)
+{
+    CPLString osSectionIn = osSection;
+    osSectionIn.append(":INOUT");
+    osSectionIn.append(CPLSPrintf("%d", nInOut));
+
+    AddSectionStart(osSectionIn);
+    if (!osIdentifierValue.empty())
+        AddKeyValue("identifier", osIdentifierValue);
+    if (!osSentitValue.empty())
+        AddKeyValue("sentit", osSentitValue);
+    if (!osTypeValuesValue.empty())
+        AddKeyValue("TypeValues", osTypeValuesValue);
+    if (!osResultValueValue.empty())
+        AddKeyValue("ResultValue", osResultValueValue);
+    AddKeyValue("ResultUnits", "");
     AddSectionEnd();
 }

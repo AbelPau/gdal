@@ -54,6 +54,10 @@ void GDALRegister_MiraMon()
         "pattern used to create the names of the different bands. In the "
         "case of RGB, the suffixes “_R”, “_G”, and “_B” will be added to "
         "the base name.'/>"
+        "   <Option name='Categorical' type='string' description='Indicates "
+        "which bands have to be treat as categorical.'/>"
+        "   <Option name='Continuous' type='string' description='Indicates "
+        "which bands have to be treat as continuous.'/>"
         "</CreationOptionList>");
 
     poDriver->SetMetadataItem(
@@ -92,37 +96,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         return;
     }
 
-    // Saving the HRS in the layer structure
-    const OGRSpatialReference *poSRS = oSrcDS.GetSpatialRef();
-    if (poSRS)
-    {
-        const char *pszTargetKey = nullptr;
-        const char *pszAuthorityName = nullptr;
-        const char *pszAuthorityCode = nullptr;
-
-        // Reading horizontal reference system and horizontal units
-        if (poSRS->IsProjected())
-            pszTargetKey = "PROJCS";
-        else if (poSRS->IsGeographic() || poSRS->IsDerivedGeographic())
-            pszTargetKey = "GEOGCS";
-        else if (poSRS->IsGeocentric())
-            pszTargetKey = "GEOCCS";
-        else if (poSRS->IsLocal())
-            pszTargetKey = "LOCAL_CS";
-
-        if (!poSRS->IsLocal())
-        {
-            pszAuthorityName = poSRS->GetAuthorityName(pszTargetKey);
-            pszAuthorityCode = poSRS->GetAuthorityCode(pszTargetKey);
-        }
-
-        if (pszAuthorityName && pszAuthorityCode &&
-            EQUAL(pszAuthorityName, "EPSG"))
-        {
-            CPLDebugOnly("MiraMon", "Setting EPSG code %s", pszAuthorityCode);
-            m_osEPSG = pszAuthorityCode;
-        }
-    }
+    UpdateProjection(oSrcDS);
 
     // Getting bands information
     bool bNeedOfNomFitxer = (nBands > 1 || !osUsrPattern.empty());
@@ -130,7 +104,6 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
     std::vector<MMRBand> oBands{};
     oBands.reserve(nBands);
 
-    // Getting bands information
     bool bAllBandsSameDim = true;
     for (int nIBand = 0; nIBand < nBands; nIBand++)
     {
@@ -206,7 +179,8 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         m_nWidth = 0;
         m_nHeight = 0;
     }
-    else
+
+    if (m_nWidth != 0 && m_nHeight != 0)
     {
         // Getting geotransform
         GDALGeoTransform gt;
@@ -226,6 +200,8 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
 
     if (!m_pMMRRel->IsValid())
         return;
+
+    m_pMMRRel->UpdateLineage(papszOptions, oSrcDS);
 
     // Writing all information in files: I.rel, IMG,...
     if (!m_pMMRRel->Write(oSrcDS))
@@ -435,18 +411,6 @@ bool MMRDataset::CreateRasterBands()
         }
 
         SetBand(nBands + 1, std::move(poRasterBand));
-
-        MMRRasterBand *poBand =
-            cpl::down_cast<MMRRasterBand *>(GetRasterBand(nIBand + 1));
-
-        pBand = m_pMMRRel->GetBand(nIBand);
-        if (!pBand)
-            return false;
-        if (!pBand->GetFriendlyDescription().empty())
-        {
-            poBand->SetMetadataItem("DESCRIPTION",
-                                    pBand->GetFriendlyDescription());
-        }
     }
     // Some metadata items must be preserved just in case to be restored
     // if they are preserved through translations.
@@ -478,6 +442,40 @@ void MMRDataset::ReadProjection()
         m_oSRS.importFromEPSG(nEPSG);
 
     return;
+}
+
+void MMRDataset::UpdateProjection(GDALDataset &oSrcDS)
+{
+    const OGRSpatialReference *poSRS = oSrcDS.GetSpatialRef();
+    if (poSRS)
+    {
+        const char *pszTargetKey = nullptr;
+        const char *pszAuthorityName = nullptr;
+        const char *pszAuthorityCode = nullptr;
+
+        // Reading horizontal reference system and horizontal units
+        if (poSRS->IsProjected())
+            pszTargetKey = "PROJCS";
+        else if (poSRS->IsGeographic() || poSRS->IsDerivedGeographic())
+            pszTargetKey = "GEOGCS";
+        else if (poSRS->IsGeocentric())
+            pszTargetKey = "GEOCCS";
+        else if (poSRS->IsLocal())
+            pszTargetKey = "LOCAL_CS";
+
+        if (!poSRS->IsLocal())
+        {
+            pszAuthorityName = poSRS->GetAuthorityName(pszTargetKey);
+            pszAuthorityCode = poSRS->GetAuthorityCode(pszTargetKey);
+        }
+
+        if (pszAuthorityName && pszAuthorityCode &&
+            EQUAL(pszAuthorityName, "EPSG"))
+        {
+            CPLDebugOnly("MiraMon", "Setting EPSG code %s", pszAuthorityCode);
+            m_osEPSG = pszAuthorityCode;
+        }
+    }
 }
 
 /************************************************************************/
