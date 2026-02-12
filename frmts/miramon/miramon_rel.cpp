@@ -1752,7 +1752,7 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
     bool bSomethingInSection = false;
     for (int i = 0; aosSorted[i]; i++)
     {
-        char *pszKey = NULL;
+        char *pszKey = nullptr;
         const char *pszValue = CPLParseNameValue(aosSorted[i], &pszKey);
 
         if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
@@ -1789,7 +1789,7 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
         CPLString osFinalSection = "";
         for (int i = 0; aosSorted[i]; i++)
         {
-            char *pszKey = NULL;
+            char *pszKey = nullptr;
             const char *pszValue = CPLParseNameValue(aosSorted[i], &pszKey);
 
             if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
