@@ -131,7 +131,7 @@ def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type
     src_ds.SetProjection(wkt)
 
     # --- Create deterministic pixel values ---
-    # values 0..12
+    # values 0..5
     band_values = list(range(xsize * ysize))
 
     fmt = gdal_to_struct[data_type]
@@ -554,12 +554,8 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     # --- Color table check ---
     dst_ct = dst_band1.GetRasterColorTable()
     assert dst_ct is not None
-    assert dst_ct.GetColorEntry(0) == colors[0]
-    assert dst_ct.GetColorEntry(1) == colors[1]
-    assert dst_ct.GetColorEntry(2) == colors[2]
-    assert dst_ct.GetColorEntry(3) == colors[3]
-    assert dst_ct.GetColorEntry(4) == colors[4]
-    assert dst_ct.GetColorEntry(5) == colors[5]
+    for i in range(n_classes):
+        assert dst_ct.GetColorEntry(i) == colors[i]
 
     # --- Cleanup ---
     dst_ds = None
@@ -627,6 +623,104 @@ def test_miramon_lineage_in_rel():
         assert "ResultValue=1" in content
 
     # --- Cleanup ---
+    src_ds = None
+    gc.collect()
+    shutil.rmtree(tmpdir)
+
+
+gdal_to_struct = {
+    gdal.GDT_UInt8: "B",
+    gdal.GDT_Int16: "h",
+    gdal.GDT_UInt16: "H",
+    gdal.GDT_Int32: "i",
+    gdal.GDT_Float32: "f",
+    gdal.GDT_Float64: "d",
+}
+
+init_type_list = [
+    gdal.GDT_UInt8,
+    gdal.GDT_Int16,
+    gdal.GDT_UInt16,
+    gdal.GDT_Int32,
+    gdal.GDT_Float32,
+    gdal.GDT_Float64,
+]
+
+
+@pytest.mark.parametrize(
+    "data_type",
+    init_type_list,
+)
+@pytest.mark.parametrize(
+    "compress",
+    ["YES", "NO"],
+)
+def test_miramonraster_compress(data_type, compress):
+
+    # --- Raster parameters ---
+    xsize = 5
+    ysize = 2
+
+    # --- Create in-memory dataset ---
+    mem_driver = gdal.GetDriverByName("MEM")
+    src_ds = mem_driver.Create("", xsize, ysize, 1, data_type)
+
+    band_values = [0, 0, 1, 2, 2, 5, 5, 5, 5, 5]
+
+    fmt = gdal_to_struct[data_type]
+    band_bytes = struct.pack("<" + fmt * len(band_values), *band_values)
+
+    # --- Write raster data ---
+    src_ds.GetRasterBand(1).WriteRaster(
+        0,
+        0,
+        xsize,
+        ysize,
+        band_bytes,
+        buf_xsize=xsize,
+        buf_ysize=ysize,
+        buf_type=data_type,
+    )
+
+    band = src_ds.GetRasterBand(1)
+    band.FlushCache()
+
+    # --- Write to MiraMonRaster ---
+    tmpdir = tempfile.mkdtemp()
+    mm_path = os.path.join(tmpdir, "testI.rel")
+
+    co = [f"COMPRESS={compress}"]
+    mm_ds = mm_driver.CreateCopy(mm_path, src_ds, options=co)
+    assert mm_ds is not None
+    mm_ds = None
+
+    # --- Reopen dataset ---
+    dst_ds = gdal.Open(mm_path)
+    assert dst_ds is not None
+    assert dst_ds.GetDriver().ShortName == "MiraMonRaster"
+
+    subdatasets = dst_ds.GetSubDatasets()
+    assert subdatasets is None or len(subdatasets) == 0
+
+    # --- Dataset checks ---
+    assert dst_ds.RasterXSize == xsize
+    assert dst_ds.RasterYSize == ysize
+    assert dst_ds.RasterCount == 1
+
+    # --- Pixel data checks ---
+    dst_band_bytes = dst_ds.GetRasterBand(1).ReadRaster(
+        0, 0, xsize, ysize, buf_xsize=xsize, buf_ysize=ysize, buf_type=data_type
+    )
+
+    assert dst_band_bytes == band_bytes
+
+    dst_band = dst_ds.GetRasterBand(1)
+
+    # --- Min / Max checks ---
+    assert dst_band.ComputeRasterMinMax(False) == (0, 5)
+
+    # --- Cleanup ---
+    dst_ds = None
     src_ds = None
     gc.collect()
     shutil.rmtree(tmpdir)

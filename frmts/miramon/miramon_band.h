@@ -317,8 +317,8 @@ class MMRBand final
     static size_t CompressRowType(MMDataType nDataType, const void *pRow,
                                   int nCol, void *pBuffer);
     template <typename T>
-    static size_t ComprimeixFilaTipusTpl(const T *pRow, int nCol,
-                                         void *pBufferVoid);
+    static size_t CompressRowTypeTpl(const T *pRow, int nCol,
+                                     void *pBufferVoid);
 
   private:
     bool Get_ATTRIBUTE_DATA_or_OVERVIEW_ASPECTES_TECNICS_int(

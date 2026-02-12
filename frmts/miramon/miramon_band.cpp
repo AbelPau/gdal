@@ -1737,8 +1737,7 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
 constexpr uint8_t LIMIT = 255;
 
 template <typename T>
-size_t MMRBand::ComprimeixFilaTipusTpl(const T *pRow, int nCol,
-                                       void *pBufferVoid)
+size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nCol, void *pBufferVoid)
 {
     uint8_t *pBuffer = static_cast<uint8_t *>(pBufferVoid);
 
@@ -1830,32 +1829,32 @@ size_t MMRBand::CompressRowType(MMDataType nDataType, const void *pRow,
     {
         case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
         case MMDataType::DATATYPE_AND_COMPR_BYTE:
-            return ComprimeixFilaTipusTpl<uint8_t>(
+            return CompressRowTypeTpl<uint8_t>(
                 reinterpret_cast<const uint8_t *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_INTEGER:
-            return ComprimeixFilaTipusTpl<GInt16>(
+            return CompressRowTypeTpl<GInt16>(
                 reinterpret_cast<const GInt16 *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
-            return ComprimeixFilaTipusTpl<GUInt16>(
+            return CompressRowTypeTpl<GUInt16>(
                 reinterpret_cast<const GUInt16 *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
         case MMDataType::DATATYPE_AND_COMPR_LONG:
-            return ComprimeixFilaTipusTpl<GInt32>(
+            return CompressRowTypeTpl<GInt32>(
                 reinterpret_cast<const GInt32 *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
         case MMDataType::DATATYPE_AND_COMPR_REAL:
-            return ComprimeixFilaTipusTpl<float>(
+            return CompressRowTypeTpl<float>(
                 reinterpret_cast<const float *>(pRow), nCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
-            return ComprimeixFilaTipusTpl<double>(
+            return CompressRowTypeTpl<double>(
                 reinterpret_cast<const double *>(pRow), nCol, pBuffer);
 
         default:
