@@ -614,7 +614,7 @@ def test_miramon_lineage_in_rel():
         content = f.read()
         assert "[QUALITY:LINEAGE]" in content
         assert "[QUALITY:LINEAGE:PROCESS1]" in content
-        assert "purpose=GDAL translation" in content
+        assert "purpose=GDAL process" in content
         assert "NomFitxer=" in content
         assert "[QUALITY:LINEAGE:PROCESS1:INOUT1]" in content
         assert "identifier=OutFile" in content
@@ -628,5 +628,5 @@ def test_miramon_lineage_in_rel():
 
     # --- Cleanup ---
     src_ds = None
-    # gc.collect()
-    # shutil.rmtree(tmpdir)
+    gc.collect()
+    shutil.rmtree(tmpdir)

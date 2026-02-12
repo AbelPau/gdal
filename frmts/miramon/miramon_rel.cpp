@@ -1001,8 +1001,9 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             {
                 if (!isExcluded(osCurrentSection, osPendingKey))
                 {
-                    CPLString fullKey =
-                        osCurrentSection + m_SecKeySeparator + osPendingKey;
+                    CPLString fullKey = osCurrentSection.replaceAll(
+                                            ":", m_IntraSecKeySeparator) +
+                                        m_SecKeySeparator + osPendingKey;
 
                     poDS->SetMetadataItem(fullKey.c_str(),
                                           osPendingValue.Trim().c_str(),
@@ -1025,8 +1026,9 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             {
                 if (!isExcluded(osCurrentSection, osPendingKey))
                 {
-                    CPLString fullKey =
-                        osCurrentSection + m_SecKeySeparator + osPendingKey;
+                    CPLString fullKey = osCurrentSection.replaceAll(
+                                            ":", m_IntraSecKeySeparator) +
+                                        m_SecKeySeparator + osPendingKey;
 
                     poDS->SetMetadataItem(fullKey.c_str(),
                                           osPendingValue.Trim().c_str(),
@@ -1048,7 +1050,9 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
     // Saves last key
     if (!osPendingKey.empty())
     {
-        CPLString fullKey = osCurrentSection + m_SecKeySeparator + osPendingKey;
+        CPLString fullKey =
+            osCurrentSection.replaceAll(":", m_IntraSecKeySeparator) +
+            m_SecKeySeparator + osPendingKey;
         if (!isExcluded(osCurrentSection, osPendingKey))
         {
             poDS->SetMetadataItem(fullKey.c_str(),
@@ -1165,7 +1169,7 @@ bool MMRRel::Write(GDALDataset &oSrcDS)
     WriteVISU_LLEGENDASection();
 
     // Writing lineage
-    WriteLINEAGE();
+    WriteLINEAGE(oSrcDS);
 
     CloseRELFile();
     return true;
@@ -1237,8 +1241,9 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
     size_t nPos;
     CPLString osRecoveredMD;
     if (oSrcDS.GetDescription())
-        osRecoveredMD = CPLSPrintf("Recovered MIRAMON domain metadata from %s",
-                                   oSrcDS.GetDescription());
+        osRecoveredMD =
+            CPLSPrintf("Recovered MIRAMON domain metadata from '%s'",
+                       oSrcDS.GetDescription());
     else
         osRecoveredMD = "Recovered MIRAMON domain metadata";
 
@@ -1247,29 +1252,18 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
          cpl::IterateNameValue(aosMiraMonMetaData))
     {
         osCommenti = CPLSPrintf("comment%d", nComment++);
-        CPLString osAux = pszValue;
+
+        CPLString osAux = pszKey;
         nPos = osAux.find(m_SecKeySeparator);
-        if (nPos != std::string::npos)
-        {
-            CPLString osKey2 = osAux.substr(0, nPos);
-            CPLString osKeyValue =
-                osAux.substr(nPos + strlen(m_SecKeySeparator));
-            osCommentValue = CPLSPrintf("[%s:%s]->%s", pszKey, osKey2.c_str(),
-                                        osKeyValue.c_str());
-        }
-        else
-        {
-            CPLString osKey = pszKey;
-            nPos = osKey.find(m_SecKeySeparator);
-            if (nPos != std::string::npos)
-                osCommentValue = CPLSPrintf(
-                    "[%s]->%s=%s", osKey.substr(0, nPos).c_str(),
-                    osKey.substr(nPos + strlen(m_SecKeySeparator)).c_str(),
-                    pszValue);
-            else
-                osCommentValue =
-                    CPLSPrintf("[%s]->%s", osKey.c_str(), pszValue);
-        }
+        if (nPos == std::string::npos)
+            continue;
+
+        CPLString osSection = osAux.substr(0, nPos);
+        osSection.replaceAll(m_IntraSecKeySeparator, ":");
+        osCommentValue = CPLSPrintf(
+            "[%s]->%s=%s", osSection.c_str(),
+            osAux.substr(nPos + strlen(m_SecKeySeparator)).c_str(), pszValue);
+
         if (!osRecoveredMD.empty())
         {
             AddKeyValue(osCommenti, osRecoveredMD);
@@ -1583,86 +1577,87 @@ void MMRRel::WriteVISU_LLEGENDASection()
     AddVISU_LLEGENDAVersion();
     AddKeyValue("Color_VisibleALleg", 1);
     AddKeyValue("Color_TitolLlegenda", "");
-    AddKeyValue("Color_CategAMostrar", "N");  // TODO
-    AddKeyValue("Color_N_ClassesLleg", 256);  // TODO
+    AddKeyValue("Color_CategAMostrar", "N");
     AddKeyValue("Color_InvertOrdPresentColorLleg", 0);
     AddKeyValue("Color_MostrarIndColorLleg", 0);
     AddKeyValue("Color_MostrarValColorLleg", 0);
-    AddKeyValue("Color_MostrarCatColorLleg", 1);  // TODO
-    AddKeyValue("Color_MostrarNODATA", 0);        // TODO
+    AddKeyValue("Color_MostrarCatColorLleg", 1);
+    AddKeyValue("Color_MostrarNODATA", 0);
     AddKeyValue("Color_MostrarEntradesBuides", 0);
     AddKeyValue("Color_NovaColumnaLlegImpresa", 0);
 
     AddSectionEnd();
 }
 
-void MMRRel::WriteLINEAGE()
+void MMRRel::WriteLINEAGE(GDALDataset &oSrcDS)
 {
-    // GetPreviousLineage();
-    // WritePreviousLineage();
-    WriteCurrentLineage();
+    ImportAndWriteLineageSection(oSrcDS);
+    WriteCurrentProcess();
+    EndProcessesSection();
 }
 
-void MMRRel::WriteCurrentLineage()
+void MMRRel::EndProcessesSection()
 {
-    // TODO
-    int nProcesses = 1;
-
+    if (!m_nNProcesses)
+        return;
     AddSectionStart(SECTION_QUALITY_LINEAGE);
-    AddKeyValue("processes", CPLSPrintf("%d", nProcesses));
+    AddKeyValue("processes", m_osListOfProcesses);
+    AddSectionEnd();
+}
+
+void MMRRel::WriteCurrentProcess()
+{
+    m_nNProcesses++;
+
+    CPLString osSection = SECTION_QUALITY_LINEAGE;
+    osSection.append(":PROCESS");
+    osSection.append(CPLSPrintf("%d", m_nNProcesses));
+
+    AddSectionStart(osSection);
+    AddKeyValue("purpose", "GDAL process");
+
+    struct tm ltime;
+    char aTimeString[200];
+    time_t currentTime = time(nullptr);
+
+    VSILocalTime(&currentTime, &ltime);
+    snprintf(aTimeString, sizeof(aTimeString), "%04d%02d%02d %02d%02d%02d%02d",
+             ltime.tm_year + 1900, ltime.tm_mon + 1, ltime.tm_mday,
+             ltime.tm_hour, ltime.tm_min, ltime.tm_sec, 0);
+
+    AddKeyValue("date", aTimeString);
+    AddKeyValue("NomFitxer", "gdal");
     AddSectionEnd();
 
-    for (int iProcess = 0; iProcess < nProcesses; iProcess++)
+    int nInOut = 1;
+    if (!m_osInFile.empty())
     {
-        CPLString osSection = SECTION_QUALITY_LINEAGE;
-        osSection.append(":PROCESS");
-        osSection.append(CPLSPrintf("%d", iProcess + 1));
-
-        AddSectionStart(osSection);
-        AddKeyValue("purpose", "GDAL translation");
-
-        struct tm ltime;
-        char aTimeString[200];
-        time_t currentTime = time(nullptr);
-
-        VSILocalTime(&currentTime, &ltime);
-        snprintf(aTimeString, sizeof(aTimeString),
-                 "%04d%02d%02d %02d%02d%02d%02d", ltime.tm_year + 1900,
-                 ltime.tm_mon + 1, ltime.tm_mday, ltime.tm_hour, ltime.tm_min,
-                 ltime.tm_sec, 0);
-
-        AddKeyValue("date", aTimeString);
-        AddKeyValue("NomFitxer", m_osRelFileName);
-        AddSectionEnd();
-
-        int nInOut = 1;
-        if (!m_osInFile.empty())
-        {
-            WriteINOUTSection(osSection, nInOut, "InFile", "", "C", m_osInFile);
-            nInOut++;
-        }
-
-        if (!m_osOutFile.empty())
-        {
-            WriteINOUTSection(osSection, nInOut, "OutFile", "1", "C",
-                              m_osOutFile);
-
-            nInOut++;
-        }
-
-        for (int iOptions = 0; iOptions < m_nOptions; iOptions++)
-        {
-            CPLString osOption = m_osOptions[iOptions];
-            size_t nPos = osOption.find('=');
-            if (nPos == std::string::npos)
-                continue;
-            CPLString osIdentifierValue = "-co ";
-            osIdentifierValue.append(osOption.substr(0, nPos));
-            WriteINOUTSection(osSection, nInOut, osIdentifierValue, "", "C",
-                              osOption.substr(nPos + 1));
-            nInOut++;
-        }
+        WriteINOUTSection(osSection, nInOut, "InFile", "", "C", m_osInFile);
+        nInOut++;
     }
+
+    if (!m_osOutFile.empty())
+    {
+        WriteINOUTSection(osSection, nInOut, "OutFile", "1", "C", m_osOutFile);
+
+        nInOut++;
+    }
+
+    for (int iOptions = 0; iOptions < m_nOptions; iOptions++)
+    {
+        CPLString osOption = m_osOptions[iOptions];
+        size_t nPos = osOption.find('=');
+        if (nPos == std::string::npos)
+            continue;
+        CPLString osIdentifierValue = "-co ";
+        osIdentifierValue.append(osOption.substr(0, nPos));
+        WriteINOUTSection(osSection, nInOut, osIdentifierValue, "", "C",
+                          osOption.substr(nPos + 1));
+        nInOut++;
+    }
+    if (m_nNProcesses)
+        m_osListOfProcesses.append(",");
+    m_osListOfProcesses.append(CPLSPrintf("%d", m_nNProcesses));
 }
 
 void MMRRel::WriteINOUTSection(CPLString osSection, int nInOut,
@@ -1686,4 +1681,158 @@ void MMRRel::WriteINOUTSection(CPLString osSection, int nInOut,
         AddKeyValue("ResultValue", osResultValueValue);
     AddKeyValue("ResultUnits", "");
     AddSectionEnd();
+}
+
+// This function imports lineage information from the source dataset
+// and writes it in rel file (QUALITY:LINEAGE section).
+int MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
+{
+    CPLStringList aosMD(oSrcDS.GetMetadata("MIRAMON"));
+    if (aosMD.empty())
+        return 0;
+
+    m_nNProcesses = 0;
+
+    CPLString osLineageProcessesKey =
+        CPLSPrintf("QUALITY%sLINEAGE%sprocesses", m_IntraSecKeySeparator,
+                   m_SecKeySeparator);
+    CPLString osListOfProcesses =
+        CSLFetchNameValueDef(aosMD, osLineageProcessesKey, "");
+    if (osListOfProcesses.empty())
+        return 0;
+
+    const CPLStringList aosTokens(
+        CSLTokenizeString2(osListOfProcesses, ",", 0));
+    const int nTokens = CSLCount(aosTokens);
+
+    for (int nIProcess = 0; nIProcess < nTokens; nIProcess++)
+    {
+        GUIntBig nProcessRef =
+            CPLScanUIntBig(aosTokens[nIProcess],
+                           static_cast<int>(strlen(aosTokens[nIProcess])));
+
+        if (nProcessRef >= INT_MAX)
+            break;  // Too much processes, we ignore rest of them silently (improbable case)
+
+        CPLString osProcessSection =
+            CPLSPrintf("QUALITY%sLINEAGE%sPROCESS%d", m_IntraSecKeySeparator,
+                       m_IntraSecKeySeparator, static_cast<int>(nProcessRef));
+        if (ProcessProcessSection(oSrcDS, osProcessSection))
+        {
+            if (m_nNProcesses)
+                m_osListOfProcesses.append(",");
+            m_osListOfProcesses.append(
+                CPLSPrintf("%d", static_cast<int>(nProcessRef)));
+            m_nNProcesses = static_cast<int>(nProcessRef);
+        }
+    }
+    return 0;
+}
+
+// This function processes a process section and its eventual subsections.
+// It returns true if it has found the section and processed it, false otherwise.
+bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
+                                   CPLString osProcessSection)
+{
+    CPLString osProcess = osProcessSection;
+    osProcess.append(m_SecKeySeparator);
+    osProcess.append("");
+
+    // Convert to CPLStringList for sorting
+    CPLStringList aosSorted(oSrcDS.GetMetadata("MIRAMON"));
+    aosSorted.Sort();
+
+    CPLString osExpectedProcessKey;
+    const size_t nStart = strlen(osProcessSection);
+    const size_t nSecLen = strlen(m_SecKeySeparator);
+    const size_t nIntraSecLen = strlen(m_IntraSecKeySeparator);
+
+    // Main section
+    bool bStartSectionDone = false;
+    bool bSomethingInSection = false;
+    for (int i = 0; aosSorted[i]; i++)
+    {
+        char *pszKey = NULL;
+        const char *pszValue = CPLParseNameValue(aosSorted[i], &pszKey);
+
+        if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
+        {
+            CPLString osKey = pszKey;
+            size_t nPos = osKey.find(m_SecKeySeparator);
+            if (nPos == std::string::npos)
+                continue;
+
+            if (osKey.size() < nStart + nSecLen)
+                continue;
+            if (osKey.compare(nStart, nSecLen, m_SecKeySeparator) != 0)
+                continue;
+
+            // We are in the section we are looking for
+            if (!bStartSectionDone)
+            {
+                bStartSectionDone = true;
+                bSomethingInSection = true;
+                CPLString osFinalSection = osKey.substr(0, nStart);
+                osFinalSection.replaceAll(m_IntraSecKeySeparator, ":");
+                AddSectionStart(osFinalSection);
+            }
+            AddKeyValue(osKey.substr(nStart + nSecLen), pszValue);
+        }
+        CPLFree(pszKey);
+    }
+    if (bSomethingInSection)
+    {
+        AddSectionEnd();
+
+        // Subsections
+        bool bCloseLastSubSection = false;
+        CPLString osFinalSection = "";
+        for (int i = 0; aosSorted[i]; i++)
+        {
+            char *pszKey = NULL;
+            const char *pszValue = CPLParseNameValue(aosSorted[i], &pszKey);
+
+            if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
+            {
+                CPLString osKey = pszKey;
+                size_t nPos = osKey.find(m_SecKeySeparator);
+                if (nPos == std::string::npos)
+                    continue;
+
+                if (osKey.size() < nStart + nIntraSecLen)
+                    continue;
+                if (osKey.compare(nStart, nIntraSecLen,
+                                  m_IntraSecKeySeparator) != 0)
+                    continue;
+
+                // It cannot be the main section
+                if (osKey.size() >= nStart + nSecLen &&
+                    osKey.compare(nStart, nSecLen, m_SecKeySeparator) == 0)
+                    continue;
+
+                // We are in the subsection we are looking for
+                if (!STARTS_WITH(osFinalSection.c_str(),
+                                 osKey.substr(0, nPos).c_str()))
+                {
+                    if (bCloseLastSubSection)
+                        AddSectionEnd();
+                    bCloseLastSubSection = true;
+                    CPLString osFinalSectionDecod = osKey.substr(0, nPos);
+                    osFinalSectionDecod.replaceAll(m_IntraSecKeySeparator, ":");
+                    AddSectionStart(osFinalSectionDecod);
+                    AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
+                }
+                else
+                    AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
+
+                osFinalSection = osKey.substr(0, nPos);
+            }
+            CPLFree(pszKey);
+        }
+        if (bCloseLastSubSection)
+            AddSectionEnd();
+
+        return true;
+    }
+    return false;
 }

@@ -110,12 +110,15 @@ class MMRRel
     void WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
     void WriteCOLOR_TEXTSection();
     void WriteVISU_LLEGENDASection();
-    void WriteLINEAGE();
-    void WriteCurrentLineage();
+    void WriteLINEAGE(GDALDataset &oSrcDS);
+    void WriteCurrentProcess();
     void WriteINOUTSection(CPLString osSection, int nInOut,
                            CPLString osIdentifierValue, CPLString osSentitValue,
                            CPLString osTypeValuesValue,
                            CPLString osResultValueValue);
+    int ImportAndWriteLineageSection(GDALDataset &oSrcDS);
+    bool ProcessProcessSection(GDALDataset &oSrcDS, CPLString osProcessSection);
+    void EndProcessesSection();
 
     bool IsValid() const
     {
@@ -398,7 +401,10 @@ class MMRRel
 
     // Used to join Section and Key in a single
     // name for SetMetadataItem(Name, Value)
-    static constexpr const char *m_SecKeySeparator = "[$$$]";
+    static constexpr const char *m_SecKeySeparator = "$$$";
+
+    //Used to avoid the use of ":" in the Key
+    static constexpr const char *m_IntraSecKeySeparator = "$$";
 
     // List of excluded pairs {Section, Key} to be added to metadata
     // Empty Key means all section
@@ -422,6 +428,15 @@ class MMRRel
     CPLString m_osOutFile = "";
     int m_nOptions = 0;
     std::vector<CPLString> m_osOptions{};
+
+    // Number of processes in the lineage.
+    // It is incremented each time a process is added
+    // to the lineage, and it is used to set the "processes"
+    // key in the QUALITY:LINEAGE section.
+    int m_nNProcesses = 0;
+
+    // List of processes
+    CPLString m_osListOfProcesses = "";
 };
 
 #endif /* ndef MMR_REL_H_INCLUDED */
