@@ -23,29 +23,6 @@ from osgeo import gdal, osr
 
 pytestmark = pytest.mark.require_driver("MiraMonRaster")
 
-# MiraMon driver
-mm_driver = gdal.GetDriverByName("MiraMonRaster")
-
-# --- Write in case of error to debug where it's necessary ---
-def write_gtiff_to_test(suffix_name, src_ds):
-
-    gtiff_driver = gdal.GetDriverByName("GTiff")
-    if gtiff_driver is None:
-        raise RuntimeError("GTiff driver not available")
-
-    tmpdir = tempfile.mkdtemp()
-
-    # 1) Materialize the MEM dataset into a named GeoTIFF
-    out_path = os.path.join(tmpdir, "src_" + suffix_name + ".tif")
-    tmp_src_ds = gtiff_driver.CreateCopy(out_path, src_ds)
-    if tmp_src_ds is None:
-        raise RuntimeError("Failed to materialize MEM dataset to GeoTIFF")
-
-    tmp_src_ds = None  # flush
-
-    raise AssertionError("Test failed, VRT written to: " + out_path)
-
-
 # --- Color table on the band ---
 colors = [
     (0, 0, 0, 0),  # NoData
@@ -183,7 +160,10 @@ def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type
     co = [f"COMPRESS={compress}"]
     if pattern is not None:
         co.append(f"PATTERN={pattern}")
-    mm_ds = mm_driver.CreateCopy(mm_path, src_ds, options=co)
+
+    mm_driver = gdal.GetDriverByName("MiraMonRaster")
+    assert mm_driver is not None
+    mm_ds = mm_driver.CreateCopy(mm_path, src_ds, options=co, callback=None)
     assert mm_ds is not None
     mm_ds = None
 
@@ -244,11 +224,6 @@ def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type
 
     # --- Min / Max checks ---
     assert dst_band.ComputeRasterMinMax(False) == (1, 5)
-
-    # To use if some error arises and we need to check the content of
-    # a tiff file to understand what went wrong. It will be written in a temporary
-    # directory and an exception will be raised with the path to the file.
-    # write_gtiff_to_test(data_type, src_ds)
 
     # --- Cleanup ---
     dst_ds = None
@@ -331,11 +306,6 @@ def test_miramonraster_multiband(data_type, compress, pattern):
     band2.SetUnitType("m")
     assert band2.GetUnitType() == "m"
 
-    # To use if some error arises and we need to check the content of
-    # a tiff file to understand what went wrong. It will be written in a temporary
-    # directory and an exception will be raised with the path to the file.
-    # write_gtiff_to_test(data_type, src_ds)
-
     # --- Write to MiraMonRaster ---
     tmpdir = tempfile.mkdtemp()
     mm_path = os.path.join(tmpdir, "testI.rel")
@@ -343,6 +313,9 @@ def test_miramonraster_multiband(data_type, compress, pattern):
     co = [f"COMPRESS={compress}"]
     if pattern is not None:
         co.append(f"PATTERN={pattern}")
+
+    mm_driver = gdal.GetDriverByName("MiraMonRaster")
+    assert mm_driver is not None
     mm_ds = mm_driver.CreateCopy(mm_path, src_ds, options=co)
     assert mm_ds is not None
     mm_ds = None
@@ -502,7 +475,6 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     # a color table
     # ------------------------
     rat = gdal.RasterAttributeTable()
-    n_classes = 6
 
     # Create columns for RGB and min/max or VALUE
     if separate_minmax:
@@ -517,7 +489,7 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
 
     # --- Color table ---
 
-    for c in range(n_classes):
+    for c in range(len(colors)):
         if separate_minmax:
             rat.SetValueAsInt(c, 0, int(c))
             rat.SetValueAsInt(c, 1, int(c + 1))
@@ -530,15 +502,12 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
 
     band.SetDefaultRAT(rat)
 
-    # To use if some error arises and we need to check the content of
-    # a tiff file to understand what went wrong. It will be written in a temporary
-    # directory and an exception will be raised with the path to the file.
-    # write_gtiff_to_test(data_type, src_ds)
-
     # --- Write to MiraMonRaster ---
     tmpdir = tempfile.mkdtemp("MM")
     mm_path = os.path.join(tmpdir, "RareTestI.rel")
 
+    mm_driver = gdal.GetDriverByName("MiraMonRaster")
+    assert mm_driver is not None
     mm_ds = mm_driver.CreateCopy(mm_path, src_ds)
     assert mm_ds is not None
     mm_ds = None
@@ -554,7 +523,7 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     # --- Color table check ---
     dst_ct = dst_band1.GetRasterColorTable()
     assert dst_ct is not None
-    for i in range(n_classes):
+    for i in range(len(colors)):
         assert dst_ct.GetColorEntry(i) == colors[i]
 
     # --- Cleanup ---
@@ -595,6 +564,8 @@ def test_miramon_lineage_in_rel():
     tmpdir = tempfile.mkdtemp("MM")
     mm_path = os.path.join(tmpdir, "LineageTestI.rel")
 
+    mm_driver = gdal.GetDriverByName("MiraMonRaster")
+    assert mm_driver is not None
     mm_ds = mm_driver.CreateCopy(
         mm_path,
         src_ds,
@@ -690,6 +661,9 @@ def test_miramonraster_compress(data_type, compress):
     mm_path = os.path.join(tmpdir, "testI.rel")
 
     co = [f"COMPRESS={compress}"]
+
+    mm_driver = gdal.GetDriverByName("MiraMonRaster")
+    assert mm_driver is not None
     mm_ds = mm_driver.CreateCopy(mm_path, src_ds, options=co)
     assert mm_ds is not None
     mm_ds = None

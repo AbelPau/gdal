@@ -876,18 +876,18 @@ bool MMRDataset::IsCategoricalBand(GDALDataset &oSrcDS,
         // First we try to see if there is metadata in the source dataset that can help us. We look for a key like
         // "ATTRIBUTE_DATA$$$TractamentVariable" in the domain "MIRAMON"
         CPLStringList aosMiraMonMetaData(oSrcDS.GetMetadata(MetadataDomain));
-        if (aosMiraMonMetaData.empty())
-            return 0;
-
-        CPLString osClue =
-            CPLSPrintf("ATTRIBUTE_DATA%sTractamentVariable", SecKeySeparator);
-        CPLString osTractamentVariable =
-            CSLFetchNameValueDef(aosMiraMonMetaData, osClue, "");
-        if (!osTractamentVariable.empty())
+        if (!aosMiraMonMetaData.empty())
         {
-            if (EQUAL(osTractamentVariable, "Categorical"))
-                return true;
-            return false;
+            CPLString osClue = CPLSPrintf("ATTRIBUTE_DATA%sTractamentVariable",
+                                          SecKeySeparator);
+            CPLString osTractamentVariable =
+                CSLFetchNameValueDef(aosMiraMonMetaData, osClue, "");
+            if (!osTractamentVariable.empty())
+            {
+                if (EQUAL(osTractamentVariable, "Categorical"))
+                    return true;
+                return false;
+            }
         }
 
         // In case of no metadata, we try to deduce if the band is categorical or continuous with some heuristics:
