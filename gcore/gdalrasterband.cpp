@@ -38,6 +38,7 @@
 #include "cpl_string.h"
 #include "cpl_virtualmem.h"
 #include "cpl_vsi.h"
+#include "cpl_worker_thread_pool.h"
 #include "gdal.h"
 #include "gdal_abstractbandblockcache.h"
 #include "gdalantirecursion.h"
@@ -6644,12 +6645,12 @@ template <bool HAS_NAN, bool CHECK_MIN_NOT_SAME_AS_MAX, bool HAS_NODATA>
 #if defined(__GNUC__)
 __attribute__((noinline))
 #endif
-static int
-ComputeStatisticsFloat32_SSE2(const float *const pafData,
-                              [[maybe_unused]] float fNoDataValue, int iX,
-                              int nCount, float &fMin, float &fMax,
-                              double &dfBlockMean, double &dfBlockM2,
-                              double &dfBlockValidCount)
+static int ComputeStatisticsFloat32_SSE2(const float *const pafData,
+                                         [[maybe_unused]] float fNoDataValue,
+                                         int iX, int nCount, float &fMin,
+                                         float &fMax, double &dfBlockMean,
+                                         double &dfBlockM2,
+                                         double &dfBlockValidCount)
 {
     auto vValidCount = setzero_pd();
     const auto vOne = set1_pd(1);
@@ -6778,12 +6779,12 @@ template <bool CHECK_MIN_NOT_SAME_AS_MAX, bool HAS_NODATA>
 #if defined(__GNUC__)
 __attribute__((noinline))
 #endif
-static int
-ComputeStatisticsFloat64_SSE2(const double *padfData,
-                              [[maybe_unused]] double dfNoDataValue, int iX,
-                              int nCount, double &dfMin, double &dfMax,
-                              double &dfBlockMean, double &dfBlockM2,
-                              double &dfBlockValidCount)
+static int ComputeStatisticsFloat64_SSE2(const double *padfData,
+                                         [[maybe_unused]] double dfNoDataValue,
+                                         int iX, int nCount, double &dfMin,
+                                         double &dfMax, double &dfBlockMean,
+                                         double &dfBlockM2,
+                                         double &dfBlockValidCount)
 {
     auto vValidCount = setzero_pd();
     const auto vOne = set1_pd(1);
@@ -7383,16 +7384,8 @@ CPLErr GDALRasterBand::ComputeStatistics(int bApproxOK, double *pdfMin,
             int nThreads = 1;
             if (nChunkYSize > 1)
             {
-                const char *pszNumThreads =
-                    CPLGetConfigOption("GDAL_NUM_THREADS", nullptr);
-                if (pszNumThreads)
-                {
-                    if (EQUAL(pszNumThreads, "ALL_CPUS"))
-                        nThreads = CPLGetNumCPUs();
-                    else
-                        nThreads =
-                            std::clamp(atoi(pszNumThreads), 1, CPLGetNumCPUs());
-                }
+                nThreads = GDALGetNumThreads(CPLGetNumCPUs(),
+                                             /* bDefaultToAllCPUs = */ false);
             }
 
             int nNewChunkXSize = nChunkXSize;
@@ -7672,18 +7665,8 @@ CPLErr GDALRasterBand::ComputeStatistics(int bApproxOK, double *pdfMin,
         {
             if (nChunkYSize > 1)
             {
-                const char *pszNumThreads =
-                    CPLGetConfigOption("GDAL_NUM_THREADS", nullptr);
-                if (pszNumThreads)
-                {
-                    if (EQUAL(pszNumThreads, "ALL_CPUS"))
-                        nThreads = CPLGetNumCPUs();
-                    else
-                        nThreads =
-                            std::clamp(atoi(pszNumThreads), 1, CPLGetNumCPUs());
-                    if (nThreads > 1)
-                        psThreadPool = GDALGetGlobalThreadPool(nThreads);
-                }
+                nThreads = GDALGetNumThreads(CPLGetNumCPUs(),
+                                             /* bDefaultToAllCPUs = */ false);
             }
 
             int nNewChunkXSize = nChunkXSize;

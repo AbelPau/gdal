@@ -36,6 +36,7 @@
 #include "cpl_vsi.h"
 #include "cpl_worker_thread_pool.h"
 #include "gdal.h"
+#include "gdal_thread_pool.h"
 
 constexpr double TO_RADIANS = M_PI / 180.0;
 
@@ -245,8 +246,8 @@ CPLErr GDALGridInverseDistanceToAPowerNearestNeighbor(
 {
     CPL_IGNORE_RET_VAL(nPoints);
 
-    const GDALGridInverseDistanceToAPowerNearestNeighborOptions
-        *const poOptions = static_cast<
+    const GDALGridInverseDistanceToAPowerNearestNeighborOptions *const
+        poOptions = static_cast<
             const GDALGridInverseDistanceToAPowerNearestNeighborOptions *>(
             poOptionsIn);
     const double dfRadius = poOptions->dfRadius;
@@ -352,8 +353,8 @@ static CPLErr GDALGridInverseDistanceToAPowerNearestNeighborPerQuadrant(
     const double *padfY, const double *padfZ, double dfXPoint, double dfYPoint,
     double *pdfValue, void *hExtraParamsIn)
 {
-    const GDALGridInverseDistanceToAPowerNearestNeighborOptions
-        *const poOptions = static_cast<
+    const GDALGridInverseDistanceToAPowerNearestNeighborOptions *const
+        poOptions = static_cast<
             const GDALGridInverseDistanceToAPowerNearestNeighborOptions *>(
             poOptionsIn);
     const double dfRadius = poOptions->dfRadius;
@@ -2609,7 +2610,7 @@ static int GDALGridProgressMonoThread(GDALGridJob *psJob)
 static void GDALGridJobProcess(void *user_data)
 {
     GDALGridJob *const psJob = static_cast<GDALGridJob *>(user_data);
-    int (*pfnProgress)(GDALGridJob * psJob) = psJob->pfnProgress;
+    int (*pfnProgress)(GDALGridJob *psJob) = psJob->pfnProgress;
     const GUInt32 nXSize = psJob->nXSize;
 
     /* -------------------------------------------------------------------- */
@@ -3266,14 +3267,8 @@ GDALGridContext *GDALGridContextCreate(GDALGridAlgorithm eAlgorithm,
     /* -------------------------------------------------------------------- */
     /*  Start thread pool.                                                  */
     /* -------------------------------------------------------------------- */
-    const char *pszThreads = CPLGetConfigOption("GDAL_NUM_THREADS", "ALL_CPUS");
-    int nThreads = 0;
-    if (EQUAL(pszThreads, "ALL_CPUS"))
-        nThreads = CPLGetNumCPUs();
-    else
-        nThreads = atoi(pszThreads);
-    if (nThreads > 128)
-        nThreads = 128;
+    const int nThreads = GDALGetNumThreads(GDAL_DEFAULT_MAX_THREAD_COUNT,
+                                           /* bDefaultToAllCPUs = */ true);
     if (nThreads > 1)
     {
         psContext->poWorkerThreadPool = new CPLWorkerThreadPool();
@@ -3862,8 +3857,8 @@ CPLErr GDALGridParseAlgorithmAndOptions(const char *pszAlgorithm,
             *ppOptions = CPLMalloc(
                 sizeof(GDALGridInverseDistanceToAPowerNearestNeighborOptions));
 
-            GDALGridInverseDistanceToAPowerNearestNeighborOptions
-                *const poPowerOpts = static_cast<
+            GDALGridInverseDistanceToAPowerNearestNeighborOptions *const
+                poPowerOpts = static_cast<
                     GDALGridInverseDistanceToAPowerNearestNeighborOptions *>(
                     *ppOptions);
 

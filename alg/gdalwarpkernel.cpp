@@ -309,25 +309,13 @@ void *GWKThreadsCreate(char **papszWarpOptions,
                        GDALTransformerFunc /* pfnTransformer */,
                        void *pTransformerArg)
 {
-    const char *pszWarpThreads =
-        CSLFetchNameValue(papszWarpOptions, "NUM_THREADS");
-    if (pszWarpThreads == nullptr)
-        pszWarpThreads = CPLGetConfigOption("GDAL_NUM_THREADS", "1");
-
-    int nThreads = 0;
-    if (EQUAL(pszWarpThreads, "ALL_CPUS"))
-        nThreads = CPLGetNumCPUs();
-    else
-        nThreads = atoi(pszWarpThreads);
-    if (nThreads <= 1)
-        nThreads = 0;
-    if (nThreads > 128)
-        nThreads = 128;
-
+    const int nThreads = GDALGetNumThreads(papszWarpOptions, "NUM_THREADS",
+                                           GDAL_DEFAULT_MAX_THREAD_COUNT,
+                                           /* bDefaultAllCPUs = */ false);
     GWKThreadData *psThreadData = new GWKThreadData();
     auto poThreadPool =
-        nThreads > 0 ? GDALGetGlobalThreadPool(nThreads) : nullptr;
-    if (nThreads && poThreadPool)
+        nThreads > 1 ? GDALGetGlobalThreadPool(nThreads) : nullptr;
+    if (poThreadPool)
     {
         psThreadData->nMaxThreads = nThreads;
         psThreadData->threadJobs.reset(new std::vector<GWKJobStruct>(
@@ -4366,9 +4354,9 @@ static bool GWKResampleOptimizedLanczos(const GDALWarpKernel *poWK, int iBand,
                 else
                     padfWeightsXShifted[i] = padfCst[(i + 3) % 3] / (dfX * dfX);
 #if DEBUG_VERBOSE
-                    // TODO(schwehr): AlmostEqual.
-                    // CPLAssert(fabs(padfWeightsX[i-poWK->nFiltInitX] -
-                    //               GWKLanczosSinc(dfX, 3.0)) < 1e-10);
+                // TODO(schwehr): AlmostEqual.
+                // CPLAssert(fabs(padfWeightsX[i-poWK->nFiltInitX] -
+                //               GWKLanczosSinc(dfX, 3.0)) < 1e-10);
 #endif
             }
 
@@ -4483,9 +4471,9 @@ static bool GWKResampleOptimizedLanczos(const GDALWarpKernel *poWK, int iBand,
                 else
                     padfWeightsYShifted[j] = padfCst[(j + 3) % 3] / (dfY * dfY);
 #if DEBUG_VERBOSE
-                    // TODO(schwehr): AlmostEqual.
-                    // CPLAssert(fabs(padfWeightsYShifted[j] -
-                    //               GWKLanczosSinc(dfY, 3.0)) < 1e-10);
+                // TODO(schwehr): AlmostEqual.
+                // CPLAssert(fabs(padfWeightsYShifted[j] -
+                //               GWKLanczosSinc(dfY, 3.0)) < 1e-10);
 #endif
             }
 
