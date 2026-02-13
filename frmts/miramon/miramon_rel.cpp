@@ -1238,7 +1238,7 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
     int nComment = 1;
     CPLString osValue;
     CPLString osCommentValue;
-    size_t nPos;
+    size_t nPos, nPos2;
     CPLString osRecoveredMD;
     if (oSrcDS.GetDescription())
         osRecoveredMD =
@@ -1247,11 +1247,15 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
     else
         osRecoveredMD = "Recovered MIRAMON domain metadata";
 
+    CPLString osQUALITYLINEAGE = "QUALITY";
+    osQUALITYLINEAGE.append(m_IntraSecKeySeparator);
+    osQUALITYLINEAGE.append("LINEAGE");
+
     CPLString osCommenti;
     for (const auto &[pszKey, pszValue] :
          cpl::IterateNameValue(aosMiraMonMetaData))
     {
-        osCommenti = CPLSPrintf("comment%d", nComment++);
+        osCommenti = CPLSPrintf("comment%d", nComment);
 
         CPLString osAux = pszKey;
         nPos = osAux.find(m_SecKeySeparator);
@@ -1259,6 +1263,12 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
             continue;
 
         CPLString osSection = osAux.substr(0, nPos);
+
+        // Section lineage is writen in another section
+        nPos2 = osSection.find(osQUALITYLINEAGE);
+        if (nPos2 != std::string::npos)
+            continue;
+
         osSection.replaceAll(m_IntraSecKeySeparator, ":");
         osCommentValue = CPLSPrintf(
             "[%s]->%s=%s", osSection.c_str(),
@@ -1267,11 +1277,12 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
         if (!osRecoveredMD.empty())
         {
             AddKeyValue(osCommenti, osRecoveredMD);
-            osCommenti = CPLSPrintf("comment%d", nComment++);
+            osCommenti = CPLSPrintf("comment%d", ++nComment);
             osRecoveredMD.clear();
         }
 
         AddKeyValue(osCommenti, osCommentValue);
+        nComment++;
     }
 }
 
@@ -1687,8 +1698,8 @@ void MMRRel::WriteINOUTSection(CPLString osSection, int nInOut,
 // and writes it in rel file (QUALITY:LINEAGE section).
 int MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
 {
-    CPLStringList aosMD(oSrcDS.GetMetadata("MIRAMON"));
-    if (aosMD.empty())
+    CPLStringList aosMiraMonMetaData(oSrcDS.GetMetadata("MIRAMON"));
+    if (aosMiraMonMetaData.empty())
         return 0;
 
     m_nNProcesses = 0;
@@ -1697,7 +1708,7 @@ int MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
         CPLSPrintf("QUALITY%sLINEAGE%sprocesses", m_IntraSecKeySeparator,
                    m_SecKeySeparator);
     CPLString osListOfProcesses =
-        CSLFetchNameValueDef(aosMD, osLineageProcessesKey, "");
+        CSLFetchNameValueDef(aosMiraMonMetaData, osLineageProcessesKey, "");
     if (osListOfProcesses.empty())
         return 0;
 
@@ -1739,8 +1750,8 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
     osProcess.append("");
 
     // Convert to CPLStringList for sorting
-    CPLStringList aosSorted(oSrcDS.GetMetadata("MIRAMON"));
-    aosSorted.Sort();
+    CPLStringList aosMiraMonSortedMetaData(oSrcDS.GetMetadata("MIRAMON"));
+    aosMiraMonSortedMetaData.Sort();
 
     CPLString osExpectedProcessKey;
     const size_t nStart = strlen(osProcessSection);
@@ -1750,11 +1761,9 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
     // Main section
     bool bStartSectionDone = false;
     bool bSomethingInSection = false;
-    for (int i = 0; aosSorted[i]; i++)
+    for (const auto &[pszKey, pszValue] :
+         cpl::IterateNameValue(aosMiraMonSortedMetaData))
     {
-        char *pszKey = nullptr;
-        const char *pszValue = CPLParseNameValue(aosSorted[i], &pszKey);
-
         if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
         {
             CPLString osKey = pszKey;
@@ -1778,61 +1787,56 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
             }
             AddKeyValue(osKey.substr(nStart + nSecLen), pszValue);
         }
-        CPLFree(pszKey);
     }
-    if (bSomethingInSection)
+    if (!bSomethingInSection)
+        return false;
+
+    AddSectionEnd();
+
+    // Subsections
+    bool bCloseLastSubSection = false;
+    CPLString osFinalSection = "";
+    for (const auto &[pszKey, pszValue] :
+         cpl::IterateNameValue(aosMiraMonSortedMetaData))
     {
+        if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
+        {
+            CPLString osKey = pszKey;
+            size_t nPos = osKey.find(m_SecKeySeparator);
+            if (nPos == std::string::npos)
+                continue;
+
+            if (osKey.size() < nStart + nIntraSecLen)
+                continue;
+            if (osKey.compare(nStart, nIntraSecLen, m_IntraSecKeySeparator) !=
+                0)
+                continue;
+
+            // It cannot be the main section
+            if (osKey.size() >= nStart + nSecLen &&
+                osKey.compare(nStart, nSecLen, m_SecKeySeparator) == 0)
+                continue;
+
+            // We are in the subsection we are looking for
+            if (!STARTS_WITH(osFinalSection.c_str(),
+                             osKey.substr(0, nPos).c_str()))
+            {
+                if (bCloseLastSubSection)
+                    AddSectionEnd();
+                bCloseLastSubSection = true;
+                CPLString osFinalSectionDecod = osKey.substr(0, nPos);
+                osFinalSectionDecod.replaceAll(m_IntraSecKeySeparator, ":");
+                AddSectionStart(osFinalSectionDecod);
+                AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
+            }
+            else
+                AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
+
+            osFinalSection = osKey.substr(0, nPos);
+        }
+    }
+    if (bCloseLastSubSection)
         AddSectionEnd();
 
-        // Subsections
-        bool bCloseLastSubSection = false;
-        CPLString osFinalSection = "";
-        for (int i = 0; aosSorted[i]; i++)
-        {
-            char *pszKey = nullptr;
-            const char *pszValue = CPLParseNameValue(aosSorted[i], &pszKey);
-
-            if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
-            {
-                CPLString osKey = pszKey;
-                size_t nPos = osKey.find(m_SecKeySeparator);
-                if (nPos == std::string::npos)
-                    continue;
-
-                if (osKey.size() < nStart + nIntraSecLen)
-                    continue;
-                if (osKey.compare(nStart, nIntraSecLen,
-                                  m_IntraSecKeySeparator) != 0)
-                    continue;
-
-                // It cannot be the main section
-                if (osKey.size() >= nStart + nSecLen &&
-                    osKey.compare(nStart, nSecLen, m_SecKeySeparator) == 0)
-                    continue;
-
-                // We are in the subsection we are looking for
-                if (!STARTS_WITH(osFinalSection.c_str(),
-                                 osKey.substr(0, nPos).c_str()))
-                {
-                    if (bCloseLastSubSection)
-                        AddSectionEnd();
-                    bCloseLastSubSection = true;
-                    CPLString osFinalSectionDecod = osKey.substr(0, nPos);
-                    osFinalSectionDecod.replaceAll(m_IntraSecKeySeparator, ":");
-                    AddSectionStart(osFinalSectionDecod);
-                    AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
-                }
-                else
-                    AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
-
-                osFinalSection = osKey.substr(0, nPos);
-            }
-            CPLFree(pszKey);
-        }
-        if (bCloseLastSubSection)
-            AddSectionEnd();
-
-        return true;
-    }
-    return false;
+    return true;
 }
