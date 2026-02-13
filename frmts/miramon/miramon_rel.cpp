@@ -1001,13 +1001,13 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             {
                 if (!isExcluded(osCurrentSection, osPendingKey))
                 {
-                    CPLString fullKey = osCurrentSection.replaceAll(
-                                            ":", m_IntraSecKeySeparator) +
-                                        m_SecKeySeparator + osPendingKey;
+                    CPLString fullKey =
+                        osCurrentSection.replaceAll(":", IntraSecKeySeparator) +
+                        SecKeySeparator + osPendingKey;
 
                     poDS->SetMetadataItem(fullKey.c_str(),
                                           osPendingValue.Trim().c_str(),
-                                          m_kMetadataDomain);
+                                          MetadataDomain);
                 }
                 osPendingKey.clear();
                 osPendingValue.clear();
@@ -1026,13 +1026,13 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             {
                 if (!isExcluded(osCurrentSection, osPendingKey))
                 {
-                    CPLString fullKey = osCurrentSection.replaceAll(
-                                            ":", m_IntraSecKeySeparator) +
-                                        m_SecKeySeparator + osPendingKey;
+                    CPLString fullKey =
+                        osCurrentSection.replaceAll(":", IntraSecKeySeparator) +
+                        SecKeySeparator + osPendingKey;
 
                     poDS->SetMetadataItem(fullKey.c_str(),
                                           osPendingValue.Trim().c_str(),
-                                          m_kMetadataDomain);
+                                          MetadataDomain);
                 }
             }
 
@@ -1051,13 +1051,12 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
     if (!osPendingKey.empty())
     {
         CPLString fullKey =
-            osCurrentSection.replaceAll(":", m_IntraSecKeySeparator) +
-            m_SecKeySeparator + osPendingKey;
+            osCurrentSection.replaceAll(":", IntraSecKeySeparator) +
+            SecKeySeparator + osPendingKey;
         if (!isExcluded(osCurrentSection, osPendingKey))
         {
-            poDS->SetMetadataItem(fullKey.c_str(),
-                                  osPendingValue.Trim().c_str(),
-                                  m_kMetadataDomain);
+            poDS->SetMetadataItem(
+                fullKey.c_str(), osPendingValue.Trim().c_str(), MetadataDomain);
         }
     }
 }
@@ -1234,7 +1233,7 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
     // Writing domain MIRAMON metadata to a section in REL that is used to
     // add comments. It's could be useful if some raster contains METADATA from
     // MiraMon and an expert user wants to recover and use it.
-    const CSLConstList aosMiraMonMetaData(oSrcDS.GetMetadata("MIRAMON"));
+    const CSLConstList aosMiraMonMetaData(oSrcDS.GetMetadata(MetadataDomain));
     int nComment = 1;
     CPLString osValue;
     CPLString osCommentValue;
@@ -1248,7 +1247,7 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
         osRecoveredMD = "Recovered MIRAMON domain metadata";
 
     CPLString osQUALITYLINEAGE = "QUALITY";
-    osQUALITYLINEAGE.append(m_IntraSecKeySeparator);
+    osQUALITYLINEAGE.append(IntraSecKeySeparator);
     osQUALITYLINEAGE.append("LINEAGE");
 
     CPLString osCommenti;
@@ -1258,21 +1257,21 @@ void MMRRel::WriteMetadataInComments(GDALDataset &oSrcDS)
         osCommenti = CPLSPrintf("comment%d", nComment);
 
         CPLString osAux = pszKey;
-        nPos = osAux.find(m_SecKeySeparator);
+        nPos = osAux.find(SecKeySeparator);
         if (nPos == std::string::npos)
             continue;
 
         CPLString osSection = osAux.substr(0, nPos);
 
-        // Section lineage is writen in another section
+        // Section lineage is written in another section
         nPos2 = osSection.find(osQUALITYLINEAGE);
         if (nPos2 != std::string::npos)
             continue;
 
-        osSection.replaceAll(m_IntraSecKeySeparator, ":");
+        osSection.replaceAll(IntraSecKeySeparator, ":");
         osCommentValue = CPLSPrintf(
             "[%s]->%s=%s", osSection.c_str(),
-            osAux.substr(nPos + strlen(m_SecKeySeparator)).c_str(), pszValue);
+            osAux.substr(nPos + strlen(SecKeySeparator)).c_str(), pszValue);
 
         if (!osRecoveredMD.empty())
         {
@@ -1698,15 +1697,14 @@ void MMRRel::WriteINOUTSection(CPLString osSection, int nInOut,
 // and writes it in rel file (QUALITY:LINEAGE section).
 int MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
 {
-    CPLStringList aosMiraMonMetaData(oSrcDS.GetMetadata("MIRAMON"));
+    CPLStringList aosMiraMonMetaData(oSrcDS.GetMetadata(MetadataDomain));
     if (aosMiraMonMetaData.empty())
         return 0;
 
     m_nNProcesses = 0;
 
-    CPLString osLineageProcessesKey =
-        CPLSPrintf("QUALITY%sLINEAGE%sprocesses", m_IntraSecKeySeparator,
-                   m_SecKeySeparator);
+    CPLString osLineageProcessesKey = CPLSPrintf(
+        "QUALITY%sLINEAGE%sprocesses", IntraSecKeySeparator, SecKeySeparator);
     CPLString osListOfProcesses =
         CSLFetchNameValueDef(aosMiraMonMetaData, osLineageProcessesKey, "");
     if (osListOfProcesses.empty())
@@ -1726,8 +1724,8 @@ int MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
             break;  // Too much processes, we ignore rest of them silently (improbable case)
 
         CPLString osProcessSection =
-            CPLSPrintf("QUALITY%sLINEAGE%sPROCESS%d", m_IntraSecKeySeparator,
-                       m_IntraSecKeySeparator, static_cast<int>(nProcessRef));
+            CPLSPrintf("QUALITY%sLINEAGE%sPROCESS%d", IntraSecKeySeparator,
+                       IntraSecKeySeparator, static_cast<int>(nProcessRef));
         if (ProcessProcessSection(oSrcDS, osProcessSection))
         {
             if (m_nNProcesses)
@@ -1746,17 +1744,17 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
                                    CPLString osProcessSection)
 {
     CPLString osProcess = osProcessSection;
-    osProcess.append(m_SecKeySeparator);
+    osProcess.append(SecKeySeparator);
     osProcess.append("");
 
     // Convert to CPLStringList for sorting
-    CPLStringList aosMiraMonSortedMetaData(oSrcDS.GetMetadata("MIRAMON"));
+    CPLStringList aosMiraMonSortedMetaData(oSrcDS.GetMetadata(MetadataDomain));
     aosMiraMonSortedMetaData.Sort();
 
     CPLString osExpectedProcessKey;
     const size_t nStart = strlen(osProcessSection);
-    const size_t nSecLen = strlen(m_SecKeySeparator);
-    const size_t nIntraSecLen = strlen(m_IntraSecKeySeparator);
+    const size_t nSecLen = strlen(SecKeySeparator);
+    const size_t nIntraSecLen = strlen(IntraSecKeySeparator);
 
     // Main section
     bool bStartSectionDone = false;
@@ -1767,13 +1765,13 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
         if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
         {
             CPLString osKey = pszKey;
-            size_t nPos = osKey.find(m_SecKeySeparator);
+            size_t nPos = osKey.find(SecKeySeparator);
             if (nPos == std::string::npos)
                 continue;
 
             if (osKey.size() < nStart + nSecLen)
                 continue;
-            if (osKey.compare(nStart, nSecLen, m_SecKeySeparator) != 0)
+            if (osKey.compare(nStart, nSecLen, SecKeySeparator) != 0)
                 continue;
 
             // We are in the section we are looking for
@@ -1782,7 +1780,7 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
                 bStartSectionDone = true;
                 bSomethingInSection = true;
                 CPLString osFinalSection = osKey.substr(0, nStart);
-                osFinalSection.replaceAll(m_IntraSecKeySeparator, ":");
+                osFinalSection.replaceAll(IntraSecKeySeparator, ":");
                 AddSectionStart(osFinalSection);
             }
             AddKeyValue(osKey.substr(nStart + nSecLen), pszValue);
@@ -1802,19 +1800,18 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
         if (pszKey && STARTS_WITH(pszKey, osProcessSection.c_str()))
         {
             CPLString osKey = pszKey;
-            size_t nPos = osKey.find(m_SecKeySeparator);
+            size_t nPos = osKey.find(SecKeySeparator);
             if (nPos == std::string::npos)
                 continue;
 
             if (osKey.size() < nStart + nIntraSecLen)
                 continue;
-            if (osKey.compare(nStart, nIntraSecLen, m_IntraSecKeySeparator) !=
-                0)
+            if (osKey.compare(nStart, nIntraSecLen, IntraSecKeySeparator) != 0)
                 continue;
 
             // It cannot be the main section
             if (osKey.size() >= nStart + nSecLen &&
-                osKey.compare(nStart, nSecLen, m_SecKeySeparator) == 0)
+                osKey.compare(nStart, nSecLen, SecKeySeparator) == 0)
                 continue;
 
             // We are in the subsection we are looking for
@@ -1825,7 +1822,7 @@ bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
                     AddSectionEnd();
                 bCloseLastSubSection = true;
                 CPLString osFinalSectionDecod = osKey.substr(0, nPos);
-                osFinalSectionDecod.replaceAll(m_IntraSecKeySeparator, ":");
+                osFinalSectionDecod.replaceAll(IntraSecKeySeparator, ":");
                 AddSectionStart(osFinalSectionDecod);
                 AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
             }

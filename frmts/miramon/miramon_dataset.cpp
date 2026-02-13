@@ -98,7 +98,8 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
 
     UpdateProjection(oSrcDS);
 
-    // Getting bands information
+    // Getting bands information and creating MMRBand objects.
+    // Also checking if all bands have the same dimensions.
     bool bNeedOfNomFitxer = (nBands > 1 || !osUsrPattern.empty());
 
     std::vector<MMRBand> oBands{};
@@ -117,6 +118,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
             return;
         }
 
+        // Detection of the index of the band in the RGB composition (if it applies).
         CPLString osIndexBand;
         CPLString osNumberIndexBand;
         if (pRasterBand->GetColorInterpretation() == GCI_RedBand)
@@ -140,8 +142,8 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
             osIndexBand = CPLSPrintf("%d", nIBand + 1);
 
         osNumberIndexBand = CPLSPrintf("%d", nIBand + 1);
-        bool bCategorical =
-            IsCategoricalBand(*pRasterBand, papszOptions, osNumberIndexBand);
+        bool bCategorical = IsCategoricalBand(oSrcDS, *pRasterBand,
+                                              papszOptions, osNumberIndexBand);
 
         bool bCompressDS =
             EQUAL(CSLFetchNameValueDef(papszOptions, "COMPRESS", "YES"), "YES");
@@ -179,8 +181,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         m_nWidth = 0;
         m_nHeight = 0;
     }
-
-    if (m_nWidth != 0 && m_nHeight != 0)
+    else
     {
         // Getting geotransform
         GDALGeoTransform gt;
@@ -193,7 +194,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         }
     }
 
-    // Getting REL information (and metadata stuff)
+    // Creating the MMRRel object with all the information of the dataset.
     m_pMMRRel = std::make_unique<MMRRel>(
         osRelname, bNeedOfNomFitxer, m_osEPSG, m_nWidth, m_nHeight, m_dfMinX,
         m_dfMaxX, m_dfMinY, m_dfMaxY, std::move(oBands));
@@ -201,6 +202,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
     if (!m_pMMRRel->IsValid())
         return;
 
+    // Lineage is updated with the source dataset information, if any, and with the creation options.
     m_pMMRRel->UpdateLineage(papszOptions, oSrcDS);
 
     // Writing all information in files: I.rel, IMG,...
@@ -210,7 +212,7 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
         return;
     }
 
-    // If is the RGB case a map (.mmm) is generated
+    // If the dataset is RGB, we write the .mmm file with the RGB information of the bands.
     WriteRGBMap();
 
     m_bIsValid = true;
@@ -412,7 +414,7 @@ bool MMRDataset::CreateRasterBands()
 
         SetBand(nBands + 1, std::move(poRasterBand));
     }
-    // Some metadata items must be preserved just in case to be restored
+    // Not used metadata in the REL must be preserved just in case to be restored
     // if they are preserved through translations.
     m_pMMRRel->RELToGDALMetadata(this);
 
@@ -426,7 +428,6 @@ void MMRDataset::ReadProjection()
         return;
 
     CPLString osSRS;
-
     if (!m_pMMRRel->GetMetadataValue("SPATIAL_REFERENCE_SYSTEM:HORIZONTAL",
                                      "HorizontalSystemIdentifier", osSRS) ||
         osSRS.empty())
@@ -596,6 +597,7 @@ void MMRDataset::CreateSubdatasetsFromBands()
     }
 }
 
+// Checks if two bands should be in the same subdataset
 bool MMRDataset::BandInTheSameDataset(int nIBand1, int nIBand2) const
 {
     if (nIBand1 < 0 || nIBand2 < 0)
@@ -834,6 +836,8 @@ CPLString MMRDataset::CreatePatternFileName(const CPLString &osFileName,
     return CPLGetBasenameSafe(osRELName);
 }
 
+// Checks if the band is in the list of categorical or continuous bands
+// specified by the user in the creation options.
 bool MMRDataset::BandInOptionsList(CSLConstList papszOptions, CPLString pszType,
                                    CPLString osIndexBand)
 {
@@ -855,7 +859,9 @@ bool MMRDataset::BandInOptionsList(CSLConstList papszOptions, CPLString pszType,
     return false;
 }
 
-bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
+// MiraMon needs to know if the band is categorical or continuous to apply the right default symbology.
+bool MMRDataset::IsCategoricalBand(GDALDataset &oSrcDS,
+                                   GDALRasterBand &pRasterBand,
                                    CSLConstList papszOptions,
                                    CPLString osIndexBand)
 {
@@ -863,25 +869,45 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
         BandInOptionsList(papszOptions, "Categorical", osIndexBand);
     bool bUsrContinuous =
         BandInOptionsList(papszOptions, "Continuous", osIndexBand);
+
     if (!bUsrCategorical && !bUsrContinuous)
     {
-        // Deduction if user doesn't inform about what treatment
-        // wants (Categorical or Continuous)
+        // In case user doesn't specify anything, we try to deduce if the band is categorical or continuous
+        // First we try to see if there is metadata in the source dataset that can help us. We look for a key like
+        // "ATTRIBUTE_DATA$$$TractamentVariable" in the domain "MIRAMON"
+        CPLStringList aosMiraMonMetaData(oSrcDS.GetMetadata(MetadataDomain));
+        if (aosMiraMonMetaData.empty())
+            return 0;
+
+        CPLString osClue =
+            CPLSPrintf("ATTRIBUTE_DATA%sTractamentVariable", SecKeySeparator);
+        CPLString osTractamentVariable =
+            CSLFetchNameValueDef(aosMiraMonMetaData, osClue, "");
+        if (!osTractamentVariable.empty())
+        {
+            if (EQUAL(osTractamentVariable, "Categorical"))
+                return true;
+            return false;
+        }
+
+        // In case of no metadata, we try to deduce if the band is categorical or continuous with some heuristics:
         if (pRasterBand.GetCategoryNames() != nullptr)
             return true;
 
-        // Assume that if data type is float or double , then the band is continuous.
+        // In case of floating point data, we consider that the band is continuous.
         if (pRasterBand.GetRasterDataType() == GDT_Float32 ||
             pRasterBand.GetRasterDataType() == GDT_Float64)
             return false;
 
-        // Assume that if data type is 8-bit with color table,
-        // then the band might be categorical.
+        // In case of 8 bit integer with a color table, we consider that the band is categorical.
         if ((pRasterBand.GetRasterDataType() == GDT_UInt8 ||
              pRasterBand.GetRasterDataType() == GDT_Int8) &&
             pRasterBand.GetColorTable() != nullptr)
             return true;
 
+        // In case of the band has a RAT, we consider that the band is categorical.
+        // This is a heuristic that can be wrong in some cases, but in general if
+        // a band has a RAT it's because it has a limited number of values and they are categorical.
         if (pRasterBand.GetDefaultRAT() != nullptr)
             return true;
     }
@@ -900,6 +926,9 @@ bool MMRDataset::IsCategoricalBand(GDALRasterBand &pRasterBand,
     return false;
 }
 
+// In the RGB case, a map (.mmm) is generated with the RGB information of the bands.
+// This allows to visualize the RGB composition in MiraMon without having to create
+// a map in MiraMon and set the RGB information.
 void MMRDataset::WriteRGBMap()
 {
     if (m_nIBandR == -1 || m_nIBandG == -1 || m_nIBandB == -1)
@@ -957,10 +986,3 @@ void MMRDataset::WriteRGBMap()
     pMMMap->AddKeyValue("Color_TitolLlegenda", osLlegTitle);
     pMMMap->AddSectionEnd();
 }
-
-/*
-LlegSimb_Vers=4
-LlegSimb_SubVers=5
-Color_VisibleALleg=1
-Color_TitolLlegenda=RGB:Europa_despres_1a_Guerra_Mundial_original_R+Europa_despres_1a_Guerra_Mundial_original_G+Europa_despres_1a_Guerra_Mundial_original_B
-*/

@@ -99,7 +99,8 @@ class MMRDataset final : public GDALPamDataset
                                            const CPLString &osPattern);
     static bool BandInOptionsList(CSLConstList papszOptions, CPLString pszType,
                                   CPLString osBand);
-    static bool IsCategoricalBand(GDALRasterBand &pRasterBand,
+    static bool IsCategoricalBand(GDALDataset &oSrcDS,
+                                  GDALRasterBand &pRasterBand,
                                   CSLConstList papszOptions,
                                   CPLString osIndexBand);
     void WriteRGBMap();
