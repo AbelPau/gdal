@@ -1314,6 +1314,7 @@ bool MMRBand::FillRowOffsets()
 
 }  // End of FillRowOffsets()
 
+//DIFFUSE REVISION START
 /************************************************************************/
 /*                              Writing part()                          */
 /* Indexing a compressed file increments the efficiency when reading it */

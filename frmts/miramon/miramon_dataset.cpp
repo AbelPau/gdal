@@ -79,6 +79,7 @@ void GDALRegister_MiraMon()
     GetGDALDriverManager()->RegisterDriver(poDriver);
 }
 
+//DIFFUSE REVISION START
 /************************************************************************/
 /*                             MMRDataset()                             */
 /************************************************************************/
@@ -218,6 +219,8 @@ MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
     m_bIsValid = true;
 }
 
+//DIFFUSE REVISION END
+
 MMRDataset::MMRDataset(GDALOpenInfo *poOpenInfo)
 {
     m_oSRS.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
@@ -352,6 +355,7 @@ GDALDataset *MMRDataset::Open(GDALOpenInfo *poOpenInfo)
     return poDS.release();
 }
 
+//DIFFUSE REVISION START
 /************************************************************************/
 /*                             CreateCopy()                             */
 /************************************************************************/
@@ -387,6 +391,8 @@ GDALDataset *MMRDataset::CreateCopy(const char *pszFilename,
 
     return poDS.release();
 }
+
+//DIFFUSE REVISION END
 
 bool MMRDataset::CreateRasterBands()
 {
@@ -819,6 +825,7 @@ MMRDataset::CreateAssociatedMetadataFileName(const CPLString &osFileName)
     return osRELName;
 }
 
+//DIFFUSE REVISION START
 // Finds the pattern name to the bands
 CPLString MMRDataset::CreatePatternFileName(const CPLString &osFileName,
                                             const CPLString &osPattern)

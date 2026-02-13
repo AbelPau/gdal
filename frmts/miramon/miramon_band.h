@@ -311,6 +311,7 @@ class MMRBand final
 
     GDALGeoTransform m_gt{};  // Bounding box for this band
 
+    //DIFFUSE REVISION START
     // Writing part
     CPLString GetRELDataType() const;
     bool WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand);
