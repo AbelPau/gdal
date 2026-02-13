@@ -665,7 +665,7 @@ def test_miramonraster_compress(data_type, compress):
     mem_driver = gdal.GetDriverByName("MEM")
     src_ds = mem_driver.Create("", xsize, ysize, 1, data_type)
 
-    band_values = [0, 0, 1, 2, 2, 5, 5, 5, 5, 5]
+    band_values = [0, 1, 2, 3, 4, 5, 5, 5, 5, 5]
 
     fmt = gdal_to_struct[data_type]
     band_bytes = struct.pack("<" + fmt * len(band_values), *band_values)
