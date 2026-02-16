@@ -1764,16 +1764,16 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nCol, void *pBufferVoid)
                     nRowBytes += 2;
 
                     // Writing first three
-                    *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+                    memcpy(pBuffer, &tPreviousValue, sizeof(T));
                     pBuffer += sizeof(T);
 
                     tPreviousValue = pRow[i];
-                    *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+                    memcpy(pBuffer, &tPreviousValue, sizeof(T));
                     pBuffer += sizeof(T);
                     ++i;
 
                     tPreviousValue = pRow[i];
-                    *reinterpret_cast<T *>(pBuffer) = tPreviousValue;
+                    memcpy(pBuffer, &tPreviousValue, sizeof(T));
                     pBuffer += sizeof(T);
 
                     nRowBytes += 3 * sizeof(T);
@@ -1784,7 +1784,8 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nCol, void *pBufferVoid)
                     {
                         if (pRow[i] == pRow[i + 1])
                             break;
-                        *reinterpret_cast<T *>(pBuffer) = pRow[i];
+
+                        memcpy(pBuffer, &pRow[i], sizeof(T));
                         pBuffer += sizeof(T);
                         nRowBytes += sizeof(T);
                     }
@@ -1792,7 +1793,7 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nCol, void *pBufferVoid)
                     if (i + 1 == nCol && nCounter < LIMIT)
                     {
                         *ptr_quants = ++nCounter;
-                        *reinterpret_cast<T *>(pBuffer) = pRow[i];
+                        memcpy(pBuffer, &pRow[i], sizeof(T));
                         nRowBytes += sizeof(T);
                         return nRowBytes;
                     }
