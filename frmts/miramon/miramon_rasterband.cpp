@@ -553,6 +553,7 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
             MM_ReleaseMainFields(&oAttributteTable);
             return CE_Failure;
         }
+        m_poDefaultRAT->SetRowCount(nCatField + 1);
         m_poDefaultRAT->SetValue(nCatField, 0, osCatField.c_str());
 
         int nIOrderedField = 1;
@@ -592,8 +593,10 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
                 MM_ReleaseMainFields(&oAttributteTable);
                 return CE_Failure;
             }
-            m_poDefaultRAT->SetValue(nCatField, nIOrderedField,
-                                     osField.c_str());
+            m_poDefaultRAT->SetRowCount(nCatField + 1);
+            if (CE_None != m_poDefaultRAT->SetValue(nCatField, nIOrderedField,
+                                                    osField.c_str()))
+                return CE_Failure;
             nIOrderedField++;
         }
     }
