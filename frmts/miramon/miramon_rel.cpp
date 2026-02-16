@@ -1754,7 +1754,10 @@ void MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
     }
 
     if (nLastValidIndex >= 0)
-        sscanf(aosTokens[nLastValidIndex], "%d", &nILastProcess);
+    {
+        if (1 != sscanf(aosTokens[nLastValidIndex], "%d", &nILastProcess))
+            nILastProcess = 0;
+    }
 }
 
 // This function processes a process section and its eventual subsections.
