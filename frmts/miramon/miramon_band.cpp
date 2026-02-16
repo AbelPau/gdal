@@ -495,7 +495,7 @@ bool MMRBand::GetDataTypeAndBytesPerPixel(const char *pszCompType,
 }
 
 // Getting data type from metadata
-bool MMRBand::UpdateDataTypeFromREL(const CPLString osSection)
+bool MMRBand::UpdateDataTypeFromREL(const CPLString &osSection)
 {
     m_eMMDataType = MMDataType::DATATYPE_AND_COMPR_UNDEFINED;
     m_eMMBytesPerPixel = MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_UNDEFINED;

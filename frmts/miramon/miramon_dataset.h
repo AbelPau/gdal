@@ -56,8 +56,8 @@ class MMRDataset final : public GDALPamDataset
     explicit MMRDataset(GDALOpenInfo *poOpenInfo);  // Used in reading
     MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
                CSLConstList papszOptions, CPLString osFilename,
-               GDALDataset &oSrcDS, const CPLString osUsrPattern,
-               const CPLString osPattern);  // Used in writing
+               GDALDataset &oSrcDS, const CPLString &osUsrPattern,
+               const CPLString &osPattern);  // Used in writing
     MMRDataset(const MMRDataset &) =
         delete;  // I don't want to construct a MMRDataset from another MMRDataset (effc++)
     MMRDataset &operator=(const MMRDataset &) =

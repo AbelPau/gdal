@@ -87,14 +87,14 @@ class MMRRel
 
     static CPLString MMRGetFileNameWithOutI(const CPLString &osRELFile);
     static CPLString MMRGetFileNameFromRelName(const CPLString &osRELFile,
-                                               const CPLString osExtension);
+                                               const CPLString &osExtension);
     int GetColumnsNumberFromREL();
     int GetRowsNumberFromREL();
     static int IdentifySubdataSetFile(const CPLString &osFileName);
     static int IdentifyFile(const GDALOpenInfo *poOpenInfo);
-    CPLString GetColor_TractamentVariable(int nIBand);
-    CPLString GetColor_Paleta(int nIBand);
-    CPLErr UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
+    CPLString GetColor_TractamentVariable(int nIBand) const;
+    CPLString GetColor_Paleta(int nIBand) const;
+    CPLErr UpdateGDALColorEntryFromBand(const CPLString &m_osBandSection,
                                         GDALColorEntry &m_sConstantColorRGB);
 
     void UpdateLineage(CSLConstList papszOptions, GDALDataset &oSrcDS);
@@ -107,19 +107,20 @@ class MMRRel
     void WriteEXTENT();
     void WriteOVERVIEW();
     bool WriteATTRIBUTE_DATA(GDALDataset &oSrcDS);
-    void WriteBandSection(const MMRBand &osBand, const CPLString osDSDataType);
+    void WriteBandSection(const MMRBand &osBand, const CPLString &osDSDataType);
     void WriteCOLOR_TEXTSection();
     void WriteVISU_LLEGENDASection();
     void WriteLINEAGE(GDALDataset &oSrcDS);
     void WriteCurrentProcess();
-    void WriteINOUTSection(CPLString osSection, int nInOut,
-                           CPLString osIdentifierValue, CPLString osSentitValue,
-                           CPLString osTypeValuesValue,
-                           CPLString osResultValueValue);
+    void WriteINOUTSection(const CPLString &osSection, int nInOut,
+                           const CPLString &osIdentifierValue,
+                           const CPLString &osSentitValue,
+                           const CPLString &osTypeValuesValue,
+                           const CPLString &osResultValueValue);
     void ImportAndWriteLineageSection(GDALDataset &oSrcDS);
     bool ProcessProcessSection(GDALDataset &oSrcDS,
                                CPLStringList aosMiraMonSortedMetaData,
-                               CPLString osProcessSection);
+                               const CPLString &osProcessSection);
     void EndProcessesSection();
 
     bool IsValid() const
@@ -199,7 +200,7 @@ class MMRRel
         AddKeyValue("LlegSimb_SubVers", 5);
     }
 
-    void AddSectionStart(const CPLString osSection)
+    void AddSectionStart(const CPLString &osSection)
     {
         if (!m_pRELFile)
             return;
@@ -207,8 +208,8 @@ class MMRRel
         VSIFPrintfL(m_pRELFile, "[%s]%s", osSection.c_str(), LineReturn);
     }
 
-    void AddSectionStart(const CPLString osSectionP1,
-                         const CPLString osSectionP2)
+    void AddSectionStart(const CPLString &osSectionP1,
+                         const CPLString &osSectionP2)
     {
         if (!m_pRELFile)
             return;
@@ -225,7 +226,7 @@ class MMRRel
         VSIFPrintfL(m_pRELFile, LineReturn);
     }
 
-    void AddKey(const CPLString osKey)
+    void AddKey(const CPLString &osKey)
     {
         if (!m_pRELFile)
             return;
@@ -236,7 +237,7 @@ class MMRRel
         CPLFree(pzsKey);
     }
 
-    void AddKeyValue(const CPLString osKey, const CPLString osValue)
+    void AddKeyValue(const CPLString &osKey, const CPLString &osValue)
     {
         if (!m_pRELFile)
             return;
@@ -257,7 +258,7 @@ class MMRRel
         CPLFree(pzsKey);
     }
 
-    void AddKeyValue(const CPLString osKey, int nValue)
+    void AddKeyValue(const CPLString &osKey, int nValue)
     {
         if (!m_pRELFile)
             return;
@@ -269,7 +270,7 @@ class MMRRel
         CPLFree(pzsKey);
     }
 
-    void AddKeyValue(const CPLString osKey, unsigned nValue)
+    void AddKeyValue(const CPLString &osKey, unsigned nValue)
     {
         if (!m_pRELFile)
             return;
@@ -281,7 +282,7 @@ class MMRRel
         CPLFree(pzsKey);
     }
 
-    void AddKeyValue(const CPLString osKey, double dfValue)
+    void AddKeyValue(const CPLString &osKey, double dfValue)
     {
         if (!m_pRELFile)
             return;

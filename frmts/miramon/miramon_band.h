@@ -249,42 +249,42 @@ class MMRBand final
         return m_osValidColorConst;
     }
 
-    CPLString GetColor_Paleta() const
+    const CPLString &GetColor_Paleta() const
     {
         return m_osColor_Paleta;
     }
 
-    CPLString GetColor_TractamentVariable() const
+    const CPLString &GetColor_TractamentVariable() const
     {
         return m_osColor_TractamentVariable;
     }
 
-    CPLString GetTractamentVariable() const
+    const CPLString &GetTractamentVariable() const
     {
         return m_osTractamentVariable;
     }
 
-    CPLString GetColor_EscalatColor() const
+    const CPLString &GetColor_EscalatColor() const
     {
         return m_osColor_EscalatColor;
     }
 
-    CPLString GetColor_N_SimbolsALaTaula() const
+    const CPLString &GetColor_N_SimbolsALaTaula() const
     {
         return m_osColor_N_SimbolsALaTaula;
     }
 
-    CPLString GetShortRATName() const
+    const CPLString &GetShortRATName() const
     {
         return m_osShortRATName;
     }
 
-    CPLString GetAssociateREL() const
+    const CPLString &GetAssociateREL() const
     {
         return m_osAssociateREL;
     }
 
-    CPLString GetUnits() const
+    const CPLString &GetUnits() const
     {
         return m_osBandUnitType;
     }
@@ -294,17 +294,17 @@ class MMRBand final
         return m_bIsCategorical;
     }
 
-    CPLString GetColorTableNameFile() const
+    const CPLString &GetColorTableNameFile() const
     {
         return m_osCTName;
     }
 
-    CPLString GetAttributeTableDBFNameFile() const
+    const CPLString &GetAttributeTableDBFNameFile() const
     {
         return m_osRATDBFName;
     }
 
-    CPLString GetAttributeTableRELNameFile() const
+    const CPLString &GetAttributeTableRELNameFile() const
     {
         return m_osRATRELName;
     }
@@ -328,7 +328,7 @@ class MMRBand final
     static bool GetDataTypeAndBytesPerPixel(const char *pszCompType,
                                             MMDataType *nCompressionType,
                                             MMBytesPerPixel *nBytesPerPixel);
-    bool UpdateDataTypeFromREL(const CPLString osSection);
+    bool UpdateDataTypeFromREL(const CPLString &osSection);
     bool UpdateColumnsNumberFromREL(const CPLString &osSection);
     bool UpdateRowsNumberFromREL(const CPLString &osSection);
     void UpdateNoDataValue(const CPLString &osSection);

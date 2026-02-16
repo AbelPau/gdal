@@ -296,7 +296,7 @@ CPLString MMRRel::MMRGetFileNameWithOutI(const CPLString &osRELFile)
 
 // Converts FileNameI.rel to FileName.xxx (where xxx is an extension)
 CPLString MMRRel::MMRGetFileNameFromRelName(const CPLString &osRELFile,
-                                            const CPLString osExtension)
+                                            const CPLString &osExtension)
 {
     if (osRELFile.empty())
         return "";
@@ -1061,7 +1061,7 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
     }
 }
 
-CPLErr MMRRel::UpdateGDALColorEntryFromBand(CPLString m_osBandSection,
+CPLErr MMRRel::UpdateGDALColorEntryFromBand(const CPLString &m_osBandSection,
                                             GDALColorEntry &m_sConstantColorRGB)
 {
     // Example: Color_Smb=(255,0,255)
@@ -1415,7 +1415,7 @@ bool MMRRel::WriteATTRIBUTE_DATA(GDALDataset &oSrcDS)
 }
 
 void MMRRel::WriteBandSection(const MMRBand &osBand,
-                              const CPLString osDSDataType)
+                              const CPLString &osDSDataType)
 {
     if (osBand.GetBandSection().empty())
         return;  // It's not an error.
@@ -1501,7 +1501,7 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
     }
 }
 
-CPLString MMRRel::GetColor_TractamentVariable(int nIBand)
+CPLString MMRRel::GetColor_TractamentVariable(int nIBand) const
 {
     if (m_oBands[nIBand].IsCategorical())
         return "Categoric";
@@ -1509,7 +1509,7 @@ CPLString MMRRel::GetColor_TractamentVariable(int nIBand)
         return "QuantitatiuContinu";
 }
 
-CPLString MMRRel::GetColor_Paleta(int nIBand)
+CPLString MMRRel::GetColor_Paleta(int nIBand) const
 {
     if (!m_oBands[nIBand].GetColorTableNameFile().empty())
     {
@@ -1678,11 +1678,11 @@ void MMRRel::WriteCurrentProcess()
     m_nNProcesses++;
 }
 
-void MMRRel::WriteINOUTSection(CPLString osSection, int nInOut,
-                               CPLString osIdentifierValue,
-                               CPLString osSentitValue,
-                               CPLString osTypeValuesValue,
-                               CPLString osResultValueValue)
+void MMRRel::WriteINOUTSection(const CPLString &osSection, int nInOut,
+                               const CPLString &osIdentifierValue,
+                               const CPLString &osSentitValue,
+                               const CPLString &osTypeValuesValue,
+                               const CPLString &osResultValueValue)
 {
     CPLString osSectionIn = osSection;
     osSectionIn.append(":INOUT");
@@ -1756,8 +1756,8 @@ void MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
     if (nLastValidIndex >= 0)
     {
         nILastProcess =
-            CPLScanULong(aosTokens[nLastValidIndex],
-                         static_cast<int>(strlen(aosTokens[nLastValidIndex])));
+            CPLScanLong(aosTokens[nLastValidIndex],
+                        static_cast<int>(strlen(aosTokens[nLastValidIndex])));
     }
 }
 
@@ -1765,7 +1765,7 @@ void MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
 // It returns true if it has found the section and processed it, false otherwise.
 bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
                                    CPLStringList aosMiraMonSortedMetaData,
-                                   CPLString osProcessSection)
+                                   const CPLString &osProcessSection)
 {
     CPLString osProcess = osProcessSection;
     osProcess.append(SecKeySeparator);

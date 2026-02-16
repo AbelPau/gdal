@@ -85,8 +85,8 @@ void GDALRegister_MiraMon()
 /************************************************************************/
 MMRDataset::MMRDataset(GDALProgressFunc pfnProgress, void *pProgressData,
                        CSLConstList papszOptions, CPLString osRelname,
-                       GDALDataset &oSrcDS, const CPLString osUsrPattern,
-                       const CPLString osPattern)
+                       GDALDataset &oSrcDS, const CPLString &osUsrPattern,
+                       const CPLString &osPattern)
     : m_bIsValid(false)
 {
     nBands = oSrcDS.GetRasterCount();
