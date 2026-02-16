@@ -486,8 +486,6 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
                            oAttributteTable.pField[nIField].FieldName,
                            eFieldType, eFieldUsage))
             return CE_Failure;
-
-        nNRATColumns++;
     }
 
     VSIFSeekL(oAttributteTable.pfDataBase,
