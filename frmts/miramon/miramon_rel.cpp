@@ -1742,8 +1742,7 @@ void MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
         CPLString osProcessSection =
             CPLSPrintf("QUALITY%sLINEAGE%sPROCESS%s", IntraSecKeySeparator,
                        IntraSecKeySeparator, aosTokens[nIProcess]);
-        if (!ProcessProcessSection(oSrcDS, aosMiraMonSortedMetaData,
-                                   osProcessSection))
+        if (!ProcessProcessSection(aosMiraMonSortedMetaData, osProcessSection))
             break;  // If some section have a problem, we stop reading the lineage.
 
         nLastValidIndex = nIProcess;
@@ -1762,9 +1761,9 @@ void MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
 
 // This function processes a process section and its eventual subsections.
 // It returns true if it has found the section and processed it, false otherwise.
-bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
-                                   CPLStringList aosMiraMonSortedMetaData,
-                                   const CPLString &osProcessSection)
+bool MMRRel::ProcessProcessSection(
+    const CPLStringList &aosMiraMonSortedMetaData,
+    const CPLString &osProcessSection)
 {
     CPLString osProcess = osProcessSection;
     osProcess.append(SecKeySeparator);

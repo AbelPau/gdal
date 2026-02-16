@@ -118,8 +118,7 @@ class MMRRel
                            const CPLString &osTypeValuesValue,
                            const CPLString &osResultValueValue);
     void ImportAndWriteLineageSection(GDALDataset &oSrcDS);
-    bool ProcessProcessSection(GDALDataset &oSrcDS,
-                               CPLStringList aosMiraMonSortedMetaData,
+    bool ProcessProcessSection(const CPLStringList &aosMiraMonSortedMetaData,
                                const CPLString &osProcessSection);
     void EndProcessesSection();
 
