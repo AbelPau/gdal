@@ -65,10 +65,10 @@ class MMRBand final
   public:
     MMRBand(MMRRel &pfRel, const CPLString &osSection);  // Used at reading part
     MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
-            GDALDataset &oSrcDS, int nIBand, CPLString osDestPath,
+            GDALDataset &oSrcDS, int nIBand, const CPLString &osDestPath,
             GDALRasterBand &papoBand,  // Used at writing part
-            bool bCompress, bool bCategorical, const CPLString osPattern,
-            const CPLString osBandSection, bool bNeedOfNomFitxer);
+            bool bCompress, bool bCategorical, const CPLString &osPattern,
+            const CPLString &osBandSection, bool bNeedOfNomFitxer);
     MMRBand(const MMRBand &) =
         delete;  // I don't want to construct a MMRBand from another MMRBand (effc++)
     MMRBand(MMRBand &&) = default;
@@ -76,7 +76,7 @@ class MMRBand final
         delete;  // I don't want to assign a MMRBand to another MMRBand (effc++)
     ~MMRBand();
 
-    const CPLString GetRELFileName() const;
+    const CPLString &GetRELFileName() const;
     CPLErr GetRasterBlock(int nXBlock, int nYBlock, void *pData, int nDataSize);
 
     void UpdateGeoTransform();

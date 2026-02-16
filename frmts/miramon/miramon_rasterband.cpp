@@ -498,7 +498,6 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
     VSIFSeekL(oAttributteTable.pfDataBase,
               static_cast<vsi_l_offset>(oAttributteTable.FirstRecordOffset),
               SEEK_SET);
-    m_poDefaultRAT->SetRowCount(nNRATColumns);
 
     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize =
         oAttributteTable.BytesPerRecord + 1;
@@ -509,6 +508,7 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
                  "Out of memory allocating working buffer");
         VSIFCloseL(oAttributteTable.pfDataBase);
         MM_ReleaseMainFields(&oAttributteTable);
+        return CE_Failure;
     }
 
     char *pszField = static_cast<char *>(VSI_CALLOC_VERBOSE(1, nBufferSize));
@@ -519,6 +519,7 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
         VSIFree(pzsRecord);
         VSIFCloseL(oAttributteTable.pfDataBase);
         MM_ReleaseMainFields(&oAttributteTable);
+        return CE_Failure;
     }
 
     for (int nIRecord = 0;

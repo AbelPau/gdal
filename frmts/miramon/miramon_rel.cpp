@@ -1515,7 +1515,7 @@ CPLString MMRRel::GetColor_Paleta(int nIBand)
     {
         CPLString osRELPath = CPLGetPathSafe(m_osRelFileName);
         return CPLExtractRelativePath(
-            osRELPath, m_oBands[0].GetColorTableNameFile(), nullptr);
+            osRELPath, m_oBands[nIBand].GetColorTableNameFile(), nullptr);
     }
     else
         return "<Automatic>";
@@ -1618,11 +1618,17 @@ void MMRRel::EndProcessesSection()
 
 void MMRRel::WriteCurrentProcess()
 {
-    m_nNProcesses++;
+    // Checking the current processes. If it's too much,
+    // then we cannot write lineage information.
+    if (nILastProcess >= INT_MAX - 1)
+        return;
+
+    nILastProcess++;
+    CPLString osCurrentProcess = CPLSPrintf("%d", nILastProcess);
 
     CPLString osSection = SECTION_QUALITY_LINEAGE;
     osSection.append(":PROCESS");
-    osSection.append(CPLSPrintf("%d", m_nNProcesses));
+    osSection.append(osCurrentProcess);
 
     AddSectionStart(osSection);
     AddKeyValue("purpose", "GDAL process");
@@ -1650,7 +1656,6 @@ void MMRRel::WriteCurrentProcess()
     if (!m_osOutFile.empty())
     {
         WriteINOUTSection(osSection, nInOut, "OutFile", "1", "C", m_osOutFile);
-
         nInOut++;
     }
 
@@ -1668,7 +1673,9 @@ void MMRRel::WriteCurrentProcess()
     }
     if (m_nNProcesses)
         m_osListOfProcesses.append(",");
-    m_osListOfProcesses.append(CPLSPrintf("%d", m_nNProcesses));
+
+    m_osListOfProcesses.append(osCurrentProcess);
+    m_nNProcesses++;
 }
 
 void MMRRel::WriteINOUTSection(CPLString osSection, int nInOut,
@@ -1696,11 +1703,11 @@ void MMRRel::WriteINOUTSection(CPLString osSection, int nInOut,
 
 // This function imports lineage information from the source dataset
 // and writes it in rel file (QUALITY:LINEAGE section).
-int MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
+void MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
 {
     CPLStringList aosMiraMonMetaData(oSrcDS.GetMetadata(MetadataDomain));
     if (aosMiraMonMetaData.empty())
-        return 0;
+        return;
 
     m_nNProcesses = 0;
 
@@ -1709,48 +1716,60 @@ int MMRRel::ImportAndWriteLineageSection(GDALDataset &oSrcDS)
     CPLString osListOfProcesses =
         CSLFetchNameValueDef(aosMiraMonMetaData, osLineageProcessesKey, "");
     if (osListOfProcesses.empty())
-        return 0;
+        return;
 
     const CPLStringList aosTokens(
         CSLTokenizeString2(osListOfProcesses, ",", 0));
     const int nTokens = CSLCount(aosTokens);
+    // No processes to import
+    if (nTokens == 0)
+        return;
 
-    for (int nIProcess = 0; nIProcess < nTokens; nIProcess++)
+    // Too much processes, it's not possible.
+    if (nTokens >= INT_MAX)
+        return;
+
+    // Getting the list of metadata in MIRAMON domain and
+    // converting to CPLStringList for sorting (necessary to write into the REL)
+    CPLStringList aosMiraMonSortedMetaData(oSrcDS.GetMetadata(MetadataDomain));
+    aosMiraMonSortedMetaData.Sort();
+
+    int nIProcess;
+    m_nNProcesses = 0;
+    int nLastValidIndex = -1;
+    for (nIProcess = 0; nIProcess < nTokens; nIProcess++)
     {
-        GUIntBig nProcessRef =
-            CPLScanUIntBig(aosTokens[nIProcess],
-                           static_cast<int>(strlen(aosTokens[nIProcess])));
-
-        if (nProcessRef >= INT_MAX)
-            break;  // Too much processes, we ignore rest of them silently (improbable case)
-
         CPLString osProcessSection =
-            CPLSPrintf("QUALITY%sLINEAGE%sPROCESS%d", IntraSecKeySeparator,
-                       IntraSecKeySeparator, static_cast<int>(nProcessRef));
-        if (ProcessProcessSection(oSrcDS, osProcessSection))
-        {
-            if (m_nNProcesses)
-                m_osListOfProcesses.append(",");
-            m_osListOfProcesses.append(
-                CPLSPrintf("%d", static_cast<int>(nProcessRef)));
-            m_nNProcesses = static_cast<int>(nProcessRef);
-        }
+            CPLSPrintf("QUALITY%sLINEAGE%sPROCESS%s", IntraSecKeySeparator,
+                       IntraSecKeySeparator, aosTokens[nIProcess]);
+        if (!ProcessProcessSection(oSrcDS, aosMiraMonSortedMetaData,
+                                   osProcessSection))
+            break;  // If some section have a problem, we stop reading the lineage.
+
+        nLastValidIndex = nIProcess;
+        if (m_nNProcesses)
+            m_osListOfProcesses.append(",");
+        m_osListOfProcesses.append(CPLSPrintf("%s", aosTokens[nIProcess]));
+        m_nNProcesses++;
     }
-    return 0;
+
+    if (nLastValidIndex >= 0)
+    {
+        nILastProcess =
+            CPLScanULong(aosTokens[nLastValidIndex],
+                         static_cast<int>(strlen(aosTokens[nLastValidIndex])));
+    }
 }
 
 // This function processes a process section and its eventual subsections.
 // It returns true if it has found the section and processed it, false otherwise.
 bool MMRRel::ProcessProcessSection(GDALDataset &oSrcDS,
+                                   CPLStringList aosMiraMonSortedMetaData,
                                    CPLString osProcessSection)
 {
     CPLString osProcess = osProcessSection;
     osProcess.append(SecKeySeparator);
     osProcess.append("");
-
-    // Convert to CPLStringList for sorting
-    CPLStringList aosMiraMonSortedMetaData(oSrcDS.GetMetadata(MetadataDomain));
-    aosMiraMonSortedMetaData.Sort();
 
     CPLString osExpectedProcessKey;
     const size_t nStart = strlen(osProcessSection);

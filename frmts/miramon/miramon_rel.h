@@ -116,8 +116,10 @@ class MMRRel
                            CPLString osIdentifierValue, CPLString osSentitValue,
                            CPLString osTypeValuesValue,
                            CPLString osResultValueValue);
-    int ImportAndWriteLineageSection(GDALDataset &oSrcDS);
-    bool ProcessProcessSection(GDALDataset &oSrcDS, CPLString osProcessSection);
+    void ImportAndWriteLineageSection(GDALDataset &oSrcDS);
+    bool ProcessProcessSection(GDALDataset &oSrcDS,
+                               CPLStringList aosMiraMonSortedMetaData,
+                               CPLString osProcessSection);
     void EndProcessesSection();
 
     bool IsValid() const
@@ -255,7 +257,7 @@ class MMRRel
         CPLFree(pzsKey);
     }
 
-    void AddKeyValue(const CPLString osKey, const int nValue)
+    void AddKeyValue(const CPLString osKey, int nValue)
     {
         if (!m_pRELFile)
             return;
@@ -267,7 +269,7 @@ class MMRRel
         CPLFree(pzsKey);
     }
 
-    void AddKeyValue(const CPLString osKey, const unsigned nValue)
+    void AddKeyValue(const CPLString osKey, unsigned nValue)
     {
         if (!m_pRELFile)
             return;
@@ -279,7 +281,7 @@ class MMRRel
         CPLFree(pzsKey);
     }
 
-    void AddKeyValue(const CPLString osKey, const double dfValue)
+    void AddKeyValue(const CPLString osKey, double dfValue)
     {
         if (!m_pRELFile)
             return;
@@ -306,7 +308,7 @@ class MMRRel
         return m_osRelFileName.c_str();
     }
 
-    CPLString GetRELName() const
+    const CPLString &GetRELName() const
     {
         return m_osRelFileName;
     }
@@ -424,6 +426,10 @@ class MMRRel
     // to the lineage, and it is used to set the "processes"
     // key in the QUALITY:LINEAGE section.
     int m_nNProcesses = 0;
+    // It's possible to have a list of process like that:
+    // processes=1,5,8 (nILastProcess=8)
+    // So, current process would be 9 after the nILastProcess.
+    int nILastProcess = 0;
 
     // List of processes
     CPLString m_osListOfProcesses = "";

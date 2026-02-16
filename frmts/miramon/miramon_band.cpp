@@ -196,9 +196,9 @@ MMRBand::MMRBand(MMRRel &fRel, const CPLString &osBandSectionIn)
 }
 
 MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
-                 GDALDataset &oSrcDS, int nIBand, CPLString osDestPath,
+                 GDALDataset &oSrcDS, int nIBand, const CPLString &osDestPath,
                  GDALRasterBand &papoBand, bool bCompress, bool bCategorical,
-                 const CPLString osPattern, const CPLString osBandSection,
+                 const CPLString &osPattern, const CPLString &osBandSection,
                  bool bNeedOfNomFitxer)
     : m_pfnProgress(pfnProgress), m_pProgressData(pProgressData),
       m_pfRel(nullptr), m_nWidth(0), m_nHeight(0), m_nIBand(nIBand),
@@ -284,10 +284,11 @@ MMRBand::~MMRBand()
     m_pfIMG = nullptr;
 }
 
-const CPLString MMRBand::GetRELFileName() const
+const CPLString &MMRBand::GetRELFileName() const
 {
+    static const CPLString osEmpty = "";
     if (!m_pfRel)
-        return "";
+        return osEmpty;
     return m_pfRel->GetRELName();
 }
 
