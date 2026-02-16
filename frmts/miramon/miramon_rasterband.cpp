@@ -442,7 +442,6 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
         return CE_Failure;
     }
 
-    int nNRATColumns = 0;
     // 0 column: category value
     if (oAttributteTable.pField[nFieldIndex].DecimalsIfFloat)
     {
@@ -450,8 +449,6 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
                            oAttributteTable.pField[nFieldIndex].FieldName,
                            GFT_Real, GFU_MinMax))
             return CE_Failure;
-
-        nNRATColumns++;
     }
     else
     {
@@ -459,8 +456,6 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
                            oAttributteTable.pField[nFieldIndex].FieldName,
                            GFT_Integer, GFU_MinMax))
             return CE_Failure;
-
-        nNRATColumns++;
     }
 
     GDALRATFieldUsage eFieldUsage;
