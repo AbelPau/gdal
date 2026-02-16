@@ -1747,7 +1747,7 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nNCol, void *pBufferVoid)
     uint8_t nByteCounter = 0;
     size_t nRowBytes = 0;
 
-    for (int i = 0; i < nCol; ++i)
+    for (int i = 0; i < nNCol; i++)
     {
         if (tPreviousValue == pRow[i] && nByteCounter < LIMIT)
             nByteCounter++;
@@ -1755,12 +1755,15 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nNCol, void *pBufferVoid)
         {
             if (nByteCounter == 1)
             {
+                //In cas of three consecutive different values, it's more efficient
+                // to write them as uncompressed values than as three RLE
                 if (i + 2 < nNCol && pRow[i] != pRow[i + 1] &&
                     pRow[i + 1] != pRow[i + 2])
                 {
-                    // uncompressed series
-                    *pBuffer++ = 0;  // mark
-                    uint8_t *ptr_quants = pBuffer++;
+                    // Indicates that the following values are
+                    // uncompressed, and how many of them are there
+                    *pBuffer++ = 0;
+                    uint8_t *pHowManyUncompressed = pBuffer++;
                     nRowBytes += 2;
 
                     // Writing first three
@@ -1770,7 +1773,7 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nNCol, void *pBufferVoid)
                     tPreviousValue = pRow[i];
                     memcpy(pBuffer, &tPreviousValue, sizeof(T));
                     pBuffer += sizeof(T);
-                    ++i;
+                    i++;
 
                     tPreviousValue = pRow[i];
                     memcpy(pBuffer, &tPreviousValue, sizeof(T));
@@ -1778,28 +1781,29 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nNCol, void *pBufferVoid)
 
                     nRowBytes += 3 * sizeof(T);
 
+                    // nByteCounter is now the number of bytes of the three uncompressed values
                     nByteCounter = 3;
 
-                    for (++i; i + 1 < nNCol && nByteCounter < LIMIT;
-                         ++i, ++nByteCounter)
+                    for (i++; i + 1 < nNCol && nByteCounter < LIMIT;
+                         i++, nByteCounter++)
                     {
                         if (pRow[i] == pRow[i + 1])
                             break;
 
-                        memcpy(pBuffer, &pRow[i], sizeof(T));
+                        memcpy(pBuffer, pRow + i, sizeof(T));
                         pBuffer += sizeof(T);
                         nRowBytes += sizeof(T);
                     }
 
                     if (i + 1 == nNCol && nByteCounter < LIMIT)
                     {
-                        *ptr_quants = ++nByteCounter;
-                        memcpy(pBuffer, &pRow[i], sizeof(T));
+                        *pHowManyUncompressed = ++nByteCounter;
+                        memcpy(pBuffer, pRow + i, sizeof(T));
                         nRowBytes += sizeof(T);
                         return nRowBytes;
                     }
 
-                    *ptr_quants = nByteCounter;
+                    *pHowManyUncompressed = nByteCounter;
                     tPreviousValue = pRow[i];
                     nByteCounter = 1;
                     continue;
