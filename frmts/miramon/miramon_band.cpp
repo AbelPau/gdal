@@ -1739,23 +1739,23 @@ bool MMRBand::WriteBandFile(GDALDataset &oSrcDS, int nNBands, int nIBand)
 constexpr uint8_t LIMIT = 255;
 
 template <typename T>
-size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nCol, void *pBufferVoid)
+size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nNCol, void *pBufferVoid)
 {
     uint8_t *pBuffer = static_cast<uint8_t *>(pBufferVoid);
 
     T tPreviousValue = pRow[0];
-    uint8_t nCounter = 0;
+    uint8_t nByteCounter = 0;
     size_t nRowBytes = 0;
 
     for (int i = 0; i < nCol; ++i)
     {
-        if (tPreviousValue == pRow[i] && nCounter < LIMIT)
-            ++nCounter;
-        else
+        if (tPreviousValue == pRow[i] && nByteCounter < LIMIT)
+            nByteCounter++;
+        else  // I have found a different value or I have reached the limit of the counter
         {
-            if (nCounter == 1)
+            if (nByteCounter == 1)
             {
-                if (i + 2 < nCol && pRow[i] != pRow[i + 1] &&
+                if (i + 2 < nNCol && pRow[i] != pRow[i + 1] &&
                     pRow[i + 1] != pRow[i + 2])
                 {
                     // uncompressed series
@@ -1778,9 +1778,10 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nCol, void *pBufferVoid)
 
                     nRowBytes += 3 * sizeof(T);
 
-                    nCounter = 3;
+                    nByteCounter = 3;
 
-                    for (++i; i + 1 < nCol && nCounter < LIMIT; ++i, ++nCounter)
+                    for (++i; i + 1 < nNCol && nByteCounter < LIMIT;
+                         ++i, ++nByteCounter)
                     {
                         if (pRow[i] == pRow[i + 1])
                             break;
@@ -1790,34 +1791,34 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nCol, void *pBufferVoid)
                         nRowBytes += sizeof(T);
                     }
 
-                    if (i + 1 == nCol && nCounter < LIMIT)
+                    if (i + 1 == nNCol && nByteCounter < LIMIT)
                     {
-                        *ptr_quants = ++nCounter;
+                        *ptr_quants = ++nByteCounter;
                         memcpy(pBuffer, &pRow[i], sizeof(T));
                         nRowBytes += sizeof(T);
                         return nRowBytes;
                     }
 
-                    *ptr_quants = nCounter;
+                    *ptr_quants = nByteCounter;
                     tPreviousValue = pRow[i];
-                    nCounter = 1;
+                    nByteCounter = 1;
                     continue;
                 }
             }
 
             // Normal RLE
-            *pBuffer++ = nCounter;
+            *pBuffer++ = nByteCounter;
             memcpy(pBuffer, &tPreviousValue, sizeof(T));
             pBuffer += sizeof(T);
             nRowBytes += 1 + sizeof(T);
 
             tPreviousValue = pRow[i];
-            nCounter = 1;
+            nByteCounter = 1;
         }
     }
 
     // Last element
-    *pBuffer++ = nCounter;
+    *pBuffer++ = nByteCounter;
 
     memcpy(pBuffer, &tPreviousValue, sizeof(T));
     nRowBytes += 1 + sizeof(T);
@@ -1826,39 +1827,39 @@ size_t MMRBand::CompressRowTypeTpl(const T *pRow, int nCol, void *pBufferVoid)
 }
 
 size_t MMRBand::CompressRowType(MMDataType nDataType, const void *pRow,
-                                int nCol, void *pBuffer)
+                                int nNCol, void *pBuffer)
 {
     switch (nDataType)
     {
         case MMDataType::DATATYPE_AND_COMPR_BYTE_RLE:
         case MMDataType::DATATYPE_AND_COMPR_BYTE:
             return CompressRowTypeTpl<uint8_t>(
-                reinterpret_cast<const uint8_t *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const uint8_t *>(pRow), nNCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_INTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_INTEGER:
             return CompressRowTypeTpl<GInt16>(
-                reinterpret_cast<const GInt16 *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const GInt16 *>(pRow), nNCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER_RLE:
         case MMDataType::DATATYPE_AND_COMPR_UINTEGER:
             return CompressRowTypeTpl<GUInt16>(
-                reinterpret_cast<const GUInt16 *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const GUInt16 *>(pRow), nNCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_LONG_RLE:
         case MMDataType::DATATYPE_AND_COMPR_LONG:
             return CompressRowTypeTpl<GInt32>(
-                reinterpret_cast<const GInt32 *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const GInt32 *>(pRow), nNCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_REAL_RLE:
         case MMDataType::DATATYPE_AND_COMPR_REAL:
             return CompressRowTypeTpl<float>(
-                reinterpret_cast<const float *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const float *>(pRow), nNCol, pBuffer);
 
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE_RLE:
         case MMDataType::DATATYPE_AND_COMPR_DOUBLE:
             return CompressRowTypeTpl<double>(
-                reinterpret_cast<const double *>(pRow), nCol, pBuffer);
+                reinterpret_cast<const double *>(pRow), nNCol, pBuffer);
 
         default:
             // same treatment than the original
