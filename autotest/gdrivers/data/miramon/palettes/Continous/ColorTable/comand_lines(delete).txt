@@ -9,3 +9,6 @@ D:\GitHub-repository\gdal\build\apps\Debug\gdal_translate.exe "D:\GitHub-reposit
 D:\GitHub-repository\gdal\build\apps\Debug\gdal_translate.exe "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\ColorTable\uinteger_without_nodata.img" "D:\tmp\uinteger_without_nodata.vrt" -if MiraMonRaster
 
 
+D:\GitHub-repository\gdal\build\apps\Debug\gdal_translate.exe "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\ColorTable\directassignement\byte_2x3_6_categsI.rel" "D:\tmp\byte_2x3_6_categs.vrt"
+
+D:\GitHub-repository\gdal\build\apps\Debug\gdal_translate.exe "D:\GitHub-repository\gdal\autotest\gdrivers\data\miramon\palettes\Continous\ColorTable\lineal\byte_2x3_6_categsI.rel" "D:\tmp\byte_2x3_6_categs.vrt"

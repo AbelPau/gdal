@@ -681,6 +681,45 @@ init_list_color_tables = [
         "25831",
     ),
     (
+        "data/miramon/palettes/Continous/ColorTable/directassignement/byte_2x3_6_categsI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 125, 255),
+            1: (0, 134, 255, 255),
+            2: (0, 255, 0, 255),
+            3: (255, 255, 78, 255),
+            4: (255, 0, 0, 255),
+            5: (255, 0, 133, 255),
+        },
+        "25831",
+    ),
+    (
+        "data/miramon/palettes/Continous/ColorTable/directassignement/uinteger_with_nodataI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 125, 255),
+            1: (0, 134, 255, 255),
+            2: (0, 255, 0, 255),
+            3: (255, 255, 78, 255),
+            4: (255, 0, 0, 255),
+            5: (255, 0, 133, 255),
+        },
+        "25831",
+    ),
+    (
+        "data/miramon/palettes/Continous/ColorTable/lineal/byte_2x3_6_categsI.rel",
+        1,  # band index
+        {
+            0: (0, 0, 125, 255),
+            1: (0, 134, 255, 255),
+            2: (0, 255, 0, 255),
+            3: (255, 255, 78, 255),
+            4: (255, 0, 0, 255),
+            5: (255, 0, 133, 255),
+        },
+        "25831",
+    ),
+    (
         "data/miramon/palettes/Categorical/Assigned/real_2x3_6_categsI.rel",
         1,  # band index
         {
