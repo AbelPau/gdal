@@ -1032,6 +1032,36 @@ init_list_attribute_tables = [
             (9, "Blue"): 0,
         },
     ),
+    (
+        "data/miramon/palettes/Categorical/Assigned/double_2x3_6I.rel",
+        1,  # band index
+        {
+            (0, "MIN_MAX"): 0,
+            (0, "Red"): 0,
+            (0, "Green"): 0,
+            (0, "Blue"): 125,
+            (1, "MIN_MAX"): 1,
+            (1, "Red"): 0,
+            (1, "Green"): 134,
+            (1, "Blue"): 255,
+            (2, "MIN_MAX"): 2,
+            (2, "Red"): 0,
+            (2, "Green"): 255,
+            (2, "Blue"): 0,
+            (3, "MIN_MAX"): 3,
+            (3, "Red"): 255,
+            (3, "Green"): 255,
+            (3, "Blue"): 78,
+            (4, "MIN_MAX"): 4,
+            (4, "Red"): 255,
+            (4, "Green"): 0,
+            (4, "Blue"): 0,
+            (5, "MIN_MAX"): 5,
+            (5, "Red"): 255,
+            (5, "Green"): 0,
+            (5, "Blue"): 133,
+        },
+    ),
 ]
 
 
