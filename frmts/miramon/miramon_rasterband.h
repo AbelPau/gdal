@@ -102,7 +102,6 @@ class MMRRasterBand final : public GDALPamRasterBand
     void UpdateDataType();
     CPLErr FillRATFromPalette();
     CPLErr FromPaletteToAttributeTable();
-    CPLErr FromPaletteToAttributeTableConstant();
     CPLErr FromPaletteToAttributeTableDirectAssig();
     CPLErr FromPaletteToAttributeTableLinear();
     void ConvertColorsFromPaletteToColorTable();
