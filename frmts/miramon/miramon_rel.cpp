@@ -1115,7 +1115,6 @@ CPLErr MMRRel::UpdateGDALColorEntryFromBand(const CPLString &m_osBandSection,
     return CE_None;
 }
 
-//DIFFUSE REVISION START
 /************************************************************************/
 /*                             Writing part                             */
 /************************************************************************/

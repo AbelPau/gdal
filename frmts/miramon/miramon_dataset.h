@@ -125,7 +125,6 @@ class MMRDataset final : public GDALPamDataset
     // To expose CT, RAT or both
     RAT_OR_CT nRatOrCT = RAT_OR_CT::ALL;
 
-    //DIFFUSE REVISION START
     // For writing part
     //
     // EPSG number
