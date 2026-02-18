@@ -154,7 +154,7 @@ Open examples
 Creation examples
 ---------------
 
--  A tiff file will be trasnlated as compressed file. If user don't want that he can specify COMPRESS=NO in the creation options:
+-  A tiff file will be translated as compressed file. If user don't want that he can specify COMPRESS=NO in the creation options:
    ::
       gdal_translate -co COMPRESS=NO dataset.tiff output_uncompressed_datasetI.rel
 
