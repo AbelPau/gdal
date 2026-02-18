@@ -142,41 +142,47 @@ The following creation options are supported:
 Open examples
 -------------
 -  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. You can use sds option to translate all datasets into different TIFF files:
-   ::
-   gdal_translate multiband_input_datasetI.rel output_subdatasets.tiff -sds 
+   .. code-block::
+
+       gdal_translate multiband_input_datasetI.rel output_subdatasets.tiff -sds 
    Output: output_subdatasets_1.tiff, output_subdatasets_2.tiff, output_subdatasets_3.tiff
 
 -  A MiraMon dataset color table and RAT can be translated separately, by using the RAT_OR_CT open option:
-   ::
-   gdal_translate -oo RAT_OR_CT=RAT datasetI.rel output_only_with_rat.tiff (only RAT will be translated, without the color table)
-   gdal_translate -oo RAT_OR_CT=CT datasetI.rel output_only_with_ct.tiff (only color table will be translated, without the attribute table)
+   .. code-block::
+
+       gdal_translate -oo RAT_OR_CT=RAT datasetI.rel output_only_with_rat.tiff (only RAT will be translated, without the color table)
+       gdal_translate -oo RAT_OR_CT=CT datasetI.rel output_only_with_ct.tiff (only color table will be translated, without the attribute table)
 
 Creation examples
 -----------------
 
 -  A tiff file will be translated as compressed file. If user doesn't want that he can specify COMPRESS=NO in the creation options:
-   ::
-   gdal_translate -co COMPRESS=NO dataset.tiff output_uncompressed_datasetI.rel
+   .. code-block::
 
--  A tiff dataset with 3 bands that has an output pattern specified in the creation options will be translated to 3 different files with the specified pattern:
-   ::
-   gdal_translate -co PATTERN="band_" input.tiff outputI.rel 
+       gdal_translate -co COMPRESS=NO dataset.tiff output_uncompressed_datasetI.rel
+
+   .. code-block::
+
+       gdal_translate -co PATTERN="band_" input.tiff outputI.rel 
    Output: band_1I.rel, band_2I.rel, band_3I.rel
 
 -  A tiff dataset with 3 bands that wants all bands to be treated as categorical will be translated as follows:
-   ::
-   gdal_translate -co Categorical=1,2,3 dataset.tiff outputI.rel
+   .. code-block::
+
+       gdal_translate -co Categorical=1,2,3 dataset.tiff outputI.rel
    Output: output_1I.rel, output_2I.rel, output_3I.rel
 
 -  A tiff dataset with 3 bands that wants the first band to be treated as categorical will be translated as follows:
-   ::
-   gdal_translate -co Categorical=1 dataset.tiff outputI.rel
+   .. code-block::
+       
+       gdal_translate -co Categorical=1 dataset.tiff outputI.rel
    Output: output_1I.rel, output_2I.rel, output_3I.rel
    Bands 2 and 3 will be treated with a heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
 
 -  A tiff dataset with 3 bands that wants the first band to be treated as categorical and the second one as continuous will be translated as follows:
-   ::
-   gdal_translate -co Categorical=1 -co Continuous=2 dataset.tiff outputI.rel
+   .. code-block::
+      
+       gdal_translate -co Categorical=1 -co Continuous=2 dataset.tiff outputI.rel
    Output: output_1I.rel, output_2I.rel, output_3I.rel
    Band 1 will be treated as categorical, band 2 as continuous, and band 3 with a heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
 
