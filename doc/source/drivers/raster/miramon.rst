@@ -27,10 +27,10 @@ Driver capabilities
 Overview of MiraMon format
 --------------------------
 
-The MiraMon `.img` format is a binary raster format with rich metadata stored in a sidecar `.rel` file.
+The MiraMon `.img` format is a binary raster format with rich metadata stored in a sidecar `I.rel` file.
 More information is available in the `public specification <https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf>`__.
 
-By specifying either the name of the `.rel` metadata file or the name of any `.img` band file, the driver will automatically use the associated `.rel` file.
+By specifying either the name of the `I.rel` metadata file or the name of any `.img` band file, the driver will automatically use the associated `I.rel` file.
 
 - **REL file**: This metadata file governs how all bands are interpreted and accessed. It contains metadata including band names, number of rows and columns, data type, compression information (either global or per band) and others. So, a MiraMon dataset can include multiple bands, all linked through a single `.rel` file. Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be considered. If a layer contains an old *.rel* format file (used in legacy datasets), a warning will be issued explaining how to convert it into the modern *.rel 4* format. Next are the main characteristics of a MiraMon raster dataset band:
 
@@ -45,6 +45,8 @@ By specifying either the name of the `.rel` metadata file or the name of any `.i
   - *UInt64*: 8 bytes, unsigned integer
   - *Real*: 4 bytes, floating-point
   - *Double*: 8 bytes, double precision floating-point
+
+It's important that the specified filename for the dataset is "I.rel" instead of ".rel". Files ending with ".img" can be confused with the raw data files, and the chosen driver may not be the correct one. If the filename is "I.rel", the driver will automatically be MiraMonRaster. If ".img" is used, the user can also specify the driver with the open option "-if MiraMonRaster" of "-of MiraMonRaster".
 
 Writing behavior
 ----------------
@@ -108,7 +110,7 @@ The following open options are available:
             Expose both the attribute table and the color table. Note that in some software this option may cause visualization and/or legend issues.
       RAT
             Expose the attribute table only, without the color table.
-      PER_BAND_ONLY
+      CT
             Expose the color table only, without the attribute table.
 
 
@@ -136,6 +138,40 @@ The following creation options are supported:
       :choices: <integer>
       
       Indicates which bands have to be treat as continuous. If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
+
+Open examples
+-------------
+-  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. -sds option is needed to translate all datasets in diferent tiff files:
+   gdal_translate multiband_input_datasetI.rel output_subdatasets.tiff -sds 
+   Output: output_subdatasets_1.tiff, output_subdatasets_2.tiff, output_subdatasets_3.tiff
+
+-  A MiraMon dataset color table and RAT can be translated separately, by using the RAT_OR_CT open option:
+   gdal_translate -oo RAT_OR_CT=RAT datasetI.rel output_only_with_rat.tiff (only RAT will be translated, without the color table)
+   gdal_translate -oo RAT_OR_CT=CT datasetI.rel output_only_with_ct.tiff (only color table will be translated, without the attribute table)
+
+Creation examples
+---------------
+
+-  A tiff file will be trasnlated as compressed file. If user don't want that he can specify COMPRESS=NO in the creation options:
+   gdal_translate -co COMPRESS=NO dataset.tiff output_uncompressed_datasetI.rel
+
+-  A tiff dataset with 3 bands that has an output pattern specified in the creation options will be translated to 3 different files with the specified pattern:
+   gdal_translate -co PATTERN="band_" input.tiff outputI.rel 
+   Output: band_1I.rel, band_2I.rel, band_3I.rel
+
+-  A tiff dataset with 3 bands that wants all bands to be treated as categorical will be translated as follows:
+   gdal_translate -co Categorical=1,2,3 dataset.tiff outputI.rel
+   Output: output_1I.rel, output_2I.rel, output_3I.rel
+
+-  A tiff dataset with 3 bands that wants the first band to be treated as categorical will be translated as follows:
+   gdal_translate -co Categorical=1 dataset.tiff outputI.rel
+   Output: output_1I.rel, output_2I.rel, output_3I.rel
+   Bands 2 and 3 will be treated with an heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
+
+-  A tiff dataset with 3 bands that wants the first band to be treated as categorical and the second one as continuous will be translated as follows:
+   gdal_translate -co Categorical=1 -co Continuous=2 dataset.tiff outputI.rel
+   Output: output_1I.rel, output_2I.rel, output_3I.rel
+   Band 1 will be treated as categorical, band 2 as continuous, and band 3 with an heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
 
 See Also
 --------
