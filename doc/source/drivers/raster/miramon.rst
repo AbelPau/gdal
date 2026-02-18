@@ -144,7 +144,8 @@ Open examples
 -  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. You can use sds option to translate all datasets into different TIFF files:
    .. code-block::
 
-       gdal_translate multiband_input_datasetI.rel output_subdatasets.tiff -sds 
+       gdal_translate multiband_input_datasetI.rel output_subdatasets.tiff -sds
+
    Output: output_subdatasets_1.tiff, output_subdatasets_2.tiff, output_subdatasets_3.tiff
 
 -  A MiraMon dataset color table and RAT can be translated separately, by using the RAT_OR_CT open option:
@@ -164,18 +165,21 @@ Creation examples
    .. code-block::
 
        gdal_translate -co PATTERN="band_" input.tiff outputI.rel 
+
    Output: band_1I.rel, band_2I.rel, band_3I.rel
 
 -  A tiff dataset with 3 bands that wants all bands to be treated as categorical will be translated as follows:
    .. code-block::
 
        gdal_translate -co Categorical=1,2,3 dataset.tiff outputI.rel
+
    Output: output_1I.rel, output_2I.rel, output_3I.rel
 
 -  A tiff dataset with 3 bands that wants the first band to be treated as categorical will be translated as follows:
    .. code-block::
        
        gdal_translate -co Categorical=1 dataset.tiff outputI.rel
+
    Output: output_1I.rel, output_2I.rel, output_3I.rel
    Bands 2 and 3 will be treated with a heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
 
@@ -183,6 +187,7 @@ Creation examples
    .. code-block::
       
        gdal_translate -co Categorical=1 -co Continuous=2 dataset.tiff outputI.rel
+       
    Output: output_1I.rel, output_2I.rel, output_3I.rel
    Band 1 will be treated as categorical, band 2 as continuous, and band 3 with a heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
 
