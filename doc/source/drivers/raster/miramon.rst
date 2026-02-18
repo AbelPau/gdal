@@ -141,7 +141,7 @@ The following creation options are supported:
 
 Open examples
 -------------
--  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. "-sds" option is needed to translate all datasets in different TIFF files:
+-  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. You can use sds option to translate all datasets into different TIFF files:
    ::
       gdal_translate multiband_input_datasetI.rel output_subdatasets.tiff -sds 
    Output: output_subdatasets_1.tiff, output_subdatasets_2.tiff, output_subdatasets_3.tiff
