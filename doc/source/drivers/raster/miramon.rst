@@ -9,7 +9,7 @@ MiraMon Raster
 
 .. built_in_by_default::
 
-This driver is capable of reading raster files in MiraMon format as well as to create a copy to MiraMon format.
+This driver is capable of reading raster files in MiraMon format as well as create a copy to MiraMon format.
 
 A `look-up table of MiraMon <https://www.miramon.cat/help/eng/mm32/AP6.htm>`__ and
 `EPSG <https://epsg.org/home.html>`__ Spatial Reference Systems allows matching
@@ -32,7 +32,7 @@ More information is available in the `public specification <https://www.miramon.
 
 By specifying either the name of the `I.rel` metadata file or the name of any `.img` band file, the driver will automatically use the associated `I.rel` file.
 
-- **REL file**: This metadata file governs how all bands are interpreted and accessed. It contains metadata including band names, number of rows and columns, data type, compression information (either global or per band) and others. So, a MiraMon dataset can include multiple bands, all linked through a single `.rel` file. Whether the name of one of the dataset's `.img` files or the `.rel` file is provided, the result will be the same: all bands will be considered. If a layer contains an old *.rel* format file (used in legacy datasets), a warning will be issued explaining how to convert it into the modern *.rel 4* format. Next are the main characteristics of a MiraMon raster dataset band:
+- **REL file**: This metadata file governs how all bands are interpreted and accessed. It contains metadata including band names, number of rows and columns, data type, compression information (either global or per band) and others. So, a MiraMon dataset can include multiple bands, all linked through a single `.rel` file. Whether the ".img" file or the "I.rel" metadata file is provided, the result will be the same: all bands will be considered. If a layer contains an old *.rel* format file (used in legacy datasets), a warning will be issued explaining how to convert it into the modern *.rel 4* format. Next are the main characteristics of a MiraMon raster dataset band:
 
 - **IMG file**: Stores the raw raster data. The data type may vary:
   - *Bit*: 1 bit. Range: 0 or 1. Converted to byte GDAL type.
@@ -46,7 +46,7 @@ By specifying either the name of the `I.rel` metadata file or the name of any `.
   - *Real*: 4 bytes, floating-point
   - *Double*: 8 bytes, double precision floating-point
 
-It's important that the specified filename for the dataset is "I.rel" instead of ".rel". Files ending with ".img" can be confused with the raw data files, and the chosen driver may not be the correct one. If the filename is "I.rel", the driver will automatically be MiraMonRaster. If ".img" is used, the user can also specify the driver with the open option "-if MiraMonRaster" of "-of MiraMonRaster".
+It's important that the specified filename for the dataset is "I.rel" instead of ".rel". Files ending with ".img" can be confused with the raw data files, and the chosen driver may not be the correct one. If the filename is "I.rel", the driver will automatically be MiraMonRaster. If ".img" is used, the user can also specify the driver with the open option "-if MiraMonRaster" or "-of MiraMonRaster".
 
 Writing behavior
 ----------------
@@ -76,7 +76,7 @@ Only a subset of the metadata is used by the driver to interpret the dataset (e.
 This allows applications to access additional information embedded in the original dataset, even if it is not required for reading or displaying the data (use of -co SRC_MDD=MIRAMON will copy to destination dataset all this  MIRAMON metadata).
 
 When creating a copy, some MIRAMON metadata items are copied to comments part of REL file.
-Also, when creating a copy, lineage metadata (if existant) is recovered from the source dataset and added to the MiraMon file to know how the file was created. The actual process is added after all recovered processes to document that the file was created by GDAL.
+Also, when creating a copy, lineage metadata (if existent) is recovered from the source dataset and added to the MiraMon file to know how the file was created. The actual process is added after all recovered processes to document that the file was created by GDAL.
 
 Encoding
 --------
@@ -132,16 +132,16 @@ The following creation options are supported:
 -  .. co:: Categorical
       :choices: <integer>
       
-      Indicates which bands have to be treat as categorical.
+      Indicates which bands have to be treated as categorical.
 
 -  .. co:: Continuous
       :choices: <integer>
       
-      Indicates which bands have to be treat as continuous. If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
+      Indicates which bands have to be treated as continuous. If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
 
 Open examples
 -------------
--  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. -sds option is needed to translate all datasets in diferent tiff files:
+-  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. "-sds" option is needed to translate all datasets in different TIFF files:
    ::
       gdal_translate multiband_input_datasetI.rel output_subdatasets.tiff -sds 
    Output: output_subdatasets_1.tiff, output_subdatasets_2.tiff, output_subdatasets_3.tiff
@@ -154,7 +154,7 @@ Open examples
 Creation examples
 ---------------
 
--  A tiff file will be translated as compressed file. If user don't want that he can specify COMPRESS=NO in the creation options:
+-  A tiff file will be translated as compressed file. If user doesn't want that he can specify COMPRESS=NO in the creation options:
    ::
       gdal_translate -co COMPRESS=NO dataset.tiff output_uncompressed_datasetI.rel
 
@@ -172,13 +172,13 @@ Creation examples
    ::
       gdal_translate -co Categorical=1 dataset.tiff outputI.rel
    Output: output_1I.rel, output_2I.rel, output_3I.rel
-   Bands 2 and 3 will be treated with an heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
+   Bands 2 and 3 will be treated with a heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
 
 -  A tiff dataset with 3 bands that wants the first band to be treated as categorical and the second one as continuous will be translated as follows:
    ::
       gdal_translate -co Categorical=1 -co Continuous=2 dataset.tiff outputI.rel
    Output: output_1I.rel, output_2I.rel, output_3I.rel
-   Band 1 will be treated as categorical, band 2 as continuous, and band 3 with an heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
+   Band 1 will be treated as categorical, band 2 as continuous, and band 3 with a heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
 
 See Also
 --------
