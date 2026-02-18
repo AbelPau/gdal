@@ -10,6 +10,7 @@
  *
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
+#include <algorithm>
 
 #include "miramon_dataset.h"
 #include "miramon_rasterband.h"
