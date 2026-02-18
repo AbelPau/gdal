@@ -614,6 +614,19 @@ init_list_color_tables = [
         "25831",  # reference system
     ),
     (
+        "data/miramon/palettes/Constant/real_2x3_6_categsI.rel",
+        1,  # band index
+        {  # color table
+            0: (255, 0, 255, 255),
+            1: (255, 0, 255, 255),
+            2: (255, 0, 255, 255),
+            3: (255, 0, 255, 255),
+            4: (255, 0, 255, 255),
+            5: (0, 0, 0, 0),
+        },
+        "25831",  # reference system
+    ),
+    (
         "data/miramon/palettes/Categorical/Automatic/byte_2x3_6_categsI.rel",
         1,  # band index
         None,
@@ -912,6 +925,22 @@ init_list_attribute_tables = [
         },
     ),
     (
+        "data/miramon/palettes/Constant/integer_2x3_6_categsI.rel",
+        1,  # band index
+        {
+            (0, "MIN"): -32768,
+            (0, "MAX"): -32768,
+            (0, "Red"): 0,
+            (0, "Green"): 0,
+            (0, "Blue"): 0,
+            (1, "MIN"): 0,
+            (1, "MAX"): 5,
+            (1, "Red"): 255,
+            (1, "Green"): 0,
+            (1, "Blue"): 255,
+        },
+    ),
+    (
         "data/miramon/palettes/Categorical/ThematicNoDataBeg/MUCSC_2002_30_m_v_6_retI.rel",
         1,  # band index
         {
@@ -1118,3 +1147,59 @@ def test_miramon_default_rat(filename, idx_bnd, expected_rat):
                     f"Value mismatch at row {row_idx}, column '{col_name}': "
                     f"got {val}, expected {expected_val}"
                 )
+
+
+# Let'ts test open options RAT_OR_CT
+init_list_rat_or_ct = [
+    (
+        "ALL",
+        True,
+        True,
+    ),
+    (
+        "CT",
+        False,
+        True,
+    ),
+    (
+        "RAT",
+        True,
+        False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "option,expect_rat,expect_ct",
+    init_list_rat_or_ct,
+    ids=[tup[0] for tup in init_list_rat_or_ct],
+)
+def test_miramon_rat_or_ct(option, expect_rat, expect_ct):
+    filename = "data/miramon/rat_or_ct/uinteger_imageI.rel"
+
+    options = f"RAT_OR_CT={option}"
+
+    ds_normal = gdal.OpenEx(
+        filename, allowed_drivers=["MiraMonRaster"], open_options=[options]
+    )
+    assert ds_normal is not None, f"Could not open file: {filename}"
+
+    band = ds_normal.GetRasterBand(1)
+    assert band is not None, f"Could not get band 1 from file {filename}"
+
+    rat = band.GetDefaultRAT()
+    ct = band.GetColorTable()
+
+    if expect_rat:
+        assert (
+            rat is not None
+        ), "Expected a Raster Attribute Table (RAT) but none was found"
+    else:
+        assert (
+            rat is None
+        ), "Did not expect a Raster Attribute Table (RAT) but one was found"
+
+    if expect_ct:
+        assert ct is not None, "Expected a Color Table (CT) but none was found"
+    else:
+        assert ct is None, "Did not expect a Color Table (CT) but one was found"

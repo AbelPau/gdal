@@ -634,17 +634,42 @@ CPLErr MMRRasterBand::AssignUniformColorTable()
     if (!poBand)
         return CE_Failure;
 
-    // Only for 1 or 2 bytes images
-    if (m_eMMBytesPerPixel !=
-            MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE &&
-        m_eMMBytesPerPixel !=
-            MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE)
+    int nNPossibleValues;
+    double maxIndex = 0.0;
+
+    if (poBand->BandHasNoData() && poBand->GetNoDataValue() < 0)
+        return CE_Failure;
+
+    if (poBand->GetVisuMaxSet() && poBand->GetVisuMax() < 0)
+        return CE_Failure;
+
+    if (poBand->BandHasNoData() &&
+        static_cast<int>(poBand->GetNoDataValue()) < INT_MAX)
+        maxIndex = poBand->GetNoDataValue() + 1;
+
+    if (poBand->GetVisuMaxSet() &&
+        static_cast<int>(poBand->GetVisuMax()) < INT_MAX)
+        maxIndex = std::max(maxIndex, poBand->GetVisuMax() + 1);
+
+    if (maxIndex != 0)
+        nNPossibleValues = static_cast<int>(maxIndex);
+    else
     {
-        return CE_None;
+        // Only for 1 or 2 bytes images
+        if (m_eMMBytesPerPixel !=
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_BYTE_I_RLE &&
+            m_eMMBytesPerPixel !=
+                MMBytesPerPixel::TYPE_BYTES_PER_PIXEL_INTEGER_I_RLE)
+        {
+            return CE_None;
+        }
+
+        nNPossibleValues = 1 << (8 * static_cast<int>(m_eMMBytesPerPixel));
     }
 
-    const int nNPossibleValues = 1
-                                 << (8 * static_cast<int>(m_eMMBytesPerPixel));
+    if (nNPossibleValues <= 0)
+        return CE_Failure;
+
     for (int iColumn = 0; iColumn < 4; iColumn++)
     {
         try
@@ -1035,6 +1060,9 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTable()
     if (!poBand)
         return CE_Failure;
 
+    if (m_Palette->IsConstantColor())
+        return FromPaletteToAttributeTableConstant();
+
     if (m_Palette->GetNumberOfColors() <= 0)
         return CE_Failure;
 
@@ -1043,6 +1071,49 @@ CPLErr MMRRasterBand::FromPaletteToAttributeTable()
 
     // A scaling is applied between the minimum and maximum display values.
     return FromPaletteToAttributeTableLinear();
+}
+
+CPLErr MMRRasterBand::FromPaletteToAttributeTableConstant()
+{
+    MMRBand *poBand = m_pfRel->GetBand(nBand - 1);
+    if (!poBand)
+        return CE_Failure;
+
+    // Some necessary information
+    if (!poBand->GetVisuMinSet() || !poBand->GetVisuMaxSet())
+        return CE_Failure;
+
+    m_poDefaultRAT->CreateColumn("MIN", GFT_Real, GFU_Min);
+    m_poDefaultRAT->CreateColumn("MAX", GFT_Real, GFU_Max);
+    m_poDefaultRAT->CreateColumn("Red", GFT_Integer, GFU_Red);
+    m_poDefaultRAT->CreateColumn("Green", GFT_Integer, GFU_Green);
+    m_poDefaultRAT->CreateColumn("Blue", GFT_Integer, GFU_Blue);
+
+    m_poDefaultRAT->SetTableType(GRTT_THEMATIC);
+
+    int nRow = 0;
+    if (poBand->BandHasNoData())
+    {
+        m_poDefaultRAT->SetRowCount(2);
+
+        m_poDefaultRAT->SetValue(0, 0, poBand->GetNoDataValue());
+        m_poDefaultRAT->SetValue(0, 1, poBand->GetNoDataValue());
+        m_poDefaultRAT->SetValue(0, 2, m_Palette->GetNoDataDefaultColor().c1);
+        m_poDefaultRAT->SetValue(0, 3, m_Palette->GetNoDataDefaultColor().c2);
+        m_poDefaultRAT->SetValue(0, 4, m_Palette->GetNoDataDefaultColor().c3);
+        nRow++;
+    }
+    else
+        m_poDefaultRAT->SetRowCount(1);
+
+    // Sets the constant color from min to max
+    m_poDefaultRAT->SetValue(nRow, 0, poBand->GetVisuMin());
+    m_poDefaultRAT->SetValue(nRow, 1, poBand->GetVisuMax());
+    m_poDefaultRAT->SetValue(nRow, 2, m_Palette->GetConstantColorRGB().c1);
+    m_poDefaultRAT->SetValue(nRow, 3, m_Palette->GetConstantColorRGB().c2);
+    m_poDefaultRAT->SetValue(nRow, 4, m_Palette->GetConstantColorRGB().c3);
+
+    return CE_None;
 }
 
 CPLErr MMRRasterBand::FromPaletteToAttributeTableDirectAssig()
