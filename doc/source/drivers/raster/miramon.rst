@@ -74,6 +74,7 @@ Only a subset of the metadata is used by the driver to interpret the dataset (e.
 This allows applications to access additional information embedded in the original dataset, even if it is not required for reading or displaying the data (use of -co SRC_MDD=MIRAMON will copy to destination dataset all this  MIRAMON metadata).
 
 When creating a copy, some MIRAMON metadata items are copied to comments part of REL file.
+Also, when creating a copy, lineage metadata (if existant) is recovered from the source dataset and added to the MiraMon file to know how the file was created. The actual process is added after all recovered processes to document that the file was created by GDAL.
 
 Encoding
 --------
