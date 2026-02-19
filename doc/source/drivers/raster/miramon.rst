@@ -204,6 +204,6 @@ See Also
 -  `MiraMon's raster format specifications <https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf>`__
 -  `MiraMon Extended DBF format <https://www.miramon.cat/new_note/eng/notes/DBF_estesa.pdf>`__
 -  `MiraMon vector layer concepts <https://www.miramon.cat/help/eng/mm32/ap2.htm>`__.
--  `MiraMon page <https://www.miramon.cat/Index_usa.htm>`__
+-  `MiraMon main page <https://www.miramon.cat/Index_usa.htm>`__
 -  `MiraMon help guide <https://www.miramon.cat/help/eng>`__
 -  `Grumets research group, the people behind MiraMon <https://www.grumets.cat/index_eng.htm>`__
