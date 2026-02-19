@@ -1005,6 +1005,8 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
                         osCurrentSection.replaceAll(":", IntraSecKeySeparator) +
                         SecKeySeparator + osPendingKey;
 
+                    if (osPendingValue.Trim().empty())
+                        osPendingValue = MMEmptyValue;
                     poDS->SetMetadataItem(fullKey.c_str(),
                                           osPendingValue.Trim().c_str(),
                                           MetadataDomain);
@@ -1030,6 +1032,8 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
                         osCurrentSection.replaceAll(":", IntraSecKeySeparator) +
                         SecKeySeparator + osPendingKey;
 
+                    if (osPendingValue.Trim().empty())
+                        osPendingValue = MMEmptyValue;
                     poDS->SetMetadataItem(fullKey.c_str(),
                                           osPendingValue.Trim().c_str(),
                                           MetadataDomain);
@@ -1055,6 +1059,8 @@ void MMRRel::RELToGDALMetadata(GDALDataset *poDS)
             SecKeySeparator + osPendingKey;
         if (!isExcluded(osCurrentSection, osPendingKey))
         {
+            if (osPendingValue.Trim().empty())
+                osPendingValue = MMEmptyValue;
             poDS->SetMetadataItem(
                 fullKey.c_str(), osPendingValue.Trim().c_str(), MetadataDomain);
         }
@@ -1841,10 +1847,8 @@ bool MMRRel::ProcessProcessSection(
                 CPLString osFinalSectionDecod = osKey.substr(0, nPos);
                 osFinalSectionDecod.replaceAll(IntraSecKeySeparator, ":");
                 AddSectionStart(osFinalSectionDecod);
-                AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
             }
-            else
-                AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
+            AddKeyValue(osKey.substr(nPos + nSecLen), pszValue);
 
             osFinalSection = osKey.substr(0, nPos);
         }

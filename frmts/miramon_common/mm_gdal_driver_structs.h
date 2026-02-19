@@ -71,6 +71,7 @@ CPL_C_START  // Necessary for compiling in GDAL project
 #define MetadataDomain "MIRAMON"
 #define SecKeySeparator "$$$"
 #define IntraSecKeySeparator "$$"
+#define MMEmptyValue "$$empty$$"
 
 // MiraMon feature field names
 #define szMMNomCampIdGraficDefecte "ID_GRAFIC"

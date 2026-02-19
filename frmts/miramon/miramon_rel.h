@@ -242,16 +242,22 @@ class MMRRel
             return;
 
         char *pzsKey = CPLRecode(osKey, CPL_ENC_UTF8, "CP1252");
-        if (osValue.empty())
+
+        CPLString osValidValue = osValue;
+        size_t nPos = osValue.find(MMEmptyValue);
+        if (nPos != std::string::npos)
+            osValidValue.replaceAll(MMEmptyValue, "");
+
+        if (osValidValue.empty())
         {
             VSIFPrintfL(m_pRELFile, "%s=%s", pzsKey ? pzsKey : osKey.c_str(),
                         LineReturn);
         }
         else
         {
-            char *pzsValue = CPLRecode(osValue, CPL_ENC_UTF8, "CP1252");
+            char *pzsValue = CPLRecode(osValidValue, CPL_ENC_UTF8, "CP1252");
             VSIFPrintfL(m_pRELFile, "%s=%s%s", pzsKey ? pzsKey : osKey.c_str(),
-                        pzsValue ? pzsValue : osValue.c_str(), LineReturn);
+                        pzsValue ? pzsValue : osValidValue.c_str(), LineReturn);
             CPLFree(pzsValue);
         }
         CPLFree(pzsKey);

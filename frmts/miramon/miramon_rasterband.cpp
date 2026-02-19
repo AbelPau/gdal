@@ -598,9 +598,14 @@ CPLErr MMRRasterBand::CreateRATFromDBF(const CPLString &osRELName,
             m_poDefaultRAT->SetRowCount(nCatField + 1);
             if (CE_None != m_poDefaultRAT->SetValue(nCatField, nIOrderedField,
                                                     osField.c_str()))
-                return CE_Failure;
+            {
+                eErr = CE_Failure;
+                break;
+            }
             nIOrderedField++;
         }
+        if (eErr == CE_Failure)
+            break;
     }
 
     VSIFree(pszField);

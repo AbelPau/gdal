@@ -12,6 +12,7 @@
 ###############################################################################
 
 import gc
+import io
 import os
 import shutil
 import struct
@@ -597,6 +598,73 @@ def test_miramon_lineage_in_rel():
     src_ds = None
     gc.collect()
     shutil.rmtree(tmpdir)
+
+
+#
+
+
+def check_lineage_content(expected_lineage_path, mm_path):
+    """
+    Check that every line in expected_lineage_path
+    is present in mm_path.
+    """
+
+    # Read expected lineage file
+    with io.open(expected_lineage_path, "r", encoding="cp1252") as f:
+        expected_lines = [line.strip() for line in f]
+
+    # Read MiraMon lineage file
+    with io.open(mm_path, "r", encoding="cp1252") as f:
+        mm_lines_set = set(line.strip() for line in f)
+
+    # Check that every expected line exists in mm file
+    for line in expected_lines:
+        if line not in mm_lines_set:
+            assert False, f"Missing expected lineage line: {line!r}"
+
+
+def test_miramon_lineage_preservation():
+
+    # --- Open existing MiraMonRaster dataset with lineage information ---
+    mm_ori_path = "data/miramon/lineage/int_2x3_6_RLEI.rel"
+    expected_lineage_path = "data/miramon/lineage/int_2x3_6_RLE_expected_lineage.txt"
+    src_ds = gdal.OpenEx(mm_ori_path, allowed_drivers=["MiraMonRaster"])
+    assert src_ds is not None, "Could not open the file"
+
+    # --- Write to VRT preserving the MIRAMON metadata domain ---
+    tmpdir = tempfile.mkdtemp("lineage")
+    vrt_path = os.path.join(tmpdir, "LineagePreservation.vrt")
+
+    vrt_driver = gdal.GetDriverByName("VRT")
+    assert vrt_driver is not None
+    mm_ds = vrt_driver.CreateCopy(
+        vrt_path,
+        src_ds,
+        options=["SRC_MDD=MIRAMON"],
+    )
+    assert mm_ds is not None
+    mm_ds = None
+
+    # --- Reopen the VRT and write it back to a new MiraMonRaster ---
+    mm_ds = gdal.Open(vrt_path)
+    assert mm_ds is not None, "Could not open the VRT file"
+
+    # --- Write back to MiraMonRaster ---
+    mm_path = os.path.join(tmpdir, "LineagePreservationI.rel")
+    mm_driver = gdal.GetDriverByName("MiraMonRaster")
+    assert mm_driver is not None
+    mm_lineage = mm_driver.CreateCopy(mm_path, mm_ds, options=["SRC_MDD=MIRAMON"])
+    assert mm_lineage is not None
+    mm_lineage = None
+
+    # --- Lineage check ---
+    # Just check that somelines appear in the .rel file, we don't need to check the exact content of them
+    # just to check that the rel contains the lineage information in the expected format.
+    check_lineage_content(expected_lineage_path, mm_path)
+
+    # --- Cleanup ---
+    # gc.collect()
+    # shutil.rmtree(tmpdir)
 
 
 gdal_to_struct = {
