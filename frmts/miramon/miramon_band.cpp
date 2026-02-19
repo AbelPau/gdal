@@ -286,7 +286,7 @@ MMRBand::~MMRBand()
 
 const CPLString &MMRBand::GetRELFileName() const
 {
-    static const CPLString osEmpty = "";
+    static const CPLString osEmpty;
     if (!m_pfRel)
         return osEmpty;
     return m_pfRel->GetRELName();
