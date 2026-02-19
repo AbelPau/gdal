@@ -126,7 +126,7 @@ The following creation options are supported:
       
       Indicates the pattern used to create the names of the different bands. In the case of RGB, the suffixes “_R”, “_G”, and “_B” will be added to the base name.
 
--  .. co:: Categorical
+-  .. co:: CATEGORICAL_BANDS
       :choices: <integer>
       
       Indicates which bands have to be treated as categorical (e.g., a land cover map).
