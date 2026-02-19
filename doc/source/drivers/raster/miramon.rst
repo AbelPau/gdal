@@ -134,7 +134,7 @@ The following creation options are supported:
 -  .. co:: CONTINUOUS_BANDS
       :choices: <integer>
       
-      Indicates which bands have to be treated as continuous (e.g., temperatures map). If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
+      Indicates which bands (1-based indexing) have to be treated as continuous (e.g., temperatures map). If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
 
 Open examples
 -------------
