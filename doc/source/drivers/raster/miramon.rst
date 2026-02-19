@@ -129,7 +129,7 @@ The following creation options are supported:
 -  .. co:: CATEGORICAL_BANDS
       :choices: <integer>
       
-      Indicates which bands have to be treated as categorical (e.g., a land cover map).
+      Indicates which bands (1-based indexing) have to be treated as categorical (e.g., a land cover map).
 
 -  .. co:: CONTINUOUS_BANDS
       :choices: <integer>
