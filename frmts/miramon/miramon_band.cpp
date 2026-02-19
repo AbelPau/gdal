@@ -261,8 +261,8 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
 
     if (WriteAttributeTable(oSrcDS))
     {
-        m_osRATDBFName = "";
-        m_osRATRELName = "";
+        m_osRATDBFName.clear();
+        m_osRATRELName.clear();
         CPLError(CE_Warning, CPLE_AppDefined,
                  "MMRBand::MMRBand : Existant attribute table but not imported "
                  "due to some existant errors");
