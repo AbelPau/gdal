@@ -205,6 +205,10 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
       m_osBandSection(osBandSection), m_osRawBandFileName(""),
       m_osBandFileName(""), m_osBandName(""),
       m_osFriendlyDescription(papoBand.GetDescription()),
+    : m_pfnProgress(pfnProgress), m_pProgressData(pProgressData),
+      m_nIBand(nIBand),
+      m_osBandSection(osBandSection),
+      m_osFriendlyDescription(papoBand.GetDescription()),
       m_bIsCompressed(bCompress), m_bIsCategorical(bCategorical)
 
 {
