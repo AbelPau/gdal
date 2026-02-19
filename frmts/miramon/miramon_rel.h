@@ -332,7 +332,7 @@ class MMRRel
         return &m_oBands[nIBand];
     }
 
-    CPLString GetPattern() const
+    const CPLString &GetPattern() const
     {
         return osPattern;
     }
