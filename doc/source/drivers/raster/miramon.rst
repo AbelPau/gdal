@@ -48,7 +48,7 @@ It's important that the specified filename for the dataset is "I.rel" instead of
 Writing behavior
 ----------------
 
-If the dataset has documented R, G, and B bands, the copy will also generate a map (in `.mmm format<https://www.miramon.cat/help/eng/mm32/ap3.htm>`__) to allow the file to be visualized in MiraMon as an RGB raster (24-bit, when the bands are 8-bit).
+If the dataset has documented R, G, and B bands, the copy will also generate a map (in `.mmm format <https://www.miramon.cat/help/eng/mm32/ap3.htm>`__) to allow the file to be visualized in MiraMon as an RGB raster (24-bit, when the bands are 8-bit).
 
 Color Table
 -----------
