@@ -253,7 +253,7 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
 
     if (WriteColorTable(oSrcDS))
     {
-        m_osCTName = "";
+        m_osCTName.clear();
         CPLError(CE_Warning, CPLE_AppDefined,
                  "MMRBand::MMRBand : Existant color table but not imported"
                  "due to some existant errors");
