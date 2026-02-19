@@ -201,16 +201,9 @@ MMRBand::MMRBand(GDALProgressFunc pfnProgress, void *pProgressData,
                  const CPLString &osPattern, const CPLString &osBandSection,
                  bool bNeedOfNomFitxer)
     : m_pfnProgress(pfnProgress), m_pProgressData(pProgressData),
-      m_pfRel(nullptr), m_nWidth(0), m_nHeight(0), m_nIBand(nIBand),
-      m_osBandSection(osBandSection), m_osRawBandFileName(""),
-      m_osBandFileName(""), m_osBandName(""),
-      m_osFriendlyDescription(papoBand.GetDescription()),
-    : m_pfnProgress(pfnProgress), m_pProgressData(pProgressData),
-      m_nIBand(nIBand),
-      m_osBandSection(osBandSection),
+      m_nIBand(nIBand), m_osBandSection(osBandSection),
       m_osFriendlyDescription(papoBand.GetDescription()),
       m_bIsCompressed(bCompress), m_bIsCategorical(bCategorical)
-
 {
     // Getting the binary filename
     if (bNeedOfNomFitxer)

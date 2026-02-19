@@ -129,12 +129,12 @@ The following creation options are supported:
 -  .. co:: CATEGORICAL_BANDS
       :choices: <integer>
       
-      Indicates which bands (1-based indexing) have to be treated as categorical (e.g., a land cover map).
+      Indicates which bands (1-based indexing) have to be treated as categorical (e.g., a land cover map). Comma (",") separators can be used to indicate multiple bands.
 
 -  .. co:: CONTINUOUS_BANDS
       :choices: <integer>
       
-      Indicates which bands (1-based indexing) have to be treated as continuous (e.g., temperatures map). If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
+      Indicates which bands (1-based indexing) have to be treated as continuous (e.g., temperatures map). Comma (",") separators can be used to indicate multiple bands. If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
 
 Open examples
 -------------

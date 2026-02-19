@@ -570,7 +570,7 @@ def test_miramon_lineage_in_rel():
     mm_ds = mm_driver.CreateCopy(
         mm_path,
         src_ds,
-        options=["COMPRESS=YES", "SRC_MDD=MIRAMON", "Categorical=1"],
+        options=["COMPRESS=YES", "SRC_MDD=MIRAMON", "CATEGORICAL_BANDS=1"],
     )
     assert mm_ds is not None
     mm_ds = None
@@ -591,7 +591,7 @@ def test_miramon_lineage_in_rel():
         assert "ResultValue=YES" in content
         assert "identifier=-co SRC_MDD" in content
         assert "ResultValue=MIRAMON" in content
-        assert "identifier=-co Categorical" in content
+        assert "identifier=-co CATEGORICAL_BANDS" in content
         assert "ResultValue=1" in content
 
     # --- Cleanup ---

@@ -54,9 +54,11 @@ void GDALRegister_MiraMon()
         "pattern used to create the names of the different bands. In the "
         "case of RGB, the suffixes “_R”, “_G”, and “_B” will be added to "
         "the base name.'/>"
-        "   <Option name='Categorical' type='string' description='Indicates "
+        "   <Option name='CATEGORICAL_BANDS' type='string' "
+        "description='Indicates "
         "which bands have to be treat as categorical.'/>"
-        "   <Option name='Continuous' type='string' description='Indicates "
+        "   <Option name='CONTINUOUS_BANDS' type='string' "
+        "description='Indicates "
         "which bands have to be treat as continuous.'/>"
         "</CreationOptionList>");
 
@@ -848,7 +850,7 @@ bool MMRDataset::BandInOptionsList(CSLConstList papszOptions, CPLString pszType,
             CSLFetchNameValue(papszOptions, pszType))
     {
         const CPLStringList aosTokens(
-            CSLTokenizeString2(pszCategoricalList, ", ", 0));
+            CSLTokenizeString2(pszCategoricalList, ",", 0));
 
         for (int i = 0; i < aosTokens.size(); ++i)
         {
@@ -866,9 +868,9 @@ bool MMRDataset::IsCategoricalBand(GDALDataset &oSrcDS,
                                    CPLString osIndexBand)
 {
     bool bUsrCategorical =
-        BandInOptionsList(papszOptions, "Categorical", osIndexBand);
+        BandInOptionsList(papszOptions, "CATEGORICAL_BANDS", osIndexBand);
     bool bUsrContinuous =
-        BandInOptionsList(papszOptions, "Continuous", osIndexBand);
+        BandInOptionsList(papszOptions, "CONTINUOUS_BANDS", osIndexBand);
 
     if (!bUsrCategorical && !bUsrContinuous)
     {
