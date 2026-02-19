@@ -40,9 +40,6 @@ By specifying either the name of the `I.rel` metadata file or the name of any `.
   - *Short*: 2 bytes, signed. Range: -32 768 to 32 767
   - *UShort*: 2 bytes, unsigned. Range: 0 to 65 535
   - *Int32*: 4 bytes, signed. Range: -2 147 483 648 to 2 147 483 647
-  - *UInt32*: 4 bytes, unsigned. Range: 0 to 4 294 967 295
-  - *Int64*: 8 bytes, signed integer
-  - *UInt64*: 8 bytes, unsigned integer
   - *Real*: 4 bytes, floating-point
   - *Double*: 8 bytes, double precision floating-point
 
@@ -51,7 +48,7 @@ It's important that the specified filename for the dataset is "I.rel" instead of
 Writing behavior
 ----------------
 
-If the dataset has documented R, G, and B bands, the copy will also generate a map (in .mmm format) to allow the file to be visualized in MiraMon as an RGB raster (24-bit, when the bands are 8-bit).
+If the dataset has documented R, G, and B bands, the copy will also generate a map (in `.mmm format<https://www.miramon.cat/help/eng/mm32/ap3.htm>`__) to allow the file to be visualized in MiraMon as an RGB raster (24-bit, when the bands are 8-bit).
 
 Color Table
 -----------
@@ -63,7 +60,7 @@ More information is available in the `public specification <https://www.miramon.
 Attribute Table
 ---------------
 
-MiraMon raster bands may also include an attribute table in the same format as color table..  
+MiraMon raster bands may also include an attribute table in the same format as color table. 
 If available, it will be exposed as a GDAL Raster Attribute Table (RAT) via ``GetDefaultRAT()``.  
 This allows applications to retrieve additional metadata associated with each raster value, such as class names  or descriptions.  
 
@@ -75,8 +72,8 @@ Only a subset of the metadata is used by the driver to interpret the dataset (e.
 
 This allows applications to access additional information embedded in the original dataset, even if it is not required for reading or displaying the data (use of -co SRC_MDD=MIRAMON will copy to destination dataset all this  MIRAMON metadata).
 
-When creating a copy, some MIRAMON metadata items are copied to comments part of REL file.
-Also, when creating a copy, lineage metadata (if existent) is recovered from the source dataset and added to the MiraMon file to know how the file was created. The actual process is added after all recovered processes to document that the file was created by GDAL.
+When creating a copy, some MIRAMON metadata items are copied to the comments part of REL file.
+Also, when creating a copy, lineage metadata (if existent) is recovered from the source dataset and added to the MiraMon file to know how the file was created. The current process is added after all recovered processes to document that the file was created by GDAL.
 
 Encoding
 --------
@@ -132,16 +129,16 @@ The following creation options are supported:
 -  .. co:: Categorical
       :choices: <integer>
       
-      Indicates which bands have to be treated as categorical.
+      Indicates which bands have to be treated as categorical (e.g., a land cover map).
 
 -  .. co:: Continuous
       :choices: <integer>
       
-      Indicates which bands have to be treated as continuous. If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
+      Indicates which bands have to be treated as continuous (e.g., temperatures map). If a band is not indicated as categorical or continuous, it will be treated following an automatic criterion based on the presence of a color table and/or an attribute table, for instance.
 
 Open examples
 -------------
--  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. You can use ``-sds`` option to translate all datasets into different TIFF files:
+-  A MiraMon dataset with 3 bands that have different spatial extents and/or cell sizes will be exposed as 3 different subdatasets. This allows applications to read each band independently, without the need to resample them to a common grid. You can use ``-sds`` option to translate all datasets into, for instance, different TIFF files:
    .. code-block::
 
        gdal_translate multiband_input_datasetI.rel output_subdatasets.tiff -sds
@@ -154,10 +151,15 @@ Open examples
        gdal_translate -oo RAT_OR_CT=RAT datasetI.rel output_only_with_rat.tiff (only RAT will be translated, without the color table)
        gdal_translate -oo RAT_OR_CT=CT datasetI.rel output_only_with_ct.tiff (only color table will be translated, without the attribute table)
 
+-  A MiraMon dataset can be translated preserving it's own metadata, by using the SRC_MDD creation option:
+   .. code-block::
+
+       gdal_translate -oo SRC_MDD=MIRAMON datasetI.rel output_with_miramon_metadata.vrt
+
 Creation examples
 -----------------
 
--  A tiff file will be translated as compressed file. If user doesn't want that he can specify COMPRESS=NO in the creation options:
+-  A tiff file will be translated as a compressed file. If user does not want this behavior COMPRESS=NO can be specified in the creation options:
    .. code-block::
 
        gdal_translate -co COMPRESS=NO dataset.tiff output_uncompressed_datasetI.rel
@@ -191,12 +193,17 @@ Creation examples
    Output: output_1I.rel, output_2I.rel, output_3I.rel
    Band 1 will be treated as categorical, band 2 as continuous, and band 3 with a heuristic criterion, for instance, based on the presence of a color table and/or an attribute table.
 
+-  A MiraMon dataset can be translated from a source and retrieving all its metadata, by using the SRC_MDD creation option:
+   .. code-block::
+
+       gdal_translate -oo SRC_MDD=MIRAMON input_with_miramon_metadata.vrt MiraMonDatasetI.rel
+
 See Also
 --------
 
 -  `MiraMon's raster format specifications <https://www.miramon.cat/new_note/eng/notes/MiraMon_raster_file_format.pdf>`__
 -  `MiraMon Extended DBF format <https://www.miramon.cat/new_note/eng/notes/DBF_estesa.pdf>`__
--  `MiraMon vector layer concepts <https://www.miramon.cat/help/eng/mm32/ap1.htm>`__.
+-  `MiraMon vector layer concepts <https://www.miramon.cat/help/eng/mm32/ap2.htm>`__.
 -  `MiraMon page <https://www.miramon.cat/Index_usa.htm>`__
 -  `MiraMon help guide <https://www.miramon.cat/help/eng>`__
 -  `Grumets research group, the people behind MiraMon <https://www.grumets.cat/index_eng.htm>`__
