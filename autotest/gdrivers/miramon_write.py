@@ -245,7 +245,7 @@ def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type
     "pattern",
     [None, "UserPattern"],
 )
-def test_miramonraster_multiband(data_type, compress, pattern):
+def test_miramonraster_multiband(tmp_path, data_type, compress, pattern):
     # --- Raster parameters ---
     xsize = 3
     ysize = 2
