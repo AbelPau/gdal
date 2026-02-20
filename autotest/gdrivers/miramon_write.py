@@ -308,8 +308,7 @@ def test_miramonraster_multiband(tmp_path, data_type, compress, pattern):
     assert band2.GetUnitType() == "m"
 
     # --- Write to MiraMonRaster ---
-    tmpdir = tempfile.mkdtemp()
-    mm_path = os.path.join(tmpdir, "testI.rel")
+    mm_path = tmp_path / "testI.rel"
 
     co = [f"COMPRESS={compress}"]
     if pattern is not None:
