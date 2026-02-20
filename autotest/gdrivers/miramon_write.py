@@ -11,12 +11,8 @@
 # SPDX-License-Identifier: MIT
 ###############################################################################
 
-import gc
 import io
-import os
-import shutil
 import struct
-import tempfile
 
 import pytest
 
@@ -79,7 +75,9 @@ init_type_list = [
 @pytest.mark.parametrize(
     "rat_first_col_type", [gdal.GFU_MinMax, gdal.GFU_Min, gdal.GFU_Generic]
 )
-def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type):
+def test_miramonraster_monoband(
+    tmp_path, data_type, compress, pattern, rat_first_col_type
+):
 
     if data_type == gdal.GDT_UInt8:
         use_color_table = "True"
@@ -155,8 +153,7 @@ def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type
         band.SetDefaultRAT(rat)
 
     # --- Write to MiraMonRaster ---
-    tmpdir = tempfile.mkdtemp()
-    mm_path = os.path.join(tmpdir, "testI.rel")
+    mm_path = tmp_path / "testI.rel"
 
     co = [f"COMPRESS={compress}"]
     if pattern is not None:
@@ -225,12 +222,6 @@ def test_miramonraster_monoband(data_type, compress, pattern, rat_first_col_type
 
     # --- Min / Max checks ---
     assert dst_band.ComputeRasterMinMax(False) == (1, 5)
-
-    # --- Cleanup ---
-    dst_ds = None
-    src_ds = None
-    gc.collect()
-    shutil.rmtree(tmpdir)
 
 
 @pytest.mark.parametrize(
@@ -434,7 +425,7 @@ def test_miramon_rgb_single_dataset(tmp_path):
 
 
 @pytest.mark.parametrize("separate_minmax", [True, False])
-def test_miramon_raster_RAT_to_CT(separate_minmax):
+def test_miramon_raster_RAT_to_CT(tmp_path, separate_minmax):
     # --- Raster parameters ---
     xsize = 3
     ysize = 2
@@ -497,8 +488,7 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     band.SetDefaultRAT(rat)
 
     # --- Write to MiraMonRaster ---
-    tmpdir = tempfile.mkdtemp("MM")
-    mm_path = os.path.join(tmpdir, "RareTestI.rel")
+    mm_path = tmp_path / "RareTestI.rel"
 
     mm_driver = gdal.GetDriverByName("MiraMonRaster")
     assert mm_driver is not None
@@ -520,14 +510,8 @@ def test_miramon_raster_RAT_to_CT(separate_minmax):
     for i in range(len(colors)):
         assert dst_ct.GetColorEntry(i) == colors[i]
 
-    # --- Cleanup ---
-    dst_ds = None
-    src_ds = None
-    gc.collect()
-    shutil.rmtree(tmpdir)
 
-
-def test_miramon_lineage_in_rel():
+def test_miramon_lineage_in_rel(tmp_path):
     # --- Raster parameters ---
     xsize = 3
     ysize = 2
@@ -555,8 +539,7 @@ def test_miramon_lineage_in_rel():
     )
 
     # --- Write to MiraMonRaster ---
-    tmpdir = tempfile.mkdtemp("MM")
-    mm_path = os.path.join(tmpdir, "LineageTestI.rel")
+    mm_path = tmp_path / "LineageTestI.rel"
 
     mm_driver = gdal.GetDriverByName("MiraMonRaster")
     assert mm_driver is not None
@@ -587,20 +570,10 @@ def test_miramon_lineage_in_rel():
         assert "identifier=-co CATEGORICAL_BANDS" in content
         assert "ResultValue=1" in content
 
-    # --- Cleanup ---
-    src_ds = None
-    gc.collect()
-    shutil.rmtree(tmpdir)
 
-
-#
-
-
+# Check that every line in expected_lineage_path
+# is present in mm_path.
 def check_lineage_content(expected_lineage_path, mm_path):
-    """
-    Check that every line in expected_lineage_path
-    is present in mm_path.
-    """
 
     # Read expected lineage file
     with io.open(expected_lineage_path, "r", encoding="cp1252") as f:
@@ -616,7 +589,7 @@ def check_lineage_content(expected_lineage_path, mm_path):
             assert False, f"Missing expected lineage line: {line!r}"
 
 
-def test_miramon_lineage_preservation():
+def test_miramon_lineage_preservation(tmp_path):
 
     # --- Open existing MiraMonRaster dataset with lineage information ---
     mm_ori_path = "data/miramon/lineage/int_2x3_6_RLEI.rel"
@@ -625,8 +598,7 @@ def test_miramon_lineage_preservation():
     assert src_ds is not None, "Could not open the file"
 
     # --- Write to VRT preserving the MIRAMON metadata domain ---
-    tmpdir = tempfile.mkdtemp("lineage")
-    vrt_path = os.path.join(tmpdir, "LineagePreservation.vrt")
+    vrt_path = tmp_path / "LineagePreservation.vrt"
 
     vrt_driver = gdal.GetDriverByName("VRT")
     assert vrt_driver is not None
@@ -643,7 +615,8 @@ def test_miramon_lineage_preservation():
     assert mm_ds is not None, "Could not open the VRT file"
 
     # --- Write back to MiraMonRaster ---
-    mm_path = os.path.join(tmpdir, "LineagePreservationI.rel")
+    mm_path = tmp_path / "LineagePreservationI.rel"
+
     mm_driver = gdal.GetDriverByName("MiraMonRaster")
     assert mm_driver is not None
     mm_lineage = mm_driver.CreateCopy(mm_path, mm_ds, options=["SRC_MDD=MIRAMON"])
@@ -654,10 +627,6 @@ def test_miramon_lineage_preservation():
     # Just check that somelines appear in the .rel file, we don't need to check the exact content of them
     # just to check that the rel contains the lineage information in the expected format.
     check_lineage_content(expected_lineage_path, mm_path)
-
-    # --- Cleanup ---
-    # gc.collect()
-    # shutil.rmtree(tmpdir)
 
 
 gdal_to_struct = {
@@ -687,7 +656,7 @@ init_type_list = [
     "compress",
     ["YES", "NO"],
 )
-def test_miramonraster_compress(data_type, compress):
+def test_miramonraster_compress(tmp_path, data_type, compress):
 
     # --- Raster parameters ---
     xsize = 5
@@ -718,8 +687,7 @@ def test_miramonraster_compress(data_type, compress):
     band.FlushCache()
 
     # --- Write to MiraMonRaster ---
-    tmpdir = tempfile.mkdtemp()
-    mm_path = os.path.join(tmpdir, "testI.rel")
+    mm_path = tmp_path / "testI.rel"
 
     co = [f"COMPRESS={compress}"]
 
@@ -753,9 +721,3 @@ def test_miramonraster_compress(data_type, compress):
 
     # --- Min / Max checks ---
     assert dst_band.ComputeRasterMinMax(False) == (0, 5)
-
-    # --- Cleanup ---
-    dst_ds = None
-    src_ds = None
-    gc.collect()
-    shutil.rmtree(tmpdir)
