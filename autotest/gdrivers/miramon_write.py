@@ -365,12 +365,6 @@ def test_miramonraster_multiband(tmp_path, data_type, compress, pattern):
 
     assert dst_band2.GetUnitType() == "m"
 
-    # --- Cleanup ---
-    dst_ds = None
-    src_ds = None
-    gc.collect()
-    shutil.rmtree(tmpdir)
-
 
 def test_miramon_rgb_single_dataset(tmp_path):
 
