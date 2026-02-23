@@ -1130,10 +1130,7 @@ void MMRRel::UpdateLineage(CSLConstList papszOptions, GDALDataset &oSrcDS)
     m_osInFile = oSrcDS.GetDescription();
     m_osOutFile = m_osRelFileName;
 
-    m_nOptions = CSLCount(papszOptions);
-    m_osOptions.resize(m_nOptions);
-    for (int nIOptions = 0; nIOptions < m_nOptions; nIOptions++)
-        m_osOptions[nIOptions] = CPLStrdup(papszOptions[nIOptions]);
+    m_aosOptions = papszOptions;
 }
 
 bool MMRRel::Write(GDALDataset &oSrcDS)
@@ -1150,7 +1147,7 @@ bool MMRRel::Write(GDALDataset &oSrcDS)
     // Writing IDENTIFICATION section
     WriteIDENTIFICATION();
 
-    // Writting OVERVIEW:ASPECTES_TECNICS
+    // Writing OVERVIEW:ASPECTES_TECNICS
     WriteOVERVIEW_ASPECTES_TECNICS(oSrcDS);
 
     // Writing SPATIAL_REFERENCE_SYSTEM:HORIZONTAL
@@ -1434,13 +1431,13 @@ void MMRRel::WriteBandSection(const MMRBand &osBand,
     if (!EQUAL(osDSDataType, osDataType))
         AddKeyValue("TipusCompressio", osDataType);
 
-    // TractamentVariable of the band (only written if diferent from default)
+    // TractamentVariable of the band (only written if different from default)
     CPLString osTractVariable =
         osBand.IsCategorical() ? "Categoric" : "QuantitatiuContinu";
     if (!EQUAL(m_osDefTractVariable, osTractVariable))
         AddKeyValue(KEY_TractamentVariable, osTractVariable);
 
-    // Units of the band (only written if diferent from default)
+    // Units of the band (only written if different from default)
     CPLString osUnits = osBand.GetUnits();
     if (!EQUAL(m_osDefUnits, osUnits))
     {
@@ -1664,16 +1661,12 @@ void MMRRel::WriteCurrentProcess()
         nInOut++;
     }
 
-    for (int iOptions = 0; iOptions < m_nOptions; iOptions++)
+    for (const auto &[pszKey, pszValue] : cpl::IterateNameValue(m_aosOptions))
     {
-        CPLString osOption = m_osOptions[iOptions];
-        size_t nPos = osOption.find('=');
-        if (nPos == std::string::npos)
-            continue;
         CPLString osIdentifierValue = "-co ";
-        osIdentifierValue.append(osOption.substr(0, nPos));
+        osIdentifierValue.append(pszKey);
         WriteINOUTSection(osSection, nInOut, osIdentifierValue, "", "C",
-                          osOption.substr(nPos + 1));
+                          pszValue);
         nInOut++;
     }
     if (m_nNProcesses)
